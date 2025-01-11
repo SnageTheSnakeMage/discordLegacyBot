@@ -63,7 +63,16 @@ Each player gets a class that gives them a special ability and they're starting 
 there is a list of all the clasees and their abilities here: https://docs.google.com/spreadsheets/d/1-Wn2_q8c1k2TmlVb-KDunRGIuzC5yuqH3L4XcIIy4G4/edit?usp=sharing
 
 ## The Board
-The board is different for each game but will always be a square board, each square can hold to a max of 4 players before that tile is inaccessible to all other players. made up of multiple "layers", a player can only leave a layer with either a special class ability or a gateway tile. Making they're traversal very important. Once the game reaches the final four, AP will go from +2 to +4 additional gateway tiles will be placed and fire tiles will begin spreading and dealing damage to those who stand still on them during ap distribution. 
+The board is different for each game but will always be a square board, each square can hold to a max of 4 players before that tile is inaccessible to all other players. 
 
-# Setup 
+The board is made up of multiple "layers", a player can only leave a layer with either a special class ability or a gateway tile.
+
+## Game Finale & Winner
+Once the game reaches the final four players, 
+- AP will go from +2 AP twice a day to +4 AP twice a day
+- Additional gateway tiles will be placed
+- Fire tiles will begin spreading to adjacent squares and will take -1HP from anyone who is standing on one when AP is given.
+Last one standing wins 
+
+## Setup 
 Each player is given a random layer, position, and class and then once all players are in them the game starts at the next AP drop interval.
