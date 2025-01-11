@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML to Image</title>
+    <style>
+        canvas { border: 1px solid black; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <canvas id="gridCanvas" width="600" height="600"></canvas>
+    <script>
+        const GRID_SIZE = 2000;
+        const TILE_SIZE = 100;
+        const NUM_STATES = 11;
+
+        // Array to hold images for each state
+        const images = [];
+        
+        // Preload images for each state
+        for (let i = 0; i < NUM_STATES; i++) {
+            const img = new Image();
+            img.src = `file:///G:/LegacyBotDiscord/BotFiles/gridResources/legacySpriteSheet${i+1}.png`; // Change this to the correct path for your images
+            images.push(img);
+        }
+
+        const canvas = document.getElementById('gridCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Function to draw the grid
+        function drawGrid(grid) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    const state = grid[x][y];
+                    ctx.drawImage(images[state], x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                }
+            }
+        }
+
+        // Create a random grid state
+        const grid = Array.from({ length: GRID_SIZE }, () =>
+            Array.from({ length: GRID_SIZE }, () => Math.floor(Math.random() * NUM_STATES))
+        );
+
+        // Load images and draw the grid once they're all loaded
+        let imagesLoaded = 0;
+        images.forEach((img, index) => {
+            img.onload = () => {
+                imagesLoaded++;
+                if (imagesLoaded === NUM_STATES) {
+                    drawGrid(grid); // Draw the grid once all images are loaded
+                }
+            };
+        });
+
+    async function captureAndServeImage(req, res) {
+        const canvas = await html2canvas(document.getElementById('gridCanvas'));
+        const dataUrl = canvas.toDataURL('image/png');
+        
+        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        res.set('Content-Type', 'image/png');
+        res.send(buffer);
+    }
+
+    // Serve the image when this endpoint is requested
+    window.addEventListener('DOMContentLoaded', () => {
+        if (window.location.pathname === '/screenshot') {
+            captureAndServeImage();
+        }
+    });
+</script>
+
+</body>
+</html>

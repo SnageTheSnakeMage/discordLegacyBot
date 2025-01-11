@@ -1,0 +1,2781 @@
+{
+  "nodes": [
+    {
+      "type": "command",
+      "name": "help",
+      "guid": "7942fe4c-dffa-4146-8cab-d254b3d80d5d",
+      "outputs": [
+        {
+          "label": "responses",
+          "connections": [
+            "37eda463-a170-44f9-af54-61378ffc9294"
+          ]
+        }
+      ],
+      "inputs": [],
+      "x": 85,
+      "y": 63
+    },
+    {
+      "type": "response",
+      "name": "help menu",
+      "guid": "37eda463-a170-44f9-af54-61378ffc9294",
+      "reactionFields": [],
+      "embedfields": [
+        {
+          "name": "!help",
+          "value": "Shows this menu",
+          "inline": "true"
+        },
+        {
+          "name": "!info",
+          "value": "Shows some info",
+          "inline": "true"
+        }
+      ],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "7942fe4c-dffa-4146-8cab-d254b3d80d5d"
+        }
+      ],
+      "x": 87,
+      "y": 205,
+      "rtype": "Message",
+      "rsubtype": "Send Embed",
+      "formdata": [
+        "${dbsVars.CommandChannel.id}",
+        "1FFF57",
+        "Help Menu",
+        "",
+        "Bot Name Here",
+        "",
+        "",
+        "This is the embed description, replace this with some info about your bot!",
+        "",
+        "",
+        "",
+        "false",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "channelname",
+        "color",
+        "title",
+        "url",
+        "authorname",
+        "authorimageurl",
+        "authorlink",
+        "description",
+        "thumbnail",
+        "image",
+        "footer",
+        "timestamp",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "sendMsg",
+      "guid": "d3dd3b4d-2c8a-47ae-b527-b199d138daa9",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 144,
+      "y": 985,
+      "rtype": "Message",
+      "rsubtype": "Send Message",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "sendImage",
+      "guid": "c307f0dc-0da8-45b4-8705-b56f171d375d",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 150,
+      "y": 1104,
+      "rtype": "Message",
+      "rsubtype": "Send Image",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "sendEmbed",
+      "guid": "d64ca474-3540-44be-a189-1638c8d78123",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 153,
+      "y": 1227,
+      "rtype": "Message",
+      "rsubtype": "Send Embed",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "deleteMsg",
+      "guid": "cc215a52-d688-4634-80e0-65d43bf95965",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 157,
+      "y": 1349,
+      "rtype": "Message",
+      "rsubtype": "Delete Message",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "editMsg",
+      "guid": "0ed40fb4-f730-49fe-8527-6396d4de2df4",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 151,
+      "y": 1478,
+      "rtype": "Message",
+      "rsubtype": "Edit Message",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "isMsgInChannel",
+      "guid": "69ce82a1-5a56-4dd4-8339-6aec94fa75ad",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "true",
+          "connections": []
+        },
+        {
+          "label": "false",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 158,
+      "y": 1604,
+      "rtype": "Message",
+      "rsubtype": "Check If Message Is In Channel",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "reactionListener",
+      "guid": "580c5877-2472-4787-aa98-26346d042ec1",
+      "embedfields": [],
+      "outputs": [],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 361,
+      "y": 997,
+      "rtype": "Reaction",
+      "rsubtype": "Add Reaction Listener",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "storeThis",
+      "guid": "660b8026-1c2a-4937-b4db-d3800981ba28",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 544,
+      "y": 1011,
+      "rtype": "Variable",
+      "rsubtype": "Store Value in Variable",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "editThis",
+      "guid": "1f45a04f-0199-4e8f-bc0c-7ea9a362b6b8",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 544,
+      "y": 1138,
+      "rtype": "Variable",
+      "rsubtype": "Edit Variable",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "checkValue",
+      "guid": "663d3f0c-3491-413b-b311-9a32ee6453d9",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "true",
+          "connections": []
+        },
+        {
+          "label": "false",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 538,
+      "y": 1260,
+      "rtype": "Variable",
+      "rsubtype": "Check Variable Value",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "checkVariableExistance",
+      "guid": "2531fba3-57c6-462f-a257-a13907523196",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "true",
+          "connections": []
+        },
+        {
+          "label": "false",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 546,
+      "y": 1421,
+      "rtype": "Variable",
+      "rsubtype": "Check If Variable Exists",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "StringContains",
+      "guid": "e834d124-e6d0-4d19-a63a-127b5f754a18",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "true",
+          "connections": []
+        },
+        {
+          "label": "false",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 547,
+      "y": 1603,
+      "rtype": "Variable",
+      "rsubtype": "Check If String Contains",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "RandomNumber",
+      "guid": "77a4f31d-c065-48f6-a329-4fc60059bc88",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 546,
+      "y": 1776,
+      "rtype": "Variable",
+      "rsubtype": "Generate Random Number",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "MentionedUser",
+      "guid": "84b036e1-d980-4a7c-afec-b637a0976b4c",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 538,
+      "y": 1918,
+      "rtype": "Variable",
+      "rsubtype": "Get Mentioned User",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "setUData",
+      "guid": "cf96157e-bdee-4dd6-9666-19cf79934bff",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 715,
+      "y": 1013,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "UpdateUData",
+      "guid": "ec5a86ce-a608-4c5d-b413-603bb6e50938",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 721,
+      "y": 1268,
+      "rtype": "User Data",
+      "rsubtype": "Edit User Data",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "CheckUData",
+      "guid": "08877b2f-6a72-4b57-97ac-4dca0b7b3fc7",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "true",
+          "connections": []
+        },
+        {
+          "label": "false",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 730,
+      "y": 1385,
+      "rtype": "User Data",
+      "rsubtype": "Check User Data",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "addRole",
+      "guid": "e25c7f96-8c82-498e-a75f-3ae1b7099cd0",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 349,
+      "y": 1218,
+      "rtype": "User Action",
+      "rsubtype": "Add Role to User",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "removeRole",
+      "guid": "6a46de85-a1ba-484b-9131-2f01dd73c73a",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 348,
+      "y": 1340,
+      "rtype": "User Action",
+      "rsubtype": "Remove Role From User",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "checkPerms",
+      "guid": "64e2ff03-5195-43cd-bd6d-18f221b67735",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "has perms",
+          "connections": []
+        },
+        {
+          "label": "doesn't have perms",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 350,
+      "y": 1471,
+      "rtype": "User Action",
+      "rsubtype": "Check User Permissions",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "kickUser",
+      "guid": "9939110b-06ab-4c87-9b4d-112ee1fb04d9",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 353,
+      "y": 1630,
+      "rtype": "User Action",
+      "rsubtype": "Kick User",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "banUser",
+      "guid": "8e936ff6-726c-49d7-8129-51fa215ef9f0",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 349,
+      "y": 1761,
+      "rtype": "User Action",
+      "rsubtype": "Ban User",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "makeChannel",
+      "guid": "7f859e41-ca98-4e77-a39a-4c623e9e248f",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 926,
+      "y": 1023,
+      "rtype": "Channel Action",
+      "rsubtype": "Create Channel",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "deleteChannel",
+      "guid": "f93cade3-b6e9-4549-bcbc-b4369eb74da3",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 925,
+      "y": 1149,
+      "rtype": "Channel Action",
+      "rsubtype": "Delete Channel",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "changeChannelPerms",
+      "guid": "9806ba53-5cc8-40e1-9c84-1d5831fa2363",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 926,
+      "y": 1295,
+      "rtype": "Channel Action",
+      "rsubtype": "Update Channel Permissions",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "deleteAllMsgsInChannel",
+      "guid": "0b994a48-8ba3-4727-a380-a0358f230480",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 931,
+      "y": 1435,
+      "rtype": "Channel Action",
+      "rsubtype": "Delete All Messages",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "makeCategory",
+      "guid": "1a1a8476-fa16-488b-967c-af8a404b6ece",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 930,
+      "y": 1578,
+      "rtype": "Channel Action",
+      "rsubtype": "Create Category",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "makeRole",
+      "guid": "83bd9b76-a909-419d-9216-a54970662050",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 1115,
+      "y": 1016,
+      "rtype": "Server Action",
+      "rsubtype": "Add Role to Server",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "setStatus",
+      "guid": "2cf4fdf0-5af8-4622-a465-7fa0fb9c8f17",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 1116,
+      "y": 1251,
+      "rtype": "Bot Action",
+      "rsubtype": "Set Bot Status",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "setActivity",
+      "guid": "7dfe96c1-2600-4fd4-90e5-ad72ce49d895",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 1119,
+      "y": 1369,
+      "rtype": "Bot Action",
+      "rsubtype": "Set Bot Activity",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "setAvatar",
+      "guid": "967d2de3-6fb8-4c69-ad51-4bde178547cf",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 1116,
+      "y": 1497,
+      "rtype": "Bot Action",
+      "rsubtype": "Set Avatar",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "getSpreadsheetRow",
+      "guid": "7970c5eb-0faf-4715-9209-2e40ac1cca09",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "row is found",
+          "connections": []
+        },
+        {
+          "label": "row not found",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 1286,
+      "y": 1017,
+      "rtype": "Spreadsheet",
+      "rsubtype": "Get Row",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "wait",
+      "guid": "c46a25f7-39f9-4c52-b3da-7b3e0e9271aa",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 1296,
+      "y": 1258,
+      "rtype": "Control",
+      "rsubtype": "Wait",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "switch",
+      "guid": "a3df58e3-43db-4d2f-beba-2cc7ed2efe84",
+      "embedfields": [],
+      "outputs": [],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 1294,
+      "y": 1400,
+      "rtype": "Control",
+      "rsubtype": "Switch Case",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "multiInput",
+      "guid": "7d249f5c-5bb2-4646-932c-2361e4f1b191",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        },
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 1290,
+      "y": 1496,
+      "rtype": "Control",
+      "rsubtype": "Multiple Input",
+      "messageActionRows": []
+    },
+    {
+      "type": "command",
+      "name": "mystats",
+      "guid": "dcb5e58e-c528-4077-acc5-767b560b11cc",
+      "outputs": [
+        {
+          "label": "responses",
+          "connections": []
+        }
+      ],
+      "inputs": [],
+      "x": 31,
+      "y": 414,
+      "perms": [
+        "living"
+      ]
+    },
+    {
+      "type": "command",
+      "name": "register",
+      "guid": "33d78d92-8a8e-4d27-badf-6a57525bd46c",
+      "outputs": [
+        {
+          "label": "responses",
+          "connections": [
+            "c6671cfb-2998-462f-9306-33ffeac25d8e"
+          ]
+        }
+      ],
+      "inputs": [],
+      "x": 303,
+      "y": 273,
+      "perms": [
+        "living"
+      ]
+    },
+    {
+      "type": "response",
+      "name": "getUserID",
+      "guid": "6fbf6342-ae5b-488c-9a83-359a9fb66b96",
+      "reactionFields": [],
+      "embedfields": [],
+      "saveToVariable": "user_id",
+      "saveToVariableType": "temp",
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "dcb5e58e-c528-4077-acc5-767b560b11cc"
+        }
+      ],
+      "x": 728,
+      "y": 1123,
+      "rtype": "User Data",
+      "rsubtype": "Get User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_id",
+        "user_id",
+        "temp",
+        "User"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "varname",
+        "saveVarType",
+        "vartype"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "command",
+      "name": "setup",
+      "guid": "b0372538-22ca-4a8e-8c5d-32b811aa8319",
+      "outputs": [
+        {
+          "label": "responses",
+          "connections": [
+            "4fa4ecdb-194d-4c7f-80e0-414b59aba931"
+          ]
+        }
+      ],
+      "inputs": [],
+      "x": 2455,
+      "y": 809
+    },
+    {
+      "type": "response",
+      "name": "makeChampRole",
+      "guid": "4fa4ecdb-194d-4c7f-80e0-414b59aba931",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "67829079-8336-4b8a-ba8d-a037916354a6"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "b0372538-22ca-4a8e-8c5d-32b811aa8319"
+        }
+      ],
+      "x": 2700,
+      "y": 803,
+      "rtype": "Server Action",
+      "rsubtype": "Add Role to Server",
+      "formdata": [
+        "CHAMPION",
+        "FFFF47",
+        "",
+        "BOOL_TRUE@@",
+        "false",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "rolename",
+        "color",
+        "position",
+        "hoist",
+        "mentionable",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "makeMostKillsRole",
+      "guid": "67829079-8336-4b8a-ba8d-a037916354a6",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "68f42a29-df26-4061-adb0-13bced43ac66"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "4fa4ecdb-194d-4c7f-80e0-414b59aba931"
+        }
+      ],
+      "x": 2880,
+      "y": 797,
+      "rtype": "Server Action",
+      "rsubtype": "Add Role to Server",
+      "formdata": [
+        "Most Kills",
+        "5C0000",
+        "",
+        "BOOL_TRUE@@",
+        "false",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "rolename",
+        "color",
+        "position",
+        "hoist",
+        "mentionable",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "makeFirstKillRole",
+      "guid": "68f42a29-df26-4061-adb0-13bced43ac66",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "a13b0d90-1e8f-4e26-914e-a188365e4e48"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "67829079-8336-4b8a-ba8d-a037916354a6"
+        }
+      ],
+      "x": 3059,
+      "y": 797,
+      "rtype": "Server Action",
+      "rsubtype": "Add Role to Server",
+      "formdata": [
+        "First Blood",
+        "F62F2F",
+        "",
+        "BOOL_TRUE@@",
+        "false",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "rolename",
+        "color",
+        "position",
+        "hoist",
+        "mentionable",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "makeBoardUpdateRole",
+      "guid": "a13b0d90-1e8f-4e26-914e-a188365e4e48",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "445d2eea-3f40-4abc-be37-6ce0169a65e5"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "68f42a29-df26-4061-adb0-13bced43ac66"
+        }
+      ],
+      "x": 3234,
+      "y": 804,
+      "rtype": "Server Action",
+      "rsubtype": "Add Role to Server",
+      "formdata": [
+        "boardUpdatePing",
+        "FFFFFF",
+        "",
+        "false",
+        "false",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "rolename",
+        "color",
+        "position",
+        "hoist",
+        "mentionable",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "makeDeadRole",
+      "guid": "445d2eea-3f40-4abc-be37-6ce0169a65e5",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "c1bd5cb4-6e84-4d86-92b2-e8995ddabb7c"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "a13b0d90-1e8f-4e26-914e-a188365e4e48"
+        }
+      ],
+      "x": 3427,
+      "y": 808,
+      "rtype": "Server Action",
+      "rsubtype": "Add Role to Server",
+      "formdata": [
+        "Dead||Chaos Council Member",
+        "103500",
+        "",
+        "BOOL_TRUE@@",
+        "false",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "rolename",
+        "color",
+        "position",
+        "hoist",
+        "mentionable",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "makeAliveRole",
+      "guid": "c1bd5cb4-6e84-4d86-92b2-e8995ddabb7c",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "e74486eb-0f2c-48b7-a398-0123368b9ebf"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "445d2eea-3f40-4abc-be37-6ce0169a65e5"
+        }
+      ],
+      "x": 3604,
+      "y": 802,
+      "rtype": "Server Action",
+      "rsubtype": "Add Role to Server",
+      "formdata": [
+        "Living",
+        "93FF6B",
+        "",
+        "BOOL_TRUE@@",
+        "false",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "rolename",
+        "color",
+        "position",
+        "hoist",
+        "mentionable",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "makeLayerRole",
+      "guid": "e74486eb-0f2c-48b7-a398-0123368b9ebf",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "41c0cd59-69c7-4e4c-b188-8d01f9d80b8d"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "c1bd5cb4-6e84-4d86-92b2-e8995ddabb7c"
+        }
+      ],
+      "x": 3795,
+      "y": 795,
+      "rtype": "Server Action",
+      "rsubtype": "Add Role to Server",
+      "formdata": [
+        "Layer1",
+        "FFFFFF",
+        "",
+        "false",
+        "false",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "rolename",
+        "color",
+        "position",
+        "hoist",
+        "mentionable",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "makeLayerRole_1",
+      "guid": "41c0cd59-69c7-4e4c-b188-8d01f9d80b8d",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "1ed10f95-8255-4224-96bc-283bc6c516b7"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "e74486eb-0f2c-48b7-a398-0123368b9ebf"
+        }
+      ],
+      "x": 3969,
+      "y": 792,
+      "rtype": "Server Action",
+      "rsubtype": "Add Role to Server",
+      "formdata": [
+        "Layer2",
+        "FFFFFF",
+        "",
+        "false",
+        "false",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "rolename",
+        "color",
+        "position",
+        "hoist",
+        "mentionable",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "makeLayerRole_2",
+      "guid": "1ed10f95-8255-4224-96bc-283bc6c516b7",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "41c0cd59-69c7-4e4c-b188-8d01f9d80b8d"
+        }
+      ],
+      "x": 4136,
+      "y": 796,
+      "rtype": "Server Action",
+      "rsubtype": "Add Role to Server",
+      "formdata": [
+        "Layer3",
+        "FFFFFF",
+        "",
+        "false",
+        "false",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "rolename",
+        "color",
+        "position",
+        "hoist",
+        "mentionable",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "error 00",
+      "guid": "9cb38ef4-c00c-4edd-bf35-2012a69a3a1f",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": ""
+        }
+      ],
+      "x": 43,
+      "y": 678,
+      "rtype": "Message",
+      "rsubtype": "Send Message",
+      "formdata": [
+        "${dbsVars.CommandChannel.id}",
+        "Error 00\nNo user found, please register before trying to check your stats!",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "channelName",
+        "messageText",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile",
+      "guid": "c6671cfb-2998-462f-9306-33ffeac25d8e",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "1b52b035-a696-442d-a0db-370e2eb797fb"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "33d78d92-8a8e-4d27-badf-6a57525bd46c"
+        }
+      ],
+      "x": 489,
+      "y": 264,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_ap",
+        "0"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_1",
+      "guid": "1b52b035-a696-442d-a0db-370e2eb797fb",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "3fa48e5b-7265-42d9-8a04-23751903c059"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "c6671cfb-2998-462f-9306-33ffeac25d8e"
+        }
+      ],
+      "x": 671,
+      "y": 263,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_speed",
+        "1"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_2",
+      "guid": "3fa48e5b-7265-42d9-8a04-23751903c059",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "bf7a2f87-eba0-4a0f-aa1f-13b3c6396d7c"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "1b52b035-a696-442d-a0db-370e2eb797fb"
+        }
+      ],
+      "x": 850,
+      "y": 269,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_damage",
+        "1"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_3",
+      "guid": "bf7a2f87-eba0-4a0f-aa1f-13b3c6396d7c",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "f6877460-7e72-4bae-a647-88eb6ce1d54e"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "3fa48e5b-7265-42d9-8a04-23751903c059"
+        }
+      ],
+      "x": 1034,
+      "y": 260,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_hp",
+        "6"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_4",
+      "guid": "f6877460-7e72-4bae-a647-88eb6ce1d54e",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "a62aa64d-1257-418b-bf8f-2d16f77a85a3"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "bf7a2f87-eba0-4a0f-aa1f-13b3c6396d7c"
+        }
+      ],
+      "x": 496,
+      "y": 415,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_range",
+        "1"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_5",
+      "guid": "a62aa64d-1257-418b-bf8f-2d16f77a85a3",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "a3b33efe-6a60-4a08-97d2-e89ef082b726"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "f6877460-7e72-4bae-a647-88eb6ce1d54e"
+        }
+      ],
+      "x": 683,
+      "y": 420,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_alive?",
+        "true"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_6",
+      "guid": "a3b33efe-6a60-4a08-97d2-e89ef082b726",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "f001b460-d4ab-402f-a163-772013c6c09a"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "a62aa64d-1257-418b-bf8f-2d16f77a85a3"
+        }
+      ],
+      "x": 857,
+      "y": 426,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_layer",
+        "-1"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_7",
+      "guid": "f001b460-d4ab-402f-a163-772013c6c09a",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "46bd4cc3-d390-447c-87db-79ae460a3ad4"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "a3b33efe-6a60-4a08-97d2-e89ef082b726"
+        }
+      ],
+      "x": 1029,
+      "y": 429,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_xPostion",
+        "-1"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_8",
+      "guid": "46bd4cc3-d390-447c-87db-79ae460a3ad4",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "3393871f-46f9-4945-8058-f95bc7d3c180"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "f001b460-d4ab-402f-a163-772013c6c09a"
+        }
+      ],
+      "x": 497,
+      "y": 558,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_yPostion",
+        "-1"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_9",
+      "guid": "3393871f-46f9-4945-8058-f95bc7d3c180",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "07be3911-7a7b-49db-bebe-6f08be9ad10f"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "46bd4cc3-d390-447c-87db-79ae460a3ad4"
+        }
+      ],
+      "x": 674,
+      "y": 556,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_currentTile",
+        "Null"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_10",
+      "guid": "07be3911-7a7b-49db-bebe-6f08be9ad10f",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "1f85cf7e-19e8-4d8f-bf1a-eb38cd2daa03"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "3393871f-46f9-4945-8058-f95bc7d3c180"
+        }
+      ],
+      "x": 851,
+      "y": 557,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_class",
+        "Null"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_11",
+      "guid": "1f85cf7e-19e8-4d8f-bf1a-eb38cd2daa03",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "56ea6594-bc2e-4e65-aeb4-c135228bcd9a"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "07be3911-7a7b-49db-bebe-6f08be9ad10f"
+        }
+      ],
+      "x": 1031,
+      "y": 564,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_kills",
+        "0"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_12",
+      "guid": "56ea6594-bc2e-4e65-aeb4-c135228bcd9a",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "46b43989-6657-4be9-bcd8-95fa0dd803e8"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "1f85cf7e-19e8-4d8f-bf1a-eb38cd2daa03"
+        }
+      ],
+      "x": 499,
+      "y": 710,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_deaths",
+        "0"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_13",
+      "guid": "46b43989-6657-4be9-bcd8-95fa0dd803e8",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "2c3f2a24-6d74-4057-bd68-ae4fc83517d1"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "56ea6594-bc2e-4e65-aeb4-c135228bcd9a"
+        }
+      ],
+      "x": 677,
+      "y": 708,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_damageDealt",
+        "0"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_14",
+      "guid": "2c3f2a24-6d74-4057-bd68-ae4fc83517d1",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "d693fd8d-70ed-4962-a161-27c6b8e49c82"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "46b43989-6657-4be9-bcd8-95fa0dd803e8"
+        }
+      ],
+      "x": 852,
+      "y": 703,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_damageTaken",
+        "0"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_15",
+      "guid": "d693fd8d-70ed-4962-a161-27c6b8e49c82",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "d2dff54a-d42e-4e7e-b708-d9d9d8a17c92"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "2c3f2a24-6d74-4057-bd68-ae4fc83517d1"
+        }
+      ],
+      "x": 1023,
+      "y": 705,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_healed",
+        "0"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_16",
+      "guid": "d2dff54a-d42e-4e7e-b708-d9d9d8a17c92",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "64ba4a92-018d-4c46-b5e2-b0c959de7c68"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "d693fd8d-70ed-4962-a161-27c6b8e49c82"
+        }
+      ],
+      "x": 503,
+      "y": 853,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_upgraded",
+        "0"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_17",
+      "guid": "64ba4a92-018d-4c46-b5e2-b0c959de7c68",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "bc25a73d-4015-412a-8bd2-502f9f7aad19"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "d2dff54a-d42e-4e7e-b708-d9d9d8a17c92"
+        }
+      ],
+      "x": 678,
+      "y": 850,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_apSpent",
+        "0"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_18",
+      "guid": "bc25a73d-4015-412a-8bd2-502f9f7aad19",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "1c01b99b-f1ed-45ac-a5ee-4c5b050dc791"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "64ba4a92-018d-4c46-b5e2-b0c959de7c68"
+        }
+      ],
+      "x": 854,
+      "y": 848,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_apGained",
+        "0"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_19",
+      "guid": "1c01b99b-f1ed-45ac-a5ee-4c5b050dc791",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "5d3ac618-dd5b-414d-9d0d-15c31d922519"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "bc25a73d-4015-412a-8bd2-502f9f7aad19"
+        }
+      ],
+      "x": 1033,
+      "y": 843,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_gaveAp",
+        "0"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "createProfile_20",
+      "guid": "5d3ac618-dd5b-414d-9d0d-15c31d922519",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "3bd2ed77-3a3a-46d6-8dc4-cf24a302d7d5"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "1c01b99b-f1ed-45ac-a5ee-4c5b050dc791"
+        }
+      ],
+      "x": 1211,
+      "y": 265,
+      "rtype": "User Data",
+      "rsubtype": "Set User Data",
+      "formdata": [
+        "${dbsVars.CommandAuthor.id}",
+        "user_giftedAp",
+        "0"
+      ],
+      "formnames": [
+        "user",
+        "field",
+        "fieldvalue"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "classRoller",
+      "guid": "3bd2ed77-3a3a-46d6-8dc4-cf24a302d7d5",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "67c1e865-674c-4f00-817a-007dcdd8c40f"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "5d3ac618-dd5b-414d-9d0d-15c31d922519"
+        }
+      ],
+      "x": 1406,
+      "y": 264,
+      "rtype": "Variable",
+      "rsubtype": "Generate Random Number",
+      "formdata": [
+        "classRoll",
+        "1",
+        "32",
+        "temp"
+      ],
+      "formnames": [
+        "varname",
+        "min",
+        "max",
+        "saveVarType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "classInfo",
+      "guid": "67c1e865-674c-4f00-817a-007dcdd8c40f",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "row is found",
+          "connections": []
+        },
+        {
+          "label": "row not found",
+          "connections": [
+            "85abe510-9b7f-4fc5-b115-ee028e4dcf0f"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "3bd2ed77-3a3a-46d6-8dc4-cf24a302d7d5"
+        }
+      ],
+      "x": 1585,
+      "y": 256,
+      "rtype": "Spreadsheet",
+      "rsubtype": "Get Row",
+      "formdata": [
+        "LegacyPlayerDatabase - ClassDatabase.csv",
+        "ID",
+        "${tempVars.classRoll}",
+        "Rolled Class",
+        "temp"
+      ],
+      "formnames": [
+        "selectedsheet",
+        "colheader",
+        "colval",
+        "rowvariable",
+        "saveVarType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "error 01",
+      "guid": "85abe510-9b7f-4fc5-b115-ee028e4dcf0f",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "67c1e865-674c-4f00-817a-007dcdd8c40f"
+        }
+      ],
+      "x": 1766,
+      "y": 394,
+      "rtype": "Message",
+      "rsubtype": "Send Message",
+      "formdata": [
+        "${dbsVars.CommandChannel.id}",
+        "Error 01\nWhat how the fuck, go laugh at snage they made the random number generator go out of range somehow sorry",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "channelName",
+        "messageText",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "Registration Complete!",
+      "guid": "9fab64c7-2285-45bd-bf9d-7b707ea8267f",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 1772,
+      "y": 202,
+      "rtype": "Message",
+      "rsubtype": "Send Message",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "arrayTest",
+      "guid": "7a4a5e27-bbf0-48c6-b443-0b80b98deff1",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 1409,
+      "y": 595,
+      "rtype": "Variable",
+      "rsubtype": "Store Value in Variable",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "databaseTest",
+      "guid": "b710939a-a1dc-455f-a86c-2b1e8751515d",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 385,
+      "y": 1126,
+      "rtype": "Bot Action",
+      "rsubtype": "File System",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "test",
+      "guid": "5a6068ec-b33f-42c2-b0a5-ec7a0eec5b9c",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "31b265f8-f924-4dc4-91c7-b16ca104dbad"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "160edb0a-371d-4468-b25e-c1f84f946d03"
+        }
+      ],
+      "x": 760,
+      "y": 64,
+      "rtype": "Bot Action",
+      "rsubtype": "File System",
+      "formdata": [
+        "write",
+        "${tempVars.filePathW}",
+        "${tempVars.writeThis}",
+        "",
+        "",
+        "temp",
+        ""
+      ],
+      "formnames": [
+        "job",
+        "writefp",
+        "writed",
+        "readfp",
+        "varname",
+        "vartype",
+        "deletefp"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "command",
+      "name": "write",
+      "guid": "206861bc-ece6-4803-ba5b-1f5c68f6b1dc",
+      "outputs": [
+        {
+          "label": "responses",
+          "connections": [
+            "86bb6c6a-44e5-4edf-8912-e2c873ccd5eb"
+          ]
+        }
+      ],
+      "inputs": [],
+      "x": 261,
+      "y": 128
+    },
+    {
+      "type": "response",
+      "name": "res",
+      "guid": "31b265f8-f924-4dc4-91c7-b16ca104dbad",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "5a6068ec-b33f-42c2-b0a5-ec7a0eec5b9c"
+        }
+      ],
+      "x": 962,
+      "y": 33,
+      "rtype": "Message",
+      "rsubtype": "Send Message",
+      "formdata": [
+        "${dbsVars.CommandChannel.id}",
+        "sent write command",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "channelName",
+        "messageText",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "test_1",
+      "guid": "88610d05-c230-4d7d-b781-916f72895fd8",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "b7c426ef-c4f0-4d90-8621-8e5bf6ecbbbb"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "3af53a53-32e7-4f56-ac5b-d34a4eaeb4b8"
+        }
+      ],
+      "x": 1318,
+      "y": 32,
+      "rtype": "Bot Action",
+      "rsubtype": "File System",
+      "formdata": [
+        "read",
+        "C:\\Users\\firec\\OneDrive\\Documents\\discordBotTest.txt",
+        "a",
+        "${tempVars.filePath}",
+        "view",
+        "temp",
+        ""
+      ],
+      "formnames": [
+        "job",
+        "writefp",
+        "writed",
+        "readfp",
+        "varname",
+        "vartype",
+        "deletefp"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "res_1",
+      "guid": "b7c426ef-c4f0-4d90-8621-8e5bf6ecbbbb",
+      "reactionFields": [],
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "88610d05-c230-4d7d-b781-916f72895fd8"
+        }
+      ],
+      "x": 1621,
+      "y": 62,
+      "rtype": "Message",
+      "rsubtype": "Send Message",
+      "formdata": [
+        "${dbsVars.CommandChannel.id}",
+        "sent read command recieved ${tempVars.view}",
+        "",
+        "temp"
+      ],
+      "formnames": [
+        "channelName",
+        "messageText",
+        "saveToVariable",
+        "saveToVariableType"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "command",
+      "name": "read",
+      "guid": "0968646f-3185-4025-ba5a-7c2c7daf2340",
+      "outputs": [
+        {
+          "label": "responses",
+          "connections": [
+            "3af53a53-32e7-4f56-ac5b-d34a4eaeb4b8"
+          ]
+        }
+      ],
+      "inputs": [],
+      "x": 1243,
+      "y": 161
+    },
+    {
+      "type": "response",
+      "name": "parameter",
+      "guid": "86bb6c6a-44e5-4edf-8912-e2c873ccd5eb",
+      "reactionFields": [],
+      "embedfields": [],
+      "saveToVariable": "writeThis",
+      "saveToVariableType": "temp",
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "160edb0a-371d-4468-b25e-c1f84f946d03"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "206861bc-ece6-4803-ba5b-1f5c68f6b1dc"
+        }
+      ],
+      "x": 425,
+      "y": 94,
+      "rtype": "Variable",
+      "rsubtype": "Store Value in Variable",
+      "formdata": [
+        "writeThis",
+        "Text",
+        "temp",
+        "1"
+      ],
+      "formnames": [
+        "varname",
+        "vartype",
+        "saveVarType",
+        "param"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "nametest",
+      "guid": "160edb0a-371d-4468-b25e-c1f84f946d03",
+      "reactionFields": [],
+      "embedfields": [],
+      "saveToVariable": "filePathW",
+      "saveToVariableType": "temp",
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "5a6068ec-b33f-42c2-b0a5-ec7a0eec5b9c"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "86bb6c6a-44e5-4edf-8912-e2c873ccd5eb"
+        }
+      ],
+      "x": 590,
+      "y": 59,
+      "rtype": "Variable",
+      "rsubtype": "Store Value in Variable",
+      "formdata": [
+        "filePathW",
+        "Text",
+        "temp",
+        "2"
+      ],
+      "formnames": [
+        "varname",
+        "vartype",
+        "saveVarType",
+        "param"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "nameTestEdit",
+      "guid": "fd3297d2-7d8c-47a1-9d16-d19e2b9fcc89",
+      "embedfields": [],
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 1432,
+      "y": 416,
+      "rtype": "Variable",
+      "rsubtype": "Edit Variable",
+      "messageActionRows": []
+    },
+    {
+      "type": "response",
+      "name": "nametest_1",
+      "guid": "3af53a53-32e7-4f56-ac5b-d34a4eaeb4b8",
+      "reactionFields": [],
+      "embedfields": [],
+      "saveToVariable": "filePath",
+      "saveToVariableType": "temp",
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": [
+            "88610d05-c230-4d7d-b781-916f72895fd8"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": "0968646f-3185-4025-ba5a-7c2c7daf2340"
+        }
+      ],
+      "x": 1443,
+      "y": 131,
+      "rtype": "Variable",
+      "rsubtype": "Store Value in Variable",
+      "formdata": [
+        "filePath",
+        "Text",
+        "temp",
+        "1"
+      ],
+      "formnames": [
+        "varname",
+        "vartype",
+        "saveVarType",
+        "param"
+      ],
+      "messageActionRows": [],
+      "valueFields": []
+    },
+    {
+      "type": "response",
+      "name": "boardPicture",
+      "guid": "78788834-2e84-4214-a3d7-b61e58ef179f",
+      "embedfields": [],
+      "saveToVariable": "",
+      "saveToVariableType": "temp",
+      "outputs": [
+        {
+          "label": "next response",
+          "connections": []
+        }
+      ],
+      "inputs": [
+        {
+          "label": "trigger",
+          "id": []
+        }
+      ],
+      "x": 252,
+      "y": 408,
+      "rtype": "Message",
+      "rsubtype": "Html To Image",
+      "messageActionRows": []
+    }
+  ]
+}

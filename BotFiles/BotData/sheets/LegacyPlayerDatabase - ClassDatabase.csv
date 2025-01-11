@@ -1,0 +1,33 @@
+ID,Class,Class Description,Class Starting Stats,Class Color Hex
+1,Vampyr,Gains 2 HP on Kill ,6HP 1Range 1Speed 0AP 1Damage,CB0000
+2,Twin,Controls 2 separate bodies each have half hp,3HP 1Range 1Speed 0AP  1Damage x2,8FE2C6
+3,Dimensional Hopper,Can Move Up/Down Layers by spending 2AP with the >warp up & >warp down commands,6HP 1Range 1Speed 0AP 1Damage,352895
+4,Lava Diver,You are immune to fire tiles,6HP 1Range 1Speed 0AP  1Damage,FC482E
+5,Switchmate,Can swap places with any player for 12AP with the >swap @mention command,6HP 1Range 1Speed 0AP  1Damage,844B9C
+6,Mailman,Can gift AP to anyone reguardless of their range with the >deliver command,6HP 1Range 1Speed 0AP  1Damage,F7F7F2
+7,Pole Valuter,Can move on void and wall tiles,6HP 1Range 1Speed 0AP  1Damage,AFC9D3
+8,Oracle,Can see all layers reguardless of positon,6HP 1Range 1Speed 0AP  1Damage,320051
+9,Glutton,Gains 2 AP every day instead of 1,6HP 1Range 0.5Speed -1AP 1Damage,D37A3B
+10,Sniper,the >shoot command now pierces and hit anyone in the path of attack,2HP 3Range 1Speed 1AP 1Damage,632271
+11,Necromancer,Can bring someone back to life for 12AP with the >ressurect @mention command,6HP 1Range 1Speed 0AP 1Damage,A8DDFF
+12,Hot Potato,"Can swap abilities with someone in range for 12AP with the >hotpotato layer, x, y command",6HP 1Range 1Speed 0AP 1Damage,D3986C
+13,Hitman,Gains 2AP for killing a target given to them every day,6HP 1Range 1Speed 0AP 1Damage,AD2424
+14,Smoker,"Can make a smoke tile in range for 1AP with the >smoke layer, x, y command ",6HP 1Range 1Speed 0AP 1Damage,797772
+15,Construction Worker,"Can make a wall or chest tile in range for 2AP with the >build wall/chest layer, x, y command",6HP 1Range 1Speed 0AP 1Damage,FF9F0F
+16,Pharoh,If the pharoh attempts to get more than 12HP they instead gain an extra life that starts at that overflow HP to a maximum of 12HP,6HP 1Range 1Speed 0AP 1Damage,D3C461
+17,Gravedigger,"Can make a void tile in range for 4AP with the >dig layer, x, y command",6HP 1Range 1Speed 0AP 1Damage,83716B
+18,Stormchaser,Everytime you enter a storm tile gain 1d4-2 AP,6HP 1Range 1Speed 0AP 1Damage,#6821c0
+19,Pyromainiac,"Can make a fire tile in range for 5AP with the >burn layer, x, y command",6HP 1Range 1Speed 0AP 1Damage,#ee3271
+20,Doctor,"Can make a heal tile in range for 5AP with the >heal layer, x, y command",6HP 1Range 1Speed 0AP 1Damage,#c6ff6c
+21,Guardian,"Can lock or unlock a gateway tile in range for 2AP with the >lock layer, x, y command",6HP 1Range 1Speed 0AP 1Damage,#473b86
+22,Robot,Everytime you enter a storm tile gain 1HP,6HP 1Range 1Speed 0AP 1Damage,#899da3
+23,Druid,"Can create a storm tile in range for 5AP with the >conjure layer, x, y command",6HP 1Range 1Speed 0AP 1Damage,#426836
+24,Chef,"Can gift 1 extra AP to anyone in range with the >cook layer, x, y command",6HP 1Range 1Speed 0AP 1Damage,#da8968
+25,Minesweeper,"Can plant a mine tile in range for 1AP with the >arm layer, x, y command",6HP 1Range 1Speed 0AP 1Damage,#4e4e4e
+26,Clockwatcher,Can make everyone except themselves unable to do anything for 12AP with the >timestop command. this lasts for 24 hours,6HP 1Range 1Speed 0AP 1Damage,ffffff
+27,Cannibal,Gains 1 AP on ALL kills,4HP 1Range 1Speed 0AP,#d38e9f
+28,Blacksmith,"Can give a double damage buff to anyone in range(including themselves) for 4AP with the >arm layer, x, y command. this buff lasts for 24 hours, this buff can stack",6HP 1Range 1Speed 0AP 1Damage,#d38e9f
+29,Speed Demon,Gets more speed but starts with 2HP,2HP 1Range 1Speed 0AP 1Damage,#00efff
+30,Hoarder,Starts with 3AP but starts with 0Range,6HP 0Range 1Speed 3AP 1Damage,#7b8d69
+31,Medium,Can speak with the dead and influence the chaos council votes,6HP 1Range 1Speed 0AP 1Damage,#d53eff
+32,Snowman,"Can make ice tiles in range for 5AP with the >freeze layer, x, y command",6HP 1Range 1Speed 0AP 1Damage,#0181e6

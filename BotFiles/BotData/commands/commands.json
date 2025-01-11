@@ -1,0 +1,487 @@
+{
+  "command": [
+    {
+      "name": "help",
+      "actions": [
+        {
+          "name": "help menu",
+          "category": "Message",
+          "type": "Send Embed",
+          "fields": [
+            {
+              "name": "!help",
+              "value": "Shows this menu",
+              "inline": "true"
+            },
+            {
+              "name": "!info",
+              "value": "Shows some info",
+              "inline": "true"
+            }
+          ],
+          "messageActionRows": [],
+          "channelname": "${dbsVars.CommandChannel.id}",
+          "color": "1FFF57",
+          "title": "Help Menu",
+          "url": "",
+          "authorname": "Bot Name Here",
+          "authorimageurl": "",
+          "authorlink": "",
+          "description": "This is the embed description, replace this with some info about your bot!",
+          "thumbnail": "",
+          "image": "",
+          "footer": "",
+          "timestamp": "false",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        }
+      ]
+    },
+    {
+      "name": "mystats",
+      "perms": [
+        "living"
+      ],
+      "actions": []
+    },
+    {
+      "name": "register",
+      "perms": [
+        "living"
+      ],
+      "actions": [
+        {
+          "name": "createProfile",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_ap",
+          "fieldvalue": "0"
+        },
+        {
+          "name": "createProfile_1",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_speed",
+          "fieldvalue": "1"
+        },
+        {
+          "name": "createProfile_2",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_damage",
+          "fieldvalue": "1"
+        },
+        {
+          "name": "createProfile_3",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_hp",
+          "fieldvalue": "6"
+        },
+        {
+          "name": "createProfile_4",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_range",
+          "fieldvalue": "1"
+        },
+        {
+          "name": "createProfile_5",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_alive?",
+          "fieldvalue": "true"
+        },
+        {
+          "name": "createProfile_6",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_layer",
+          "fieldvalue": "-1"
+        },
+        {
+          "name": "createProfile_7",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_xPostion",
+          "fieldvalue": "-1"
+        },
+        {
+          "name": "createProfile_8",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_yPostion",
+          "fieldvalue": "-1"
+        },
+        {
+          "name": "createProfile_9",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_currentTile",
+          "fieldvalue": "Null"
+        },
+        {
+          "name": "createProfile_10",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_class",
+          "fieldvalue": "Null"
+        },
+        {
+          "name": "createProfile_11",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_kills",
+          "fieldvalue": "0"
+        },
+        {
+          "name": "createProfile_12",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_deaths",
+          "fieldvalue": "0"
+        },
+        {
+          "name": "createProfile_13",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_damageDealt",
+          "fieldvalue": "0"
+        },
+        {
+          "name": "createProfile_14",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_damageTaken",
+          "fieldvalue": "0"
+        },
+        {
+          "name": "createProfile_15",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_healed",
+          "fieldvalue": "0"
+        },
+        {
+          "name": "createProfile_16",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_upgraded",
+          "fieldvalue": "0"
+        },
+        {
+          "name": "createProfile_17",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_apSpent",
+          "fieldvalue": "0"
+        },
+        {
+          "name": "createProfile_18",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_apGained",
+          "fieldvalue": "0"
+        },
+        {
+          "name": "createProfile_19",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_gaveAp",
+          "fieldvalue": "0"
+        },
+        {
+          "name": "createProfile_20",
+          "category": "User Data",
+          "type": "Set User Data",
+          "messageActionRows": [],
+          "user": "${dbsVars.CommandAuthor.id}",
+          "field": "user_giftedAp",
+          "fieldvalue": "0"
+        },
+        {
+          "name": "classRoller",
+          "category": "Variable",
+          "type": "Generate Random Number",
+          "messageActionRows": [],
+          "varname": "classRoll",
+          "min": "1",
+          "max": "32",
+          "savevartype": "temp"
+        },
+        {
+          "name": "classInfo",
+          "category": "Spreadsheet",
+          "type": "Get Row",
+          "trueActions": [],
+          "falseActions": [
+            {
+              "name": "error 01",
+              "category": "Message",
+              "type": "Send Message",
+              "messageActionRows": [],
+              "channelname": "${dbsVars.CommandChannel.id}",
+              "messagetext": "Error 01\nWhat how the fuck, go laugh at snage they made the random number generator go out of range somehow sorry",
+              "savetovariable": "",
+              "savetovariabletype": "temp"
+            }
+          ],
+          "messageActionRows": [],
+          "selectedsheet": "LegacyPlayerDatabase - ClassDatabase.csv",
+          "colheader": "ID",
+          "colval": "${tempVars.classRoll}",
+          "rowvariable": "Rolled Class",
+          "savevartype": "temp"
+        }
+      ]
+    },
+    {
+      "name": "setup",
+      "actions": [
+        {
+          "name": "makeChampRole",
+          "category": "Server Action",
+          "type": "Add Role to Server",
+          "messageActionRows": [],
+          "rolename": "CHAMPION",
+          "color": "FFFF47",
+          "position": "",
+          "hoist": "BOOL_TRUE@@",
+          "mentionable": "false",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        },
+        {
+          "name": "makeMostKillsRole",
+          "category": "Server Action",
+          "type": "Add Role to Server",
+          "messageActionRows": [],
+          "rolename": "Most Kills",
+          "color": "5C0000",
+          "position": "",
+          "hoist": "BOOL_TRUE@@",
+          "mentionable": "false",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        },
+        {
+          "name": "makeFirstKillRole",
+          "category": "Server Action",
+          "type": "Add Role to Server",
+          "messageActionRows": [],
+          "rolename": "First Blood",
+          "color": "F62F2F",
+          "position": "",
+          "hoist": "BOOL_TRUE@@",
+          "mentionable": "false",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        },
+        {
+          "name": "makeBoardUpdateRole",
+          "category": "Server Action",
+          "type": "Add Role to Server",
+          "messageActionRows": [],
+          "rolename": "boardUpdatePing",
+          "color": "FFFFFF",
+          "position": "",
+          "hoist": "false",
+          "mentionable": "false",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        },
+        {
+          "name": "makeDeadRole",
+          "category": "Server Action",
+          "type": "Add Role to Server",
+          "messageActionRows": [],
+          "rolename": "Dead||Chaos Council Member",
+          "color": "103500",
+          "position": "",
+          "hoist": "BOOL_TRUE@@",
+          "mentionable": "false",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        },
+        {
+          "name": "makeAliveRole",
+          "category": "Server Action",
+          "type": "Add Role to Server",
+          "messageActionRows": [],
+          "rolename": "Living",
+          "color": "93FF6B",
+          "position": "",
+          "hoist": "BOOL_TRUE@@",
+          "mentionable": "false",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        },
+        {
+          "name": "makeLayerRole",
+          "category": "Server Action",
+          "type": "Add Role to Server",
+          "messageActionRows": [],
+          "rolename": "Layer1",
+          "color": "FFFFFF",
+          "position": "",
+          "hoist": "false",
+          "mentionable": "false",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        },
+        {
+          "name": "makeLayerRole_1",
+          "category": "Server Action",
+          "type": "Add Role to Server",
+          "messageActionRows": [],
+          "rolename": "Layer2",
+          "color": "FFFFFF",
+          "position": "",
+          "hoist": "false",
+          "mentionable": "false",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        },
+        {
+          "name": "makeLayerRole_2",
+          "category": "Server Action",
+          "type": "Add Role to Server",
+          "messageActionRows": [],
+          "rolename": "Layer3",
+          "color": "FFFFFF",
+          "position": "",
+          "hoist": "false",
+          "mentionable": "false",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        }
+      ]
+    },
+    {
+      "name": "write",
+      "actions": [
+        {
+          "name": "parameter",
+          "category": "Variable",
+          "type": "Store Value in Variable",
+          "messageActionRows": [],
+          "varname": "writeThis",
+          "vartype": "Text",
+          "savevartype": "temp",
+          "param": "1"
+        },
+        {
+          "name": "nametest",
+          "category": "Variable",
+          "type": "Store Value in Variable",
+          "messageActionRows": [],
+          "varname": "filePathW",
+          "vartype": "Text",
+          "savevartype": "temp",
+          "param": "2"
+        },
+        {
+          "name": "test",
+          "category": "Bot Action",
+          "type": "File System",
+          "messageActionRows": [],
+          "job": "write",
+          "writefp": "${tempVars.filePathW}",
+          "writed": "${tempVars.writeThis}",
+          "readfp": "",
+          "varname": "",
+          "vartype": "temp",
+          "deletefp": ""
+        },
+        {
+          "name": "res",
+          "category": "Message",
+          "type": "Send Message",
+          "messageActionRows": [],
+          "channelname": "${dbsVars.CommandChannel.id}",
+          "messagetext": "sent write command",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        }
+      ]
+    },
+    {
+      "name": "read",
+      "actions": [
+        {
+          "name": "nametest_1",
+          "category": "Variable",
+          "type": "Store Value in Variable",
+          "messageActionRows": [],
+          "varname": "filePath",
+          "vartype": "Text",
+          "savevartype": "temp",
+          "param": "1"
+        },
+        {
+          "name": "test_1",
+          "category": "Bot Action",
+          "type": "File System",
+          "messageActionRows": [],
+          "job": "read",
+          "writefp": "C:\\Users\\firec\\OneDrive\\Documents\\discordBotTest.txt",
+          "writed": "a",
+          "readfp": "${tempVars.filePath}",
+          "varname": "view",
+          "vartype": "temp",
+          "deletefp": ""
+        },
+        {
+          "name": "res_1",
+          "category": "Message",
+          "type": "Send Message",
+          "messageActionRows": [],
+          "channelname": "${dbsVars.CommandChannel.id}",
+          "messagetext": "sent read command recieved ${tempVars.view}",
+          "savetovariable": "",
+          "savetovariabletype": "temp"
+        }
+      ]
+    }
+  ]
+}
