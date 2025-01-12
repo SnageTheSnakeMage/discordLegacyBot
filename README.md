@@ -22,7 +22,7 @@ You can have a maximum of 12 AP. And you can use AP to....
 
   - Move in any of the 8 directions (1 AP)
   - Give X AP to any player in your range(X AP)
-  - Shoot/Deal Damage to any player in your range(2 AP)
+  - Shoot/Deal Damage to any player in your range and aligned with you diagonally or orthoginally(2 AP)
   - & Upgrade your stats / heal *the price increases each purchase up to the last number shown here*
     - +1 Range (4 -> 5 -> 7 -> 10 AP)
     - +1 HP (4 -> 5 -> 7 -> 10 AP)
@@ -52,7 +52,7 @@ Smoke - becomes a blank tile when someone moves off of it, anyone outside of the
 Mine - Upon stepping onto this tile lose 1 HP then it becomes a blank tile. Looks like a blank tile to everyone except minesweepers or oracles. 
 Bush - attacks on people on this tile and from people on this tile have a 1/2 chance of missing, with the exception of the hunters.
 
-Wall - You cant move onto this tile, If shot twice it will be destroyed, when destroyed leaves behind a blank tile. Counts as 3 tiles when deciding range.
+Wall - You cant move onto this tile, If shot twice it will be destroyed, when destroyed leaves behind a blank tile. Blocks shots 
 Void - You cant move onto this tile, but can shoot over it
 
 Gateway - while on this you can warp up or down a layer, can only be changed by guardian
