@@ -1,4 +1,4 @@
-# Legacy(v3.1.0) Discord Bot
+# Legacy(v3.1.1) Discord Bot
  A discord bot for running the game legacy. Made this incase anyone was curious on progress/wanted to help. 
 
 # Legacy Season 4 Explanation Draft
@@ -46,13 +46,19 @@ Heal - players on this tile receive 1 HP with their twice a day AP
 Chest - Anyone can store AP and take out AP here, all chests pull from the same storage
 
 Fire - -1HP every time you move on or off this tile
-Ice - you must move again
-Storm - puts you in a random square surrounding it
+Ice - upon moving onto an ice tile you must move again before another action may be done, this movement does not cost AP
+Storm - puts you in a random surrounding square if you move onto it
+Smoke - becomes a blank tile when someone moves off of it, anyone outside of the tile cannot see who is on this tile with the exception of the oracles
+Mine - Upon stepping onto this tile lose 1 HP then it becomes a blank tile. Looks like a blank tile to everyone except minesweepers or oracles. 
+Bush - attacks on people on this tile and from people on this tile have a 1/2 chance of missing, with the exception of the hunters.
+
 Wall - You cant move onto this tile, If shot twice it will be destroyed, when destroyed leaves behind a blank tile
 Void - You cant move onto this tile, but can shoot over it
+
 Gateway - while on this you can warp up or down a layer, can only be changed by guardian
 Locked Gateway - acts as a blank tile
-Smoke tile - becomes a blank tile when someone moves off of it, when on this tile no one can see you on the grid
+
+
 ```
 ## Chaos Council
 When a player dies they join the chaos council, and every 24 hours the council receives a poll to decide a random event that will affect all players. Each council member gets 1 override which can simply choose the event, an override can be used on an override to negate it.
