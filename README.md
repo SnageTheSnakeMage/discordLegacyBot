@@ -42,8 +42,7 @@ but generally most players start with the following:
 ## Tiles
 ```
 Blank - nothing happens when you stand on it, can be stood on
-Heal - players on this tile receive 1 HP with their twice a day AP
-Chest - Anyone can store AP and take out AP here, all chests pull from the same storage
+Void - You cant move onto this tile, but can shoot over it with the exception of cloudborns
 
 Fire - -1HP every time you move on or off this tile
 Ice - upon moving onto an ice tile you must move again before another action may be done, this movement does not cost AP
@@ -51,9 +50,9 @@ Storm - puts you in a random surrounding square if you move onto it
 Smoke - becomes a blank tile when someone moves off of it(with the exception of gateway and locked gateway tile which will stay the same), anyone outside of the tile cannot see who is on this tile with the exception of the oracles
 Mine - Upon stepping onto this tile lose 1 HP then it becomes a blank tile(with the exception of gateway and locked gateway tile which will stay the same). Can look like any tile to everyone except minesweepers or oracles who will see a flag ontop of the tile. 
 Bush - attacks on people on this tile and from people on this tile have a 1/2 chance of missing, with the exception of hunters.
-
-Wall - You cant move onto this tile, If shot twice it will be destroyed, when destroyed leaves behind a blank tile(with the exception of gateway and locked gateway tile which will stay the same). Blocks shots 
-Void - You cant move onto this tile, but can shoot over it
+Wall - You cant move onto this tile with the exception of cloudborns, If shot twice it will be destroyed, when destroyed leaves behind a blank tile(with the exception of gateway and locked gateway tile which will stay the same). Blocks shots
+Chest - Anyone can store AP and take out AP here, all chests pull from the same storage
+Heal - players on this tile receive 1 HP with their twice a day AP
 
 Gateway - while on this you can warp up or down a layer, can only be changed by guardian
 Locked Gateway - acts as a blank tile, unless unlocked by a guardian. players can warp from another layer and end up on it but unless unlocked the cannot warp again.
