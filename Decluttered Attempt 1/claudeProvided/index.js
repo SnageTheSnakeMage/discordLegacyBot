@@ -10,9 +10,7 @@ dotenv.config();
 // Create a new client instance
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
+    562950221957184
   ],
 });
 

@@ -20,19 +20,20 @@ module.exports = {
       await interaction.deferReply();
       
       // Get JSON data from option
-      const jsonData = interaction.options.getString('data');
+      // const jsonData = interaction.options.getString('data');
       
       try {
         // Parse the grid data
-        const gridData = JSON.parse(jsonData);
+        // const gridData = JSON.parse(jsonData);
         
-        // Validate grid data
-        if (!gridData || !gridData[global.LAYERS.ENVIRONMENT]) {
-          return interaction.editReply('Invalid grid format. Environment layer is required.');
-        }
+        // // Validate grid data
+        // if (!gridData || !gridData[global.LAYERS.ENVIRONMENT]) {
+        //   return interaction.editReply('Invalid grid format. Environment layer is required.');
+        // }
+
         
         // Generate layered grid image from data
-        const imageBuffer = await generateLayeredGridFromArrays(gridData);
+        const imageBuffer = await generateLayeredGridFromArrays();
         
         // Create attachment
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'layered_grid.png' });

@@ -18,6 +18,7 @@ for (const file of commandFiles) {
   const command = require(filePath);
   if ('data' in command) {
     commands.push(command.data.toJSON());
+    console.log(`[INFO] Successfully loaded command at ${filePath}`);
   } else {
     console.log(`[WARNING] The command at ${filePath} is missing a required "data" property.`);
   }
