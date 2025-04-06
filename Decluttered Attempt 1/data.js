@@ -229,10 +229,9 @@ const Classes = [
     ["Immutable", -4, 12, 6, 12, 1, 6, 1, 2, "b0b0b0", "You cannot take damage from the >shoot command, but will die after (3*amount of players) AP has been given since the game started"],
     ["Bully", 0, 12, 6, 12, 1, 6, 1, 2, "ffa7a7", "You can force another player to move one tile away from you with the >shove @mention up/back/down command for 1 AP"],
 ]
+
 //GameData Schema
 //[Game][GameBoard(0) or Players(1)][Layer][X][-Y]
-
-console.log(GameData[1][0][1][1][1])
 
 module.exports = {
     GameData,
