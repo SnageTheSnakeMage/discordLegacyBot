@@ -1,0 +1,240 @@
+
+    // [
+    //     type,
+    //     x_pos,
+    //     y_pos,
+    //     layer
+    //     players[null, null, null, null],
+    //          name/Id,
+    //          ap,
+    //          max_ap,
+    //          hp,
+    //          max_hp,
+    //          range,
+    //          max_range,
+    //          damage,
+    //          max_damage,
+    //          tile,
+    //          class_id
+    //     trapped?, 
+    // ]
+var GameData = [
+   [//Game 0 
+        [//GameGrid 0
+            [//Layer 0
+                [//Row 0
+                    ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false]
+                ],
+                [//Row 1
+                    ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false]
+                ],
+                [//Row 2
+                    ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false]
+                ],
+                [//Row 3
+                    ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false]
+                ],
+                [//Row 4
+                    ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false]
+                ],
+                [//Row 5
+                    ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false]
+                ],
+                [//Row 6
+                    ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false]
+                ],
+                [//Row 7
+                    ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false]
+                ],
+                [//Row 8
+                    ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false]
+                ],
+                [//Row 9
+                    ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false]
+                ],
+                [//Row 10
+                    ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false]
+                ]
+            ]
+        ],
+        [//Players
+            []
+        ],
+    ],[//Game 1
+        [//GameGrid 1
+            [//Layer 0
+                [//Row 0
+                    ["Void", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Gateway", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Void", [null, null, null, null], false]
+                ],
+                [//Row 1
+                    ["Void", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Void", [null, null, null, null], false]
+                ],
+                [//Row 2
+                    ["Void", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Void", [null, null, null, null], false]
+                ],
+                [//Row 3
+                    ["Void", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Void", [null, null, null, null], false]
+                ],
+                [//Row 4
+                    ["Void", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Void", [null, null, null, null], false]
+                ],
+                [//Row 5
+                    ["Void", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Void", [null, null, null, null], false]
+                ],
+                [//Row 6
+                    ["Void", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Void", [null, null, null, null], false]
+                ],
+                [//Row 7
+                    ["Void", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Void", [null, null, null, null], false]
+                ],
+                [//Row 8
+                    ["Void", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Void", [null, null, null, null], false]
+                ],
+                [//Row 9
+                    ["Void", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Void", [null, null, null, null], false]
+                ],
+                [//Row 10
+                    ["Void", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Gateway", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Void", [null, null, null, null], false]
+                ]
+            ],
+            [//Layer 1
+                [//Row 0
+                    ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false]
+                ],
+                [//Row 1
+                    ["Ice", [null, null, null, null], false], ["Gateway", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Gateway", [null, null, null, null], false], ["Ice", [null, null, null, null], false]
+                ],
+                [//Row 2
+                    ["Ice", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Ice", [null, null, null, null], false]
+                ],
+                [//Row 3
+                    ["Ice", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Ice", [null, null, null, null], false]
+                ],
+                [//Row 4
+                    ["Ice", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Heal", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Ice", [null, null, null, null], false]
+                ],
+                [//Row 5
+                    ["Ice", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Void", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Ice", [null, null, null, null], false]
+                ],
+                [//Row 6
+                    ["Ice", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Ice", [null, null, null, null], false]
+                ],
+                [//Row 7
+                    ["Ice", [null, null, null, null], false], ["Gateway", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Gateway", [null, null, null, null], false], ["Ice", [null, null, null, null], false]
+                ],
+                [//Row 8
+                    ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false], ["Ice", [null, null, null, null], false]
+                ]
+            ],
+            [//Layer 2
+                [//Row 0
+                    ["Fire", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Fire", [null, null, null, null], false]
+                ],
+                [//Row 1
+                    ["Fire", [null, null, null, null], false], ["Gateway", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Heal", [null, null, null, null], false], ["Fire", [null, null, null, null], false]
+                ],
+                [//Row 2
+                    ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false]
+                ],
+                [//Row 3
+                    ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["BLank2", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false]
+                ],
+                [//Row 4
+                    ["Wall", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Wall", [null, null, null, null], false]
+                ],
+                [//Row 5
+                    ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Blank2", [null, null, null, null], false],  ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false]
+                ],
+                [//Row 6
+                    ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false]
+                ],
+                [//Row 7
+                    ["Fire", [null, null, null, null], false], ["Heal", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Gateway", [null, null, null, null], false], ["Fire", [null, null, null, null], false]
+                ],
+                [//Row 8
+                    ["Fire", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Fire", [null, null, null, null], false]
+                ]
+            ],
+            [//Layer 3
+                [//Row 0
+                    ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Wall", [null, null, null, null], false]
+                ],
+                [//Row 1
+                    ["Storm", [null, null, null, null], false], ["Heal", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false]
+                ],
+                [//Row 2
+                    ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false]
+                ],
+                [//Row 3
+                    ["Gateway", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Bush", [null, null, null, null], false], ["Bush", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Gateway", [null, null, null, null], false]
+                ],
+                [//Row 4
+                    ["Gateway", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Bush", [null, null, null, null], false], ["Bush", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Gateway", [null, null, null, null], false]
+                ],
+                [//Row 5
+                    ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Wall", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false]
+                ],
+                [//Row 6
+                    ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Fire", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Heal", [null, null, null, null], false], ["Storm", [null, null, null, null], false]
+                ],
+                [//Row 7
+                    ["Wall", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Blank1", [null, null, null, null], false], ["Blank2", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false], ["Storm", [null, null, null, null], false]
+                ]
+            ]
+        ],
+        [//Players
+            []  
+        ],
+    ]
+]
+
+const Classes = [
+    // name, ap, max_ap, hp, max_hp, range, max_range, damage, max_damage, color, description
+    ["Vampyr", 0, 12, 6, 12, 1, 6, 1, 2, "CB0000", "Gains 2 HP on Kill"],
+    ["Twin", 0, 12, 3, 12, 1, 6, 1, 2, "8FE2C6", "Controls 2 separate bodies each have half hp"],
+    ["Dimensional Hopper", 0, 12, 6, 12, 1, 6, 1, 2, "352895", "Can Move Up/Down Layers by spending 2AP with the >warp up & >warp down commands"],
+    ["Lava Diver", 0, 12, 6, 12, 1, 6, 1, 2, "FC482E", "You are immune to fire tiles"],
+    ["Switchmate", 0, 12, 6, 12, 1, 6, 1, 2, "844B9C", "Can swap places with any player for 4AP with the >swap @mention command"],
+    ["Mailman", 0, 12, 6, 12, 1, 6, 1, 2, "F7F7F2", "Can gift & receive AP to anyone regardless of their range with the >deliver @mention command"],
+    ["Cloudborn", 0, 12, 6, 12, 1, 6, 1, 2, "A8DDFF", "Can move on void and wall tiles, uneffected by ice tiles"],
+    ["Oracle", 0, 12, 6, 12, 1, 6, 1, 2, "320051", "Can see all layers and see through smoke & mine tiles reguardless of positon"],
+    ["Glutton", -2, 12, 6, 12, 1, 6, 1, 2, "D37A3B", "Gains double AP every AP distribution"],
+    ["Sniper", 0, 12, 4, 12, 3, 6, 1, 2, "ffff00", "can use the >snipe command to pierce and hit anyone in the path of attack, pireces wall tiles. Starts with 3 range but 4HP"],
+    ["Necromancer", 0, 12, 6, 12, 1, 6, 1, 2, "632271", "Can bring someone back to life placing them in range for 12AP with the >ressurect @mention <layer> <x> <y> command"],
+    ["Hot Potato", 0, 12, 6, 12, 1, 6, 1, 2, "D3986C", "Can swap abilities with someone in range for 12AP with the >hotpotato layer, x, y command"],
+    ["Hitman", 0, 12, 6, 12, 1, 6, 1, 2, "AD2424", "Gains 4AP for killing a target given to them every day"],
+    ["Smoker", 0, 12, 6, 12, 1, 6, 1, 2, "797772", "Can make a smoke tile in range for 1AP with the >smoke layer, x, y command "],
+    ["Construction Worker", 0, 12, 6, 12, 1, 6, 1, 2, "FF9F0F", "Can make a wall or chest tile in range for 2AP with the >build wall/chest layer, x, y command"],
+    ["Pharoh", 0, 12, 6, 12, 1, 6, 1, 2, "D3C461", "If the pharoh attempts to get more than 12HP they instead gain an extra life that starts at that overflow HP to a maximum of 12HP on revival, upon death they instead are put on a random tile"],
+    ["Gravedigger", 0, 12, 6, 12, 1, 6, 1, 2, "83716B", "Can make a void tile in range for 4AP with the >dig layer, x, y command"],
+    ["Stormchaser", 0, 12, 6, 12, 1, 6, 1, 2, "6821c0", "Everytime you enter a storm tile gain 1d4-2 AP"],
+    ["Pyromainiac", 0, 12, 6, 12, 1, 6, 1, 2, "ee3271", "Can make a fire tile in range for 5AP with the >burn layer, x, y command"],
+    ["Doctor", 0, 12, 6, 12, 1, 6, 1, 2, "c6ff6c", "Can make a heal tile in range for 5AP with the >heal layer, x, y command"],
+    ["Guardian", 0, 12, 6, 12, 1, 6, 1, 2, "473b86", "Can lock or unlock a gateway tile in range for 2AP with the >lock layer, x, y command. can lock all gates on a layer unless they are one of the last 3 players then they must leave one open at all times"],
+    ["Robot", 0, 12, 6, 12, 1, 6, 1, 2, "899da3", "Everytime you enter a storm tile gain 1HP"],
+    ["Druid", 0, 12, 6, 12, 1, 6, 1, 2, "426836", "Can create a storm tile in range for 5AP with the >conjure layer, x, y command"],
+    ["Chef", 0, 12, 6, 12, 1, 6, 1, 2, "da8968", "Can gift 2 AP to anyone in range(except themselves) with the >cook layer, x, y command(24 Hour Cooldown)"],
+    ["Minesweeper", 0, 12, 6, 12, 1, 6, 1, 2, "#4e4e4e", "Can plant a mine tile in range for 1AP with the >arm layer, x, y command"],
+    ["Clockwatcher", 0, 12, 6, 12, 1, 6, 1, 2, "ffffff", "Can make everyone except themselves unable to do anything for 12AP with the >timestop command. this lasts for 48hours"],
+    ["Cannibal", 0, 12, 4, 12, 1, 6, 1, 2, "d38e9f", "Gains 1 AP on ALL kills, if you kill someone with max ap gain an extra 5AP ontop of that"],
+    ["Blacksmith", 0, 12, 6, 12, 1, 6, 1, 2, "d38e9f", "Can give a double damage buff to anyone in range(including themselves) for 6AP with the >weaponize layer, x, y command. this buff lasts for 24 hours, this buff can stack. but ones damage cannot go over their max"],
+    ["Exorcist", 0, 12, 6, 12, 1, 6, 1, 2, "00efff", "Can make any tile a blank tile for 3AP with the >exorcize layer, x, y command, and can remove a players class for 16 AP with the >exorcise @mention command"],
+    ["Hoarder", 3, 12, 6, 12, 0, 6, 1, 2, "7b8d69", "Starts with 3AP but starts with 0Range"],
+    ["Medium", 0, 12, 6, 12, 1, 6, 1, 2, "d53eff", "Can speak with the dead and influence the chaos council votes. They get an extra override and can use them while alive."],
+    ["Snowman", 0, 12, 6, 12, 1, 6, 1, 2, "0181e6", "Can make ice tiles in range for 5AP with the >freeze layer, x, y command"],
+    ["Protagonist", 4, 16, 2, 16, 1, 10, 1, 4, "efc266", "Starts with less hp but has high starting maximum stats, and 4 AP"],
+    ["Hunter", 0, 12, 6, 12, 1, 6, 1, 2, "274e13", "Can make bush tiles in range for 5AP with the >hide layer, x, y command. Attacks made from inside and on people inside a bush tile do not have a 50% chance to miss"],
+    ["Fencer", 0, 12, 6, 12, 1, 6, 1, 2, "9fc2cd", "Can deal double damage(up to maximum) for 1 AP to anyone within 1 tile of them.with the >stab layer, x, y command"],
+    ["Average", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "ffe2c5", "(ONLY ACCESSIBLE VIA EXORCIST) You are a normal person with no class ability"],
+    ["Immutable", -4, 12, 6, 12, 1, 6, 1, 2, "b0b0b0", "You cannot take damage from the >shoot command, but will die after (3*amount of players) AP has been given since the game started"],
+    ["Bully", 0, 12, 6, 12, 1, 6, 1, 2, "ffa7a7", "You can force another player to move one tile away from you with the >shove @mention up/back/down command for 1 AP"],
+]
+//GameData Schema
+//[Game][GameBoard(0) or Players(1)][Layer][X][-Y]
+
+console.log(GameData[1][0][1][1][1])
+
+module.exports = {
+    GameData,
+    Classes
+}
