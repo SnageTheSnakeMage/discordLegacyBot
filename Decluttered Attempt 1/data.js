@@ -71,6 +71,8 @@ var GameData = [
                 36, //Class Index
                 false, //Dead?
                 0, //Missed AP
+                0, //Kills
+                4, //HP Upgrade Cost
                 4, //Range Upgrade Cost
                 12, //Damage Upgrade Cost
             ]
