@@ -1,6 +1,10 @@
 // utils.js - Shared utility functions
 const Canvas = require('canvas');
 const path = require('path');
+var GameData = require("../Decluttered Attempt 1/data.js");
+const Classes = require("../Decluttered Attempt 1/data.js");
+const { get } = require('http');
+const { spawn } = require('child_process');
 
 // Function to load a tile texture
 async function loadTileTexture(layer, tileType) {
@@ -149,6 +153,247 @@ function parseLayeredGridData(content) {
     throw new Error('Invalid grid format. Please use a valid JSON format with environment, mines, and players layers.');
   }
 }
+
+function findPlayerById(game, playerId) {
+    for (players in GameData[game][1]) {
+      if (GameData[game][1][players][0] == playerId) {
+        return GameData[game][1][players];
+    }
+  }
+  console.error("Player with id " + playerId + " not found");
+  return null;
+}
+
+function getTile(game, layer, x, y) {
+  return GameData[game][0][layer][y][x];
+}
+
+function setTileType(game, layer, x, y, tileType) {
+  switch(tileType) {
+    case "Void":
+      GameData[game][0][layer][y][x][0] = "Void";
+      break;
+    case "Blank1":
+      GameData[game][0][layer][y][x][0] = "Blank1";
+      break;
+    case "Blank2":
+      GameData[game][0][layer][y][x][0] = "Blank2";
+      break;
+    case "Fire":
+      GameData[game][0][layer][y][x][0] = "Fire";
+      break;
+    case "Ice":
+      GameData[game][0][layer][y][x][0] = "Ice";
+      break;
+    case "Storm":
+      GameData[game][0][layer][y][x][0] = "Storm";
+      break;
+    case "Gateway":
+      GameData[game][0][layer][y][x][0] = "Gateway";
+      break;
+    case "Bush":
+      GameData[game][0][layer][y][x][0] = "Bush";
+      break;
+    case "Chest":
+      GameData[game][0][layer][y][x][0] = "Chest";
+      break;
+    case "Heal":
+      GameData[game][0][layer][y][x][0] = "Heal";
+      break;
+    case "lockedGateway":
+      GameData[game][0][layer][y][x][0] = "lockedGateway";
+      break;
+    case "Smoke":
+      GameData[game][0][layer][y][x][0] = "Smoke";
+      break;
+    case "Wall":
+      GameData[game][0][layer][y][x][0] = "Wall";
+      break;
+    default:
+      console.error("Invalid tile type: " + tileType);
+      break;
+  }
+}
+
+function getPlayersByTile(game, layer, x, y) {
+  var playersInTile = [];
+  for (players in getTile(game, layer, x, y)[1]) {
+    playersInTile.push(players);
+  }
+  return playersInTile;
+}
+
+function getPlayersByClass(game, classType) {
+
+  //Class type validation
+  var ClassNames = [];
+  for (let i = 0; i < Classes.length; i++) {
+    ClassNames.push(Classes[i][0]);
+  }
+  if (!ClassNames.includes(classType)) {
+    console.error("Invalid class type: " + classType);
+    return null;
+  }
+
+  //Get players
+  var playersWithClass = [];
+  for (player in GameData[game][1]) {
+    if (GameData[game][1][player][10] == classType) {
+      if (playersWithClass.length > 2){
+        console.error("Too many players with class: " + classType);
+      }
+      return playersWithClass;
+    }
+    else {
+      console.log("[INFO] tile: " + getTile(game, layer, x, y)[1][player] + "is empty");
+      return null;
+    }
+  }
+}
+
+function getDeadPlayers(game) {
+  var deadPlayers = [];
+  for (player in GameData[game][1]) {
+    if (GameData[game][1][player][11] == true) {
+      deadPlayers.push(player);
+    }
+  }
+  return deadPlayers;
+}
+
+function getPlayersByValue(game, valueIndex, value) {
+  var returnedPlayers = [];
+  for (player in GameData[game][1]) {
+    if (GameData[game][1][player][valueIndex] == value) {
+      returnedPlayers.push(player);
+    }
+  }
+  return returnedPlayers;
+}
+
+function verifyTile(tile) {
+  var tileTypes = ["Void", "Blank1", "Blank2", "Fire", "Ice", "Storm", "Gateway", "Bush", "Chest", "Heal", "lockedGateway", "Smoke", "Wall"];
+
+  if (
+    tileTypes.includes(tile[0]) 
+    && tile[1].length == 4
+    && typeof(tile[1][0]) == String
+    && typeof(tile[1][1]) == String
+    && typeof(tile[1][2]) == String
+    && typeof(tile[1][3]) == String
+    && typeof(tile[2]) == Boolean) {
+    return true;
+  }
+  else if(!tileTypes.includes(tile[0])) {
+    console.error("Invalid tile type: " + tile[0]);
+    return false;
+  }
+  else if (tile[1].length != 4) {
+    console.error("Invalid tile player array size: " + tile[1]);
+    return false;
+  }
+  else if (typeof(tile[1][0]) != String || typeof(tile[1][1]) != String || typeof(tile[1][2]) != String || typeof(tile[1][3]) != String) {
+    console.error("Invalid tile player array values: " + tile[1]);
+    return false;
+  }
+  else if (typeof(tile[2]) != Boolean) {
+    console.error("Invalid type for trapped? value: " + tile[2]);
+    return false;
+  }
+  return false;
+}
+
+function verifyPlayer(player) {
+  if (
+    typeof(player[0]) == String
+    && typeof(player[1]) == Number
+    && typeof(player[2]) == Number
+    && typeof(player[3]) == Number
+    && typeof(player[4]) == Number
+    && typeof(player[5]) == Number
+    && typeof(player[6]) == Number
+    && typeof(player[7]) == Number
+    && typeof(player[8]) == Number
+    && typeof(player[9]) == Number
+    && typeof(player[10]) == Boolean
+    && typeof(player[11]) == Number)  
+    return true;
+  else
+    return false;
+}
+
+function getSpawnpointTile(game) {
+  var randomTile = getRandomTile(game);
+  console.log("[INFO] rolled tile: " + randomTile + " for a spawnpoint");
+  if (randomTile[1].length < 4) {
+    console.log("[INFO] tile: " + randomTile + " has 4 players and is full, rerolling...");
+    getSpawnpointTile(game);
+  }
+  else {
+    return randomTile;
+  };
+}
+
+function registerPlayer(game, playerId) {
+    var player = [playerId, 0, 12, 6, 12, 1, 6, 1, 2, -1, false, 0, 0, 4, 4, 12];
+    var randomClass = getRandomInt(Classes.length);
+
+    player[9] = randomClass;
+    for (var i = 1; i < 9; i++) {
+    player[i] = Classes[randomClass][i];
+    }
+    spawn = getSpawnpointTile(game)
+    GameData[game][1].push(player);
+    addPlayerToTile(player, spawn);
+    console.log("[INFO] registering player: " + playerId + " with random class: " + randomClass + " and spawning at tile: " + spawn);
+    return;
+}
+
+function setPlayerStat(game, playerId, statIndex, value) {
+  var player = findPlayerById(game, playerId);
+  player[statIndex] = value;
+}
+
+function addPlayerToTile(player, tile) {
+  if (!verifyTile(tile)) {
+    console.error("Invalid inputted tile: " + tile);
+    return;
+  }
+
+  console.log("[INFO][VERBOSE] adding player: " + player[0] + " to tile: " + tile);
+  tile[1].push(player[0]);
+}
+
+function removePlayerFromTile(player, tile) {
+  //Bug Prevention
+  if (!verifyTile(tile)) {
+    console.error("Invalid inputted tile: " + tile);
+    return;
+  }
+  if(!tile[1].includes(player[0])) {
+    console.error("Player: " + player[0] + " not found in tile: " + tile);
+    return;
+  }
+  if (player[0] == -1) {
+    console.error("Player: " + player[0] + " not found in tile: " + tile);
+    return;
+  }
+
+  console.log("[INFO][VERBOSE] removing player: " + player[0] + " from tile: " + tile);
+  tile[1].splice(tile[1].indexOf(player[0]), 1);
+}
+
+function getRandomInt(max) {
+  return Math.round((Math.random()) * max);
+}
+
+function getRandomTile(game) {
+  var randomLayer = getRandomInt(GameData[game][0].length);
+  var randomX = getRandomInt(GameData[game][0][randomLayer][0].length);
+  var randomY = getRandomInt(GameData[game][0][randomLayer].length);
+  return getTile(game, randomLayer, randomX, randomY);
+}
+
 
 module.exports = {
   loadTileTexture,
