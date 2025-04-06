@@ -3,8 +3,6 @@ const Canvas = require('canvas');
 const path = require('path');
 var GameData = require("../Decluttered Attempt 1/data.js");
 const Classes = require("../Decluttered Attempt 1/data.js");
-const { get } = require('http');
-const { spawn } = require('child_process');
 
 // Function to load a tile texture
 async function loadTileTexture(layer, tileType) {
