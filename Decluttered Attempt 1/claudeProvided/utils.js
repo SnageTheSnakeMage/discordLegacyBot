@@ -1,13 +1,13 @@
 // utils.js - Shared utility functions
 const Canvas = require('canvas');
 const path = require('path');
-var GameData = require("../Decluttered Attempt 1/data.js");
-const Classes = require("../Decluttered Attempt 1/data.js");
+var GameData = require("G:/LegacyBotDiscord/Decluttered Attempt 1/data.js").GameData;
+const Classes = require("G:/LegacyBotDiscord/Decluttered Attempt 1/data.js").Classes;
 
 // Function to load a tile texture
-async function loadTileTexture(layer, tileType) {
+async function loadTileTexture(layer, textureName) {
   // Create a unique key for the cache
-  const cacheKey = `${tileType}`;
+  const cacheKey = `${textureName}`;
   
   // Check if tile is already cached
   if (global.tileCache[cacheKey]) {
@@ -15,8 +15,8 @@ async function loadTileTexture(layer, tileType) {
   }
 
   // Path to tile textures folder (organized by layer)
-  const tilePath = path.join(__dirname, `../tiles/enviorment/${tileType}.png`);
-  console.log("[INFO] Loading tile texture:", tilePath);
+  const tilePath = path.join(__dirname, `../tiles/${layer}/${textureName}.png`);
+  console.log("[INFO][VERBOSE] Loading tile texture:", tilePath);
   
   try {
     // Load the image
@@ -25,35 +25,20 @@ async function loadTileTexture(layer, tileType) {
     global.tileCache[cacheKey] = image;
     return image;
   } catch (error) {
-    console.error(`Failed to load tile texture ${tileType}:`, error);
+    console.error(`[ERROR][VERBOSE] Utils.loadTileTexture: Failed to load tile texture ${textureName}:`, error);
     // Return a default texture or placeholder for the appropriate layer
-    const defaultTile = await Canvas.loadImage("G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/enviorment/default.png");
+    const defaultTile = await Canvas.loadImage(`G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/${layer}/default.png`);
     return defaultTile;
   }
 }
 
 // Function to generate a layered grid image from multiple 2D arrays with different scales
-async function generateLayeredGridFromArrays() {//(gridData, tileSize = 32) {
-  // Extract grid dimensions from environment layer (base layer)
-  // const environmentGrid = gridData[global.LAYERS.ENVIRONMENT] || [];
-  // if (!environmentGrid.length) {
-  //   throw new Error('Environment layer is required');
-  // } 
-  const tileSize = 100;
+async function GenerateGameGridImage(game, layer) {
+  const tileSize = 400;
+
   // Base canvas dimensions (determined by the environment layer)
-  const environmentGrid = [ ["Void", "Void", "Blank2", "Blank1", "Blank2", "Gateway", "Blank2", "Blank1", "Blank2", "Void", "Void"],
-  ["Void", "Blank2", "Blank1", "Blank2", "Blank1", "Blank2", "Blank1", "Blank2", "Blank1", "Blank2", "Void"],
-  ["Void", "Blank1", "Ice", "Ice", "Blank2", "Storm", "Blank2", "Fire", "Fire", "Blank1", "Void"],
-  ["Void", "Blank2", "Ice", "Ice", "Blank1", "Storm", "Blank1", "Fire", "Fire", "Blank2", "Void"],
-  ["Void", "Blank1", "Blank2", "Blank1", "Blank2", "Storm", "Blank2", "Blank1", "Blank2", "Blank1", "Void"],
-  ["Void", "Blank2", "Storm", "Storm", "Storm", "Storm", "Storm", "Storm", "Storm", "Blank2", "Void"],
-  ["Void", "Blank1", "Blank2", "Blank1", "Blank2", "Storm", "Blank2", "Blank1", "Blank2", "Blank1", "Void"],
-  ["Void", "Blank2", "Fire", "Fire", "Blank1", "Storm", "Blank1", "Ice", "Ice", "Blank2", "Void"],
-  ["Void", "Blank1", "Fire", "Fire", "Blank2", "Storm", "Blank2", "Ice", "Ice", "Blank1", "Void"],
-  ["Void", "Blank2", "Blank1", "Blank2", "Blank1", "Blank2", "Blank1", "Blank2", "Blank1", "Blank2", "Void"],
-  ["Void", "Void", "Blank2", "Blank1", "Blank2", "Gateway", "Blank2", "Blank1", "Blank2", "Void", "Void"] ]
-  const baseGridHeight = environmentGrid.length;
-  const baseGridWidth = environmentGrid[0].length;
+  const baseGridHeight = GameData[game][0][layer].length;
+  const baseGridWidth = GameData[game][0][layer][0].length;
   
   const canvasWidth = baseGridWidth * tileSize;
   const canvasHeight = baseGridHeight * tileSize;
@@ -65,97 +50,105 @@ async function generateLayeredGridFromArrays() {//(gridData, tileSize = 32) {
   // Fill background (optional)
   context.fillStyle = '#222222';
   context.fillRect(0, 0, canvasWidth, canvasHeight);
+
   
-  // Process each layer in order (environment first, then mines, then players)
-  const layerOrder = [environmentGrid]; //global.LAYERS.MINES, global.LAYERS.PLAYERS];
+  // Process each tile in the grid
   
-  for (const layer of layerOrder) {
-    // if (!gridData[layer]) continue;
-    
-    // const layerGrid = gridData[layer].grid || gridData[layer];
-    // const layerScale = gridData[layer].scale || 1;
-    
-    // Skip if the layer doesn't exist
-    if (!layer.length) continue;
-    
-    // Calculate scaled tile size for this layer
-    // const scaledTileSize = tileSize / layerScale;
-    
-    // Get the dimensions of this layer's grid
-    const layerGridHeight = layer.length;
-    const layerGridWidth = layer[0].length;
-    
-    // Draw each tile in the current layer
-    for (let y = 0; y < layerGridHeight; y++) {
-      for (let x = 0; x < layerGridWidth; x++) {
-        const tileType = layer[y][x];
-        console.log("[INFO] tileType: " + tileType);
-        
-        // Skip empty tiles (use -1 or null to indicate empty tile)
-        if (tileType === -1 || tileType === null) continue;
-        
-        // Calculate the position on the canvas based on the scale
-        const canvasX = (x * canvasWidth) / layerGridWidth;
-        const canvasY = (y * canvasHeight) / layerGridHeight;
-        
-        // Load tile texture
-        const tileImage = await loadTileTexture(layer, tileType);
-        
-        // Draw the tile with the scaled size
+  for (x in GameData[game][0][layer]) {
+    for(y in GameData[game][0][layer][x]) {
+      const tileType = GameData[game][0][layer][x][y][0];
+      const tilePlayers = GameData[game][0][layer][x][y][1];
+      const tileTrapped = GameData[game][0][layer][x][y][2];
+      const tileImage = await loadTileTexture("enviornment", tileType);
+      //draw the environment
+      context.drawImage(
+        tileImage,
+        canvasWidth,
+        canvasHeight,
+        1,
+        1,
+      )
+      //then the players
+      for (player in tilePlayers) {
+        const playerImage = await loadTileTexture("players", tilePlayers[player][0]);
         context.drawImage(
-          tileImage, 
-          canvasX, 
-          canvasY, 
-          canvasWidth / layerGridWidth, 
-          canvasHeight / layerGridHeight
-        );
+          playerImage,
+          canvasWidth,
+          canvasHeight,
+          0.25,
+          0.25,
+        )
+      }
+      //then the mines
+      if (tileTrapped) {
+        const mineImage = await loadTileTexture("mines", "Mine");
+        context.drawImage(
+          mineImage,
+          canvasWidth,
+          canvasHeight,
+          1,
+          1,
+        )
       }
     }
   }
-  
-  // Optionally add grid lines
-  // if (gridData.showGrid) {
-  //   context.strokeStyle = 'rgba(80, 80, 80, 0.5)';
-    
-  //   for (let y = 0; y <= baseGridHeight; y++) {
-  //     context.beginPath();
-  //     context.moveTo(0, y * tileSize);
-  //     context.lineTo(canvasWidth, y * tileSize);
-  //     context.stroke();
-  //   }
-    
-  //   for (let x = 0; x <= baseGridWidth; x++) {
-  //     context.beginPath();
-  //     context.moveTo(x * tileSize, 0);
-  //     context.lineTo(x * tileSize, canvasHeight);
-  //     context.stroke();
-  //   }
-  // }
-  
   return canvas.toBuffer();
 }
 
-// Function to parse layered grid data from a message
-function parseLayeredGridData(content) {
-  try {
-    // For message commands
-    if (typeof content === 'string') {
-      // Remove command prefix and get the data part
-      const dataText = content.substring(content.indexOf(' ') + 1);
-      return JSON.parse(dataText);
-    } 
-    // For slash commands (already parsed)
-    return content;
-  } catch (error) {
-    console.error('Failed to parse layered grid data:', error);
-    throw new Error('Invalid grid format. Please use a valid JSON format with environment, mines, and players layers.');
+async function GenerateObscuredGameGridImage(game, layer) {
+  const tileSize = 400;
+
+  // Base canvas dimensions (determined by the environment layer)
+  const baseGridHeight = GameData[game][0][layer].length;
+  const baseGridWidth = GameData[game][0][layer][0].length;
+  
+  const canvasWidth = baseGridWidth * tileSize;
+  const canvasHeight = baseGridHeight * tileSize;
+  
+  // Create a canvas
+  const canvas = Canvas.createCanvas(canvasWidth, canvasHeight);
+  const context = canvas.getContext('2d');
+  
+  // Fill background (optional)
+  context.fillStyle = '#222222';
+  context.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  
+  // Process each tile in the grid
+  
+  for (x in GameData[game][0][layer]) {
+    for(y in GameData[game][0][layer][x]) {
+      const tileType = GameData[game][0][layer][x][y][0];
+      const tilePlayers = GameData[game][0][layer][x][y][1];
+      const tileImage = await loadTileTexture(layer, tileType);
+      //draw the environment
+      context.drawImage(
+        tileImage,
+        canvasWidth,
+        canvasHeight,
+        1,
+        1,
+      )
+      //then the players
+      for (player in tilePlayers) {
+        const playerImage = await loadTileTexture(layer, tilePlayers[player][0]);
+        context.drawImage(
+          playerImage,
+          canvasWidth,
+          canvasHeight,
+          0.25,
+          0.25,
+        )
+      }
+    }
   }
+  return canvas.toBuffer();
 }
 
 function findPlayerById(game, playerId) {
-    for (players in GameData[game][1]) {
+    for (player in GameData[game][1]) {
       if (GameData[game][1][players][0] == playerId) {
-        return GameData[game][1][players];
+        return GameData[game][1][player];
     }
   }
   console.error("Player with id " + playerId + " not found");
@@ -269,37 +262,6 @@ function getPlayersByValue(game, valueIndex, value) {
   return returnedPlayers;
 }
 
-function verifyTile(tile) {
-  var tileTypes = ["Void", "Blank1", "Blank2", "Fire", "Ice", "Storm", "Gateway", "Bush", "Chest", "Heal", "lockedGateway", "Smoke", "Wall"];
-
-  if (
-    tileTypes.includes(tile[0]) 
-    && tile[1].length == 4
-    && typeof(tile[1][0]) == String
-    && typeof(tile[1][1]) == String
-    && typeof(tile[1][2]) == String
-    && typeof(tile[1][3]) == String
-    && typeof(tile[2]) == Boolean) {
-    return true;
-  }
-  else if(!tileTypes.includes(tile[0])) {
-    console.error("Invalid tile type: " + tile[0]);
-    return false;
-  }
-  else if (tile[1].length != 4) {
-    console.error("Invalid tile player array size: " + tile[1]);
-    return false;
-  }
-  else if (typeof(tile[1][0]) != String || typeof(tile[1][1]) != String || typeof(tile[1][2]) != String || typeof(tile[1][3]) != String) {
-    console.error("Invalid tile player array values: " + tile[1]);
-    return false;
-  }
-  else if (typeof(tile[2]) != Boolean) {
-    console.error("Invalid type for trapped? value: " + tile[2]);
-    return false;
-  }
-  return false;
-}
 
 function verifyPlayer(player) {
   if (
@@ -352,33 +314,110 @@ function setPlayerStat(game, playerId, statIndex, value) {
   player[statIndex] = value;
 }
 
-function addPlayerToTile(player, tile) {
-  if (!verifyTile(tile)) {
-    console.error("Invalid inputted tile: " + tile);
-    return;
+function addPlayerToTile(player, game, layer, x, y) {
+  console.log("[INFO][VERBOSE] adding player: " + player + " to tile: " + tile);
+  if(GameData[game][0][layer][y][x][1].length < 4) {
+    GameData[game][0][layer][y][x][1].push(player);
   }
-
-  console.log("[INFO][VERBOSE] adding player: " + player[0] + " to tile: " + tile);
-  tile[1].push(player[0]);
 }
 
-function removePlayerFromTile(player, tile) {
-  //Bug Prevention
-  if (!verifyTile(tile)) {
-    console.error("Invalid inputted tile: " + tile);
-    return;
-  }
-  if(!tile[1].includes(player[0])) {
-    console.error("Player: " + player[0] + " not found in tile: " + tile);
-    return;
-  }
-  if (player[0] == -1) {
-    console.error("Player: " + player[0] + " not found in tile: " + tile);
-    return;
-  }
+//returns the rounded x and y cordinates of tiles found on a line if it was drown from tileCord1 to tileCord2
+//includes tileCord1 and tileCord2 in the returned array of tiles on the line
+function getTileCordinatesOfLine(tileCord1, tileCord2) {
+  var returnedTiles = [tileCord1];
+  var slope = (tileCord1[1] - tileCord2[1] / tileCord1[0] - tileCord2[0]);
+  var x = tileCord1[0];
+  var y = tileCord1[1];
+  var direction = getDirection(tileCord1, tileCord2)
 
+  while([x, y] != tileCord2) {
+    switch (direction) {
+      case "north":
+        x = tileCord1[0];
+        y++;
+        break;
+      case "south":
+        x = tileCord1[0];
+        y--;
+        break;
+      case "east": case "northeast": case "southeast":
+        x++;
+        y = Math.round(slope * (x - tileCord2[0]) + tileCord2[1]);
+        break;
+      case "west": case"northwest": case "southwest":
+        x--;
+        y = Math.round(slope * (x - tileCord2[0]) + tileCord2[1]);
+      break;
+    }
+    returnedTiles.push([x, y]);
+  }
+  return returnedTiles;
+}
+
+//gets the direction one would go in if they started at point1 facing point 2 and walked forwards
+function getDirection(point1, point2) {
+  xDiff = point1[0] - point2[0];
+  yDiff = point1[1] - point2[1];
+  returnedDirection = null;
+  switch (yDiff) {
+    //y1 = y2
+    case 0:
+      returnedDirection += ""
+      switch (xDiff) {
+        // x1 = x2
+        case 0:
+          console.error("[ERROR] Utils.getDirection: Same points, no direction");
+          return null;
+        // x1 > x2
+        case (xDiff > 0):
+          returnedDirection += "west";
+          return returnedDirection;
+        // x1 < x2
+        case (xDiff < 0):
+          returnedDirection += "east";
+          return returnedDirection;
+      }
+      break;
+    //y1 > y2
+    case (yDiff > 0):
+      returnedDirection + "south";
+      switch (xDiff) {
+        // x1 = x2
+        case 0:
+          return returnedDirection;
+        // x1 > x2
+        case (xDiff > 0):
+          returnedDirection += "west";
+          return returnedDirection;
+        // x1 < x2
+        case (xDiff < 0):
+          returnedDirection += "east";
+          return returnedDirection;
+      }
+      break;
+    //y1 < y2
+    case (yDiff < 0):
+      returnedDirection += "north";
+      switch (xDiff) {
+        // x1 = x2
+        case 0:
+          return returnedDirection;
+        // x1 > x2
+        case (xDiff > 0):
+          returnedDirection += "west";
+          return returnedDirection;
+        // x1 < x2
+        case (xDiff < 0):
+          returnedDirection += "east";
+          return returnedDirection;
+      }
+      break;
+  }
+}
+
+function removePlayerFromTile(player, game, layer, x, y) {
   console.log("[INFO][VERBOSE] removing player: " + player[0] + " from tile: " + tile);
-  tile[1].splice(tile[1].indexOf(player[0]), 1);
+  GameData[game][0][layer][y][x][1].splice(tile[1].indexOf(player[0]), 1);
 }
 
 function getRandomInt(max) {
@@ -392,9 +431,22 @@ function getRandomTile(game) {
   return getTile(game, randomLayer, randomX, randomY);
 }
 
-
 module.exports = {
   loadTileTexture,
-  generateLayeredGridFromArrays,
-  parseLayeredGridData
+  GenerateGameGridImage,
+  GenerateObscuredGameGridImage,
+  getTile,
+  getTileCordinatesOfLine,
+  getDirection,
+  removePlayerFromTile,
+  setPlayerStat,
+  registerPlayer,
+  verifyPlayer,
+  getPlayersByValue,
+  getDeadPlayers,
+  setTileType,
+  getPlayersByTile,
+  getPlayersByClass,
+  getRandomInt,
+  getRandomTile,
 };

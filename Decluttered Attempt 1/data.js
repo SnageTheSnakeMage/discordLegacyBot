@@ -59,22 +59,31 @@ var GameData = [
         ],
         [//Players
             [
-                "testPlayer", //userID
-                0, //Current AP
-                12, //Max AP
-                6, //Current Health
-                12, //Max Health
-                1, //Current Range
-                6, //Max Range
-                1, //Current Damage
-                2, //Max Damage
-                36, //Class Index
-                false, //Dead?
-                0, //Missed AP
-                0, //Kills
-                4, //HP Upgrade Cost
-                4, //Range Upgrade Cost
-                12, //Damage Upgrade Cost
+                "testPlayer", //userID 0
+                0, //Current AP 1
+                12, //Max AP 2
+                6, //Current Health 3
+                12, //Max Health 4
+                1, //Current Range 5
+                6, //Max Range 6
+                1, //Current Damage 7
+                2, //Max Damage 8
+                36, //Class Index 9
+                false, //Dead? 10
+                0, //Missed AP 11
+                0, //Kills 12
+                4, //HP Upgrade Cost 13
+                4, //Range Upgrade Cost 14
+                12, //Damage Upgrade Cost 15
+            ],
+            [ //Metadata
+                [//Game State: "Setup", "Active", "DevPause", "Paused", "Inactive"
+                    "Inactive",
+                    //AP Interval(in hours)
+                    0.1,
+                ], 
+                //Chaos Council Event Log
+                []
             ]
         ],
     ],[//Game 1
@@ -202,6 +211,15 @@ var GameData = [
         [//Players
             []  
         ],
+        [ //Metadata
+            [//Game State: "Setup", "Active", "DevPause", "Paused", "Inactive"
+                "Setup",
+                //AP Interval(in hours)
+                12
+            ], 
+            //Chaos Council Event Log
+            []
+        ]
     ]
 ]
 
@@ -250,8 +268,8 @@ const Classes = [
     ["Fencer", 0, 12, 6, 12, 1, 6, 1, 2, "9fc2cd", "Can deal double damage(up to maximum) for 1 AP to anyone within 1 tile of them.with the >stab layer, x, y command"],
     
     ["Average", null, null, null, null, null, null, null, null, "ffe2c5", "(ONLY ACCESSIBLE VIA EXORCIST) You are a normal person with no class ability"],
-    ["Immutable", -4, 12, 6, 12, 1, 6, 1, 2, "b0b0b0", "You cannot take damage from the >shoot command, but will die after (3*amount of players) AP has been given since the game started"],
-    ["Bully", 0, 12, 6, 12, 1, 6, 1, 2, "ffa7a7", "You can force another player to move one tile away from you with the >shove @mention up/back/down command for 1 AP"],
+    ["Immutable", -4, 12, 6, 12, 1, 6, 1, 2, "b0b0b0", "(INACCESSIBLE) You cannot take damage from the >shoot command, but will die after (3*amount of players) AP has been given since the game started"],
+    ["Bully", 0, 12, 6, 12, 1, 6, 1, 2, "ffa7a7", "(INACCESSIBLE) You can force another player to move one tile away from you with the >shove @mention up/back/down command for 1 AP"],
 ]
 
 //GameData Schema
@@ -259,6 +277,8 @@ const Classes = [
 //[Game][0(GameBoard)][Layer][-Y(0 indexed)][X(0 indexed)][Tiletype, players[], trapped?]
 //                                  0          1       2             3            4               5           6            7              8           9        10        11       12         13                 14                15
 //[Game][1(Players)][playerIndex][userID, Current AP, Max AP, Current Health, Max Health, Current Range, Max Range, Current Damage, Max Damage, Class Index, Dead?, Missed AP, Kills, HP Upgrade Cost, Range Upgrade Cost, Damage Upgrade Cost]
+//            0          1
+//[Game][GameState, AP Interval][Chaos Council Event Log]
 
 module.exports = {
     GameData,
