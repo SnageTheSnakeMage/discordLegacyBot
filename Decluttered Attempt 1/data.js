@@ -47,7 +47,7 @@ var GameData = [
                     ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false]
                 ],
                 [//Row 8
-                    ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false]
+                    ["Blank1", [], false], ["Blank2", [], false], ["Blank1", ["testPlayer", "testPlayer1", "testPlayer2", "testPlayer3"], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false]
                 ],
                 [//Row 9
                     ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false], ["Blank2", [], false], ["Blank1", [], false]
@@ -76,6 +76,60 @@ var GameData = [
                 4, //Range Upgrade Cost 14
                 12, //Damage Upgrade Cost 15
             ],
+            [
+                "testPlayer1", //userID 0
+                0, //Current AP 1
+                12, //Max AP 2
+                6, //Current Health 3
+                12, //Max Health 4
+                1, //Current Range 5
+                6, //Max Range 6
+                1, //Current Damage 7
+                2, //Max Damage 8
+                36, //Class Index 9
+                false, //Dead? 10
+                0, //Missed AP 11
+                0, //Kills 12
+                4, //HP Upgrade Cost 13
+                4, //Range Upgrade Cost 14
+                12, //Damage Upgrade Cost 15
+            ],
+            [
+                "testPlayer2", //userID 0
+                0, //Current AP 1
+                12, //Max AP 2
+                6, //Current Health 3
+                12, //Max Health 4
+                1, //Current Range 5
+                6, //Max Range 6
+                1, //Current Damage 7
+                2, //Max Damage 8
+                36, //Class Index 9
+                false, //Dead? 10
+                0, //Missed AP 11
+                0, //Kills 12
+                4, //HP Upgrade Cost 13
+                4, //Range Upgrade Cost 14
+                12, //Damage Upgrade Cost 15
+            ],
+            [
+                "testPlayer3", //userID 0
+                0, //Current AP 1
+                12, //Max AP 2
+                6, //Current Health 3
+                12, //Max Health 4
+                1, //Current Range 5
+                6, //Max Range 6
+                1, //Current Damage 7
+                2, //Max Damage 8
+                36, //Class Index 9
+                false, //Dead? 10
+                0, //Missed AP 11
+                0, //Kills 12
+                4, //HP Upgrade Cost 13
+                4, //Range Upgrade Cost 14
+                12, //Damage Upgrade Cost 15
+            ],
             [ //Metadata
                 [//Game State: "Setup", "Active", "DevPause", "Paused", "Inactive"
                     "Inactive",
@@ -83,7 +137,12 @@ var GameData = [
                     0.1,
                 ], 
                 //Chaos Council Event Log
-                []
+                [],
+                //Chest Data
+                [
+                    0, // Current AP
+                    null, //Last Player To Put In Chest
+                ],
             ]
         ],
     ],[//Game 1

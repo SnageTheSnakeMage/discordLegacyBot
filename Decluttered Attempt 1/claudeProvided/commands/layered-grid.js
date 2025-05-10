@@ -29,8 +29,8 @@ module.exports = {
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'layered_grid.png' });
         
         // Send the image
-        await interaction.editReply({ files: [attachment] });
-      
+        await interaction.user.send({ files: [attachment] });
+        await interaction.deleteReply();
     } catch (error) {
       console.error('[ERROR][COMMAND] layered-grid.execute: Error executing layered-grid command:', error);
       if (interaction.replied || interaction.deferred) {
@@ -55,7 +55,7 @@ module.exports = {
       const attachment = new AttachmentBuilder(imageBuffer, { name: 'layered_grid.png' });
       
       // Send the image and delete the processing message
-      await message.reply({ files: [attachment] });
+      await interaction.user.send({ files: [attachment] });
       processingMsg.delete().catch(console.error);
       
     } catch (error) {

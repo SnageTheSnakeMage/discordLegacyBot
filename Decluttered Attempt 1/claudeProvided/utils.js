@@ -3,6 +3,7 @@ const Canvas = require('canvas');
 const path = require('path');
 var GameData = require("G:/LegacyBotDiscord/Decluttered Attempt 1/data.js").GameData;
 const Classes = require("G:/LegacyBotDiscord/Decluttered Attempt 1/data.js").Classes;
+const verbose = true;
 
 // Function to load a tile texture
 async function loadTileTexture(layer, textureName) {
@@ -34,7 +35,7 @@ async function loadTileTexture(layer, textureName) {
 
 // Function to generate a layered grid image from multiple 2D arrays with different scales
 async function GenerateGameGridImage(game, layer) {
-  const tileSize = 400;
+  const tileSize = 208;
 
   // Base canvas dimensions (determined by the environment layer)
   const baseGridHeight = GameData[game][0][layer].length;
@@ -51,32 +52,62 @@ async function GenerateGameGridImage(game, layer) {
   context.fillStyle = '#222222';
   context.fillRect(0, 0, canvasWidth, canvasHeight);
 
+
   
   // Process each tile in the grid
   
-  for (x in GameData[game][0][layer]) {
-    for(y in GameData[game][0][layer][x]) {
-      const tileType = GameData[game][0][layer][x][y][0];
-      const tilePlayers = GameData[game][0][layer][x][y][1];
-      const tileTrapped = GameData[game][0][layer][x][y][2];
+  for (row in GameData[game][0][layer]) {
+    for(column in GameData[game][0][layer][0]) {
+      const tileType = GameData[game][0][layer][row][column][0];
+      const tilePlayers = GameData[game][0][layer][row][column][1];
+      const tileTrapped = GameData[game][0][layer][row][column][2];
       const tileImage = await loadTileTexture("enviornment", tileType);
+      const canvasX = (column * canvasWidth) / baseGridWidth;
+      const canvasY = (row * canvasHeight) / baseGridHeight;
+      const enviornmentTileWidth = canvasWidth / GameData[game][0][layer][0].length;
+      const enviornmentTileHeight = canvasHeight / GameData[game][0][layer].length;
+      const playerTileWidth = enviornmentTileWidth / 2;
+      const playerTileHeight = enviornmentTileHeight / 2;
+
       //draw the environment
       context.drawImage(
         tileImage,
-        canvasWidth,
-        canvasHeight,
-        1,
-        1,
+        canvasX,
+        canvasY,
+        enviornmentTileWidth,
+        enviornmentTileHeight,
       )
       //then the players
       for (player in tilePlayers) {
-        const playerImage = await loadTileTexture("players", tilePlayers[player][0]);
+        const playerImage = await loadTileTexture("players", tilePlayers[player]);
+        var playerTilePositionX;
+        var playerTilePositionY;
+        console.log(`[INFO][VERBOSE] player: ${player}`);
+        switch (player) {
+          case "0":
+            playerTilePositionX = canvasX;
+            playerTilePositionY = canvasY;
+            break;
+          case "1":
+            playerTilePositionX = canvasX + playerTileWidth;
+            playerTilePositionY = canvasY;
+            break;
+          case "2":
+            playerTilePositionX = canvasX;
+            playerTilePositionY = canvasY + playerTileHeight;
+            break;
+          case "3":
+            playerTilePositionX = canvasX + playerTileWidth;
+            playerTilePositionY = canvasY + playerTileHeight;
+            break;
+        }
+        console.log(`[INFO][VERBOSE] player position: ${playerTilePositionX}, ${playerTilePositionY}`);
         context.drawImage(
           playerImage,
-          canvasWidth,
-          canvasHeight,
-          0.25,
-          0.25,
+          playerTilePositionX,
+          playerTilePositionY,
+          playerTileWidth,
+          playerTileHeight,
         )
       }
       //then the mines
@@ -84,11 +115,25 @@ async function GenerateGameGridImage(game, layer) {
         const mineImage = await loadTileTexture("mines", "Mine");
         context.drawImage(
           mineImage,
-          canvasWidth,
-          canvasHeight,
-          1,
-          1,
+          canvasX,
+          canvasY,
+          enviornmentTileWidth,
+          enviornmentTileHeight,
         )
+      }
+      if(verbose) {
+        console.log(`[INFO][VERBOSE] Canvas X: ${canvasX}`);
+        console.log(`[INFO][VERBOSE] Canvas Y: ${canvasY}`);
+        console.log(`[INFO][VERBOSE] Tile Trapped: ${GameData[game][0][layer][row][column][2]}`);
+        console.log(`[INFO][VERBOSE] Tile Image: ${tileType}`);
+        console.log(`[INFO][VERBOSE] Tile Players: ${GameData[game][0][layer][row][column][1]}`);
+        console.log(`[INFO][VERBOSE] Tile Type: ${GameData[game][0][layer][row][column][0]}`);
+        console.log(`[INFO][VERBOSE] Enviornment Tile Width: ${enviornmentTileWidth}`);
+        console.log(`[INFO][VERBOSE] Enviornment Tile Height: ${enviornmentTileHeight}`);
+        console.log(`[INFO][VERBOSE] Player Tile Width: ${playerTileWidth}`);
+        console.log(`[INFO][VERBOSE] Player Tile Height: ${playerTileHeight}`);
+        console.log("[INFO][VERBOSE] Finished processing row: " + row);
+        
       }
     }
   }
