@@ -324,7 +324,7 @@ const Classes = [
     ["Snowman", 0, 12, 6, 12, 1, 6, 1, 2, "0181e6", "Can make ice tiles in range for 5AP with the >freeze layer, x, y command"],
     ["Protagonist", 4, 16, 2, 16, 1, 10, 1, 4, "efc266", "Starts with less hp but has high starting maximum stats, and 4 AP"],
     ["Hunter", 0, 12, 6, 12, 1, 6, 1, 2, "274e13", "Can make bush tiles in range for 5AP with the >hide layer, x, y command. Attacks made from inside and on people inside a bush tile do not have a 50% chance to miss"],
-    ["Fencer", 0, 12, 6, 12, 1, 6, 1, 2, "9fc2cd", "Can deal double damage(up to maximum) for 1 AP to anyone within 1 tile of them.with the >stab layer, x, y command"],
+    ["Fencer", 0, 12, 6, 12, 1, 6, 1, 2, "9fc2cd", "Can deal double damage(up to maximum) for 1 AP to anyone within 1 tile of them with the >stab layer, x, y command"],
     
     ["Average", null, null, null, null, null, null, null, null, "ffe2c5", "(ONLY ACCESSIBLE VIA EXORCIST) You are a normal person with no class ability"],
     ["Immutable", -4, 12, 6, 12, 1, 6, 1, 2, "b0b0b0", "(INACCESSIBLE) You cannot take damage from the >shoot command, but will die after (3*amount of players) AP has been given since the game started"],

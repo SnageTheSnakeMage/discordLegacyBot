@@ -1,9 +1,19 @@
 // utils.js - Shared utility functions
+
+//#region BOILERPLATE
 const Canvas = require('canvas');
 const path = require('path');
 var GameData = require("G:/LegacyBotDiscord/Decluttered Attempt 1/data.js").GameData;
 const Classes = require("G:/LegacyBotDiscord/Decluttered Attempt 1/data.js").Classes;
 const verbose = true;
+const { Sequelize, Op, DataTypes, Model } = require('sequelize');
+
+const sequelize = new Sequelize({
+  dialect: 'sqlite',
+  database: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database',
+});
+//#endregion BOILERPLATE
+
 
 // Function to load a tile texture
 async function loadTileTexture(layer, textureName) {
@@ -31,6 +41,10 @@ async function loadTileTexture(layer, textureName) {
     const defaultTile = await Canvas.loadImage(`G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/${layer}/default.png`);
     return defaultTile;
   }
+}
+
+async function updateGameData() {
+  
 }
 
 // Function to generate a layered grid image from multiple 2D arrays with different scales
