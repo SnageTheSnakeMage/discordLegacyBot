@@ -85,8 +85,8 @@ async function GenerateGameGridImagewithSight(game, layer) {
     const tileImage = await loadTileTexture("environment", currentTile.Tile_Type);
     
     // Calculate canvas position
-    const canvasX = (currentTile.X_Position * tileSize);
-    const canvasY = (currentTile.Y_Position * tileSize);
+    const canvasX = ((currentTile.X_Position - 1)* tileSize);
+    const canvasY = ((currentTile.Y_Position - 1)* tileSize);
     const playerTileWidth = tileSize / 2;
     const playerTileHeight = tileSize / 2;
 
