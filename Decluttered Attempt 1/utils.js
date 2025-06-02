@@ -52,96 +52,90 @@ async function loadTileTexture(layer, textureName) {
 async function GenerateGameGridImagewithSight(game, layer) {
   const tileSize = 208;
 
-  // Base canvas dimensions (determined by the environment layer)
-  const baseGridHeight = await models.Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.Y_Bound);
-  const baseGridWidth = await models.Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.X_Bound);
+  // Get layer dimensions
+  const layerData = await models.Layers.findOne({where: {Layer_ID: layer}});
+  const baseGridHeight = layerData.Y_Bound;
+  const baseGridWidth = layerData.X_Bound;
   
   const canvasWidth = baseGridWidth * tileSize;
   const canvasHeight = baseGridHeight * tileSize;
   
-  // Create a canvas
+  // Create canvas
   const canvas = Canvas.createCanvas(canvasWidth, canvasHeight);
   const context = canvas.getContext('2d');
   
-  // Fill background (optional)
+  // Fill background
   context.fillStyle = '#222222';
   context.fillRect(0, 0, canvasWidth, canvasHeight);
 
+  // Get all tiles for this layer
+  const layerTiles = await models.Tiles.findAll({where: {Layer_ID: layer}});
   
-  // Process each tile in the grid
-  var layerTiles = await models.Tiles.findAll({where: {Layer_ID: layer}})
-  for (tile in layerTiles) {
-    currentTile = layerTiles[tile];
-    const tilePlayers = [
-      await models.Players.findOne({where: {Player_ID: currentTile.Player1}}),
-      await models.Players.findOne({where: {Player_ID: currentTile.Player2}}), 
-      await models.Players.findOne({where: {Player_ID: currentTile.Player3}}), 
-      await models.Players.findOne({where: {Player_ID: currentTile.Player4}})];
-    const tileImage = await loadTileTexture("enviornment", currentTile.Tile_Type);
-    const CanvasX = (tile.X_Position * canvasWidth) / baseGridWidth;
-    const CanvasY = (tile.Y_Position * canvasHeight) / baseGridHeight;
+  // Process each tile
+  for (const currentTile of layerTiles) {
+    // Get players on this tile
+    const tilePlayers = await Promise.all([
+      models.Players.findOne({where: {Player_ID: currentTile.Player1}}),
+      models.Players.findOne({where: {Player_ID: currentTile.Player2}}), 
+      models.Players.findOne({where: {Player_ID: currentTile.Player3}}), 
+      models.Players.findOne({where: {Player_ID: currentTile.Player4}})
+    ]);
+
+    // Load environment tile image
+    const tileImage = await loadTileTexture("environment", currentTile.Tile_Type);
+    
+    // Calculate canvas position
+    const canvasX = (currentTile.X_Position * tileSize);
+    const canvasY = (currentTile.Y_Position * tileSize);
     const playerTileWidth = tileSize / 2;
     const playerTileHeight = tileSize / 2;
 
-    //draw the environment
-    context.drawImage(
-      tileImage,
-      CanvasX,
-      CanvasY,
-      tileSize,
-      tileSize,
-    );
+    // Draw the environment tile
+    context.drawImage(tileImage, canvasX, canvasY, tileSize, tileSize);
 
-    //then the players
-    for (player in tilePlayers) {
-      if (tilePlayers[player] == null) {
-        continue;
+    // Draw players
+    for (let playerIndex = 0; playerIndex < tilePlayers.length; playerIndex++) {
+      const player = tilePlayers[playerIndex];
+      if (player === null) continue;
+
+      const playerImage = await loadTileTexture("players", player.Discord_ID);
+      let playerTilePositionX = canvasX;
+      let playerTilePositionY = canvasY;
+
+      // Position players in quadrants
+      switch (playerIndex) {
+        case 0: // Top-left
+          break;
+        case 1: // Top-right
+          playerTilePositionX += playerTileWidth;
+          break;
+        case 2: // Bottom-left
+          playerTilePositionY += playerTileHeight;
+          break;
+        case 3: // Bottom-right
+          playerTilePositionX += playerTileWidth;
+          playerTilePositionY += playerTileHeight;
+          break;
       }
-      const playerImage = await loadTileTexture("players", tilePlayers[player].Discord_ID);
-      const playerTilePositionX = CanvasX;
-      const playerTilePositionY = CanvasY;
-     switch (player) {
-          case "0":
-            playerTilePositionX = canvasX;
-            playerTilePositionY = canvasY;
-            break;
-          case "1":
-            playerTilePositionX = canvasX + playerTileWidth;
-            playerTilePositionY = canvasY;
-            break;
-          case "2":
-            playerTilePositionX = canvasX;
-            playerTilePositionY = canvasY + playerTileHeight;
-            break;
-          case "3":
-            playerTilePositionX = canvasX + playerTileWidth;
-            playerTilePositionY = canvasY + playerTileHeight;
-            break;
-        }
+
       context.drawImage(
         playerImage,
         playerTilePositionX,
         playerTilePositionY,
         playerTileWidth,
-        playerTileHeight,
-      )
-
-      //then the mines
-      if (tile.Trapped) {
-        const mineImage = await loadTileTexture("mines", "Mine");
-        context.drawImage(
-          mineImage,
-          canvasX,
-          canvasY,
-          tileSize,
-          tileSize,
-        )
-      }
+        playerTileHeight
+      );
     }
 
-
+    // Draw mines if tile is trapped
+    if (currentTile.trapped) {
+      const mineImage = await loadTileTexture("mines", "Mine");
+      context.drawImage(mineImage, canvasX, canvasY, tileSize, tileSize);
+    }
   }
 
+  // CRITICAL: Return the canvas buffer!
+  return canvas.toBuffer();
 }
 
 async function GenerateGameGridImagewithoutSight(game, layer) {
