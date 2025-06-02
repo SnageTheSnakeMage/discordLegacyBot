@@ -273,11 +273,15 @@ var GameData = [
         [ //Metadata
             [//Game State: "Setup", "Active", "DevPause", "Paused", "Inactive"
                 "Setup",
-                //AP Interval(in hours)
-                12
-            ], 
-            //Chaos Council Event Log
-            []
+                //AP Interval(in minutes)
+                720,
+                //Current Chaos Council Event
+                "",
+                //Chest Amount
+                0,
+                //Chest Giver
+                "",
+            ]
         ]
     ]
 ]
@@ -336,8 +340,8 @@ const Classes = [
 //[Game][0(GameBoard)][Layer][-Y(0 indexed)][X(0 indexed)][Tiletype, players[], trapped?]
 //                                  0          1       2             3            4               5           6            7              8           9        10        11       12         13                 14                15
 //[Game][1(Players)][playerIndex][userID, Current AP, Max AP, Current Health, Max Health, Current Range, Max Range, Current Damage, Max Damage, Class Index, Dead?, Missed AP, Kills, HP Upgrade Cost, Range Upgrade Cost, Damage Upgrade Cost]
-//            0          1
-//[Game][GameState, AP Interval][Chaos Council Event Log]
+//            0          1               2                    3                           4
+//[Game][GameState, AP Interval, Chaos Council Event, Amount of AP in Chest, Last Player To Put In Chest]
 
 module.exports = {
     GameData,

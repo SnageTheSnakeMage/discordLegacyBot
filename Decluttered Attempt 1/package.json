@@ -4,6 +4,7 @@
     "discord.js": "^14.18.0",
     "dotenv": "^16.4.7",
     "sequelize": "^6.37.7",
+    "sequelize-auto": "^0.8.8",
     "sqlite3": "^5.1.7"
   }
 }
