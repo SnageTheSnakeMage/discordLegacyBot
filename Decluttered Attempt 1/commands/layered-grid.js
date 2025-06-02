@@ -23,7 +23,7 @@ module.exports = {
       await interaction.deferReply();
 
         // Generate layered grid image from data
-        const imageBuffer = await GenerateGameGridImage(interaction.options.getString('game'), interaction.options.getString('layer'));
+        const imageBuffer = await GenerateGameGridImagewithSight(interaction.options.getString('game'), interaction.options.getString('layer'));
         
         // Create attachment
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'layered_grid.png' });

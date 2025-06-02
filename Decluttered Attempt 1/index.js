@@ -3,6 +3,19 @@ const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
+const deployCommands = require('./deploy-commands');
+
+// async function testConnection() {
+//   try {
+//     await sequelize.authenticate();
+//     initModels(sequelize);
+//   console.log('Connection has been established successfully.');
+//   } catch (error) {
+//     console.error('Unable to connect to the database:', error);
+//   }
+// }
+
+// testConnection();
 
 // Load environment variables
 dotenv.config();
@@ -95,4 +108,6 @@ client.on('interactionCreate', async interaction => {
 });
 
 // Login to Discord with your client's token
+deployCommands();
+
 client.login(process.env.DISCORD_TOKEN);

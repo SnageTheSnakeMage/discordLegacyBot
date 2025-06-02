@@ -3,12 +3,16 @@
 //#region BOILERPLATE
 const Canvas = require('canvas');
 const path = require('path');
-// var GameData = require("G:/LegacyBotDiscord/Decluttered Attempt 1/data.js").GameData;
-// const Classes = require("G:/LegacyBotDiscord/Decluttered Attempt 1/data.js").Classes;
 const verbose = true;
-const {Classes, Players, Tiles, Grids, Games, Layers} = require('G:/LegacyBotDiscord/Decluttered Attempt 1/database/Models/init-models.js');
-//#endregion BOILERPLATE
+const initModels = require("G:/LegacyBotDiscord/Decluttered Attempt 1/database/Models/init-models.js");
+const { Sequelize } = require('sequelize');
+const sequelize = new Sequelize({
+  dialect: 'sqlite',
+  storage: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database'
+});
 
+var models = initModels(sequelize);
+//#endregion BOILERPLATE
 
 // Function to load a tile texture
 async function loadTileTexture(layer, textureName) {
@@ -26,7 +30,7 @@ async function loadTileTexture(layer, textureName) {
   }
 
   // Path to tile textures folder (organized by layer)
-  const tilePath = path.join(__dirname, `../tiles/${layer}/${textureName}.png`);
+  const tilePath =  "G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/" + layer + "/" + textureName + ".png";
   console.log("[INFO][VERBOSE] Loading tile texture:", tilePath);
   
   try {
@@ -34,11 +38,12 @@ async function loadTileTexture(layer, textureName) {
     const image = await Canvas.loadImage(tilePath);
     // Cache the texture
     global.tileCache[cacheKey] = image;
+    
     return image;
   } catch (error) {
     console.error(`[ERROR][VERBOSE] Utils.loadTileTexture: Failed to load tile texture ${textureName}:`, error);
-    // Return a default texture or placeholder for the appropriate layer
-    const defaultTile = await Canvas.loadImage(`G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/${layer}/default.png`);
+    // Return a default texture or placeholder for the appropriate layer  
+    const defaultTile = await Canvas.loadImage("G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/" + layer + "/default.png");
     return defaultTile;
   }
 }
@@ -48,8 +53,8 @@ async function GenerateGameGridImagewithSight(game, layer) {
   const tileSize = 208;
 
   // Base canvas dimensions (determined by the environment layer)
-  const baseGridHeight = await Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.Y_Bound);
-  const baseGridWidth = await Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.X_Bound);
+  const baseGridHeight = await models.Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.Y_Bound);
+  const baseGridWidth = await models.Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.X_Bound);
   
   const canvasWidth = baseGridWidth * tileSize;
   const canvasHeight = baseGridHeight * tileSize;
@@ -62,17 +67,17 @@ async function GenerateGameGridImagewithSight(game, layer) {
   context.fillStyle = '#222222';
   context.fillRect(0, 0, canvasWidth, canvasHeight);
 
-
   
   // Process each tile in the grid
-  
-  for (tile in await Tiles.findAll({where: {Game_ID: game, Layer_ID: layer}})) {
+  var layerTiles = await models.Tiles.findAll({where: {Layer_ID: layer}})
+  for (tile in layerTiles) {
+    currentTile = layerTiles[tile];
     const tilePlayers = [
-      await Players.findOne({where: {Player_ID: tile.Player_1}}),
-      await Players.findOne({where: {Player_ID: tile.Player_2}}), 
-      await Players.findOne({where: {Player_ID: tile.Player_3}}), 
-      await Players.findOne({where: {Player_ID: tile.Player_4}})];
-    const tileImage = await loadTileTexture(layer, tile.Tile_Type);
+      await models.Players.findOne({where: {Player_ID: currentTile.Player1}}),
+      await models.Players.findOne({where: {Player_ID: currentTile.Player2}}), 
+      await models.Players.findOne({where: {Player_ID: currentTile.Player3}}), 
+      await models.Players.findOne({where: {Player_ID: currentTile.Player4}})];
+    const tileImage = await loadTileTexture("enviornment", currentTile.Tile_Type);
     const CanvasX = (tile.X_Position * canvasWidth) / baseGridWidth;
     const CanvasY = (tile.Y_Position * canvasHeight) / baseGridHeight;
     const playerTileWidth = tileSize / 2;
@@ -89,6 +94,9 @@ async function GenerateGameGridImagewithSight(game, layer) {
 
     //then the players
     for (player in tilePlayers) {
+      if (tilePlayers[player] == null) {
+        continue;
+      }
       const playerImage = await loadTileTexture("players", tilePlayers[player].Discord_ID);
       const playerTilePositionX = CanvasX;
       const playerTilePositionY = CanvasY;
@@ -140,8 +148,8 @@ async function GenerateGameGridImagewithoutSight(game, layer) {
   const tileSize = 208;
 
   // Base canvas dimensions (determined by the environment layer)
-  const baseGridHeight = await Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.Y_Bound);
-  const baseGridWidth = await Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.X_Bound);
+  const baseGridHeight = await models.Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.Y_Bound);
+  const baseGridWidth = await models.Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.X_Bound);
   
   const canvasWidth = baseGridWidth * tileSize;
   const canvasHeight = baseGridHeight * tileSize;
@@ -158,12 +166,12 @@ async function GenerateGameGridImagewithoutSight(game, layer) {
   
   // Process each tile in the grid
   
-  for (tile in Tiles.findAll({where: {Game_ID: game, Layer_ID: layer}})) {
+  for (tile in models.Tiles.findAll({where: {Game_ID: game, Layer_ID: layer}})) {
     const tilePlayers = [
-      await Players.findOne({where: {Player_ID: tile.Player_1}}), 
-      await Players.findOne({where: {Player_ID: tile.Player_2}}), 
-      await Players.findOne({where: {Player_ID: tile.Player_3}}), 
-      await Players.findOne({where: {Player_ID: tile.Player_4}})];
+      await models.Players.findOne({where: {Player_ID: tile.Player_1}}), 
+      await models.Players.findOne({where: {Player_ID: tile.Player_2}}), 
+      await models.Players.findOne({where: {Player_ID: tile.Player_3}}), 
+      await models.Players.findOne({where: {Player_ID: tile.Player_4}})];
     const tileImage = await loadTileTexture(layer, tile.Tile_Type);
     const CanvasX = (tile.X_Position * canvasWidth) / baseGridWidth;
     const CanvasY = (tile.Y_Position * canvasHeight) / baseGridHeight;
@@ -510,7 +518,7 @@ async function registerPlayer(game, playerId) {
     var SelectedClass = getRandomClass(game);
     spawn = getSpawnpointTile(game)
     addPlayerToTile(player, spawn);
-    const player = Players.create({
+    const player = models.Players.create({
       Class_ID: SelectedClass.Class_ID,
       Game_ID: game,
       Action_Points: SelectedClass.Start_AP,
@@ -532,9 +540,9 @@ async function registerPlayer(game, playerId) {
 }
 
 async function getRandomClass(game) {
-  var randomClassID = getRandomInt(await Classes.count());
-  var randomClass = await Classes.findByPk(randomClassID);
-  await Players.findAll({where: {Game_ID: game, Class_ID: randomClass}}).then((players) => {
+  var randomClassID = getRandomInt(await models.Classes.count());
+  var randomClass = await models.Classes.findByPk(randomClassID);
+  await models.Players.findAll({where: {Game_ID: game, Class_ID: randomClass}}).then((players) => {
     if (players.length < 2) {
       return randomClass;
     }
@@ -564,7 +572,7 @@ function getSpawnpointTile(game) {
 }
 
 function addPlayerToTile(player, game, layer, x, y) {
-  Tiles.findOne({where: {Game_ID: game, Layer: layer, X: x, Y: y}}).then((tile) => {
+  models.Tiles.findOne({where: {Game_ID: game, Layer: layer, X: x, Y: y}}).then((tile) => {
     if(tile.Player_1 == null) {
       tile.Player_1 = player;
     }
@@ -676,7 +684,7 @@ function getDirection(point1, point2) {
 }
 
 function removePlayerFromTile(player, game, layer, x, y) {
-  Tiles.findOne({where: {Game_ID: game, Layer: layer, X: x, Y: y}}).then((tile) => {
+  models.Tiles.findOne({where: {Game_ID: game, Layer: layer, X: x, Y: y}}).then((tile) => {
       if(tile.Player_1 == player) {
         tile.Player_1 = null;
       }
@@ -698,7 +706,7 @@ function getRandomInt(max) {
 }
 
 async function getRandomTile(game) {
-  return getRandomInt(await Tiles.count({where: {Game_ID: game}}));
+  return getRandomInt(await models.Tiles.count({where: {Game_ID: game}}));
 }
 
 module.exports = {
@@ -706,8 +714,12 @@ module.exports = {
   getTileCordinatesOfLine,
   getDirection,
   removePlayerFromTile,
-  setPlayerStat,
   registerPlayer,
   getRandomInt,
   getRandomTile,
+  GenerateGameGridImagewithSight,
+  GenerateGameGridImagewithoutSight,
+  addPlayerToTile,
+  getSpawnpointTile,
+  getRandomClass,
 };

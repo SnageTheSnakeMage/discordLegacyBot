@@ -1,4 +1,6 @@
 // deploy-commands.js - Script to register slash commands
+
+module.exports = async function deployCommands() { 
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
@@ -47,4 +49,5 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     // And of course, make sure you catch and log any errors!
     console.error(error);
   }
-})();
+})()};
+
