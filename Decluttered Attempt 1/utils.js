@@ -10,6 +10,7 @@ const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database'
 });
+const fs = require('fs');
 
 var models = initModels(sequelize);
 //#endregion BOILERPLATE
@@ -48,12 +49,18 @@ async function loadTileTexture(layer, textureName) {
   }
 }
 
+async function commonLayerIDtoDbLayer(game, inputtedLayerID){
+    var gridID = await models.Grids.findOne({where: {Game_ID: game}}).Grid_ID
+    var layersInGrid = await models.Layers.findAll({where: {Grid_ID: gridID}})
+    return layersInGrid[inputtedLayerID-1]
+}
+
 // Function to generate a layered grid image from multiple 2D arrays with different scales
-async function GenerateGameGridImagewithSight(game, layer) {
+async function GenerateGameGridImagewithSight(game, inputtedlayerID) {
   const tileSize = 208;
 
   // Get layer dimensions
-  const layerData = await models.Layers.findOne({where: {Layer_ID: layer}});
+  const layerData = commonLayerIDtoDbLayer(game, inputtedlayerID);
   const baseGridHeight = layerData.Y_Bound;
   const baseGridWidth = layerData.X_Bound;
   
@@ -506,11 +513,10 @@ async function GenerateGameGridImagewithoutSight(game, layer) {
 // }
 //
 
-async function registerPlayer(game, playerId) {
-
-    //var player = [playerId, 0, 12, 6, 12, 1, 6, 1, 2, -1, false, 0, 0, 4, 4, 12];
+async function registerPlayer(game, playerId, playerIcon) {
+    if(await models.Players.count({where: {Discord_ID: playerId}}) > 0) return;
     var SelectedClass = getRandomClass(game);
-    spawn = getSpawnpointTile(game)
+    var spawn = getSpawnpointTile(game)
     addPlayerToTile(player, spawn);
     const player = models.Players.create({
       Class_ID: SelectedClass.Class_ID,
@@ -524,12 +530,12 @@ async function registerPlayer(game, playerId) {
       MAX_RANGE: SelectedClass.Start_MAX_Range,
       Damage: SelectedClass.Start_Damage,
       MAX_DAMAGE: SelectedClass.Start_MAX_Damage,
-      Tile_ID: 0,
+      Tile_ID: spawn.Tile_ID,
       Discord_ID: playerId,
       Trapped: false
-    }
-  );
-    console.log("[INFO] registering player: " + playerId + " with random class: " + randomClass.Class_Name + " and spawning at tile: " + spawn +  " for spawn");
+    });
+     fs.writeFileSync("G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/players/" + playerId + ".png", playerIcon);
+    console.log("[INFO] registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + spawn +  " for spawn");
     return;
 }
 
@@ -548,7 +554,7 @@ async function getRandomClass(game) {
 }
 
 function getSpawnpointTile(game) {
-  var randomTile = getRandomTile(game);
+  var randomTile = models.Tiles.findByPk(getRandomTileId(game));
   console.log("[INFO] rolled tile: " + randomTile + " for a spawnpoint");
   playersInTile = [randomTile.Player_1, randomTile.Player_2, randomTile.Player_3, randomTile.Player_4];
   if ( !playersInTile.includes(null) || 
@@ -699,7 +705,7 @@ function getRandomInt(max) {
   return Math.round((Math.random()) * max);
 }
 
-async function getRandomTile(game) {
+async function getRandomTileId(game) {
   return getRandomInt(await models.Tiles.count({where: {Game_ID: game}}));
 }
 
@@ -710,7 +716,7 @@ module.exports = {
   removePlayerFromTile,
   registerPlayer,
   getRandomInt,
-  getRandomTile,
+  getRandomTile: getRandomTileId,
   GenerateGameGridImagewithSight,
   GenerateGameGridImagewithoutSight,
   addPlayerToTile,

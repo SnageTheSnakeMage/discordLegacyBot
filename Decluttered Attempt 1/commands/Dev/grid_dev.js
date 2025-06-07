@@ -1,6 +1,6 @@
 // commands/layered-grid.js - Layered Grid Command
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const { GenerateGameGridImagewithSight, GenerateGameGridImagewithoutSight } = require('../utils');
+const { GenerateGameGridImagewithSight, GenerateGameGridImagewithoutSight } = require('../../utils');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -26,13 +26,13 @@ module.exports = {
         const imageBuffer = await GenerateGameGridImagewithSight(interaction.options.getString('game'), interaction.options.getString('layer'));
         
         // Create attachment
-        const attachment = new AttachmentBuilder(imageBuffer, { name: 'layered_grid.png' });
+        const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
         
         // Send the image
         await interaction.user.send({ files: [attachment] });
         await interaction.deleteReply();
     } catch (error) {
-      console.error('[ERROR][COMMAND] layered-grid.execute: Error executing layered-grid command:', error);
+      console.error('[ERROR][COMMAND] layered-grid.execute: Error executing grid_dev command:', error);
       if (interaction.replied || interaction.deferred) {
         await interaction.editReply(`Error: ${error.message}`);
       } else {

@@ -13,12 +13,7 @@ module.exports = {
   async execute(interaction) {
     try {
       const helpText = 
-        '**Grid Bot Commands**\n\n' +
-        '`/layered-grid` - Generate a grid with environment, mines, and player layers\n' +
-        '`/layered-grid-custom` - Generate a grid with custom tile size\n' +
-        '`/layered-grid-setup` - Show setup instructions for layered tiles\n' +
-        '`/help` - Show this help message\n\n' +
-        'For legacy text commands, replace `/` with `!` (e.g., `!layered-grid`)';
+        'PUT HELP TEXT HERE';
       
       await interaction.reply({ content: helpText, ephemeral: false });
       
@@ -35,12 +30,7 @@ module.exports = {
   async onMessage(message, args) {
     try {
       const helpText = 
-        '**Grid Bot Commands**\n\n' +
-        '`!layered-grid {...}` - Generate a grid with environment, mines, and player layers\n' +
-        '`!layered-grid-custom 64 {...}` - Generate a grid with custom tile size\n' +
-        '`!layered-grid-setup` - Show setup instructions for layered tiles\n' +
-        '`!help` - Show this help message\n\n' +
-        'Slash commands are also available (e.g., `/layered-grid`)';
+        'PUT HELP TEXT HERE';
       
       message.reply(helpText);
       
