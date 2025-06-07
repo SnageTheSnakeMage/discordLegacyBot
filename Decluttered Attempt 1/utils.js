@@ -15,6 +15,13 @@ const fs = require('fs');
 var models = initModels(sequelize);
 //#endregion BOILERPLATE
 
+//#reigon GLOBAL VARIABLES
+
+var moveCost = 1;
+var shootCost = 2;
+
+//#endregion
+
 // Function to load a tile texture
 async function loadTileTexture(layer, textureName) {
   // Create a unique key for the cache
@@ -167,7 +174,7 @@ async function GenerateGameGridImagewithoutSight(game, layer) {
   
   // Process each tile in the grid
   
-  for (tile in models.Tiles.findAll({where: {Game_ID: game, Layer_ID: layer}})) {
+  for (tile in await models.Tiles.findAll({where: {Game_ID: game, Layer_ID: layer}})) {
     const tilePlayers = [
       await models.Players.findOne({where: {Player_ID: tile.Player_1}}), 
       await models.Players.findOne({where: {Player_ID: tile.Player_2}}), 
@@ -517,7 +524,7 @@ async function registerPlayer(game, playerId, playerIcon) {
     if(await models.Players.count({where: {Discord_ID: playerId}}) > 0) return;
     var SelectedClass = getRandomClass(game);
     var spawn = getSpawnpointTile(game)
-    addPlayerToTile(player, spawn);
+    movePlayerToTile(player, spawn);
     const player = models.Players.create({
       Class_ID: SelectedClass.Class_ID,
       Game_ID: game,
@@ -571,19 +578,25 @@ function getSpawnpointTile(game) {
   };
 }
 
-function addPlayerToTile(player, game, layer, x, y) {
-  models.Tiles.findOne({where: {Game_ID: game, Layer: layer, X: x, Y: y}}).then((tile) => {
+async function movePlayerToTile(playerId, layer, x, y) {
+  var currentPlayer = await models.Players.findByPk(playerId)
+  var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
+  removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
+  await models.Tiles.findOne({where: {Layer: layer, X_Position: x, Y_Position: y}}).then((tile) => {
     if(tile.Player_1 == null) {
-      tile.Player_1 = player;
+      tile.Player_1 = playerId;
     }
     else if(tile.Player_2 == null) {
-      tile.Player_2 = player;
+      tile.Player_2 = playerId;
     }
     else if(tile.Player_3 == null) {
-      tile.Player_3 = player;
+      tile.Player_3 = playerId;
     }
     else if(tile.Player_4 == null) {
-      tile.Player_4 = player;
+      tile.Player_4 = playerId;
+    }
+    else {
+      throw "tile is full";
     }
     tile.save();
   });
@@ -683,18 +696,18 @@ function getDirection(point1, point2) {
   }
 }
 
-function removePlayerFromTile(player, game, layer, x, y) {
-  models.Tiles.findOne({where: {Game_ID: game, Layer: layer, X: x, Y: y}}).then((tile) => {
-      if(tile.Player_1 == player) {
+async function removePlayerFromTile(playerId, layer, x, y) {
+  await models.Tiles.findOne({where: {Layer: layer, X: x, Y: y}}).then((tile) => {
+      if(tile.Player_1 == playerId) {
         tile.Player_1 = null;
       }
-      if(tile.Player_2 == player) {
+      if(tile.Player_2 == playerId) {
         tile.Player_2 = null;
       }
-      if(tile.Player_3 == player) {
+      if(tile.Player_3 == playerId) {
         tile.Player_3 = null;
       }
-      if(tile.Player_4 == player) {
+      if(tile.Player_4 == playerId) {
         tile.Player_4 = null;
       }
       tile.save();
@@ -719,7 +732,7 @@ module.exports = {
   getRandomTile: getRandomTileId,
   GenerateGameGridImagewithSight,
   GenerateGameGridImagewithoutSight,
-  addPlayerToTile,
+  addPlayerToTile: movePlayerToTile,
   getSpawnpointTile,
   getRandomClass,
 };

@@ -38,6 +38,8 @@ function initModels(sequelize) {
   Players.hasMany(Tiles, { as: "Player2_Tiles", foreignKey: "Player2"});
   Tiles.belongsTo(Players, { as: "Player1_Player", foreignKey: "Player1"});
   Players.hasMany(Tiles, { as: "Player1_Tiles", foreignKey: "Player1"});
+  Players.belongsTo(Tiles, { as: "Tile_ID2_Tile", foreignKey: "Tile_ID2"});
+  Tiles.hasMany(Players, { as: "Players", foreignKey: "Tile_ID2"});
   Players.belongsTo(Tiles, { as: "Tile", foreignKey: "Tile_ID"});
   Tiles.hasMany(Players, { as: "Players", foreignKey: "Tile_ID"});
 

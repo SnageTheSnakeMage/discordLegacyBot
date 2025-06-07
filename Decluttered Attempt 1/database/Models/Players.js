@@ -72,7 +72,7 @@ module.exports = function(sequelize, DataTypes) {
       }
     },
     Discord_ID: {
-      type: DataTypes.STRING(1000),
+      type: DataTypes.STRING,
       allowNull: false
     },
     Kills: {
@@ -99,6 +99,14 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.INTEGER,
       allowNull: true,
       defaultValue: 0
+    },
+    Tile_ID2: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'Tiles',
+        key: 'Tile_ID'
+      }
     }
   }, {
     tableName: 'Players',
