@@ -12,13 +12,13 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('board')
     .setDescription('shows the grid that you are on without input, and the inputted grid if given and your an Oracle')
-    .addStringOption(option => 
+    .addIntegerOption(option => 
       option.setName('game')
         .setDescription('which grid to show from which game')
         .setRequired(true))
     .addStringOption(option =>
       option.setName('layer')
-        .setDescription('which layer to show')
+        .setDescription('which layer of that grid to show')
         .setRequired(false)),
   // Aliases for text-based commands
   aliases: ['playergrid', 'grid'],
@@ -30,7 +30,7 @@ module.exports = {
 
       var player = await models.Players.findOne({
         where: {
-          Game_ID: interaction.options.getString('game'),
+          Game_ID: interaction.options.getInteger('game'),
           discordId: interaction.user.id
         }
       })

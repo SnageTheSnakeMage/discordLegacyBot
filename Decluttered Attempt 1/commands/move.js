@@ -22,14 +22,26 @@ module.exports = {
     .addIntegerOption(option =>
       option.setName('body(for Twin class)')
         .setDescription('which body you are moving, accepts 1 & 2, defaults to 1')
+        .setRequired(false))
+    .addIntegerOption(option =>
+      option.setName('game')
+        .setDescription('which game, defaults to oldest active game')
         .setRequired(false)),
 
   async execute(interaction) {
     await interaction.deferReply();
     
+    if(!interaction.options.getInteger('game')) {
+      gameId = await utils.getOldestActiveGameId();
+    }
+    else {
+      gameId = interaction.options.getInteger('game');
+    }
+
     // Get player data
     const player = await models.Players.findOne({
       where: {
+        Game_ID: gameId,
         Discord_ID: interaction.user.id,
       }
     });
@@ -161,7 +173,31 @@ module.exports = {
     newX = Math.max(0, newX);
     newY = Math.max(0, newY);
 
+    // Ensure coordinates don't go above max
+    currentLayer = await models.Layers.findOne({where: {Layer_ID: currentTile.Layer_ID}});
+    newX = Math.min(currentLayer.X_Bound, newX);
+    newY = Math.min(currentLayer.Y_Bound, newY);
+
+    var response = "";
+    var lastStringAddedToResponse = "";
+    var amountOfRepeats = 0;
     try {
+    var movementCords = utils.getTileCordinatesOfLine([currentTile.X_Position, currentTile.Y_Position], [newX, newY]);
+    for (cord in movementCords) {
+      var cur_Tile = await models.Tiles.findOne({where: {X_Position: movementCords[cord][0], Y_Position: movementCords[cord][1], Layer_ID: currentTile.Layer_ID}});
+      var nxt_Tile = await models.Tiles.findOne({where: {X_Position: movementCords[cord + 1][0], Y_Position: movementCords[cord + 1][1], Layer_ID: currentTile.Layer_ID}});
+      if(lastStringAddedToResponse != `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`){
+        response += `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`;
+        lastStringAddedToResponse = `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`;
+        amountOfRepeats = 0;
+      }
+      else{
+        amountOfRepeats += 1;
+        response += `x${amountOfRepeats + 1} \n`;
+      }
+      utils.moveFromTiletoTile(cur_Tile, nxt_Tile, player);
+    }
+
       // Add player to new tile
       await utils.movePlayerToTile(
         player.Player_ID, 
@@ -180,13 +216,13 @@ module.exports = {
       });
       
       await interaction.editReply({ 
-        content: `You moved to a ${newTile.Tile_Type} tile!` 
+        content: response
       });
 
     } catch (error) {
       console.error('Error moving player:', error);
       await interaction.editReply({ 
-        content: "That tile is full or an error occurred!" 
+        content: response + "That last tile is full, restricted(meaning you cant move on it lke Void or Wall) or an error occurred!" 
       });
     }
   }

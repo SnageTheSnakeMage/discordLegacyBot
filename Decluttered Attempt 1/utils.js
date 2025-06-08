@@ -5,7 +5,7 @@ const Canvas = require('canvas');
 const path = require('path');
 const verbose = true;
 const initModels = require("G:/LegacyBotDiscord/Decluttered Attempt 1/database/Models/init-models.js");
-const { Sequelize } = require('sequelize');
+const { Sequelize, where } = require('sequelize');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database'
@@ -19,6 +19,7 @@ var models = initModels(sequelize);
 
 var moveCost = 1;
 var shootCost = 2;
+var timestopped = false;
 
 //#endregion
 
@@ -546,8 +547,41 @@ async function registerPlayer(game, playerId, playerIcon) {
     return;
 }
 
+//for checking all the things that happen when a player moves onto an off of a tile
+async function moveFromTiletoTile(startTile, endTile, player) {
+  console.log("[INFO][VERBOSE] Player " + player + " moved from tile: " + startTile + " to tile: " + endTile);
+  switch(startTile.Tile_Type) {
+      case "Fire":
+        models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Discord_ID: player.Discord_ID}});
+      case "Smoke":
+        if(startTile.X_Position + startTile.Y_Position % 2 == 0) {
+           models.Tiles.update({Tile_Type: "Blank1"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
+           break;
+        }
+        else{
+           models.Tiles.update({Tile_Type: "Blank2"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
+        }
+        break;
+      default:
+        break;
+  }
+  switch(endTile.Tile_Type) {
+      case "Fire":
+        break;
+      case "Ice":
+        break;
+      case "Storm":
+        break;
+      case "Bush":
+        break;
+      default:
+        break;
+  }
+}
+
 async function getRandomClass(game) {
-  var randomClassID = getRandomInt(await models.Classes.count());
+  //-1 to account for Average Class not bieng in this pool
+  var randomClassID = getRandomInt(await models.Classes.count() - 1);
   var randomClass = await models.Classes.findByPk(randomClassID);
   await models.Players.findAll({where: {Game_ID: game, Class_ID: randomClass}}).then((players) => {
     if (players.length < 2) {
@@ -633,6 +667,18 @@ function getTileCordinatesOfLine(tileCord1, tileCord2) {
     returnedTiles.push([x, y]);
   }
   return returnedTiles;
+}
+
+async function getOldestActiveGameId() {
+  models.Games.findAll({where: {GAME_STATE: "Active"}}).then((games) => {
+    var oldestGameId = 100;
+    for (var i = 0; i < games.length; i++) {
+      if (games[i].GAME_ID < oldestGameId) {
+        oldestGameId = games[i].GAME_ID;
+      }
+    }
+    return oldestGameId;
+  })
 }
 
 //gets the direction one would go in if they started at point1 facing point 2 and walked forwards

@@ -107,6 +107,11 @@ module.exports = function(sequelize, DataTypes) {
         model: 'Tiles',
         key: 'Tile_ID'
       }
+    },
+    DMG_BUFF: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
     }
   }, {
     tableName: 'Players',
