@@ -22,7 +22,7 @@ You can have a maximum of 12 AP. And you can use AP to....
 
   - Move in any of the 8 directions (1 AP)
   - Give X AP to any player in your range(X AP)
-  - Shoot/Deal Damage to any player in your range(2 AP)
+  - Shoot/Deal Damage to any player in your range and aligned with you diagonally or orthoginally(2 AP)
   - & Upgrade your stats / heal *the price increases each purchase up to the last number shown here*
     - +1 Range (4 -> 5 -> 7 -> 10 AP)
     - +1 HP (4 -> 5 -> 7 -> 10 AP)
@@ -42,21 +42,20 @@ but generally most players start with the following:
 ## Tiles
 ```
 Blank - nothing happens when you stand on it, can be stood on
-Heal - players on this tile receive 1 HP with their twice a day AP
-Chest - Anyone can store AP and take out AP here, all chests pull from the same storage
+Void - You cant move onto this tile, but can shoot over it with the exception of cloudborns
 
 Fire - -1HP every time you move on or off this tile
 Ice - upon moving onto an ice tile you must move again before another action may be done, this movement does not cost AP
 Storm - puts you in a random surrounding square if you move onto it
-Smoke - becomes a blank tile when someone moves off of it, anyone outside of the tile cannot see who is on this tile with the exception of the oracles
-Mine - Upon stepping onto this tile lose 1 HP then it becomes a blank tile. Looks like a blank tile to everyone except minesweepers or oracles. 
-Bush - attacks on people on this tile and from people on this tile have a 1/2 chance of missing, with the exception of the hunters.
-
-Wall - You cant move onto this tile, If shot twice it will be destroyed, when destroyed leaves behind a blank tile. Counts as 3 tiles when deciding range.
-Void - You cant move onto this tile, but can shoot over it
+Smoke - becomes a blank tile when someone moves off of it(with the exception of gateway and locked gateway tile which will stay the same), anyone outside of the tile cannot see who is on this tile with the exception of the oracles
+Mine - Upon stepping onto this tile lose 1 HP then it becomes a blank tile(with the exception of gateway and locked gateway tile which will stay the same). Can look like any tile to everyone except minesweepers or oracles who will see a flag ontop of the tile. 
+Bush - attacks on people on this tile and from people on this tile have a 1/2 chance of missing, with the exception of hunters.
+Wall - You cant move onto this tile with the exception of cloudborns, If shot twice it will be destroyed, when destroyed leaves behind a blank tile(with the exception of gateway and locked gateway tile which will stay the same). Blocks shots
+Chest - Anyone can store AP and take out AP here, all chests pull from the same storage
+Heal - players on this tile receive 1 HP with their twice a day AP
 
 Gateway - while on this you can warp up or down a layer, can only be changed by guardian
-Locked Gateway - acts as a blank tile
+Locked Gateway - acts as a blank tile, unless unlocked by a guardian. players can warp from another layer and end up on it but unless unlocked the cannot warp again.
 
 
 ```
@@ -64,7 +63,7 @@ Locked Gateway - acts as a blank tile
 When a player dies they join the chaos council, and every 24 hours the council receives a poll to decide a random event that will affect all players. Each council member gets 1 override which can simply choose the event, an override can be used on an override to negate it.
 
 ## Classes
-Each player gets a class that gives them a special ability and they're starting stats. There can only be 2 of each class in a game(meaning each game *currently* has a player max of 64) . Classes are given randomly during setup of the game.
+Each player gets a class that gives them a special ability and they're starting stats. There can only be 2 of each class in a game(meaning each game *currently* has a player max of 76) . Classes are given randomly during setup of the game.
 
 there is a list of all the clasees and their abilities here: https://docs.google.com/spreadsheets/d/1-Wn2_q8c1k2TmlVb-KDunRGIuzC5yuqH3L4XcIIy4G4/edit?usp=sharing
 
