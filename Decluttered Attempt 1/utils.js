@@ -547,36 +547,131 @@ async function registerPlayer(game, playerId, playerIcon) {
     return;
 }
 
-//for checking all the things that happen when a player moves onto an off of a tile
+//for checking all the things that happen when a player moves onto an off of a tile, returns wether they player moved or not
 async function moveFromTiletoTile(startTile, endTile, player) {
   console.log("[INFO][VERBOSE] Player " + player + " moved from tile: " + startTile + " to tile: " + endTile);
   switch(startTile.Tile_Type) {
+      //Player takes damage from leaving fire tile
       case "Fire":
-        models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Discord_ID: player.Discord_ID}});
+        changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - 1);
+        break;
+      //Player destroys smoke tile by moving off of it
       case "Smoke":
-        if(startTile.X_Position + startTile.Y_Position % 2 == 0) {
-           models.Tiles.update({Tile_Type: "Blank1"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
-           break;
+        revertTileToBlank(startTile);
+        break;
+      //Every time a Robot or Stormchaser moves onto a storm tile they...
+      case "Storm":
+        //Robot heals
+        if(player.Class_ID == 19) {
+          changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points + 1);
         }
-        else{
-           models.Tiles.update({Tile_Type: "Blank2"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
+        //Stormchaser gains 1d4-2 AP
+        if(player.Class_ID == 15) {
+          changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Action_Points", player.Action_Points + (getRandomInt(3) - 1));
         }
+        break;
+      case "Ice":
+        //Refund the movement cost for that tile since they are moving off of an ice tile
+        changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Action_Points", player.Action_Points + 1)
         break;
       default:
         break;
   }
   switch(endTile.Tile_Type) {
+    //Player takes damage from entering fire tile
       case "Fire":
+        changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - 1);
         break;
+    //Player must move again from entering ice tile
       case "Ice":
+        //TODO: i need to prompt the player to move again after they stop on an ice tile
         break;
+    //Player must be moved randomly from entering storm tile
       case "Storm":
+        movePlayerToRandomSurroundingTile(player.Player_ID, endTile.Layer_ID, endTile.X_Position, endTile.Y_Position);
         break;
-      case "Bush":
+      case "Void":
+      case "Wall":
+       //Check if player can move on these tiles  
+        if(!player.Class_ID == models.Classes.findAll({
+          where: {
+            //all classes that can move on void and wall tiles
+            Class_Name: "Cloudborn"
+          }}).Class_ID) {
+            changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Tile_ID", startTile.Tile_ID);
+            return false;
+        }
         break;
       default:
         break;
   }
+  
+  if(endTile.Trapped) {
+    //Damage player
+    //return wether player moved or not
+    return true;
+  }
+  else{
+    //dont damage player
+    //return wether player moved or not
+    return true
+  }
+}
+function revertTileToBlank(startTile){
+
+    if(startTile.X_Position + startTile.Y_Position % 2 == 0) {
+      models.Tiles.update({Tile_Type: "Blank1"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
+     return;
+    }
+    else{
+     models.Tiles.update({Tile_Type: "Blank2"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
+     return;
+    }
+}
+
+function movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
+  var randomDirection = getRandomInt(7);
+  switch(randomDirection) {
+    case 0:
+      // West
+      movePlayerToTile(playerId, layer, x - 1, y);
+      break;
+    case 1:
+      // Southwest
+      movePlayerToTile(playerId, layer, x - 1, y + 1);
+      break;
+    case 2:
+      // South
+      movePlayerToTile(playerId, layer, x, y + 1);
+      break;
+    case 3:
+      // Southeast
+      movePlayerToTile(playerId, layer, x + 1, y + 1);
+      break;
+    case 4:
+      // East
+      movePlayerToTile(playerId, layer, x + 1, y);
+      break;
+    case 5:
+      // Northeast
+      movePlayerToTile(playerId, layer, x + 1, y - 1);
+      break;
+    case 6:
+      // North
+      movePlayerToTile(playerId, layer, x, y - 1);
+      break;
+    case 7:
+      // Northwest
+      movePlayerToTile(playerId, layer, x - 1, y - 1);
+      break;
+    default:
+      console.error("Invalid random direction from derived random number: " + randomDirection);
+      break;
+  }
+}
+
+function changeModelByPK(model, id_field, id, field, value) {
+  model.update({field: value}, {where: {id_field: id}});
 }
 
 async function getRandomClass(game) {
@@ -761,7 +856,7 @@ async function removePlayerFromTile(playerId, layer, x, y) {
 }
 
 function getRandomInt(max) {
-  return Math.round((Math.random()) * max);
+  return Math.round(Math.random() * max);
 }
 
 async function getRandomTileId(game) {

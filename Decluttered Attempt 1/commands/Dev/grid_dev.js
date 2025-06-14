@@ -60,7 +60,7 @@ module.exports = {
       const attachment = new AttachmentBuilder(imageBuffer, { name: 'layered_grid.png' });
       
       // Send the image and delete the processing message
-      await interaction.user.send({ files: [attachment] });
+      await interaction.reply({ files: [attachment] ,  flags: MessageFlags.Ephemeral });
       processingMsg.delete().catch(console.error);
       
     } catch (error) {

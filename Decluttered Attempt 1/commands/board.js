@@ -65,7 +65,7 @@ module.exports = {
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
         
         // Send the image
-        await interaction.user.send({ files: [attachment] });
+        await interaction.reply({ files: [attachment] ,  flags: MessageFlags.Ephemeral });
         await interaction.deleteReply();
     } catch (error) {
       console.error('[ERROR][COMMAND] layered-grid.execute: Error executing grid_dev command:', error);

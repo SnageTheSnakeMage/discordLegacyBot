@@ -14,11 +14,23 @@ module.exports = {
     .addStringOption(option =>
       option.setName('direction')
         .setDescription('left, up, north, southwest, etc. Use /help for full list')
-        .setRequired(true))
+        .setRequired(true)
+        .addChoices(
+          { name: "left", value: "east" },
+          { name: "right", value: "west" },
+          { name: "up", value: "north" },
+          { name: "down", value: "south" },
+          { name: "nw", value: "northwest" },
+          { name: "ne", value: "northeast" },
+          { name: "sw", value: "southwest" },
+          { name: "se", value: "southeast" }))
     .addIntegerOption(option =>
       option.setName('distance')
         .setDescription('how many tiles you move')
-        .setRequired(true))
+        .setRequired(true)
+        .setMinValue(0)
+      )
+
     .addIntegerOption(option =>
       option.setName('body(for Twin class)')
         .setDescription('which body you are moving, accepts 1 & 2, defaults to 1')
@@ -99,79 +111,35 @@ module.exports = {
     const direction = interaction.options.getString('direction').toLowerCase();
 
     switch (direction) {
-      case 'left':
       case 'west':
-      case 'w':
-      case 'l':
         newX -= distance;
         break;
-
-      case 'right':
       case 'east':
-      case 'e':
-      case 'r':
         newX += distance;
         break;
-
-      case 'up':
       case 'north':
-      case 'n':
-      case 'u':
         newY += distance;
         break;
-
-      case 'down':
       case 'south':
-      case 's':
-      case 'd':
         newY -= distance;
         break;
-
       case 'northeast':
-      case 'ne':
-      case 'tl':
-      case 'top left':
-      case 'top-left':
         newX += distance;
         newY += distance;
         break;
-
       case 'northwest':
-      case 'nw':
-      case 'tr':
-      case 'top right':
-      case 'top-right':
         newX -= distance;
         newY += distance;
         break;
-
       case 'southeast':
-      case 'se':
-      case 'bl':
-      case 'bottom left':
-      case 'bottom-left':
         newX += distance;
         newY -= distance;
         break;
-
       case 'southwest':
-      case 'sw':
-      case 'br':
-      case 'bottom right':
-      case 'bottom-right':
         newX -= distance;
         newY -= distance;
         break;
-
-      default:
-        return interaction.editReply({ 
-          content: "Invalid direction! Use '/help move' for valid directions." 
-        });
     }
-
-    // Ensure coordinates don't go below 0
-    newX = Math.max(0, newX);
-    newY = Math.max(0, newY);
 
     // Ensure coordinates don't go above max
     currentLayer = await models.Layers.findOne({where: {Layer_ID: currentTile.Layer_ID}});
