@@ -66,7 +66,6 @@ module.exports = {
         
         // Send the image
         await interaction.reply({ files: [attachment] ,  flags: MessageFlags.Ephemeral });
-        await interaction.deleteReply();
     } catch (error) {
       console.error('[ERROR][COMMAND] layered-grid.execute: Error executing grid_dev command:', error);
       if (interaction.replied || interaction.deferred) {

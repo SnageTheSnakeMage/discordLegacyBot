@@ -57,6 +57,60 @@ async function loadTileTexture(layer, textureName) {
   }
 }
 
+function inputPathToArray(inputPath){
+  return inputPath.split(';').map(row => row.split(','));
+}
+
+async function verifyinputPath(inputPath, layer, startingTileX, startingTileY){
+  regex =  /^((?:left|right|up|down|ne|nw|se|sw),\d+;)+$/;
+  result = regex.test(inputPath);
+
+  if(result){
+    path = inputPathToArray(inputPath);
+    var destination = [startingTileX, startingTileY];
+    for (run in path){
+      switch(path[run][0]){
+        case "left":
+          destination = [startingTileX - parseInt(path[run][1]), startingTileY];
+          break;
+        case "right":
+          destination = [startingTileX + parseInt(path[run][1]), startingTileY];
+          break;
+        case "up":
+          destination = [startingTileX, startingTileY - parseInt(path[run][1])];
+          break;
+        case "down":
+          destination = [startingTileX, startingTileY + parseInt(path[run][1])];
+          break;
+        case "nw":
+          destination = [startingTileX - parseInt(path[run][1]), startingTileY - parseInt(path[run][1])];
+          break;
+        case "ne":
+          destination = [startingTileX + parseInt(path[run][1]), startingTileY - parseInt(path[run][1])];
+          break;
+        case "sw":
+          destination = [startingTileX - parseInt(path[run][1]), startingTileY + parseInt(path[run][1])];
+          break;
+        case "se":
+          destination = [startingTileX + parseInt(path[run][1]), startingTileY + parseInt(path[run][1])];
+          break;
+      }
+    }
+  await models.Layers.findByPk(layer).then((curLayer) => {
+    if(curLayer.X_Bound < destination[0] || curLayer.Y_Bound < destination[1]) result = false;
+   })
+  }
+  if(!result){
+    throw "Invalid input path, make sure your path uses a direction(left,right,up,down,nw,ne,sw,se) then a comma(,) and a number within the bounds of the layer separated & ended by a semicolon(;). Also make sure it doesnt take you off the layer you are currently on.";
+  }
+  return true;
+}
+
+async function commandResolutionErrorThrower() {
+  delay(850000);
+  throw "Command Resolution Error";
+}
+
 async function commonLayerIDtoDbLayer(game, inputtedLayerID){
     var gridID = await models.Grids.findOne({where: {Game_ID: game}}).Grid_ID
     var layersInGrid = await models.Layers.findAll({where: {Grid_ID: gridID}})
@@ -569,6 +623,8 @@ async function moveFromTiletoTile(startTile, endTile, player) {
         if(player.Class_ID == 15) {
           changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Action_Points", player.Action_Points + (getRandomInt(3) - 1));
         }
+        //Player is moved in a random direction once
+        movePlayerToRandomSurroundingTile(player.Player_ID, startTile.Layer_ID, startTile.X_Position, startTile.Y_Position);
         break;
       case "Ice":
         //Refund the movement cost for that tile since they are moving off of an ice tile
@@ -599,7 +655,8 @@ async function moveFromTiletoTile(startTile, endTile, player) {
             Class_Name: "Cloudborn"
           }}).Class_ID) {
             changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Tile_ID", startTile.Tile_ID);
-            return false;
+            console.error("[ERROR] Player " + player.Discord_ID + " cannot move onto void or wall tiles");
+            throw "[ERROR] Player " + player.Discord_ID + " cannot move onto void or wall tiles";
         }
         break;
       default:
@@ -608,13 +665,8 @@ async function moveFromTiletoTile(startTile, endTile, player) {
   
   if(endTile.Trapped) {
     //Damage player
-    //return wether player moved or not
-    return true;
-  }
-  else{
-    //dont damage player
-    //return wether player moved or not
-    return true
+    changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - 1);
+    changeModelByPK(models.Tiles, "Tile_ID", endTile.Tile_ID, "Trapped", false);
   }
 }
 function revertTileToBlank(startTile){
@@ -631,9 +683,14 @@ function revertTileToBlank(startTile){
 
 function movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
   var randomDirection = getRandomInt(7);
+  var player = models.Players.findByPk(playerId);
+  var tile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
+  var newTile;
   switch(randomDirection) {
     case 0:
       // West
+      newTile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x - 1, Y_Position: y}});
+      moveFromTiletoTile(tile, layer, x - 1, y);
       movePlayerToTile(playerId, layer, x - 1, y);
       break;
     case 1:
@@ -675,11 +732,10 @@ function changeModelByPK(model, id_field, id, field, value) {
 }
 
 async function getRandomClass(game) {
-  //-1 to account for Average Class not bieng in this pool
-  var randomClassID = getRandomInt(await models.Classes.count() - 1);
+  var randomClassID = getRandomInt(await models.Classes.count());
   var randomClass = await models.Classes.findByPk(randomClassID);
   await models.Players.findAll({where: {Game_ID: game, Class_ID: randomClass}}).then((players) => {
-    if (players.length < 2) {
+    if (players.length < 2 || randomClass.Class_Name == "Average") {
       return randomClass;
     }
     else {
@@ -705,6 +761,10 @@ function getSpawnpointTile(game) {
   else {
     return randomTile;
   };
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function movePlayerToTile(playerId, layer, x, y) {
@@ -876,4 +936,7 @@ module.exports = {
   addPlayerToTile: movePlayerToTile,
   getSpawnpointTile,
   getRandomClass,
+  moveFromTiletoTile,
+  commandResolutionErrorThrower,
+  verifyinputPath,
 };

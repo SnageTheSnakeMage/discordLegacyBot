@@ -45,7 +45,7 @@ module.exports = {
   async onMessage(message, args) {
     try {
       // Send a "processing" message
-      const processingMsg = await message.reply('generating grid image...');
+      await interaction.deferReply({flags: MessageFlags.Ephemeral});
       
       
       // Generate layered grid image from data
@@ -60,9 +60,7 @@ module.exports = {
       const attachment = new AttachmentBuilder(imageBuffer, { name: 'layered_grid.png' });
       
       // Send the image and delete the processing message
-      await interaction.reply({ files: [attachment] ,  flags: MessageFlags.Ephemeral });
-      processingMsg.delete().catch(console.error);
-      
+      await interaction.editReply({ files: [attachment] });
     } catch (error) {
       console.error('[ERROR][COMMAND] layered-grid.onMessage: Error generating layered grid:', error);
       message.reply(`Error: ${error.message}`);
