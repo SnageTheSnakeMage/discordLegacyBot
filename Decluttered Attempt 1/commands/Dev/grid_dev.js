@@ -40,30 +40,25 @@ module.exports = {
       }
     }
   },
+}
   
   // Function for traditional message command execution
-  async onMessage(message, args) {
-    try {
-      // Send a "processing" message
-      await interaction.deferReply({flags: MessageFlags.Ephemeral});
+//   async onMessage(message, args) {
+//     try {
+//       // Send a "processing" message
+//       await interaction.deferReply({flags: MessageFlags.Ephemeral});
       
+//       // Generate layered grid image from data
+//       const imageBuffer = await utils.GenerateGameGridImage(args[0], args[1]);
       
-      // Generate layered grid image from data
-      if(interaction.user.roles.cache.some(role => role.name === 'Oracle') || interaction.user.roles.cache.some(role => role.name === 'Minesweeper')){ 
-        const imageBuffer = await GenerateGameGridImagewithSight(args[0], args[1]);
-      }
-      else {
-        const imageBuffer = await GenerateGameGridImagewithoutSight(args[0], args[1]);
-      }
+//       // Create attachment
+//       const attachment = new AttachmentBuilder(imageBuffer, { name: 'layered_grid.png' });
       
-      // Create attachment
-      const attachment = new AttachmentBuilder(imageBuffer, { name: 'layered_grid.png' });
-      
-      // Send the image and delete the processing message
-      await interaction.editReply({ files: [attachment] });
-    } catch (error) {
-      console.error('[ERROR][COMMAND] layered-grid.onMessage: Error generating layered grid:', error);
-      message.reply(`Error: ${error.message}`);
-    }
-  }
-};
+//       // Send the image and delete the processing message
+//       await interaction.editReply({ files: [attachment] });
+//     } catch (error) {
+//       console.error('[ERROR][COMMAND] layered-grid.onMessage: Error generating layered grid:', error);
+//       message.reply(`Error: ${error.message}`);
+//     }
+//   }
+// };

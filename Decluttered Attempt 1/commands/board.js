@@ -20,7 +20,11 @@ module.exports = {
       option.setName('layer')
         .setDescription('which layer of that grid to show, defaults to the one you are on')
         .setRequired(false)
-        .set),
+        .set)
+    .addIntegerOption(option =>
+      option.setName('body')
+        .setDescription('(FOR TWIN CLASS) Which body you are trying to see, accepts 1 & 2, defaults to 1. use stats to see which body is where')
+        .setRequired(false)),
   // Aliases for text-based commands
   aliases: ['playergrid', 'grid'],
   
@@ -39,25 +43,43 @@ module.exports = {
 
       var game = interaction.options.getInteger('game') ?? utils.getOldestActiveGameId();
 
-      var layer = interaction.options.getInteger('layer') ?? 
-      await models.Layers.findOne({
-        where: {
-          Layer_ID: await models.Tiles.findOne({
-              where: {
-                  Tile_ID: player.Tile_ID
-              }
-          }).Layer_ID
-        }
-      })
+      var layer = interaction.options.getInteger('layer')
+      //Check which layer to show the player if they dont provide it, and if they are a twin make sure to show the one with the body they chose
+      if(!layer){
+        if (interaction.options.getInteger('body') == 2) {
+        await models.Layers.findOne({
+          where: {
+            Layer_ID: await models.Tiles.findOne({
+                where: {
+                    Tile_ID: player.Tile_ID_2
+                }
+            }).Layer_ID
+          }
+        })
+      }
+      //ellegantly catches all the other cases, if they dont pass a body it defaults to body 1 and if they arent a twin it defaults to the one they are on
+      else{
+        await models.Layers.findOne({
+          where: {
+            Layer_ID: await models.Tiles.findOne({
+                where: {
+                    Tile_ID: player.Tile_ID
+                }
+            }).Layer_ID
+          }
+        })
+      }
+    }
 
-        // Generate layered grid image from data
-        const imageBuffer = await utils.GenerateGameGridImage(interaction.options.getInteger('game'), layer, player.Player_ID);
+        // Generate image from database and provided inputs
+        const imageBuffer = await utils.GenerateGameGridImage(game, layer, player.Player_ID);
 
         // Create attachment
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
         
         // Send the image
         await interaction.reply({ files: [attachment] ,  flags: MessageFlags.Ephemeral });
+        
     } catch (error) {
       console.error('[ERROR][COMMAND][board.js]:', error);
       if (interaction.replied || interaction.deferred) {

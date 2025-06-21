@@ -47,10 +47,8 @@ module.exports = {
 
     await interaction.deferReply();
     try{
-      utils.commandResolutionErrorThrower();
 
-      //Verification & Variables
-
+      //#region Verification
       if(!interaction.options.getInteger('game')) {
         gameId = await utils.getOldestActiveGameId();
       }
@@ -77,7 +75,7 @@ module.exports = {
       }
 
       // Determine which body to move (for Twin class)
-      const bodyToMove = interaction.options.getInteger('body(for Twin class)');
+      const bodyToMove = interaction.options.getInteger('body');
 
       if (bodyToMove === "2") {
         originalTile = await models.Tiles.findOne({
@@ -98,17 +96,26 @@ module.exports = {
           content: "Current tile not found! please register, or ask a Dev about why your not on the board" 
         });
       }
-
-
+      //#endregion Verification
+      //#region Variables
       var iceTileDeduction = 0;
       const distance = interaction.options.getInteger('distance');
-      var lastTileIsIce = false;
 
       let newX = originalTile.X_Position;
       let newY = originalTile.Y_Position;
       const direction = interaction.options.getString('direction').toLowerCase();
 
-      //Calculation of New Position
+      //Check if player is moving onto an ice tile at any time in their path or run
+      //Also used to count the amount of tiles the player is moving for the movement cost calculation
+      //Also used to find which tiles should be checked when doing the tile to tile movement updating
+      var iceChecklist
+
+      var response = "";
+      var lastStringAddedToResponse = "";
+      var amountOfRepeats = 0;
+      //#endregion Variables
+
+      //#region Calculation of New Position
       if(interaction.options.getString('path') != null){
          for (run in utils.addStartToPathArray(direction, distance, utils.inputPathToArray(interaction.options.getString('path')))) {
         switch (direction) {
@@ -181,12 +188,9 @@ module.exports = {
       currentLayer = await models.Layers.findOne({where: {Layer_ID: originalTile.Layer_ID}});
       newX = Math.min(currentLayer.X_Bound, newX);
       newY = Math.min(currentLayer.Y_Bound, newY);
-
+//#endregion Calculation of New Position
       
-      //Check if player is moving onto an ice tile at any time in their path or run
-      //Also used to count the amount of tiles the player is moving for the movement cost calculation
-      //Also used to find which tiles should be checked when doing the tile to tile movement updating
-      var iceChecklist
+
       //iceChecklist represents all the cordinates of the tiles a player is moving onto
       interaction.options.getString('path') == null ? iceChecklist = utils.getTileCordinatesOfLine([originalTile.X_Position, originalTile.Y_Position], [newX, newY]) : iceChecklist = utils.getTileCordinatesOfPath([originalTile.X_Position, originalTile.Y_Position], utils.addStartToPathArray(direction, distance, utils.inputPathToArray(interaction.options.getString('path'))));
       for (cord in iceChecklist) {
@@ -200,7 +204,6 @@ module.exports = {
           iceTileDeduction++;
         }
         if(cord == iceChecklist.length && tile.Tile_Type == "Ice") {
-          lastTileIsIce = true
           throw "Cannot end a movement on an ice tile, please either provide a path that moves off the ice, or move onto a non-ice tile.";
         }
       }
@@ -212,9 +215,7 @@ module.exports = {
         throw "Player does not enough action points for movement requested.";
       }
 
-      var response = "";
-      var lastStringAddedToResponse = "";
-      var amountOfRepeats = 0;
+
       try {
         for (cord in iceChecklist) {
           var cur_Tile = await models.Tiles.findOne({where: {X_Position: iceChecklist[cord][0], Y_Position: iceChecklist[cord][1], Layer_ID: originalTile.Layer_ID}});
@@ -254,7 +255,7 @@ module.exports = {
         });
 
         //if player is a spy delete their action logs after 5 seconds
-        if(player.Class_ID == 38){
+        if(player.Class_ID == models.Classes.findOne({where: {Class_Name: "Spy"}}).Class_ID) {
           await utils.delay(5000);
           await interaction.deleteReply();
         }

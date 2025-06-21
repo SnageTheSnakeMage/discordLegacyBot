@@ -1,0 +1,11 @@
+const GAMESTATES = Object.freeze({
+  ACTIVE: "ACTIVE",
+  DEV_PAUSED: "DEV_PAUSED",
+  OVER: "OVER",
+  TIMESTOPPED: "TIMESTOPPED",
+  REGISTRATION: "REGISTRATION",
+})
+
+module.exports = {
+  GAMESTATES
+}

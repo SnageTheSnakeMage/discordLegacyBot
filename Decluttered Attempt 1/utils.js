@@ -12,17 +12,8 @@ const sequelize = new Sequelize({
 });
 const fs = require('fs');
 var models = initModels(sequelize);
+var GAMESTATES = require('G:/LegacyBotDiscord/Decluttered Attempt 1/enums.js').GAMESTATES;
 //#endregion BOILERPLATE
-
-//#reigon GLOBAL VARIABLES
-
-var moveCost = 1;
-var shootCost = 2;
-var timestopped = false;
-var fireDmg = 1;
-var mineDmg = 1;
-
-//#endregion
 
 // Function to load a tile texture
 async function loadTileTexture(layer, textureName) {
@@ -186,15 +177,37 @@ async function GenerateGameGridImage(game, inputtedlayerID, playerID) {
   // Get all tiles for this layer
   const layerTiles = await models.Tiles.findAll({where: {Layer_ID: layer}});
 
-  const player = await models.Players.findByPk(playerID);
-  const playersTile = await models.Tiles.findByPk(player.Tile_ID);
-  trapSight = player.Class_ID == 22 || player.Class_ID == 7 ? true : false;
-  allLayerSight = player.Class_ID == 22 ? true : false;
-  
-  if(!allLayerSight) {
-    if (inputtedlayerID != playersTile.Layer_ID) {
-      throw "You can only view the layer you are currently on, unless you are an oracle";
+  if(playerID != null) {
+    const player = await models.Players.findByPk(playerID);
+    const playersTile = await models.Tiles.findByPk(player.Tile_ID);
+    trapSight = await models.Classes.findOne({
+      where: {
+        Class_Name: {
+          [Op.or]: [
+            "Oracle", "Minesweeper"
+          ]
+        },
+        Class_ID: player.Class_ID
+      }}) != null ? true : false;
+    allLayerSight =await models.Classes.findOne({
+      where: {
+        Class_Name: {
+          [Op.or]: [
+            "Oracle"
+          ]
+        },
+        Class_ID: player.Class_ID
+      }}) != null ? true : false;
+    
+    if(!allLayerSight) {
+      if (inputtedlayerID != playersTile.Layer_ID) {
+        throw "You can only view the layer you are currently on, unless you are an oracle";
+      }
     }
+  }
+  else {
+    trapSight = true;
+    allLayerSight = true;
   }
 
   // Process each tile
@@ -223,6 +236,7 @@ async function GenerateGameGridImage(game, inputtedlayerID, playerID) {
     for (let playerIndex = 0; playerIndex < tilePlayers.length; playerIndex++) {
       const player = tilePlayers[playerIndex];
       if (player === null) continue;
+      if(player.Class_ID == await models.Classes.findOne({where: {Class_Name: "Spy"}}).Class_ID && !allLayerSight) continue;
 
       const playerImage = await loadTileTexture("players", player.Discord_ID);
       let playerTilePositionX = canvasX;
@@ -570,10 +584,10 @@ function getTileCordinatesOfLine(tileCord1, tileCord2) {
 async function getOldestActiveGameId(playerID) {
   var players = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
   var games = await models.Games.findAll({where: {
-    GAME_STATE: "Active",
-    Game_ID: {
-      [Op.or]: players
-  }}});
+    GAME_STATE: {
+      [Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED]
+    },
+    Game_ID: players}});
   //set oldestGameId to newest Id
   var oldestGameId = games.length;
   for (var i = 0; i < games.length; i++) {
@@ -672,6 +686,8 @@ async function getRandomTileId(game) {
   return getRandomInt(await models.Tiles.count({where: {Game_ID: game}}));
 }
 
+
+//Claude Provided Move Command Function Refactors
 async function validateAndParseMoveCommandInput(interaction) {
   // Gather all inputs with clear defaults
   const gameId = interaction.options.getInteger('game') || await getOldestActiveGameId();
@@ -717,6 +733,56 @@ async function validateAndParseMoveCommandInput(interaction) {
   };
 }
 
+async function calculateMovement(moveRequest) {
+  const { currentTile, direction, distance, customPath } = moveRequest;
+  
+  // Start from current position
+  let newX = currentTile.X_Position;
+  let newY = currentTile.Y_Position;
+  
+  // Calculate movement path
+  let movementPath;
+  
+  if (customPath) {
+    // Use custom path - this needs the utils functions to be working
+    const pathArray = utils.inputPathToArray(customPath);
+    const completePathArray = utils.buildCompletePathArray(direction, distance, pathArray);
+    movementPath = utils.getTileCordinatesOfPath([newX, newY], completePathArray);
+  } else {
+    // Use simple directional movement
+    const directionMap = {
+      'west': [-distance, 0],
+      'east': [distance, 0],
+      'north': [0, distance],
+      'south': [0, -distance],
+      'northeast': [distance, distance],
+      'northwest': [-distance, distance],
+      'southeast': [distance, -distance],
+      'southwest': [-distance, -distance]
+    };
+    
+    const [deltaX, deltaY] = directionMap[direction];
+    newX += deltaX;
+    newY += deltaY;
+    
+    // Create a simple path for consistency
+    movementPath = utils.getTileCordinatesOfLine([currentTile.X_Position, currentTile.Y_Position], [newX, newY]);
+  }
+  
+  // Check bounds
+  const currentLayer = await models.Layers.findByPk(currentTile.Layer_ID);
+  newX = Math.min(currentLayer.X_Bound, Math.max(1, newX));
+  newY = Math.min(currentLayer.Y_Bound, Math.max(1, newY));
+  
+  return {
+    startTile: currentTile,
+    endPosition: { x: newX, y: newY },
+    movementPath,
+    layer: currentLayer
+  };
+}
+
+
 
 
 module.exports = {
@@ -739,6 +805,7 @@ module.exports = {
   getTileCordinatesOfPath,
   inputPathToArray,
   validateAndParseMoveCommandInput,
+  calculateMovement,
   moveCost,
   shootCost,
   timestopped,
