@@ -1,6 +1,6 @@
 // commands/layered-grid.js - Layered Grid Command
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const { GenerateGameGridImagewithSight, GenerateGameGridImagewithoutSight } = require('../../utils');
+const utils = require('../utils');
 const { Sequelize, where } = require('sequelize');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
@@ -14,16 +14,18 @@ module.exports = {
     .setDescription('shows the grid that you are on without input, and the inputted grid if given and your an Oracle')
     .addIntegerOption(option => 
       option.setName('game')
-        .setDescription('which grid to show from which game')
-        .setRequired(true))
-    .addStringOption(option =>
+        .setDescription('which grid to show from which game, defaults to oldest active game')
+        .setRequired(false))
+    .addIntegerOption(option =>
       option.setName('layer')
-        .setDescription('which layer of that grid to show')
-        .setRequired(false)),
+        .setDescription('which layer of that grid to show, defaults to the one you are on')
+        .setRequired(false)
+        .set),
   // Aliases for text-based commands
   aliases: ['playergrid', 'grid'],
   
   // Function for slash command execution
+  // TODO: implement Twin Class
   async execute(interaction) {
     try {
       await interaction.deferReply();
@@ -35,7 +37,10 @@ module.exports = {
         }
       })
 
-      var layer = await models.Layers.findOne({
+      var game = interaction.options.getInteger('game') ?? utils.getOldestActiveGameId();
+
+      var layer = interaction.options.getInteger('layer') ?? 
+      await models.Layers.findOne({
         where: {
           Layer_ID: await models.Tiles.findOne({
               where: {
@@ -46,28 +51,15 @@ module.exports = {
       })
 
         // Generate layered grid image from data
-        if(interaction.user.roles.cache.some(role => role.name === 'Oracle')){
-            if(interaction.options.getString('layer') == null){
-                const imageBuffer = await GenerateGameGridImagewithSight(player.Game_ID, layer.Layer_ID);
-            }
-            else{
-                const imageBuffer = await GenerateGameGridImagewithSight(player.Game_ID, interaction.options.getString('layer'));
-            }
-        }
-        if (interaction.user.roles.cache.some(role => role.name === 'Minesweeper')){ 
-            const imageBuffer = await GenerateGameGridImagewithSight(player.Game_ID, layer.Layer_ID);
-        }
-        else {
-            const imageBuffer = await GenerateGameGridImagewithoutSight(player.Game_ID, layer.Layer_ID);
-        }
-        
+        const imageBuffer = await utils.GenerateGameGridImage(interaction.options.getInteger('game'), layer, player.Player_ID);
+
         // Create attachment
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
         
         // Send the image
         await interaction.reply({ files: [attachment] ,  flags: MessageFlags.Ephemeral });
     } catch (error) {
-      console.error('[ERROR][COMMAND] layered-grid.execute: Error executing grid_dev command:', error);
+      console.error('[ERROR][COMMAND][board.js]:', error);
       if (interaction.replied || interaction.deferred) {
         await interaction.editReply(`Error: ${error.message}`);
       } else {

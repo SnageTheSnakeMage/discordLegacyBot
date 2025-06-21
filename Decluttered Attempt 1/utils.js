@@ -5,13 +5,12 @@ const Canvas = require('canvas');
 const path = require('path');
 const verbose = true;
 const initModels = require("G:/LegacyBotDiscord/Decluttered Attempt 1/database/Models/init-models.js");
-const { Sequelize, where } = require('sequelize');
+const { Sequelize, where, Op } = require('sequelize');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database'
 });
 const fs = require('fs');
-
 var models = initModels(sequelize);
 //#endregion BOILERPLATE
 
@@ -20,6 +19,8 @@ var models = initModels(sequelize);
 var moveCost = 1;
 var shootCost = 2;
 var timestopped = false;
+var fireDmg = 1;
+var mineDmg = 1;
 
 //#endregion
 
@@ -57,6 +58,10 @@ async function loadTileTexture(layer, textureName) {
   }
 }
 
+//turns the string into a proper path array
+//[[direction, distance]]
+//direction: left, right, up, down, nw, ne, sw, se
+//distance: number
 function inputPathToArray(inputPath){
   return inputPath.split(';').map(row => row.split(','));
 }
@@ -94,6 +99,8 @@ async function verifyinputPath(inputPath, layer, startingTileX, startingTileY){
         case "se":
           destination = [startingTileX + parseInt(path[run][1]), startingTileY + parseInt(path[run][1])];
           break;
+        default:
+          throw "Invalid input path, your are using a direction that isnt: left,right,up,down,nw,ne,sw, or se";
       }
     }
   await models.Layers.findByPk(layer).then((curLayer) => {
@@ -106,23 +113,62 @@ async function verifyinputPath(inputPath, layer, startingTileX, startingTileY){
   return true;
 }
 
+//adds an inital move to the path array
+//initialMoveDirection = left, right, up, down, nw, ne, sw, se
+//initialMoveDistance = number
+//pathArray = return of inputPathToArray
+//returns an array of di
+function addStartToPathArray(initalMoveDirection, initalMoveDistance, pathArray){
+  switch (initalMoveDirection) {
+    case "ne":
+      initalMoveDirection = "northeast";
+      break;
+    case "nw":
+      initalMoveDirection = "northwest";
+      break;
+    case "se":
+      initalMoveDirection = "southeast";
+      break;
+    case "sw":
+      initalMoveDirection = "southwest";
+      break;
+    case "left":
+      initalMoveDirection = "west";
+      break;
+    case "right":
+      initalMoveDirection = "east";
+      break;
+    case "up":
+      initalMoveDirection = "north";
+      break;
+    case "down":
+      initalMoveDirection = "south";
+      break;
+    default:
+      throw "Invalid inital movement direction cannot parse into complete path array";
+  }
+  pathArray.unshift([initalMoveDirection, initalMoveDistance]);
+  return pathArray;
+}
+
 async function commandResolutionErrorThrower() {
   delay(850000);
   throw "Command Resolution Error";
 }
 
-async function commonLayerIDtoDbLayer(game, inputtedLayerID){
+//turns a layer id that would be known to a player for a game into the actual layer's id in the database
+async function commonLayerIDtoDbLayerID(game, inputtedLayerID){
     var gridID = await models.Grids.findOne({where: {Game_ID: game}}).Grid_ID
     var layersInGrid = await models.Layers.findAll({where: {Grid_ID: gridID}})
     return layersInGrid[inputtedLayerID-1]
 }
 
-// Function to generate a layered grid image from multiple 2D arrays with different scales
-async function GenerateGameGridImagewithSight(game, inputtedlayerID) {
+// generates a layer from a game while checking what a player can see
+async function GenerateGameGridImage(game, inputtedlayerID, playerID) {
   const tileSize = 208;
 
   // Get layer dimensions
-  const layerData = commonLayerIDtoDbLayer(game, inputtedlayerID);
+  const layerData = commonLayerIDtoDbLayerID(game, inputtedlayerID);
   const baseGridHeight = layerData.Y_Bound;
   const baseGridWidth = layerData.X_Bound;
   
@@ -139,7 +185,18 @@ async function GenerateGameGridImagewithSight(game, inputtedlayerID) {
 
   // Get all tiles for this layer
   const layerTiles = await models.Tiles.findAll({where: {Layer_ID: layer}});
+
+  const player = await models.Players.findByPk(playerID);
+  const playersTile = await models.Tiles.findByPk(player.Tile_ID);
+  trapSight = player.Class_ID == 22 || player.Class_ID == 7 ? true : false;
+  allLayerSight = player.Class_ID == 22 ? true : false;
   
+  if(!allLayerSight) {
+    if (inputtedlayerID != playersTile.Layer_ID) {
+      throw "You can only view the layer you are currently on, unless you are an oracle";
+    }
+  }
+
   // Process each tile
   for (const currentTile of layerTiles) {
     // Get players on this tile
@@ -197,7 +254,7 @@ async function GenerateGameGridImagewithSight(game, inputtedlayerID) {
     }
 
     // Draw mines if tile is trapped
-    if (currentTile.trapped) {
+    if (currentTile.trapped && player.Class_ID == 22) {
       const mineImage = await loadTileTexture("mines", "Mine");
       context.drawImage(mineImage, canvasX, canvasY, tileSize, tileSize);
     }
@@ -205,84 +262,6 @@ async function GenerateGameGridImagewithSight(game, inputtedlayerID) {
 
   // CRITICAL: Return the canvas buffer!
   return canvas.toBuffer();
-}
-
-async function GenerateGameGridImagewithoutSight(game, layer) {
-  const tileSize = 208;
-
-  // Base canvas dimensions (determined by the environment layer)
-  const baseGridHeight = await models.Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.Y_Bound);
-  const baseGridWidth = await models.Layers.findOne({where: {Layer_ID: layer}}).then(layer => layer.X_Bound);
-  
-  const canvasWidth = baseGridWidth * tileSize;
-  const canvasHeight = baseGridHeight * tileSize;
-  
-  // Create a canvas
-  const canvas = Canvas.createCanvas(canvasWidth, canvasHeight);
-  const context = canvas.getContext('2d');
-  
-  // Fill background (optional)
-  context.fillStyle = '#222222';
-  context.fillRect(0, 0, canvasWidth, canvasHeight);
-
-
-  
-  // Process each tile in the grid
-  
-  for (tile in await models.Tiles.findAll({where: {Game_ID: game, Layer_ID: layer}})) {
-    const tilePlayers = [
-      await models.Players.findOne({where: {Player_ID: tile.Player_1}}), 
-      await models.Players.findOne({where: {Player_ID: tile.Player_2}}), 
-      await models.Players.findOne({where: {Player_ID: tile.Player_3}}), 
-      await models.Players.findOne({where: {Player_ID: tile.Player_4}})];
-    const tileImage = await loadTileTexture(layer, tile.Tile_Type);
-    const CanvasX = (tile.X_Position * canvasWidth) / baseGridWidth;
-    const CanvasY = (tile.Y_Position * canvasHeight) / baseGridHeight;
-    const playerTileWidth = tileSize / 2;
-    const playerTileHeight = tileSize / 2;
-
-    //draw the environment
-    context.drawImage(
-      tileImage,
-      CanvasX,
-      CanvasY,
-      tileSize,
-      tileSize,
-    );
-
-    //then the players
-    for (player in tilePlayers) {
-      const playerImage = await loadTileTexture("players", tilePlayers[player].Discord_ID);
-      const playerTilePositionX = CanvasX;
-      const playerTilePositionY = CanvasY;
-     switch (player) {
-          case "0":
-            playerTilePositionX = canvasX;
-            playerTilePositionY = canvasY;
-            break;
-          case "1":
-            playerTilePositionX = canvasX + playerTileWidth;
-            playerTilePositionY = canvasY;
-            break;
-          case "2":
-            playerTilePositionX = canvasX;
-            playerTilePositionY = canvasY + playerTileHeight;
-            break;
-          case "3":
-            playerTilePositionX = canvasX + playerTileWidth;
-            playerTilePositionY = canvasY + playerTileHeight;
-            break;
-        }
-      context.drawImage(
-        playerImage,
-        playerTilePositionX,
-        playerTilePositionY,
-        playerTileWidth,
-        playerTileHeight,
-      )
-    }
-  }
-
 }
 
 //
@@ -575,6 +554,7 @@ async function GenerateGameGridImagewithoutSight(game, layer) {
 // }
 //
 
+//adds a player to a game and downloads their playerIcon to be used for GenerateGameGridImagewithSight 
 async function registerPlayer(game, playerId, playerIcon) {
     if(await models.Players.count({where: {Discord_ID: playerId}}) > 0) return;
     var SelectedClass = getRandomClass(game);
@@ -603,17 +583,26 @@ async function registerPlayer(game, playerId, playerIcon) {
 
 //for checking all the things that happen when a player moves onto an off of a tile, returns wether they player moved or not
 async function moveFromTiletoTile(startTile, endTile, player) {
-  console.log("[INFO][VERBOSE] Player " + player + " moved from tile: " + startTile + " to tile: " + endTile);
+  console.log("[INFO][VERBOSE] Player: " + player.Player_ID + " moved from tile: " + startTile + " to tile: " + endTile);
   switch(startTile.Tile_Type) {
       //Player takes damage from leaving fire tile
       case "Fire":
-        changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - 1);
+        changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - fireDmg);
         break;
       //Player destroys smoke tile by moving off of it
       case "Smoke":
         revertTileToBlank(startTile);
         break;
-      //Every time a Robot or Stormchaser moves onto a storm tile they...
+      default:
+        break;
+  }
+  switch(endTile.Tile_Type) {
+    //Player takes damage from entering fire tile
+      case "Fire":
+        changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - fireDmg);
+        break;
+    //Player must be moved randomly from entering storm tile
+    //Every time a Robot or Stormchaser moves onto a storm tile they...
       case "Storm":
         //Robot heals
         if(player.Class_ID == 19) {
@@ -625,26 +614,6 @@ async function moveFromTiletoTile(startTile, endTile, player) {
         }
         //Player is moved in a random direction once
         movePlayerToRandomSurroundingTile(player.Player_ID, startTile.Layer_ID, startTile.X_Position, startTile.Y_Position);
-        break;
-      case "Ice":
-        //Refund the movement cost for that tile since they are moving off of an ice tile
-        changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Action_Points", player.Action_Points + 1)
-        break;
-      default:
-        break;
-  }
-  switch(endTile.Tile_Type) {
-    //Player takes damage from entering fire tile
-      case "Fire":
-        changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - 1);
-        break;
-    //Player must move again from entering ice tile
-      case "Ice":
-        //TODO: i need to prompt the player to move again after they stop on an ice tile
-        break;
-    //Player must be moved randomly from entering storm tile
-      case "Storm":
-        movePlayerToRandomSurroundingTile(player.Player_ID, endTile.Layer_ID, endTile.X_Position, endTile.Y_Position);
         break;
       case "Void":
       case "Wall":
@@ -665,10 +634,12 @@ async function moveFromTiletoTile(startTile, endTile, player) {
   
   if(endTile.Trapped) {
     //Damage player
-    changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - 1);
+    changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - mineDmg);
     changeModelByPK(models.Tiles, "Tile_ID", endTile.Tile_ID, "Trapped", false);
   }
 }
+
+//turns a given tile into a its corresponding blank tile to preserve the checkerboard pattern
 function revertTileToBlank(startTile){
 
     if(startTile.X_Position + startTile.Y_Position % 2 == 0) {
@@ -791,7 +762,69 @@ async function movePlayerToTile(playerId, layer, x, y) {
   });
 }
 
+//turns a path([[direction, distance]]) into an array of [[x, y]] of each tile where the direction changes
+// mainly used for generating a cordinate array for getTileCordinatesOfPath
+//path takes in a result of inputPathToArray
+//startingTile takes in an array of [x, y] of where the path starts
+function pathToTiles(startingTile, path) {
+
+  var tiles = [];
+  //add the starting tile
+  tiles.push([startingTile.X_Position, startingTile.Y_Position]);
+  for (run in path){
+    //find where the next tile is and add its cordinates to the array
+    //case "direction":
+    //  destination = [x +/- distance, y +/- distance];
+    //  break;
+    //tiles.push(destination);
+      switch(path[run][0]){
+        case "left":
+          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position];
+          break;
+        case "right":
+          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position];
+          break;
+        case "up":
+          destination = [startingTile.X_Position, startingTile.Y_Position - parseInt(path[run][1])];
+          break;
+        case "down":
+          destination = [startingTile.X_Position, startingTile.Y_Position + parseInt(path[run][1])];
+          break;
+        case "nw":
+          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position - parseInt(path[run][1])];
+          break;
+        case "ne":
+          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position - parseInt(path[run][1])];
+          break;
+        case "sw":
+          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position + parseInt(path[run][1])];
+          break;
+        case "se":
+          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position + parseInt(path[run][1])];
+          break;
+        default:
+          throw "[ERROR][pathToTiles][SITUATIONAL] Invalid input path, your are using a direction that isnt: left,right,up,down,nw,ne,sw, or se";
+      }
+      tiles.push(destination);
+    }
+  return tiles
+}
+
+//the same as getTileCordinatesOfLine but for paths
+//startingTile takes in an array of [x, y] of where the path starts
+//path takes in a result of inputPathToArray
+//returns an array of arrays of [x, y] cordinates that the path goes through
+function getTileCordinatesOfPath(startingTile, path) {
+  var tiles = pathToTiles(startingTile, path);
+  var returnedTiles
+  for (tile in tiles) {
+    returnedTiles.push(getTileCordinatesOfLine(tiles[tile], tiles[tile + 1]));
+  }
+  return returnedTiles
+}
+
 //returns the rounded x and y cordinates of tiles found on a line if it was drown from tileCord1 to tileCord2
+//tileCord1 and tileCord2 are arrays of [x, y]
 //includes tileCord1 and tileCord2 in the returned array of tiles on the line
 function getTileCordinatesOfLine(tileCord1, tileCord2) {
   var returnedTiles = [tileCord1];
@@ -824,16 +857,22 @@ function getTileCordinatesOfLine(tileCord1, tileCord2) {
   return returnedTiles;
 }
 
-async function getOldestActiveGameId() {
-  models.Games.findAll({where: {GAME_STATE: "Active"}}).then((games) => {
-    var oldestGameId = 100;
-    for (var i = 0; i < games.length; i++) {
-      if (games[i].GAME_ID < oldestGameId) {
-        oldestGameId = games[i].GAME_ID;
-      }
+async function getOldestActiveGameId(playerID) {
+  var players = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
+  var games = await models.Games.findAll({where: {
+    GAME_STATE: "Active",
+    Game_ID: {
+      [Op.or]: players
+  }}});
+  //set oldestGameId to newest Id
+  var oldestGameId = games.length;
+  for (var i = 0; i < games.length; i++) {
+    //if a game id is lower its older so we swap it out
+    if (games[i].Game_ID < oldestGameId) {
+      oldestGameId = games[i].GAME_ID;
     }
-    return oldestGameId;
-  })
+  }
+  return oldestGameId;
 }
 
 //gets the direction one would go in if they started at point1 facing point 2 and walked forwards
@@ -931,12 +970,18 @@ module.exports = {
   registerPlayer,
   getRandomInt,
   getRandomTile: getRandomTileId,
-  GenerateGameGridImagewithSight,
-  GenerateGameGridImagewithoutSight,
+  GenerateGameGridImage,
   addPlayerToTile: movePlayerToTile,
   getSpawnpointTile,
   getRandomClass,
   moveFromTiletoTile,
   commandResolutionErrorThrower,
   verifyinputPath,
+  buildCompletePathArray: addStartToPathArray,
+  getOldestActiveGameId,
+  getTileCordinatesOfPath,
+  inputPathToArray,
+  moveCost,
+  shootCost,
+  timestopped,
 };

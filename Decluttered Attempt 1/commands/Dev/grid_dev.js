@@ -1,6 +1,6 @@
 // commands/layered-grid.js - Layered Grid Command
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const { GenerateGameGridImagewithSight, GenerateGameGridImagewithoutSight } = require('../../utils');
+const utils = require('../utils');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -23,7 +23,7 @@ module.exports = {
       await interaction.deferReply();
 
         // Generate layered grid image from data
-        const imageBuffer = await GenerateGameGridImagewithSight(interaction.options.getString('game'), interaction.options.getString('layer'));
+        const imageBuffer = await utils.GenerateGameGridImage(interaction.options.getString('game'), interaction.options.getString('layer'));
         
         // Create attachment
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
