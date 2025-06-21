@@ -117,7 +117,7 @@ async function verifyinputPath(inputPath, layer, startingTileX, startingTileY){
 //initialMoveDirection = left, right, up, down, nw, ne, sw, se
 //initialMoveDistance = number
 //pathArray = return of inputPathToArray
-//returns an array of di
+//returns an array of directions and distances
 function addStartToPathArray(initalMoveDirection, initalMoveDistance, pathArray){
   switch (initalMoveDirection) {
     case "ne":
@@ -264,302 +264,12 @@ async function GenerateGameGridImage(game, inputtedlayerID, playerID) {
   return canvas.toBuffer();
 }
 
-//
-//   for (row in GameData[game][0][layer]) {
-//     for(column in GameData[game][0][layer][0]) {
-//       const tileType = GameData[game][0][layer][row][column][0];
-//       const tilePlayers = GameData[game][0][layer][row][column][1];
-//       const tileTrapped = GameData[game][0][layer][row][column][2];
-//       const tileImage = await loadTileTexture("enviornment", tileType);
-//       const canvasX = (column * canvasWidth) / baseGridWidth;
-//       const canvasY = (row * canvasHeight) / baseGridHeight;
-//       const enviornmentTileWidth = canvasWidth / GameData[game][0][layer][0].length;
-//       const enviornmentTileHeight = canvasHeight / GameData[game][0][layer].length;
-//       const playerTileWidth = enviornmentTileWidth / 2;
-//       const playerTileHeight = enviornmentTileHeight / 2;
-
-//       //draw the environment
-//       context.drawImage(
-//         tileImage,
-//         canvasX,
-//         canvasY,
-//         enviornmentTileWidth,
-//         enviornmentTileHeight,
-//       )
-//       //then the players
-//       for (player in tilePlayers) {
-//         const playerImage = await loadTileTexture("players", tilePlayers[player]);
-//         var playerTilePositionX;
-//         var playerTilePositionY;
-//         console.log(`[INFO][VERBOSE] player: ${player}`);
-//         switch (player) {
-//           case "0":
-//             playerTilePositionX = canvasX;
-//             playerTilePositionY = canvasY;
-//             break;
-//           case "1":
-//             playerTilePositionX = canvasX + playerTileWidth;
-//             playerTilePositionY = canvasY;
-//             break;
-//           case "2":
-//             playerTilePositionX = canvasX;
-//             playerTilePositionY = canvasY + playerTileHeight;
-//             break;
-//           case "3":
-//             playerTilePositionX = canvasX + playerTileWidth;
-//             playerTilePositionY = canvasY + playerTileHeight;
-//             break;
-//         }
-//         console.log(`[INFO][VERBOSE] player position: ${playerTilePositionX}, ${playerTilePositionY}`);
-//         context.drawImage(
-//           playerImage,
-//           playerTilePositionX,
-//           playerTilePositionY,
-//           playerTileWidth,
-//           playerTileHeight,
-//         )
-//       }
-//       //then the mines
-//       if (tileTrapped) {
-//         const mineImage = await loadTileTexture("mines", "Mine");
-//         context.drawImage(
-//           mineImage,
-//           canvasX,
-//           canvasY,
-//           enviornmentTileWidth,
-//           enviornmentTileHeight,
-//         )
-//       }
-//       if(verbose) {
-//         console.log(`[INFO][VERBOSE] Canvas X: ${canvasX}`);
-//         console.log(`[INFO][VERBOSE] Canvas Y: ${canvasY}`);
-//         console.log(`[INFO][VERBOSE] Tile Trapped: ${GameData[game][0][layer][row][column][2]}`);
-//         console.log(`[INFO][VERBOSE] Tile Image: ${tileType}`);
-//         console.log(`[INFO][VERBOSE] Tile Players: ${GameData[game][0][layer][row][column][1]}`);
-//         console.log(`[INFO][VERBOSE] Tile Type: ${GameData[game][0][layer][row][column][0]}`);
-//         console.log(`[INFO][VERBOSE] Enviornment Tile Width: ${enviornmentTileWidth}`);
-//         console.log(`[INFO][VERBOSE] Enviornment Tile Height: ${enviornmentTileHeight}`);
-//         console.log(`[INFO][VERBOSE] Player Tile Width: ${playerTileWidth}`);
-//         console.log(`[INFO][VERBOSE] Player Tile Height: ${playerTileHeight}`);
-//         console.log("[INFO][VERBOSE] Finished processing row: " + row);
-        
-//       }
-//     }
-//   }
-//   return canvas.toBuffer();
-// }
-
-// async function GenerateObscuredGameGridImage(game, layer) {
-//   const tileSize = 400;
-
-//   // Base canvas dimensions (determined by the environment layer)
-//   const baseGridHeight = GameData[game][0][layer].length;
-//   const baseGridWidth = GameData[game][0][layer][0].length;
-  
-//   const canvasWidth = baseGridWidth * tileSize;
-//   const canvasHeight = baseGridHeight * tileSize;
-  
-//   // Create a canvas
-//   const canvas = Canvas.createCanvas(canvasWidth, canvasHeight);
-//   const context = canvas.getContext('2d');
-  
-//   // Fill background (optional)
-//   context.fillStyle = '#222222';
-//   context.fillRect(0, 0, canvasWidth, canvasHeight);
-
-  
-//   // Process each tile in the grid
-  
-//   for (x in GameData[game][0][layer]) {
-//     for(y in GameData[game][0][layer][x]) {
-//       const tileType = GameData[game][0][layer][x][y][0];
-//       const tilePlayers = GameData[game][0][layer][x][y][1];
-//       const tileImage = await loadTileTexture(layer, tileType);
-//       //draw the environment
-//       context.drawImage(
-//         tileImage,
-//         canvasWidth,
-//         canvasHeight,
-//         1,
-//         1,
-//       )
-//       //then the players
-//       for (player in tilePlayers) {
-//         const playerImage = await loadTileTexture(layer, tilePlayers[player][0]);
-//         context.drawImage(
-//           playerImage,
-//           canvasWidth,
-//           canvasHeight,
-//           0.25,
-//           0.25,
-//         )
-//       }
-//     }
-//   }
-//   return canvas.toBuffer();
-// }
-
-// function findPlayerById(game, playerId) {
-//     for (player in GameData[game][1]) {
-//       if (GameData[game][1][players][0] == playerId) {
-//         return GameData[game][1][player];
-//     }
-//   }
-//   console.error("Player with id " + playerId + " not found");
-//   return null;
-// }
-
-// function getTile(game, layer, x, y) {
-//   return GameData[game][0][layer][y][x];
-// }
-
-// function setTileType(game, layer, x, y, tileType) {
-//   switch(tileType) {
-//     case "Void":
-//       GameData[game][0][layer][y][x][0] = "Void";
-//       break;
-//     case "Blank1":
-//       GameData[game][0][layer][y][x][0] = "Blank1";
-//       break;
-//     case "Blank2":
-//       GameData[game][0][layer][y][x][0] = "Blank2";
-//       break;
-//     case "Fire":
-//       GameData[game][0][layer][y][x][0] = "Fire";
-//       break;
-//     case "Ice":
-//       GameData[game][0][layer][y][x][0] = "Ice";
-//       break;
-//     case "Storm":
-//       GameData[game][0][layer][y][x][0] = "Storm";
-//       break;
-//     case "Gateway":
-//       GameData[game][0][layer][y][x][0] = "Gateway";
-//       break;
-//     case "Bush":
-//       GameData[game][0][layer][y][x][0] = "Bush";
-//       break;
-//     case "Chest":
-//       GameData[game][0][layer][y][x][0] = "Chest";
-//       break;
-//     case "Heal":
-//       GameData[game][0][layer][y][x][0] = "Heal";
-//       break;
-//     case "lockedGateway":
-//       GameData[game][0][layer][y][x][0] = "lockedGateway";
-//       break;
-//     case "Smoke":
-//       GameData[game][0][layer][y][x][0] = "Smoke";
-//       break;
-//     case "Wall":
-//       GameData[game][0][layer][y][x][0] = "Wall";
-//       break;
-//     default:
-//       console.error("Invalid tile type: " + tileType);
-//       break;
-//   }
-// }
-
-// function getPlayersByTile(game, layer, x, y) {
-//   var playersInTile = [];
-//   for (players in getTile(game, layer, x, y)[1]) {
-//     playersInTile.push(players);
-//   }
-//   return playersInTile;
-// }
-
-// function getPlayersByClass(game, classType) {
-
-//   //Class type validation
-//   var ClassNames = [];
-//   for (let i = 0; i < Classes.length; i++) {
-//     ClassNames.push(Classes[i][0]);
-//   }
-//   if (!ClassNames.includes(classType)) {
-//     console.error("Invalid class type: " + classType);
-//     return null;
-//   }
-
-//   //Get players
-//   var playersWithClass = [];
-//   for (player in GameData[game][1]) {
-//     if (GameData[game][1][player][10] == classType) {
-//       if (playersWithClass.length > 2){
-//         console.error("Too many players with class: " + classType);
-//       }
-//       return playersWithClass;
-//     }
-//     else {
-//       console.log("[INFO] tile: " + getTile(game, layer, x, y)[1][player] + "is empty");
-//       return null;
-//     }
-//   }
-// }
-
-// function getDeadPlayers(game) {
-//   var deadPlayers = [];
-//   for (player in GameData[game][1]) {
-//     if (GameData[game][1][player][11] == true) {
-//       deadPlayers.push(player);
-//     }
-//   }
-//   return deadPlayers;
-// }
-
-// function getPlayersByValue(game, valueIndex, value) {
-//   var returnedPlayers = [];
-//   for (player in GameData[game][1]) {
-//     if (GameData[game][1][player][valueIndex] == value) {
-//       returnedPlayers.push(player);
-//     }
-//   }
-//   return returnedPlayers;
-// }
-
-
-// function verifyPlayer(player) {
-//   if (
-//     typeof(player[0]) == String
-//     && typeof(player[1]) == Number
-//     && typeof(player[2]) == Number
-//     && typeof(player[3]) == Number
-//     && typeof(player[4]) == Number
-//     && typeof(player[5]) == Number
-//     && typeof(player[6]) == Number
-//     && typeof(player[7]) == Number
-//     && typeof(player[8]) == Number
-//     && typeof(player[9]) == Number
-//     && typeof(player[10]) == Boolean
-//     && typeof(player[11]) == Number)  
-//     return true;
-//   else
-//     return false;
-// }
-
-// function getSpawnpointTile(game) {
-//   var randomTile = getRandomTile(game);
-//   console.log("[INFO] rolled tile: " + randomTile + " for a spawnpoint");
-//   if (randomTile[1].length < 4) {
-//     console.log("[INFO] tile: " + randomTile + " has 4 players and is full, rerolling...");
-//     getSpawnpointTile(game);
-//   }
-//   else {
-//     return randomTile;
-//   };
-// }
-//
-// function setPlayerStat(game, playerId, statIndex, value) {
-//   var player = findPlayerById(game, playerId);
-//   player[statIndex] = value;
-// }
-//
-
 //adds a player to a game and downloads their playerIcon to be used for GenerateGameGridImagewithSight 
 async function registerPlayer(game, playerId, playerIcon) {
     if(await models.Players.count({where: {Discord_ID: playerId}}) > 0) return;
     var SelectedClass = getRandomClass(game);
     var spawn = getSpawnpointTile(game)
-    movePlayerToTile(player, spawn);
+    setPlayerToTile(player, spawn);
     const player = models.Players.create({
       Class_ID: SelectedClass.Class_ID,
       Game_ID: game,
@@ -662,35 +372,35 @@ function movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
       // West
       newTile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x - 1, Y_Position: y}});
       moveFromTiletoTile(tile, layer, x - 1, y);
-      movePlayerToTile(playerId, layer, x - 1, y);
+      setPlayerToTile(playerId, layer, x - 1, y);
       break;
     case 1:
       // Southwest
-      movePlayerToTile(playerId, layer, x - 1, y + 1);
+      setPlayerToTile(playerId, layer, x - 1, y + 1);
       break;
     case 2:
       // South
-      movePlayerToTile(playerId, layer, x, y + 1);
+      setPlayerToTile(playerId, layer, x, y + 1);
       break;
     case 3:
       // Southeast
-      movePlayerToTile(playerId, layer, x + 1, y + 1);
+      setPlayerToTile(playerId, layer, x + 1, y + 1);
       break;
     case 4:
       // East
-      movePlayerToTile(playerId, layer, x + 1, y);
+      setPlayerToTile(playerId, layer, x + 1, y);
       break;
     case 5:
       // Northeast
-      movePlayerToTile(playerId, layer, x + 1, y - 1);
+      setPlayerToTile(playerId, layer, x + 1, y - 1);
       break;
     case 6:
       // North
-      movePlayerToTile(playerId, layer, x, y - 1);
+      setPlayerToTile(playerId, layer, x, y - 1);
       break;
     case 7:
       // Northwest
-      movePlayerToTile(playerId, layer, x - 1, y - 1);
+      setPlayerToTile(playerId, layer, x - 1, y - 1);
       break;
     default:
       console.error("Invalid random direction from derived random number: " + randomDirection);
@@ -738,7 +448,7 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function movePlayerToTile(playerId, layer, x, y) {
+async function setPlayerToTile(playerId, layer, x, y) {
   var currentPlayer = await models.Players.findByPk(playerId)
   var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
   removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
@@ -962,6 +672,53 @@ async function getRandomTileId(game) {
   return getRandomInt(await models.Tiles.count({where: {Game_ID: game}}));
 }
 
+async function validateAndParseMoveCommandInput(interaction) {
+  // Gather all inputs with clear defaults
+  const gameId = interaction.options.getInteger('game') || await getOldestActiveGameId();
+  const direction = interaction.options.getString('direction');
+  const distance = interaction.options.getInteger('distance');
+  const bodyToMove = interaction.options.getInteger('body') || 1; // Default to body 1
+  const inputtedPath = interaction.options.getString('path');
+  
+  // Find the player in the database
+  const player = await models.Players.findOne({
+    where: {
+      Game_ID: gameId,
+      Discord_ID: interaction.user.id,
+    }
+  });
+  
+  if (!player) {
+    throw new Error("Player not found in game! Please register for the game you wish to move in.");
+  }
+  
+  // Determine which tile to move (handles Twin class properly)
+  const currentTileId = bodyToMove === 2 ? player.Tile_ID_2 : player.Tile_ID;
+  const currentTile = await models.Tiles.findByPk(currentTileId);
+  
+  if (!currentTile) {
+    throw new Error("Current tile not found! Please register, or ask a Dev about why you're not on the board");
+  }
+  
+  // Validate path format if provided
+  if (inputtedPath) {
+    await verifyinputPath(inputtedPath, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
+  }
+
+  
+  
+  return {
+    player,
+    currentTile,
+    direction,
+    distance,
+    customPath: inputtedPath,
+    gameId
+  };
+}
+
+
+
 module.exports = {
   loadTileTexture,
   getTileCordinatesOfLine,
@@ -971,17 +728,19 @@ module.exports = {
   getRandomInt,
   getRandomTile: getRandomTileId,
   GenerateGameGridImage,
-  addPlayerToTile: movePlayerToTile,
+  addPlayerToTile: setPlayerToTile,
   getSpawnpointTile,
   getRandomClass,
   moveFromTiletoTile,
   commandResolutionErrorThrower,
   verifyinputPath,
-  buildCompletePathArray: addStartToPathArray,
+  addStartToPathArray,
   getOldestActiveGameId,
   getTileCordinatesOfPath,
   inputPathToArray,
+  validateAndParseMoveCommandInput,
   moveCost,
   shootCost,
   timestopped,
+  models,
 };

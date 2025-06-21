@@ -4,8 +4,8 @@ const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database'
 });
-var models = initModels(sequelize);
 const utils = require('../utils');
+var models = utils.models;
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -99,10 +99,6 @@ module.exports = {
         });
       }
 
-      // Ensure coordinates don't go above max
-      currentLayer = await models.Layers.findOne({where: {Layer_ID: originalTile.Layer_ID}});
-      newX = Math.min(currentLayer.X_Bound, newX);
-      newY = Math.min(currentLayer.Y_Bound, newY);
 
       var iceTileDeduction = 0;
       const distance = interaction.options.getInteger('distance');
@@ -114,7 +110,7 @@ module.exports = {
 
       //Calculation of New Position
       if(interaction.options.getString('path') != null){
-         for (run in utils.buildCompletePathArray(direction, distance, utils.inputPathToArray(interaction.options.getString('path')))) {
+         for (run in utils.addStartToPathArray(direction, distance, utils.inputPathToArray(interaction.options.getString('path')))) {
         switch (direction) {
           case 'west':
             newX -= distance;
@@ -181,12 +177,18 @@ module.exports = {
         }
       }
       
+      // Ensure coordinates don't go above max
+      currentLayer = await models.Layers.findOne({where: {Layer_ID: originalTile.Layer_ID}});
+      newX = Math.min(currentLayer.X_Bound, newX);
+      newY = Math.min(currentLayer.Y_Bound, newY);
+
+      
       //Check if player is moving onto an ice tile at any time in their path or run
       //Also used to count the amount of tiles the player is moving for the movement cost calculation
       //Also used to find which tiles should be checked when doing the tile to tile movement updating
       var iceChecklist
       //iceChecklist represents all the cordinates of the tiles a player is moving onto
-      interaction.options.getString('path') == null ? iceChecklist = utils.getTileCordinatesOfLine([originalTile.X_Position, originalTile.Y_Position], [newX, newY]) : iceChecklist = utils.getTileCordinatesOfPath([originalTile.X_Position, originalTile.Y_Position], utils.buildCompletePathArray(direction, distance, utils.inputPathToArray(interaction.options.getString('path'))));
+      interaction.options.getString('path') == null ? iceChecklist = utils.getTileCordinatesOfLine([originalTile.X_Position, originalTile.Y_Position], [newX, newY]) : iceChecklist = utils.getTileCordinatesOfPath([originalTile.X_Position, originalTile.Y_Position], utils.addStartToPathArray(direction, distance, utils.inputPathToArray(interaction.options.getString('path'))));
       for (cord in iceChecklist) {
         var tile = await models.Tiles.findOne({
           where: {
