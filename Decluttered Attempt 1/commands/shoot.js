@@ -38,15 +38,20 @@ module.exports = {
 
         const x = interaction.options.getInteger('x');
         const y = interaction.options.getInteger('y');
-        const targetsDiscordID = models.Players.findByPk(interaction.options.getMentionable('target').id) ?? null;
+        const targetsDiscordID = interaction.options.getMentionable('target').id ?? null;
         const amount = interaction.options.getInteger('amount');
-        const game = await models.Games.findByPk(interaction.options.getInteger('game'));
-        const player = await models.Players.findByPk(interaction.user.id);
-        const shootersTile = await models.Tiles.findByPk(player.Tile_ID) ?? null;
+        const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id, Game_ID: game.Game_ID}});
+        const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(player.Player_ID);
+        const game = await models.Games.findByPk(gameId);
+        const shootersTile = await models.Tiles.findByPk(player.Tile_ID);
+        if(body == 2) {
+            shootersTile = await models.Tiles.findByPk(player.Tile_ID_2);
+        }
         const requiredAP = game.shootCost * amount;
         const targetPlayer = await models.Players.findOne({where: {Discord_ID: targetsDiscordID}});
         const response = "";
         const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: x, Y_Position: y}});
+
         //get all tiles between player and target
         const attackPath = utils.getTileCordinatesOfLine([shootersTile.X_Position, shootersTile.Y_Position], [targetTile.X_Position, targetTile.Y_Position]);
 
@@ -69,7 +74,7 @@ module.exports = {
         //Check if target is in range
         // -1 cus we dont want to count the tile the player is on
         if (player.Range < attackPath.length - 1) {
-            return interaction.editReply({ content: `That tile is ${player.Range - attackPath.length - 1} tiles out of range!` });
+            return interaction.editReply({ content: `That tile is ${(attackPath.length - 1) - player.Range} tiles out of range!` });
         }
 
         //Shoot logic
@@ -79,13 +84,24 @@ module.exports = {
                 await models.Tiles.update({Tile_Type: "Wall_Damaged"}, {where: {X_Position: attackPath[attackTile][0], Y_Position: attackPath[attackTile][1], Layer_ID: shootersTile.Layer_ID}});
                 response += `You hit a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
                 amount--;
+                if (amount == 0) {
+                    break;
+                }
+                continue;
+            }
+            if(tile.Tile_Type == "Wall_Damaged") {
+                await utils.revertTileToBlank(tile);
+                response += `You destroyed a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
+                amount--;
+                if (amount == 0) {
+                    break;
+                }
+                continue;
             }
             if(tile.X_Position == x && tile.Y_Position == y) {
                 await models.Players.update({Health_Points: targetPlayer.Health_Points - (amount * player.Damage)}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: game.Game_ID}});
-                response += `You hit the target at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
+                response += `You hit <@${targetPlayer.Discord_ID}> for ${amount * player.Damage}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
                 amount = 0;
-            }
-            if (amount == 0) {
                 break;
             }
         }
