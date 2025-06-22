@@ -21,7 +21,7 @@ module.exports = {
                 .setRequired(true))
         .addIntegerOption(option =>
             option.setName('amount')
-                .setDescription('# of times you wish to attack the target')
+                .setDescription('# of times you wish to attack the target defaults to 1')
                 .setRequired(false))
         .addIntegerOption(option =>
             option.setName('game')
@@ -39,17 +39,26 @@ module.exports = {
         const x = interaction.options.getInteger('x');
         const y = interaction.options.getInteger('y');
         const targetsDiscordID = interaction.options.getMentionable('target').id ?? null;
-        const amount = interaction.options.getInteger('amount');
-        const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id, Game_ID: game.Game_ID}});
-        const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(player.Player_ID);
-        const game = await models.Games.findByPk(gameId);
-        const shootersTile = await models.Tiles.findByPk(player.Tile_ID);
-        if(body == 2) {
+        const amount = interaction.options.getInteger('amount') ?? 1;
+        if(interaction.options.getInteger('game') == null) {
+            const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id}});
+            const gameId = await utils.getOldestActiveGameId(player.Player_ID);
+            const game = await models.Games.findByPk(gameId);
+        }
+        else{
+            const gameId = interaction.options.getInteger('game');
+            const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id, Game_ID: game.Game_ID}});
+            const game = await models.Games.findByPk(gameId);
+        }
+        if(interaction.options.getInteger('body') == 2) {
             shootersTile = await models.Tiles.findByPk(player.Tile_ID_2);
+        }
+        else {
+            shootersTile = await models.Tiles.findByPk(player.Tile_ID);
         }
         const requiredAP = game.shootCost * amount;
         const targetPlayer = await models.Players.findOne({where: {Discord_ID: targetsDiscordID}});
-        const response = "";
+        let response = "";
         const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: x, Y_Position: y}});
 
         //get all tiles between player and target
@@ -60,10 +69,10 @@ module.exports = {
             return interaction.editReply({ content: "You don't have enough AP to shoot that much!" });
         }
         //Verification of tile and target
-        if (shootersTile == null) {
+        if (!shootersTile) {
             return interaction.editReply({ content: "That tile is not on the board!" });
         }
-        if (targetsDiscordID == null) {
+        if (!targetsDiscordID) {
             return interaction.editReply({ content: "That mention does not correspond to a player registered in that game!" });
         }
         if(targetPlayer.Tile_ID != targetTile.Tile_ID) {
@@ -73,8 +82,8 @@ module.exports = {
 
         //Check if target is in range
         // -1 cus we dont want to count the tile the player is on
-        if (player.Range < attackPath.length - 1) {
-            return interaction.editReply({ content: `That tile is ${(attackPath.length - 1) - player.Range} tiles out of range!` });
+        if (player.Range_ < attackPath.length - 1) {
+            return interaction.editReply({ content: `That tile is ${(attackPath.length - 1) - player.Range_} tiles out of range!` });
         }
 
         //Shoot logic
