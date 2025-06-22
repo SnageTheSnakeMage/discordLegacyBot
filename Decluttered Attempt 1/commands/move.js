@@ -27,6 +27,8 @@ module.exports = {
     .addIntegerOption(option =>
       option.setName('body')
         .setDescription('(FOR TWIN CLASS) Which body you are moving, accepts 1 & 2, defaults to 1. use stats to see which body is where')
+        .setMaxValue(2)
+        .setMinValue(1)
         .setRequired(false))
     .addIntegerOption(option =>
       option.setName('game')

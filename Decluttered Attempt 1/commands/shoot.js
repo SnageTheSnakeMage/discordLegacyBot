@@ -2,3 +2,97 @@ const { SlashCommandBuilder } = require('discord.js');
 const utils = require('../utils');
 var models = utils.models;
 
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('shoot')
+        .setDescription('spend AP to attack another player in range')
+        .addIntegerOption(option =>
+            option.setName('x')
+            .setDescription('X coordinate of which tile to attack')
+            .setRequired(true))
+        .addIntegerOption(option =>
+            option.setName('y')
+            .setDescription('Y coordinate of which tile to attack')
+            .setRequired(true))
+        .addMentionableOption(option =>
+            option.setName('target')
+                .setDescription('who you are attacking')
+                .setRequired(true))
+        .addIntegerOption(option =>
+            option.setName('amount')
+                .setDescription('# of times you wish to attack the target')
+                .setRequired(false))
+        .addIntegerOption(option =>
+            option.setName('game')
+                .setDescription('which game, defaults to oldest active game you are registered in')
+                .setRequired(false))
+        .addIntegerOption(option =>
+            option.setName('body')
+            .setDescription('(FOR TWIN CLASS) Which body you are shooting, accepts 1 & 2, defaults to 1. use stats to see which body is where')
+            .setMaxValue(2)
+            .setMinValue(1)
+            .setRequired(false)),
+    async execute(interaction) {
+        await interaction.deferReply();
+
+        const x = interaction.options.getInteger('x');
+        const y = interaction.options.getInteger('y');
+        const targetsDiscordID = models.Players.findByPk(interaction.options.getMentionable('target').id) ?? null;
+        const amount = interaction.options.getInteger('amount');
+        const game = await models.Games.findByPk(interaction.options.getInteger('game'));
+        const player = await models.Players.findByPk(interaction.user.id);
+        const shootersTile = await models.Tiles.findByPk(player.Tile_ID) ?? null;
+        const requiredAP = game.shootCost * amount;
+        const targetPlayer = await models.Players.findOne({where: {Discord_ID: targetsDiscordID}});
+        const response = "";
+        const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: x, Y_Position: y}});
+        //get all tiles between player and target
+        const attackPath = utils.getTileCordinatesOfLine([shootersTile.X_Position, shootersTile.Y_Position], [targetTile.X_Position, targetTile.Y_Position]);
+
+        //Check if player has enough AP to shoot
+        if (player.Action_Points < requiredAP) {
+            return interaction.editReply({ content: "You don't have enough AP to shoot that much!" });
+        }
+        //Verification of tile and target
+        if (shootersTile == null) {
+            return interaction.editReply({ content: "That tile is not on the board!" });
+        }
+        if (targetsDiscordID == null) {
+            return interaction.editReply({ content: "That mention does not correspond to a player registered in that game!" });
+        }
+        if(targetPlayer.Tile_ID != targetTile.Tile_ID) {
+            return interaction.editReply({ content: "That player isnt on that tile!" });
+            
+        }
+
+        //Check if target is in range
+        // -1 cus we dont want to count the tile the player is on
+        if (player.Range < attackPath.length - 1) {
+            return interaction.editReply({ content: `That tile is ${player.Range - attackPath.length - 1} tiles out of range!` });
+        }
+
+        //Shoot logic
+        for (attackTile in attackPath) {
+            const tile = await models.Tiles.findOne({where: {X_Position: attackPath[attackTile][0], Y_Position: attackPath[attackTile][1], Layer_ID: shootersTile.Layer_ID}});
+            if (tile.Tile_Type == "Wall") {
+                await models.Tiles.update({Tile_Type: "Wall_Damaged"}, {where: {X_Position: attackPath[attackTile][0], Y_Position: attackPath[attackTile][1], Layer_ID: shootersTile.Layer_ID}});
+                response += `You hit a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
+                amount--;
+            }
+            if(tile.X_Position == x && tile.Y_Position == y) {
+                await models.Players.update({Health_Points: targetPlayer.Health_Points - (amount * player.Damage)}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: game.Game_ID}});
+                response += `You hit the target at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
+                amount = 0;
+            }
+            if (amount == 0) {
+                break;
+            }
+        }
+
+        //Update AP
+        await models.Players.update({Action_Points: player.Action_Points - requiredAP}, {where: {Player_ID: player.Player_ID , Game_ID: game.Game_ID}});
+
+        return interaction.editReply({ content: response });
+    }
+}
