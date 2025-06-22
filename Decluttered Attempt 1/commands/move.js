@@ -1,9 +1,4 @@
-const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const { Sequelize } = require('sequelize');
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database'
-});
+const { SlashCommandBuilder } = require('discord.js');
 const utils = require('../utils');
 var models = utils.models;
 
@@ -50,11 +45,13 @@ module.exports = {
 
       //#region Verification
       if(!interaction.options.getInteger('game')) {
-        gameId = await utils.getOldestActiveGameId();
+        var gameId = await utils.getOldestActiveGameId();
       }
       else {
-        gameId = interaction.options.getInteger('game');
+        var gameId = interaction.options.getInteger('game');
       }
+
+      const game = await models.Games.findByPk(gameId);
 
       const player = await models.Players.findOne({
         where: {
@@ -208,7 +205,7 @@ module.exports = {
         }
       }
 
-      const spentAP = utils.moveCost * (iceChecklist.length - iceTileDeduction);
+      const spentAP = game.moveCost * (iceChecklist.length - iceTileDeduction);
 
       // Check if player has enough action points
       if (player.Action_Points < spentAP) {

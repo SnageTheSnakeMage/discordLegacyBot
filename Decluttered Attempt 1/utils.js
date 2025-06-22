@@ -582,12 +582,43 @@ function getTileCordinatesOfLine(tileCord1, tileCord2) {
 }
 
 async function getOldestActiveGameId(playerID) {
-  var players = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
+  if (playerID) {
+    var players = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
   var games = await models.Games.findAll({where: {
     GAME_STATE: {
       [Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED]
     },
     Game_ID: players}});
+  }
+  else {
+    var games = await models.Games.findAll({where: {
+      GAME_STATE: {
+        [Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED]
+      }}});
+  }
+  //set oldestGameId to newest Id
+  var oldestGameId = games.length;
+  for (var i = 0; i < games.length; i++) {
+    //if a game id is lower its older so we swap it out
+    if (games[i].Game_ID < oldestGameId) {
+      oldestGameId = games[i].GAME_ID;
+    }
+  }
+  return oldestGameId;
+}
+
+async function getOldestGamestateGameId(playerID, gamestate) {
+    if (playerID) {
+    var players = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
+    var games = await models.Games.findAll({where: {
+      GAME_STATE: gamestate,
+      Game_ID: players}});
+    }
+  else {
+    var games = await models.Games.findAll({where: {
+        GAME_STATE: gamestate
+      }});
+  }
   //set oldestGameId to newest Id
   var oldestGameId = games.length;
   for (var i = 0; i < games.length; i++) {
@@ -806,8 +837,7 @@ module.exports = {
   inputPathToArray,
   validateAndParseMoveCommandInput,
   calculateMovement,
-  moveCost,
-  shootCost,
-  timestopped,
+  getOldestGamestateGameId,
+  GAMESTATES,
   models,
 };

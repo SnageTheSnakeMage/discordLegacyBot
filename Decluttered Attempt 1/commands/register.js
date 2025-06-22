@@ -1,11 +1,12 @@
-const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const { Sequelize, where } = require('sequelize');
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database'
-});
-var models = initModels(sequelize);
+const { SlashCommandBuilder } = require('discord.js');
 const utils = require('../utils');
+var models = utils.models;
+const ICON_REQUIREMENTS = {
+  WIDTH: 80,
+  HEIGHT: 80,
+  FORMAT: 'image/png',
+};
+const GAMESTATES = utils.GAMESTATES;
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -17,26 +18,106 @@ module.exports = {
         .setRequired(true))
     .addIntegerOption(option =>
       option.setName('game')
-        .setDescription('which game, defaults to oldest active game')
+        .setDescription('which game, defaults to oldest registering game')
         .setRequired(false)),
 
   async execute(interaction) {
-    await interaction.deferReply();
-    
-    if(!interaction.options.getInteger('game')) {
-      gameId = await utils.getOldestActiveGameId();
+    try {
+      await interaction.deferReply();
+      
+      // Step 1: Validate and gather inputs
+      const registrationData = await this.validateRegistrationInput(interaction);
+      
+      // Step 2: Check if registration is allowed
+      await this.checkRegistrationEligibility(registrationData);
+      
+      // Step 3: Perform the registration
+      await this.performRegistration(registrationData);
+      
+      // Step 4: Confirm success
+      await interaction.editReply({ 
+        content: "Player registered! Use the stats command to see where you are, your class, and your stats" 
+      });
+      
+    } catch (error) {
+      await this.handleRegistrationError(interaction, error);
     }
-    else {
-      gameId = interaction.options.getInteger('game');
+  },
+
+  async validateRegistrationInput(interaction) {
+    // Get game ID with proper validation
+    let gameId = interaction.options.getInteger('game');
+    if (!gameId) {
+      gameId = await utils.getOldestGamestateGameId(null, GAMESTATES.REGISTRATION);
     }
     
+    // Validate game exists and is active
+    const game = await models.Games.findByPk(gameId);
+    if (!game) {
+      throw new Error("Game not found. Please check the game ID.");
+    }
+    if (game.GAME_STATE !== GAMESTATES.REGISTRATION) {
+      throw new Error("Cannot register for games not in registration phase.");
+    }
+    if(await models.Players.count({where: {Game_ID: gameId}}) >= game.playerMax){
+      throw new Error("Game is full. Please try another game.");
+    }
+
+    
+    // Validate player icon
     const playerIcon = interaction.options.getAttachment('icon');
-    if(playerIcon.width != 80 || playerIcon.height != 80) return interaction.editReply({ content: "Player icon must be 80x80 pixels!" }); 
-    if(playerIcon.contentType != "image/png") return interaction.editReply({ content: "Player icon must be a png!" });
-    const playerId = interaction.user.id;
+    this.validateIconRequirements(playerIcon);
     
+    return {
+      gameId,
+      playerId: interaction.user.id,
+      playerIcon,
+      game
+    };
+  },
+
+  validateIconRequirements(attachment) {
+    if (!attachment) {
+      throw new Error("No icon provided");
+    }
+    
+    if (attachment.contentType !== ICON_REQUIREMENTS.FORMAT) {
+      throw new Error("Player icon must be a PNG file");
+    }
+    
+    if (attachment.width !== ICON_REQUIREMENTS.WIDTH || attachment.height !== ICON_REQUIREMENTS.HEIGHT) {
+      throw new Error(`Player icon must be exactly ${ICON_REQUIREMENTS.WIDTH}x${ICON_REQUIREMENTS.HEIGHT} pixels`);
+    }
+  },
+
+  async checkRegistrationEligibility(registrationData) {
+    // Check if player is already registered in this game
+    const existingPlayer = await models.Players.findOne({
+      where: {
+        Game_ID: registrationData.gameId,
+        Discord_ID: registrationData.playerId
+      }
+    });
+    
+    if (existingPlayer) {
+      throw new Error("You are already registered in this game");
+    }
+  },
+
+  async performRegistration(registrationData) {
+    const { gameId, playerId, playerIcon } = registrationData;
     await utils.registerPlayer(gameId, playerId, playerIcon);
-    await interaction.editReply({ content: "Player registered! use the stats command to see where you are, your class, and your stats" });
+  },
+
+  async handleRegistrationError(interaction, error) {
+    console.error('[ERROR][register.js] Registration failed:', error);
     
+    const errorMessage = error.message || "Registration failed. Please try again or contact support.";
+    
+    if (interaction.replied || interaction.deferred) {
+      await interaction.editReply({ content: errorMessage });
+    } else {
+      await interaction.reply({ content: errorMessage, ephemeral: true });
+    }
   }
 };
