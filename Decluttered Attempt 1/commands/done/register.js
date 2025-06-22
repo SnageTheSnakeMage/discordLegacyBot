@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils');
+const utils = require('../../utils');
 var models = utils.models;
 const ICON_REQUIREMENTS = {
   WIDTH: 80,

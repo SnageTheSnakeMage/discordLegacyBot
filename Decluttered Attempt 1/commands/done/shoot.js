@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils');
+const utils = require('../../utils');
 var models = utils.models;
 
 
@@ -39,26 +39,19 @@ module.exports = {
         const x = interaction.options.getInteger('x');
         const y = interaction.options.getInteger('y');
         const targetsDiscordID = interaction.options.getMentionable('target').id ?? null;
-        const amount = interaction.options.getInteger('amount') ?? 1;
-        if(interaction.options.getInteger('game') == null) {
-            const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id}});
-            const gameId = await utils.getOldestActiveGameId(player.Player_ID);
-            const game = await models.Games.findByPk(gameId);
-        }
-        else{
-            const gameId = interaction.options.getInteger('game');
-            const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id, Game_ID: game.Game_ID}});
-            const game = await models.Games.findByPk(gameId);
-        }
-        if(interaction.options.getInteger('body') == 2) {
+        var amount = interaction.options.getInteger('amount') ?? 1;
+        const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
+        const game = await models.Games.findByPk(gameId);
+        const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id, Game_ID: game.Game_ID}});
+        var shootersTile;
+        if(interaction.options.getInteger('body') === 2) {
             shootersTile = await models.Tiles.findByPk(player.Tile_ID_2);
-        }
-        else {
+        } else {
             shootersTile = await models.Tiles.findByPk(player.Tile_ID);
         }
         const requiredAP = game.shootCost * amount;
         const targetPlayer = await models.Players.findOne({where: {Discord_ID: targetsDiscordID}});
-        let response = "";
+        var response = "";
         const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: x, Y_Position: y}});
 
         //get all tiles between player and target
@@ -69,10 +62,13 @@ module.exports = {
             return interaction.editReply({ content: "You don't have enough AP to shoot that much!" });
         }
         //Verification of tile and target
-        if (!shootersTile) {
+        if (!targetTile) {
             return interaction.editReply({ content: "That tile is not on the board!" });
         }
-        if (!targetsDiscordID) {
+        if(!shootersTile) {
+            return interaction.editReply({ content: "You are not on the board! Are you registered in that game?" });
+        }
+        if (!targetsDiscordID || !targetPlayer) {
             return interaction.editReply({ content: "That mention does not correspond to a player registered in that game!" });
         }
         if(targetPlayer.Tile_ID != targetTile.Tile_ID) {
@@ -109,7 +105,7 @@ module.exports = {
             }
             if(tile.X_Position == x && tile.Y_Position == y) {
                 await models.Players.update({Health_Points: targetPlayer.Health_Points - (amount * player.Damage)}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: game.Game_ID}});
-                response += `You hit <@${targetPlayer.Discord_ID}> for ${amount * player.Damage}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
+                response += `You hit <@${targetPlayer.Discord_ID}> for ${amount * player.Damage}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
                 amount = 0;
                 break;
             }

@@ -341,15 +341,16 @@ async function moveFromTiletoTile(startTile, endTile, player) {
         break;
       case "Void":
       case "Wall":
+      case "Wall_Damaged":
        //Check if player can move on these tiles  
         if(!player.Class_ID == models.Classes.findAll({
           where: {
-            //all classes that can move on void and wall tiles
+            //all classes that can move on void wall, and wall damaged tiles
             Class_Name: "Cloudborn"
           }}).Class_ID) {
             changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Tile_ID", startTile.Tile_ID);
-            console.error("[ERROR] Player " + player.Discord_ID + " cannot move onto void or wall tiles");
-            throw "[ERROR] Player " + player.Discord_ID + " cannot move onto void or wall tiles";
+            console.error("[ERROR] Player " + player.Discord_ID + " cannot move onto void, wall or wall damaged tiles");
+            throw "[ERROR] Player " + player.Discord_ID + " cannot move onto void wall or wall damaged tiles";
         }
         break;
       default:
@@ -390,30 +391,37 @@ function movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
       break;
     case 1:
       // Southwest
+      moveFromTiletoTile(tile, layer, x - 1, y + 1);
       setPlayerToTile(playerId, layer, x - 1, y + 1);
       break;
     case 2:
       // South
+      moveFromTiletoTile(tile, layer, x, y + 1);
       setPlayerToTile(playerId, layer, x, y + 1);
       break;
     case 3:
       // Southeast
+      moveFromTiletoTile(tile, layer, x + 1, y + 1);
       setPlayerToTile(playerId, layer, x + 1, y + 1);
       break;
     case 4:
       // East
+      moveFromTiletoTile(tile, layer, x + 1, y);
       setPlayerToTile(playerId, layer, x + 1, y);
       break;
     case 5:
       // Northeast
+      moveFromTiletoTile(tile, layer, x + 1, y - 1);
       setPlayerToTile(playerId, layer, x + 1, y - 1);
       break;
     case 6:
       // North
+      moveFromTiletoTile(tile, layer, x, y - 1);
       setPlayerToTile(playerId, layer, x, y - 1);
       break;
     case 7:
       // Northwest
+      moveFromTiletoTile(tile, layer, x - 1, y - 1);
       setPlayerToTile(playerId, layer, x - 1, y - 1);
       break;
     default:
@@ -449,7 +457,8 @@ function getSpawnpointTile(game) {
       randomTile.Tile_Type == "Fire" ||
       randomTile.Tile_Type == "Ice" ||
       randomTile.Tile_Type == "Storm" ||
-      randomTile.Tile_Type == "Wall" ) {
+      randomTile.Tile_Type == "Wall" ||
+      randomTile.Tile_Type == "Wall_Damaged" ) {
     console.log("[INFO]  rerolling spawnpoint...");
     getSpawnpointTile(game);
   }
@@ -586,7 +595,7 @@ async function getOldestActiveGameId(playerID) {
     var players = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
   var games = await models.Games.findAll({where: {
     GAME_STATE: {
-      [Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED]
+      [Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE]
     },
     Game_ID: players}});
   }

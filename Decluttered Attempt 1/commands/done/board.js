@@ -1,6 +1,6 @@
 // commands/layered-grid.js - Layered Grid Command
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const utils = require('../utils');
+const utils = require('../../utils');
 const { Sequelize, where } = require('sequelize');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
