@@ -31,8 +31,13 @@ module.exports = {
         //Get current layer
         const currentLayer = await models.Layers.findOne({ where: { Layer_ID: currentTile.Layer_ID } });
 
+        if (!newLayer) {
+            return interaction.reply({ content: "Could not find a" + (up ? "layer above" : "layer below") + " layer: " + currentLayer.Layer_ID, ephemeral: true });
+        }
+
         //Check player is either a Dimensional Hopper or on a Gateway tile
-        if (player.Class_ID == await models.Classes.findOne({ where: { Class_Name: "Dimensional Hopper" } }).Class_ID || currentTile.Tile_Type == "Gateway_Open") {
+       const dimensionalHopperClass = await models.Classes.findOne({ where: { Class_Name: "Dimensional Hopper" } });
+        if (player.Class_ID == dimensionalHopperClass?.Class_ID || currentTile.Tile_Type == "Gateway_Open") {
 
             //Get new layer
             const newLayer = up ? await models.Layers.findOne({ where: { Layer_ID: currentLayer.Layer_Above } }) : await models.Layers.findOne({ where: { Layer_ID: currentLayer.Layer_Below } });
@@ -54,7 +59,8 @@ module.exports = {
             else{
                 const possibleTiles = await models.Tiles.findAll({ where: { Layer_ID: newLayer.Layer_ID } });
                 for (tile in possibleTiles){
-                    if(possibleTiles[tile].Player_1 != null && possibleTiles[tile].Player_2 != null && possibleTiles[tile].Player_3 != null && possibleTiles[tile].Player_4 != null || tile.Tile_Type == "Void" || tile.Tile_Type == "Wall" || tile.Tile_Type == "Wall_Damaged" || tile.Tile_Type == "Gateway_Locked"){
+                   for (const tile in possibleTiles){
+                     if(possibleTiles[tile].Player_1 != null && possibleTiles[tile].Player_2 != null && possibleTiles[tile].Player_3 != null && possibleTiles[tile].Player_4 != null || possibleTiles[tile].Tile_Type == "Void" || possibleTiles[tile].Tile_Type == "Wall" || possibleTiles[tile].Tile_Type == "Wall_Damaged" || possibleTiles[tile].Tile_Type == "Gateway_Locked"){
                         possibleTiles.splice(tile, 1);
                     }
                 }
@@ -68,7 +74,9 @@ module.exports = {
             await models.Players.update({ Tile_ID: newTile.Tile_ID }, { where: { Game_ID: gameID, Discord_ID: userID } });
             if (currentTile.Tile_Type == "Gateway_Open") return interaction.reply({ content: "Teleported to a random gateway tile on the " + (up ? "layer above" : "layer below") + " you!\n Check out where you are with the board command!" });
             else return interaction.reply({ content: "Teleported to a random tile on the " + (up ? "layer above" : "layer below") + " you!\n Check out where you are with the stats or board command!" });
+        }}
+        else{ 
+            return interaction.reply({ content: "You must be on a Gateway tile or a Dimensional Hopper to use this command!", ephemeral: true });
         }
-        else return interaction.reply({ content: "You must be on a Gateway tile or a Dimensional Hopper to use this command!", ephemeral: true });
     }
 };
