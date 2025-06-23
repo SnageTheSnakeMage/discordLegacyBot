@@ -27,6 +27,10 @@ module.exports = {
         }
         const playerClass = await models.Classes.findByPk(player.Class_ID);
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
+        var playerTIle2
+        if(playerClass.name == "Twin") {
+            playerTile2 = await models.Tiles.findByPk(player.Tile_ID_2);
+        }
         var responseEmbed = new EmbedBuilder()
         .setColor("#" + playerClass.Role_Color)
         .setTitle(interaction.user.username)
@@ -58,12 +62,20 @@ module.exports = {
         .setImage("Decluttered Attempt 1/tiles/players/" + player.Discord_ID + ".png")
         .setTimestamp()
         .setFooter({ text: "Game ID: " + player.Game_ID });
-        if(playerClass.Class_Name != "Spy") {
+        if(playerClass.Class_Name != "Spy" && playerClass.Class_Name != "Twin") {
             responseEmbed.addFields(
                 { name: '\u200B', value: '\u200B' },
-                { name: "X_Position", value: playerTile.X_Position.toString(), inline: true },
-                { name: "Y_Position", value: playerTile.Y_Position.toString(), inline: true },
+                { name: "X Position", value: playerTile.X_Position.toString(), inline: true },
+                { name: "Y Position", value: playerTile.Y_Position.toString(), inline: true },
                 { name: "Layer", value: utils.dbLayerIDtoCommonLayerID(playerTile.Layer_ID).toString(), inline: true },
+            )
+        }
+        if(playerClass.Class_Name == "Twin") {
+            responseEmbed.addFields(
+                { name: '\u200B', value: '\u200B' },
+                { name: "Second Body's Layer", value: utils.dbLayerIDtoCommonLayerID(playerTile2.Layer_ID).toString(), inline: true },
+                { name: "Second Body's X Position", value: playerTile2.X_Position.toString(), inline: true },
+                { name: "Second Body's Y Position", value: playerTile2.Y_Position.toString(), inline: true },
             )
         }
         await interaction.reply({ embeds: [responseEmbed] });

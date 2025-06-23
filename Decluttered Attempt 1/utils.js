@@ -221,10 +221,10 @@ async function GenerateGameGridImage(game, inputtedlayerID, playerID) {
   for (const currentTile of layerTiles) {
     // Get players on this tile
     const tilePlayers = await Promise.all([
-      models.Players.findOne({where: {Player_ID: currentTile.Player1}}),
-      models.Players.findOne({where: {Player_ID: currentTile.Player2}}), 
-      models.Players.findOne({where: {Player_ID: currentTile.Player3}}), 
-      models.Players.findOne({where: {Player_ID: currentTile.Player4}})
+      models.Tiles.findOne({where: {Player_ID: currentTile.Player1}}),
+      models.Tiles.findOne({where: {Player_ID: currentTile.Player2}}), 
+      models.Tiles.findOne({where: {Player_ID: currentTile.Player3}}), 
+      models.Tiles.findOne({where: {Player_ID: currentTile.Player4}})
     ]);
 
     // Load environment tile image
@@ -310,6 +310,78 @@ async function registerPlayer(game, playerId, playerIcon) {
      fs.writeFileSync("G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/players/" + playerId + ".png", playerIcon);
     console.log("[INFO] registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + spawn +  " for spawn");
     return;
+}
+
+async function getUpgradePrice(stat, playerId, amount) {
+  const player = await models.Players.findByPk(playerId);
+  var initalCost = 0;
+  var returnedCost = 0;
+  switch(stat) {
+    case "Health_Points":
+      initalCost = player.HP_COST;
+    case "Range_":
+      initalCost = player.RANGE_COST;
+    case "Damage":
+      initalCost = player.DAMAGE_COST;
+  }
+
+  // +1 Range (4 -> 5 -> 7 -> 10 AP)
+// +1 HP (4 -> 5 -> 7 -> 10 AP)
+// +1 Damage (12 -> 14 -> 16 AP)
+
+    if(stat == "Range_" || stat == "Health_Points") {
+      switch(initalCost) {
+        case 4:
+          returnedCost = getHPAndRangePriceScaled(amount);
+        case 5:
+          returnedCost = getHPAndRangePriceScaled(amount + 1) - 4;
+        case 7:
+          returnedCost = getHPAndRangePriceScaled(amount + 2) - (4 + 5);
+        case 10:
+          returnedCost = getHPAndRangePriceScaled(amount + 3) - (4 + 5 + 7);
+        default:
+          throw new Error("Incorrect initial range and/or health cost for player");
+      }
+    }
+
+    if(initalCost == 12 && stat == "Damage") {
+      switch(initalCost){
+        case 12:
+          returnedCost = getDamagePriceScaled(amount);
+        case 14:
+          returnedCost = getDamagePriceScaled(amount + 1) - 12;
+        case 16:
+          returnedCost = getDamagePriceScaled(amount + 2) - (12 + 14);
+        default:
+          throw new Error("Incorrect initial damage cost for player");
+      }
+    }
+}
+
+function getHPAndRangePriceScaled(amount) {
+  switch(amount) {
+    case 1:
+        return 4;
+    case 2:
+        return 4 + 5;
+    case 3:
+        return 4 + 5 + 7;
+    default:
+      return 4 + 5 + 7 + (10 * amount - 3);
+}
+}
+
+function getDamagePriceScaled(amount){
+  switch(amount) {
+    case 1:
+        return 12;
+    case 2:
+        return 12 + 14;
+    case 3:
+        return 12 + 14 + 16;
+    default:
+      return 12 + 14 + 16 + (16 * amount - 3);
+}
 }
 
 //for checking all the things that happen when a player moves onto an off of a tile, returns wether they player moved or not
@@ -855,6 +927,7 @@ module.exports = {
   calculateMovement,
   getOldestGamestateGameId,
   dbLayerIDtoCommonLayerID,
+  getUpgradePrice,
   GAMESTATES,
   models,
 };
