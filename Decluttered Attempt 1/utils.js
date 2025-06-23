@@ -154,6 +154,13 @@ async function commonLayerIDtoDbLayerID(game, inputtedLayerID){
     return layersInGrid[inputtedLayerID-1]
 }
 
+async function dbLayerIDtoCommonLayerID(game, dbLayerID){ 
+  var gridID = await models.Grids.findOne({where: {Game_ID: game}}).Grid_ID
+  var layersInGrid = await models.Layers.findAll({where: {Grid_ID: gridID}})
+  return layersInGrid.indexOf(dbLayerID)+1
+  
+}
+
 // generates a layer from a game while checking what a player can see
 async function GenerateGameGridImage(game, inputtedlayerID, playerID) {
   const tileSize = 208;
@@ -847,6 +854,7 @@ module.exports = {
   validateAndParseMoveCommandInput,
   calculateMovement,
   getOldestGamestateGameId,
+  dbLayerIDtoCommonLayerID,
   GAMESTATES,
   models,
 };
