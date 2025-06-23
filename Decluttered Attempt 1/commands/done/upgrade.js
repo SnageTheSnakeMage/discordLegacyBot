@@ -6,10 +6,6 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('upgrade')
         .setDescription('provides buttons to upgrade your stats')
-        .addIntegerOption(option =>
-            option.setName('game')
-                .setDescription('which game, defaults to oldest registering game')
-                .setRequired(false))
         .addStringOption(option =>
             option.setName('stat')
                 .setDescription('which stat you are upgrading')
@@ -22,7 +18,11 @@ module.exports = {
         .addIntegerOption(option =>
             option.setName('amount')
                 .setDescription('# of times you wish to upgrade the stat defaults to 1')
-                .setRequired(false)),
+                .setRequired(false)
+        .addIntegerOption(option =>
+            option.setName('game')
+                .setDescription('which game, defaults to oldest active game')
+                .setRequired(false))    ),
     async execute(interaction) {
         await interaction.deferReply();
 
@@ -125,7 +125,7 @@ module.exports = {
         //Make Confirmation Buttons
         const confirm = new ButtonBuilder()
 			.setCustomId('confirm')
-			.setLabel(`Buy ${amount} ${stat} for ${price}?`)
+			.setLabel(`Buy ${amount} ${stat} for ${price}.`)
 			.setStyle(ButtonStyle.Danger);
 
 		const cancel = new ButtonBuilder()

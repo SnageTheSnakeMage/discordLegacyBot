@@ -10,14 +10,14 @@ module.exports = {
             option.setName('amount')
                 .setDescription('# of times you wish to upgrade the stat defaults to 1')
                 .setRequired(true))
-        .addIntegerOption(option =>
-            option.setName('game')
-                .setDescription('which game, defaults to oldest registering game')
-                .setRequired(false))
         .addMentionableOption(option =>
             option.setName('player')
                 .setDescription('which player to give the AP to')
-                .setRequired(true)),
+                .setRequired(true)        
+        .addIntegerOption(option =>
+            option.setName('game')
+                .setDescription('which game, defaults to oldest active game')
+                .setRequired(false))),
     
     async execute(interaction) {
         await deferredReply(interaction);

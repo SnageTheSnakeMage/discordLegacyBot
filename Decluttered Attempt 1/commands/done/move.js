@@ -32,7 +32,7 @@ module.exports = {
         .setRequired(false))
     .addIntegerOption(option =>
       option.setName('game')
-        .setDescription('which game, defaults to oldest active game you are registered in')
+        .setDescription('which game, defaults to oldest active game')
         .setRequired(false))
     .addStringOption(option =>
       option.setName('path')
@@ -64,6 +64,7 @@ module.exports = {
      if (!player) {
         return interaction.editReply({ content: "Player not found in game!, please register for the game you wish to move in." });
       }
+      const playerClass = await models.Classes.findByPk(player.Class_ID);
 
       const originalTile = await models.Tiles.findOne({
         where: {
@@ -202,7 +203,7 @@ module.exports = {
         if(tile.Tile_Type == "Ice") {
           iceTileDeduction++;
         }
-        if(cord == iceChecklist.length && tile.Tile_Type == "Ice") {
+        if(cord == iceChecklist.length && tile.Tile_Type == "Ice" && playerClass.Class_Name != "Snowman") {
           throw "Cannot end a movement on an ice tile, please either provide a path that moves off the ice, or move onto a non-ice tile.";
         }
       }

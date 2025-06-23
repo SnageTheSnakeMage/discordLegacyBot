@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils');
+const utils = require('../../utils');
 var models = utils.models;
 
 module.exports = {
@@ -8,14 +8,15 @@ module.exports = {
         .setDescription('stores AP in a game\'s chest')
         .addIntegerOption(option =>
             option.setName('amount')
-                .setDescription('# of AP you wish to take out of the chest defaults to 1'))
+                .setDescription('# of AP you wish to take out of the chest defaults to 1')
+                .setRequired(false))
         .addIntegerOption(option =>
             option.setName('game')
-                .setDescription('which game, defaults to oldest registering game')
+                .setDescription('which game, defaults to oldest active game')
                 .setRequired(false)),
     async execute(interaction) {
         await deferredReply(interaction);
-
+        try {
         //Variables
         var amount = interaction.options.getInteger('amount');
         var gameId = interaction.options.getInteger('game');
@@ -33,7 +34,7 @@ module.exports = {
 
         //Check if the player has enough AP
         if(player.Action_Points < amount) {
-            return interaction.editReply({ content: "You dont have that much AP to store in the chest!" });
+            return interaction.editReply({ content: "You dont have enough AP to store in the chest!" });
         }
 
         //Give the chest AP from the player
@@ -41,5 +42,9 @@ module.exports = {
         await models.Players.update({Action_Points: player.Action_Points - amount}, {where: {playerId: player.playerId}});
 
         return interaction.editReply({ content: "You have stored " + amount + " AP in the chest!" });
+    }
+    catch (error) {
+     return interaction.editReply({ content: "An error occurred: " + error.message || "Unknown error", ephemeral: true });
+    }
     }
 };

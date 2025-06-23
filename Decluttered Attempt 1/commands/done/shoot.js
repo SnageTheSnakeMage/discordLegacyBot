@@ -25,7 +25,7 @@ module.exports = {
                 .setRequired(false))
         .addIntegerOption(option =>
             option.setName('game')
-                .setDescription('which game, defaults to oldest active game you are registered in')
+                .setDescription('which game, defaults to oldest active game')
                 .setRequired(false))
         .addIntegerOption(option =>
             option.setName('body')
@@ -35,7 +35,7 @@ module.exports = {
             .setRequired(false)),
     async execute(interaction) {
         await interaction.deferReply();
-
+        try {
         const x = interaction.options.getInteger('x');
         const y = interaction.options.getInteger('y');
         const targetsDiscordID = interaction.options.getMentionable('target').id ?? null;
@@ -116,4 +116,10 @@ module.exports = {
 
         return interaction.editReply({ content: response });
     }
+        catch (error) {
+            console.log(error);
+            return interaction.editReply({ content: "An error has occured + " + error.message + "!", ephemeral: true });
+        }
+    }
+
 }

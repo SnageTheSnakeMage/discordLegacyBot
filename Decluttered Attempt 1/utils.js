@@ -444,14 +444,14 @@ async function moveFromTiletoTile(startTile, endTile, player) {
 }
 
 //turns a given tile into a its corresponding blank tile to preserve the checkerboard pattern
-function revertTileToBlank(startTile){
+async function revertTileToBlank(startTile){
 
     if(startTile.X_Position + startTile.Y_Position % 2 == 0) {
-      models.Tiles.update({Tile_Type: "Blank1"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
+      await models.Tiles.update({Tile_Type: "Blank1"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
      return;
     }
     else{
-     models.Tiles.update({Tile_Type: "Blank2"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
+     await models.Tiles.update({Tile_Type: "Blank2"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
      return;
     }
 }
@@ -928,6 +928,7 @@ module.exports = {
   getOldestGamestateGameId,
   dbLayerIDtoCommonLayerID,
   getUpgradePrice,
+  revertTileToBlank,
   GAMESTATES,
   models,
 };
