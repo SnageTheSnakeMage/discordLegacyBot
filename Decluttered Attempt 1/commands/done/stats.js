@@ -11,7 +11,11 @@ module.exports = {
                 .setDescription('which game, defaults to oldest active game')
                 .setRequired(false)),
     async execute(interaction) {
-        let gameId = interaction.options.getInteger('game');
+        await interaction.deferReply();
+        let gameId = interaction.options.getInteger('game') 
+        if(!gameId) {
+            gameId = await utils.getOldestActiveGameId();
+        }
         const player = await models.Players.findOne({
             where: {
                 Game_ID: gameId,
@@ -33,23 +37,23 @@ module.exports = {
             { name: "Class", value: playerClass.Class_Name, inline: true },
             { name: "Class Description", value: playerClass.Description, inline: true },
             { name: '\u200B', value: '\u200B' },
-            { name: "Health", value: player.Health_Points, inline: true },
-            { name: "Max Health", value: playerClass.MAX_HP, inline: true },
-            { name: "Missed Health", value: player.MISSED_HP, inline: true },
+            { name: "Health", value: player.Health_Points.toString(), inline: true },
+            { name: "Max Health", value: player.MAX_HP.toString(), inline: true },
+            { name: "Missed Health", value: player.MISSED_HP.toString(), inline: true },
             { name: '\u200B', value: '\u200B' },
-            { name: "Action Points", value: player.Action_Points, inline: true },
-            { name: "Max Action Points", value: playerClass.MAX_AP, inline: true },
-            { name: "Missed Action Points", value: player.MISSED_AP, inline: true },
+            { name: "Action Points", value: player.Action_Points.toString(), inline: true },
+            { name: "Max Action Points", value: player.MAX_AP.toString(), inline: true },
+            { name: "Missed Action Points", value: player.MISSED_AP.toString(), inline: true },
             { name: '\u200B', value: '\u200B' },
-            { name: "Damage", value: player.Damage, inline: true },
-            { name: "Max Damage", value: playerClass.MAX_DMG, inline: true },
+            { name: "Damage", value: player.Damage.toString(), inline: true },
+            { name: "Max Damage", value: player.MAX_DMG.toString(), inline: true },
             { name: '\u200B', value: '\u200B' },
-            { name: "Range", value: player.Range_, inline: true },
-            { name: "Max Range", value: playerClass.MAX_RANGE, inline: true },
+            { name: "Range", value: player.Range_.toString(), inline: true },
+            { name: "Max Range", value: player.MAX_RANGE.toString(), inline: true },
             { name: '\u200B', value: '\u200B' },
             { name: "Current Tile", value: playerTile.Tile_Type, inline: true },
             { name: '\u200B', value: '\u200B' },
-            { name: "Kills", value: player.Kills, inline: true },
+            { name: "Kills", value: player.Kills.toString(), inline: true },
         )
         .setImage("Decluttered Attempt 1/tiles/players/" + player.Discord_ID + ".png")
         .setTimestamp()
@@ -57,9 +61,9 @@ module.exports = {
         if(playerClass.Class_Name != "Spy") {
             responseEmbed.addFields(
                 { name: '\u200B', value: '\u200B' },
-                { name: "X_Position", value: playerTile.X_Position, inline: true },
-                { name: "Y_Position", value: playerTile.Y_Position, inline: true },
-                { name: "Layer", value: utils.dbLayerIDtoCommonLayerID(playerTile.Layer_ID), inline: true },
+                { name: "X_Position", value: playerTile.X_Position.toString(), inline: true },
+                { name: "Y_Position", value: playerTile.Y_Position.toString(), inline: true },
+                { name: "Layer", value: utils.dbLayerIDtoCommonLayerID(playerTile.Layer_ID).toString(), inline: true },
             )
         }
         await interaction.reply({ embeds: [responseEmbed] });
