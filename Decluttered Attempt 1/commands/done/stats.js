@@ -49,7 +49,7 @@ module.exports = {
             { name: "Max Action Points", value: player.MAX_AP.toString(), inline: true },
             { name: "Missed Action Points", value: player.MISSED_AP.toString(), inline: true },
             { name: '\u200B', value: '\u200B' },
-            { name: "Damage", value: player.Damage.toString(), inline: true },
+            { name: "Damage", value: (player.Damage * (player.DMG_BUFF + 1)).toString(), inline: true },
             { name: "Max Damage", value: player.MAX_DMG.toString(), inline: true },
             { name: '\u200B', value: '\u200B' },
             { name: "Range", value: player.Range_.toString(), inline: true },

@@ -104,7 +104,7 @@ module.exports = {
                 continue;
             }
             if(tile.X_Position == x && tile.Y_Position == y) {
-                await models.Players.update({Health_Points: targetPlayer.Health_Points - (amount * player.Damage)}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: game.Game_ID}});
+                await models.Players.update({Health_Points: targetPlayer.Health_Points - (amount * player.Damage * (player.DMG_BUFF + 1))}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: game.Game_ID}});
                 response += `You hit <@${targetPlayer.Discord_ID}> for ${amount * player.Damage}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
                 amount = 0;
                 break;
