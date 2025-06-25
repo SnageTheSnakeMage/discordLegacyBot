@@ -1,6 +1,7 @@
 // utils.js - Shared utility functions
 
-//#region BOILERPLATE
+
+  //#region BOILERPLATE
 const Canvas = require('canvas');
 const path = require('path');
 const verbose = true;
@@ -14,9 +15,11 @@ const fs = require('fs');
 var models = initModels(sequelize);
 var GAMESTATES = require('G:/LegacyBotDiscord/Decluttered Attempt 1/enums.js').GAMESTATES;
 //#endregion BOILERPLATE
-
+module.exports = {
+  models,
+  GAMESTATES,
 // Function to load a tile texture
-async function loadTileTexture(layer, textureName) {
+async loadTileTexture(layer, textureName) {
   // Create a unique key for the cache
   const cacheKey = `${textureName}`;
   
@@ -47,17 +50,17 @@ async function loadTileTexture(layer, textureName) {
     const defaultTile = await Canvas.loadImage("G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/" + layer + "/default.png");
     return defaultTile;
   }
-}
+},
 
 //turns the string into a proper path array
 //[[direction, distance]]
 //direction: left, right, up, down, nw, ne, sw, se
 //distance: number
-function inputPathToArray(inputPath){
+ inputPathToArray(inputPath){
   return inputPath.split(';').map(row => row.split(','));
-}
+},
 
-async function verifyinputPath(inputPath, layer, startingTileX, startingTileY){
+async  verifyinputPath(inputPath, layer, startingTileX, startingTileY){
   regex =  /^((?:left|right|up|down|ne|nw|se|sw),\d+;)+$/;
   result = regex.test(inputPath);
 
@@ -102,14 +105,14 @@ async function verifyinputPath(inputPath, layer, startingTileX, startingTileY){
     throw "Invalid input path, make sure your path uses a direction(left,right,up,down,nw,ne,sw,se) then a comma(,) and a number within the bounds of the layer separated & ended by a semicolon(;). Also make sure it doesnt take you off the layer you are currently on.";
   }
   return true;
-}
+},
 
 //adds an inital move to the path array
 //initialMoveDirection = left, right, up, down, nw, ne, sw, se
 //initialMoveDistance = number
 //pathArray = return of inputPathToArray
 //returns an array of directions and distances
-function addStartToPathArray(initalMoveDirection, initalMoveDistance, pathArray){
+ addStartToPathArray(initalMoveDirection, initalMoveDistance, pathArray){
   switch (initalMoveDirection) {
     case "ne":
       initalMoveDirection = "northeast";
@@ -140,29 +143,29 @@ function addStartToPathArray(initalMoveDirection, initalMoveDistance, pathArray)
   }
   pathArray.unshift([initalMoveDirection, initalMoveDistance]);
   return pathArray;
-}
+},
 
-async function commandResolutionErrorThrower() {
+async  commandResolutionErrorThrower() {
   delay(850000);
   throw "Command Resolution Error";
-}
+},
 
 //turns a layer id that would be known to a player for a game into the actual layer's id in the database
-async function commonLayerIDtoDbLayerID(game, inputtedLayerID){
+async  commonLayerIDtoDbLayerID(game, inputtedLayerID){
     var gridID = await models.Grids.findOne({where: {Game_ID: game}}).Grid_ID
     var layersInGrid = await models.Layers.findAll({where: {Grid_ID: gridID}})
     return layersInGrid[inputtedLayerID-1]
-}
+},
 
-async function dbLayerIDtoCommonLayerID(game, dbLayerID){ 
+async  dbLayerIDtoCommonLayerID(game, dbLayerID){ 
   var gridID = await models.Grids.findOne({where: {Game_ID: game}}).Grid_ID
   var layersInGrid = await models.Layers.findAll({where: {Grid_ID: gridID}})
   return layersInGrid.indexOf(dbLayerID)+1
   
-}
+},
 
 // generates a layer from a game while checking what a player can see
-async function GenerateGameGridImage(game, inputtedlayerID, playerID) {
+async  GenerateGameGridImage(game, inputtedlayerID, playerID) {
   const tileSize = 208;
 
   // Get layer dimensions
@@ -283,10 +286,10 @@ async function GenerateGameGridImage(game, inputtedlayerID, playerID) {
 
   // CRITICAL: Return the canvas buffer!
   return canvas.toBuffer();
-}
+},
 
 //adds a player to a game and downloads their playerIcon to be used for GenerateGameGridImagewithSight 
-async function registerPlayer(game, playerId, playerIcon) {
+async  registerPlayer(game, playerId, playerIcon) {
     if(await models.Players.count({where: {Discord_ID: playerId}}) > 0) return;
     var SelectedClass = getRandomClass(game);
     var spawn = getSpawnpointTile(game)
@@ -310,9 +313,9 @@ async function registerPlayer(game, playerId, playerIcon) {
      fs.writeFileSync("G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/players/" + playerId + ".png", playerIcon);
     console.log("[INFO] registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + spawn +  " for spawn");
     return;
-}
+},
 
-async function getUpgradePrice(stat, playerId, amount) {
+async  getUpgradePrice(stat, playerId, amount) {
   const player = await models.Players.findByPk(playerId);
   var initalCost = 0;
   var returnedCost = 0;
@@ -356,9 +359,9 @@ async function getUpgradePrice(stat, playerId, amount) {
           throw new Error("Incorrect initial damage cost for player");
       }
     }
-}
+},
 
-function getHPAndRangePriceScaled(amount) {
+ getHPAndRangePriceScaled(amount) {
   switch(amount) {
     case 1:
         return 4;
@@ -369,9 +372,9 @@ function getHPAndRangePriceScaled(amount) {
     default:
       return 4 + 5 + 7 + (10 * amount - 3);
 }
-}
+},
 
-function getDamagePriceScaled(amount){
+ getDamagePriceScaled(amount){
   switch(amount) {
     case 1:
         return 12;
@@ -382,10 +385,10 @@ function getDamagePriceScaled(amount){
     default:
       return 12 + 14 + 16 + (16 * amount - 3);
 }
-}
+},
 
 //for checking all the things that happen when a player moves onto an off of a tile, returns wether they player moved or not
-async function moveFromTiletoTile(startTile, endTile, player) {
+async  moveFromTiletoTile(startTile, endTile, player) {
   console.log("[INFO][VERBOSE] Player: " + player.Player_ID + " moved from tile: " + startTile + " to tile: " + endTile);
   switch(startTile.Tile_Type) {
       //Player takes damage from leaving fire tile
@@ -441,10 +444,10 @@ async function moveFromTiletoTile(startTile, endTile, player) {
     changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - mineDmg);
     changeModelByPK(models.Tiles, "Tile_ID", endTile.Tile_ID, "Trapped", false);
   }
-}
+},
 
 //turns a given tile into a its corresponding blank tile to preserve the checkerboard pattern
-async function revertTileToBlank(startTile){
+async  revertTileToBlank(startTile){
 
     if(startTile.X_Position + startTile.Y_Position % 2 == 0) {
       await models.Tiles.update({Tile_Type: "Blank1"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
@@ -454,9 +457,9 @@ async function revertTileToBlank(startTile){
      await models.Tiles.update({Tile_Type: "Blank2"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
      return;
     }
-}
+},
 
-function movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
+ movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
   var randomDirection = getRandomInt(7);
   var player = models.Players.findByPk(playerId);
   var tile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
@@ -507,13 +510,13 @@ function movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
       console.error("Invalid random direction from derived random number: " + randomDirection);
       break;
   }
-}
+},
 
-function changeModelByPK(model, id_field, id, field, value) {
+ changeModelByPK(model, id_field, id, field, value) {
   model.update({field: value}, {where: {id_field: id}});
-}
+},
 
-async function getRandomClass(game) {
+async  getRandomClass(game) {
   var randomClassID = getRandomInt(await models.Classes.count());
   var randomClass = await models.Classes.findByPk(randomClassID);
   await models.Players.findAll({where: {Game_ID: game, Class_ID: randomClass}}).then((players) => {
@@ -525,9 +528,9 @@ async function getRandomClass(game) {
       console.log("[INFO] rerolling class...");
     }
   });
-}
+},
 
-function getSpawnpointTile(game) {
+ getSpawnpointTile(game) {
   var randomTile = models.Tiles.findByPk(getRandomTileId(game));
   console.log("[INFO] rolled tile: " + randomTile + " for a spawnpoint");
   playersInTile = [randomTile.Player_1, randomTile.Player_2, randomTile.Player_3, randomTile.Player_4];
@@ -544,13 +547,13 @@ function getSpawnpointTile(game) {
   else {
     return randomTile;
   };
-}
+},
 
-function delay(ms) {
+ delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
+},
 
-async function setPlayerToTile(playerId, layer, x, y) {
+async  setPlayerToTile(playerId, layer, x, y) {
   var currentPlayer = await models.Players.findByPk(playerId)
   var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
   removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
@@ -572,13 +575,13 @@ async function setPlayerToTile(playerId, layer, x, y) {
     }
     tile.save();
   });
-}
+},
 
 //turns a path([[direction, distance]]) into an array of [[x, y]] of each tile where the direction changes
 // mainly used for generating a cordinate array for getTileCordinatesOfPath
 //path takes in a result of inputPathToArray
 //startingTile takes in an array of [x, y] of where the path starts
-function pathToTiles(startingTile, path) {
+ pathToTiles(startingTile, path) {
 
   var tiles = [];
   //add the starting tile
@@ -620,25 +623,25 @@ function pathToTiles(startingTile, path) {
       tiles.push(destination);
     }
   return tiles
-}
+},
 
 //the same as getTileCordinatesOfLine but for paths
 //startingTile takes in an array of [x, y] of where the path starts
 //path takes in a result of inputPathToArray
 //returns an array of arrays of [x, y] cordinates that the path goes through
-function getTileCordinatesOfPath(startingTile, path) {
+ getTileCordinatesOfPath(startingTile, path) {
   var tiles = pathToTiles(startingTile, path);
   var returnedTiles
   for (tile in tiles) {
     returnedTiles.push(getTileCordinatesOfLine(tiles[tile], tiles[tile + 1]));
   }
   return returnedTiles
-}
+},
 
 //returns the rounded x and y cordinates of tiles found on a line if it was drown from tileCord1 to tileCord2
 //tileCord1 and tileCord2 are arrays of [x, y]
 //includes tileCord1 and tileCord2 in the returned array of tiles on the line
-function getTileCordinatesOfLine(tileCord1, tileCord2) {
+ getTileCordinatesOfLine(tileCord1, tileCord2) {
   var returnedTiles = [tileCord1];
   var slope = (tileCord1[1] - tileCord2[1] / tileCord1[0] - tileCord2[0]);
   var x = tileCord1[0];
@@ -667,9 +670,9 @@ function getTileCordinatesOfLine(tileCord1, tileCord2) {
     returnedTiles.push([x, y]);
   }
   return returnedTiles;
-}
+},
 
-async function getOldestActiveGameId(playerID) {
+async  getOldestActiveGameId(playerID) {
   if (playerID) {
     var players = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
   var games = await models.Games.findAll({where: {
@@ -693,9 +696,9 @@ async function getOldestActiveGameId(playerID) {
     }
   }
   return oldestGameId;
-}
+},
 
-async function getOldestGamestateGameId(playerID, gamestate) {
+async  getOldestGamestateGameId(playerID, gamestate) {
     if (playerID) {
     var players = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
     var games = await models.Games.findAll({where: {
@@ -716,10 +719,14 @@ async function getOldestGamestateGameId(playerID, gamestate) {
     }
   }
   return oldestGameId;
-}
+},
+
+async  playerDeathLogic(killer, victim, game) {
+  //TODO: finish this and implement it anywhere hp is decreased
+},
 
 //gets the direction one would go in if they started at point1 facing point 2 and walked forwards
-function getDirection(point1, point2) {
+ getDirection(point1, point2) {
   xDiff = point1[0] - point2[0];
   yDiff = point1[1] - point2[1];
   returnedDirection = null;
@@ -777,9 +784,9 @@ function getDirection(point1, point2) {
       }
       break;
   }
-}
+},
 
-async function removePlayerFromTile(playerId, layer, x, y) {
+async  removePlayerFromTile(playerId, layer, x, y) {
   await models.Tiles.findOne({where: {Layer: layer, X: x, Y: y}}).then((tile) => {
       if(tile.Player_1 == playerId) {
         tile.Player_1 = null;
@@ -795,19 +802,18 @@ async function removePlayerFromTile(playerId, layer, x, y) {
       }
       tile.save();
   });
-}
+},
 
-function getRandomInt(max) {
+ getRandomInt(max) {
   return Math.round(Math.random() * max);
-}
+},
 
-async function getRandomTileId(game) {
+async  getRandomTileId(game) {
   return getRandomInt(await models.Tiles.count({where: {Game_ID: game}}));
-}
-
+},
 
 //Claude Provided Move Command Function Refactors
-async function validateAndParseMoveCommandInput(interaction) {
+async  validateAndParseMoveCommandInput(interaction) {
   // Gather all inputs with clear defaults
   const gameId = interaction.options.getInteger('game') || await getOldestActiveGameId();
   const direction = interaction.options.getString('direction');
@@ -850,9 +856,9 @@ async function validateAndParseMoveCommandInput(interaction) {
     customPath: inputtedPath,
     gameId
   };
-}
+},
 
-async function calculateMovement(moveRequest) {
+async  calculateMovement(moveRequest) {
   const { currentTile, direction, distance, customPath } = moveRequest;
   
   // Start from current position
@@ -899,36 +905,18 @@ async function calculateMovement(moveRequest) {
     movementPath,
     layer: currentLayer
   };
+},
+
+async hotPotatoSwap(player1, player2) {
+  const newClass = await models.Classes.findByPk(player2.Class_ID);
+  
+  switch(newClass.Class_Name) {
+    case "Twin":
+      await models.Players.update({Tile_ID_2: player2.Tile_ID}, {where: {Discord_ID: player1.Player_ID}});
+      await models.Players.update({Tile_ID_2: null}, {where: {Discord_ID: player2.Player_ID}});
+    default:
+      break;
+  }
+
 }
-
-
-
-
-module.exports = {
-  loadTileTexture,
-  getTileCordinatesOfLine,
-  getDirection,
-  removePlayerFromTile,
-  registerPlayer,
-  getRandomInt,
-  getRandomTile: getRandomTileId,
-  GenerateGameGridImage,
-  addPlayerToTile: setPlayerToTile,
-  getSpawnpointTile,
-  getRandomClass,
-  moveFromTiletoTile,
-  commandResolutionErrorThrower,
-  verifyinputPath,
-  addStartToPathArray,
-  getOldestActiveGameId,
-  getTileCordinatesOfPath,
-  inputPathToArray,
-  validateAndParseMoveCommandInput,
-  calculateMovement,
-  getOldestGamestateGameId,
-  dbLayerIDtoCommonLayerID,
-  getUpgradePrice,
-  revertTileToBlank,
-  GAMESTATES,
-  models,
-};
+}

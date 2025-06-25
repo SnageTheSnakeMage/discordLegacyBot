@@ -208,7 +208,7 @@ module.exports = {
         }
       }
 
-      const spentAP = game.moveCost * (iceChecklist.length - iceTileDeduction);
+      const spentAP = game.moveCost * (iceChecklist.length -( iceTileDeduction + player.Free_Move));
 
       // Check if player has enough action points
       if (player.Action_Points < spentAP) {
