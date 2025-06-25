@@ -907,13 +907,36 @@ async  calculateMovement(moveRequest) {
   };
 },
 
+//returns a string if any special case happens
+//otherwise returns nothing
 async hotPotatoSwap(player1, player2) {
   const newClass = await models.Classes.findByPk(player2.Class_ID);
   
   switch(newClass.Class_Name) {
     case "Twin":
-      await models.Players.update({Tile_ID_2: player2.Tile_ID}, {where: {Discord_ID: player1.Player_ID}});
-      await models.Players.update({Tile_ID_2: null}, {where: {Discord_ID: player2.Player_ID}});
+      await models.Players.update({Tile_ID_2: player2.Tile_ID, Health_Points2: player2.Health_Points2, Damage2: player2.Damage2, Range_2: player2.Range_2}, {where: {Player_ID: player1.Player_ID}});
+      await models.Players.update({Tile_ID_2: null, Health_Points2: null, Damage2: null, Range_2: null}, {where: {Player_ID: player2.Player_ID}});
+      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s twin body!";
+    case "Hitman":
+      await models.Players.update({Hitman_Target: player2.Hitman_Target}, {where: {Player_ID: player1.Player_ID}});
+      await models.Players.update({Hitman_Target: null}, {where: {Player_ID: player2.Player_ID}});
+      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s target!";
+    case "Protagonist":
+      await models.Players.update({MAX_AP: player1.MAX_AP + 4, MAX_HP: player1.MAX_HP + 4, MAX_RANGE: player1.MAX_RANGE + 4, MAX_DAMAGE: player1.MAX_DAMAGE + 3}, {where: {Player_ID: player1.Player_ID}});
+      await models.Players.update({MAX_AP: player2.MAX_AP - 4, MAX_HP: player2.MAX_HP - 4, MAX_RANGE: player2.MAX_RANGE - 4, MAX_DAMAGE: player2.MAX_DAMAGE - 3}, {where: {Player_ID: player2.Player_ID}});
+      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s potentional!";
+    case "Glutton":
+      await models.Players.update({MAX_AP: player1.MAX_AP - 2, MAX_HP: player1.MAX_HP - 2, MAX_RANGE: player1.MAX_RANGE - 2, MAX_DAMAGE: player1.MAX_DAMAGE - 1}, {where: {Player_ID: player1.Player_ID}});
+      await models.Players.update({MAX_AP: player2.MAX_AP + 2, MAX_HP: player2.MAX_HP + 2, MAX_RANGE: player2.MAX_RANGE + 2, MAX_DAMAGE: player2.MAX_DAMAGE + 1}, {where: {Player_ID: player2.Player_ID}});
+      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s sloth & greed!";
+    case "Robot":
+      await models.Players.update({MAX_HP: player1.MAX_HP + 2}, {where: {Player_ID: player1.Player_ID}});
+      await models.Players.update({MAX_HP: player2.MAX_HP - 2}, {where: {Player_ID: player2.Player_ID}});
+      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s robust robot body!";
+    case "Cannibal":
+      await models.Players.update({MAX_AP: player1.MAX_AP - 2}, {where: {Player_ID: player1.Player_ID}});
+      await models.Players.update({MAX_AP: player2.MAX_AP + 2}, {where: {Player_ID: player2.Player_ID}});
+      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s cannibalism!";
     default:
       break;
   }

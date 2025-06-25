@@ -126,6 +126,37 @@ module.exports = function(sequelize, DataTypes) {
         model: 'Players',
         key: 'Player_ID'
       }
+    },
+    Health_Points2: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    Free_Move2: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    Pharoh_HP: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    cCOverides: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    },
+    Damage2: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    Range_2: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    'MarkedForDeath?': {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
     }
   }, {
     tableName: 'Players',
