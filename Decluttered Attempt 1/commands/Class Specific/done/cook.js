@@ -1,4 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
+const utils = require('../utils');
 var models = require("../utils.js").models;
 
 module.exports = {
@@ -6,7 +7,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('cook')
         .setDescription('class command for Chef, give another player in range 2AP & 1 HP and recieve 1 AP. 24hr cooldown')
-        .addMentionableOption(option =>
+        .addUserOption(option =>
             option.setName('customer')
                 .setDescription('which player you cook for')
                 .setRequired(true))
@@ -28,7 +29,7 @@ module.exports = {
         //Variables
         const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
         const player = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.user.id}});
-        const customer = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.options.getMentionable('customer').id}});
+        const customer = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.options.getUser('customer').id}});
         const customersTile = await models.Tiles.findOne({where: {Game_ID: gameId, X_Position: interaction.options.getInteger('x'), Y_Position: interaction.options.getInteger('y')}});  
 
         //Check if player is a Chef
@@ -46,6 +47,25 @@ module.exports = {
         if (!tileInRange) {
             return interaction.editReply({ content: "Your customer is not in range!" });
         }
+
+        //Check if the customer is in the game
+        if (!customer) {
+            return interaction.editReply({ content: "The customer is not in the game!" });
+        }
+
+        //Check if the player is in the game
+        if (!player) {
+            return interaction.editReply({ content: "You are not in the game!" });
+        }
+
+        //Give reciever the AP & HP
+        await models.Players.update({Action_Points: customer.Action_Points + 2}, {where: {playerId: customer.playerId}}); 
+        await models.Players.update({Health: player.Health + 1}, {where: {playerId: customer.playerId}});
+
+        //Give player the AP
+        await models.Players.update({Action_Points: player.Action_Points + 1}, {where: {playerId: player.playerId}}); 
+
+        return interaction.editReply({ content: "You have cooked for " + interaction.options.getUser('customer').username + " giving them 2 AP & 1 HP and yourself 1 AP!" });
         
 
     }

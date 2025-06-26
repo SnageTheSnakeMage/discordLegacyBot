@@ -15,7 +15,7 @@ module.exports = {
             option.setName('y')
             .setDescription('Y coordinate of which tile to attack')
             .setRequired(true))
-        .addMentionableOption(option =>
+        .addUserOption(option =>
             option.setName('target')
                 .setDescription('who you are attacking')
                 .setRequired(true))
@@ -38,7 +38,7 @@ module.exports = {
         try {
         const x = interaction.options.getInteger('x');
         const y = interaction.options.getInteger('y');
-        const targetsDiscordID = interaction.options.getMentionable('target').id ?? null;
+        const targetsDiscordID = interaction.options.getUser('target').id ?? null;
         var amount = interaction.options.getInteger('amount') ?? 1;
         const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
         const game = await models.Games.findByPk(gameId);
@@ -61,16 +61,20 @@ module.exports = {
         if (player.Action_Points < requiredAP) {
             return interaction.editReply({ content: "You don't have enough AP to shoot that much!" });
         }
-        //Verification of tile and target
+        //Verification of tile
         if (!targetTile) {
             return interaction.editReply({ content: "That tile is not on the board!" });
         }
+        //Make sure player is on the board
         if(!shootersTile) {
             return interaction.editReply({ content: "You are not on the board! Are you registered in that game?" });
         }
+        //Verification of the target
         if (!targetsDiscordID || !targetPlayer) {
             return interaction.editReply({ content: "That mention does not correspond to a player registered in that game!" });
         }
+
+        //Check the target is on the tile provided
         if(targetPlayer.Tile_ID != targetTile.Tile_ID) {
             return interaction.editReply({ content: "That player isnt on that tile!" });
             
@@ -84,28 +88,36 @@ module.exports = {
 
         //Shoot logic
         for (attackTile in attackPath) {
+            //get the actual tile from the coordinates of the path and the loop iterator
             const tile = await models.Tiles.findOne({where: {X_Position: attackPath[attackTile][0], Y_Position: attackPath[attackTile][1], Layer_ID: shootersTile.Layer_ID}});
+            //check if the tile is a wall and if so damage it
             if (tile.Tile_Type == "Wall") {
                 await models.Tiles.update({Tile_Type: "Wall_Damaged"}, {where: {X_Position: attackPath[attackTile][0], Y_Position: attackPath[attackTile][1], Layer_ID: shootersTile.Layer_ID}});
                 response += `You hit a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
+                //decrement amount of shots and check if there are any shots left if not exit the loop
                 amount--;
                 if (amount == 0) {
                     break;
                 }
-                continue;
             }
+            //check if the tile is a damaged wall if so destroy it
             if(tile.Tile_Type == "Wall_Damaged") {
                 await utils.revertTileToBlank(tile);
                 response += `You destroyed a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
+                //decrement amount of shotsand check if there are any shots left if not exit the loop
                 amount--;
                 if (amount == 0) {
                     break;
                 }
-                continue;
             }
+            //check if we are on the targeted tile if so damage the target
             if(tile.X_Position == x && tile.Y_Position == y) {
+                //TODO finish this function
+                utils.dmgBuffTimeCheck(player);
+                //damage the target with whatever shots are left
                 await models.Players.update({Health_Points: targetPlayer.Health_Points - (amount * player.Damage * (player.DMG_BUFF + 1))}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: game.Game_ID}});
-                response += `You hit <@${targetPlayer.Discord_ID}> for ${amount * player.Damage}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
+                response += `You hit <@${targetPlayer.Discord_ID}> for ${amount * player.Damage * (player.DMG_BUFF + 1)}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
+                //set the amount of shots left to 0 and exit the loop
                 amount = 0;
                 break;
             }

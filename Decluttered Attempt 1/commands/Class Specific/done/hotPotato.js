@@ -1,11 +1,12 @@
 const { SlashCommandBuilder } = require('discord.js');
+const utils = require('../utils');
 var models = require("../utils.js").models;
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('hotpotato')
         .setDescription('class command for the Hot Potato, swap Classes with a player in range for 12AP')
-        .addMentionableOption(option =>
+        .addUserOption(option =>
             option.setName('victim')
                 .setDescription('which player to swap classes with')
                 .setRequired(true))
@@ -29,7 +30,7 @@ module.exports = {
         var y = interaction.options.getInteger('y');
         var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
         var player = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.user.id}});
-        var victim = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.options.getMentionable('victim').id}});
+        var victim = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.options.getUser('victim').id}});
         var victimTile = await models.Tiles.findOne({where: {Game_ID: gameId, X_Position: x, Y_Position: y}});
 
         //Check the player is a hot potato
@@ -59,11 +60,11 @@ module.exports = {
         }
 
         //Swap classes
-        var extraResponse = await utils.HotPotatoSwap(player, victim);
+        var extraResponse = await utils.HotPotatoSwap(player, victim, interaction.user.username, interaction.options.getUser('victim').username);
         await models.Players.update({Class_ID: victim.Class_ID}, {where: {playerId: player.playerId}}); 
         await models.Players.update({Class_ID: player.Class_ID}, {where: {playerId: victim.playerId}}); 
         
 
-        return interaction.editReply({ content: "You have swapped classes with <@" + victim.Discord_ID + ">!\n" + extraResponse });
+        return interaction.editReply({ content: "You have swapped classes with " + interaction.options.getUser('victim').username + "!\n" + extraResponse });
     },
 };

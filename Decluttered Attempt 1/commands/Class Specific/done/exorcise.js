@@ -6,7 +6,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('exorcise')
         .setDescription('class command for Exorcists, turn any non-gateway tile in range into a blank tile for 3AP, and can remove a players class for 16 AP')
-        .addMentionableOption(option =>
+        .addUserOption(option =>
             option.setName('player')
                 .setDescription('which player to remove a class from, required if you wish to remove a class')
                 .setRequired(false))
@@ -29,7 +29,7 @@ module.exports = {
         var x = interaction.options.getInteger('x');
         var y = interaction.options.getInteger('y');
         var gameId = interaction.options.getInteger('game');
-        var targetDiscordID = interaction.options.getMentionable('player').id ?? null;
+        var targetDiscordID = interaction.options.getUser('player').id ?? null;
         var playerDiscordID = interaction.user.id;
 
         //Get Game and Player
@@ -81,6 +81,10 @@ module.exports = {
         if (targetPlayer) {
             await models.Players.update({Class_Name: "Average"}, {where: {playerId: targetPlayer.playerId}}); 
             await models.Players.update({Action_Points: targetPlayer.Action_Points - 16}, {where: {playerId: targetPlayer.playerId}}); 
+
+            //TODO add this function
+            await utils.classRemoval(targetPlayer);
+            return interaction.editReply({ content: "You have exorcised " + interaction.options.getUser('player').username + " and removed their class!" });
         }
         
 

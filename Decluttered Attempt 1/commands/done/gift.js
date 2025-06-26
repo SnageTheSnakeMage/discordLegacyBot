@@ -10,7 +10,7 @@ module.exports = {
             option.setName('amount')
                 .setDescription('# of times you wish to upgrade the stat defaults to 1')
                 .setRequired(true))
-        .addMentionableOption(option =>
+        .addUserOption(option =>
             option.setName('player')
                 .setDescription('which player to give the AP to')
                 .setRequired(true)        
@@ -24,14 +24,14 @@ module.exports = {
 
         try {
         //Verification of mentionable
-        if (!models.Players.findOne({where: {playerId: interaction.options.getMentionable('player').id}})){
+        if (!models.Players.findOne({where: {playerId: interaction.options.getUser('player').id}})){
             return interaction.editReply({ content: "Player not found in game! Please mention another player in the game inputted." });
         }
 
         //Variables
         var amount = interaction.options.getInteger('amount');
         var gameId = interaction.options.getInteger('game');
-        var recievingPlayerDiscordId = interaction.options.getMentionable('player').id;
+        var recievingPlayerDiscordId = interaction.options.getUser('player').id;
         var remainder = 0;
         var playerDiscordID = interaction.user.id;
 

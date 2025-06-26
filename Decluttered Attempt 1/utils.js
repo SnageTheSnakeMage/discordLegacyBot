@@ -150,9 +150,13 @@ async  commandResolutionErrorThrower() {
   throw "Command Resolution Error";
 },
 
+dmgBuffTimeCheck(player){
+  //TODO: finish implementing this
+},
+
 //turns a layer id that would be known to a player for a game into the actual layer's id in the database
-async  commonLayerIDtoDbLayerID(game, inputtedLayerID){
-    var gridID = await models.Grids.findOne({where: {Game_ID: game}}).Grid_ID
+async commonLayerIDtoDbLayerID(gameId, inputtedLayerID){
+    var gridID = await models.Grids.findOne({where: {Game_ID: gameId}}).Grid_ID
     var layersInGrid = await models.Layers.findAll({where: {Grid_ID: gridID}})
     return layersInGrid[inputtedLayerID-1]
 },
@@ -909,34 +913,34 @@ async  calculateMovement(moveRequest) {
 
 //returns a string if any special case happens
 //otherwise returns nothing
-async hotPotatoSwap(player1, player2) {
+async hotPotatoSwap(player1, player2, player1Username, player2Username) {
   const newClass = await models.Classes.findByPk(player2.Class_ID);
   
   switch(newClass.Class_Name) {
     case "Twin":
       await models.Players.update({Tile_ID_2: player2.Tile_ID, Health_Points2: player2.Health_Points2, Damage2: player2.Damage2, Range_2: player2.Range_2}, {where: {Player_ID: player1.Player_ID}});
       await models.Players.update({Tile_ID_2: null, Health_Points2: null, Damage2: null, Range_2: null}, {where: {Player_ID: player2.Player_ID}});
-      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s twin body!";
+      return "" + player1Username + " took " + player2Username + "'s twin body!";
     case "Hitman":
       await models.Players.update({Hitman_Target: player2.Hitman_Target}, {where: {Player_ID: player1.Player_ID}});
       await models.Players.update({Hitman_Target: null}, {where: {Player_ID: player2.Player_ID}});
-      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s target!";
+      return "" + player1Username + " took " + player2Username + "'s target!";
     case "Protagonist":
       await models.Players.update({MAX_AP: player1.MAX_AP + 4, MAX_HP: player1.MAX_HP + 4, MAX_RANGE: player1.MAX_RANGE + 4, MAX_DAMAGE: player1.MAX_DAMAGE + 3}, {where: {Player_ID: player1.Player_ID}});
       await models.Players.update({MAX_AP: player2.MAX_AP - 4, MAX_HP: player2.MAX_HP - 4, MAX_RANGE: player2.MAX_RANGE - 4, MAX_DAMAGE: player2.MAX_DAMAGE - 3}, {where: {Player_ID: player2.Player_ID}});
-      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s potentional!";
+      return "" + player1Username + " took " + player2Username + "'s potentional!";
     case "Glutton":
       await models.Players.update({MAX_AP: player1.MAX_AP - 2, MAX_HP: player1.MAX_HP - 2, MAX_RANGE: player1.MAX_RANGE - 2, MAX_DAMAGE: player1.MAX_DAMAGE - 1}, {where: {Player_ID: player1.Player_ID}});
       await models.Players.update({MAX_AP: player2.MAX_AP + 2, MAX_HP: player2.MAX_HP + 2, MAX_RANGE: player2.MAX_RANGE + 2, MAX_DAMAGE: player2.MAX_DAMAGE + 1}, {where: {Player_ID: player2.Player_ID}});
-      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s sloth & greed!";
+      return "" + player1Username + " took " + player2Username + "'s sloth & greed!";
     case "Robot":
       await models.Players.update({MAX_HP: player1.MAX_HP + 2}, {where: {Player_ID: player1.Player_ID}});
       await models.Players.update({MAX_HP: player2.MAX_HP - 2}, {where: {Player_ID: player2.Player_ID}});
-      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s robust robot body!";
+      return "" + player1Username + " took " + player2Username + "'s robust robot body!";
     case "Cannibal":
       await models.Players.update({MAX_AP: player1.MAX_AP - 2}, {where: {Player_ID: player1.Player_ID}});
       await models.Players.update({MAX_AP: player2.MAX_AP + 2}, {where: {Player_ID: player2.Player_ID}});
-      return "<@" + player1.Discord_ID + "> took <@" + player2.Discord_ID + ">'s cannibalism!";
+      return "" + player1Username + " took " + player2Username + "'s cannibalism!";
     default:
       break;
   }
