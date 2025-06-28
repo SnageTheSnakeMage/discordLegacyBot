@@ -32,6 +32,13 @@ module.exports = {
         const customer = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.options.getUser('customer').id}});
         const customersTile = await models.Tiles.findOne({where: {Game_ID: gameId, X_Position: interaction.options.getInteger('x'), Y_Position: interaction.options.getInteger('y')}});  
 
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+
         //Check if player is a Chef
         if (player.Class != "Chef") {
             return interaction.editReply({ content: "You are not a Chef!" });

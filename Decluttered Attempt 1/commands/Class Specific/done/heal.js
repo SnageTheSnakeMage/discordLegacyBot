@@ -36,6 +36,13 @@ module.exports = {
                 const tileInRange = utils.getTileCordinatesOfLine([playerTile.X_Position, playerTile.Y_Position], [x, y]).length <= player.Range_;
                 const tileToChange = await models.Tiles.findOne({where: {X_Position: x, Y_Position: y, Layer_ID: playerTile.Layer_ID}});
 
+                //Check if the game is in timestop
+                if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+                {
+                await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+                return
+                }
+
                 //Verification of Variables
                 if (!tileToChange) {
                     return interaction.editReply({ content: "Could not find tile to heal at the given coordinates." });

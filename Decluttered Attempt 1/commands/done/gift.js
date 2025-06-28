@@ -40,6 +40,13 @@ module.exports = {
         var recievingPlayer = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, playerId: recievingPlayerDiscordId}});
         var player = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, playerId: playerDiscordID}});
 
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+
         //Check if player has enough AP
         if (player.Action_Points < amount) {
             return interaction.editReply({ content: "You dont have that much AP to give!" });

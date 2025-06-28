@@ -1,12 +1,8 @@
 // commands/layered-grid.js - Layered Grid Command
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const utils = require('../../utils');
-const { Sequelize, where } = require('sequelize');
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database'
-});
-var models = initModels(sequelize);
+var models = utils.models;
+const GAMESTATES = require('G:/LegacyBotDiscord/Decluttered Attempt 1/enums.js').GAMESTATES;
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -40,9 +36,11 @@ module.exports = {
           discordId: interaction.user.id
         }
       })
+      const playerClass = await models.Classes.findByPk(player.Class_ID);
+      
 
-      var game = interaction.options.getInteger('game') ?? utils.getOldestActiveGameId();
-
+      var gameId = interaction.options.getInteger('game') ?? utils.getOldestActiveGameId();
+      const game = await models.Games.findByPk(gameId);
       var layer = interaction.options.getInteger('layer')
       //Check which layer to show the player if they dont provide it, and if they are a twin make sure to show the one with the body they chose
       if(!layer){
@@ -70,9 +68,14 @@ module.exports = {
         })
       }
     }
+      if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
 
         // Generate image from database and provided inputs
-        const imageBuffer = await utils.GenerateGameGridImage(game, layer, player.Player_ID);
+        const imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);
 
         // Create attachment
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });

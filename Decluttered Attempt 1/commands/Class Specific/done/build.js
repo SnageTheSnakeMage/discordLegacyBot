@@ -31,6 +31,13 @@ module.exports = {
         var y = interaction.options.getInteger('y');
         var gameId = interaction.options.getInteger('game');
         var playerDiscordID = interaction.user.id;
+        
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
 
         //Get Game and Player
         var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());

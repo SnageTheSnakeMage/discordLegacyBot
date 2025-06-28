@@ -35,6 +35,13 @@ module.exports = {
             return interaction.reply({ content: "Could not find a" + (up ? "layer above" : "layer below") + " layer: " + currentLayer.Layer_ID, ephemeral: true });
         }
 
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+
         //Check player is either a Dimensional Hopper or on a Gateway tile
        const dimensionalHopperClass = await models.Classes.findOne({ where: { Class_Name: "Dimensional Hopper" } });
         if (player.Class_ID == dimensionalHopperClass?.Class_ID || currentTile.Tile_Type == "Gateway_Open") {

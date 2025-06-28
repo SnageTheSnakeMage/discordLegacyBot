@@ -25,6 +25,14 @@ module.exports = {
         if (!player) {
             throw new Error("Player not found in game! Please register for the game you wish to move in.");
         }
+
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+
         const playerClass = await models.Classes.findByPk(player.Class_ID);
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
         var playerTIle2

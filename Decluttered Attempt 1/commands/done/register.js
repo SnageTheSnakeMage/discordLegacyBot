@@ -27,7 +27,7 @@ module.exports = {
       
       // Step 1: Validate and gather inputs
       const registrationData = await this.validateRegistrationInput(interaction);
-      
+
       // Step 2: Check if registration is allowed
       await this.checkRegistrationEligibility(registrationData);
       

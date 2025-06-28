@@ -17,6 +17,13 @@ module.exports = {
         const game = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
         const player = await models.Players.findOne({where: {Game_ID: game, playerId: interaction.user.id}});
 
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+        
         //Check if player is a hitman
         if (player.Class != "Hitman") {
             return interaction.editReply({ content: "You are not a hitman!" });

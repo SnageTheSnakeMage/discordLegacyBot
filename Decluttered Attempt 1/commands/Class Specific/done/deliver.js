@@ -24,6 +24,13 @@ module.exports = {
         const player = await models.Player.findOne({where: {discord_id: interaction.user.id, Game_ID: gameId}});
         const receiver = await models.Player.findOne({where: {discord_id: interaction.options.getUser('receiver').id, Game_ID: gameId}});
 
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+
         //Check if player is a Mailman
         if (player.Class != "Mailman") {
             return interaction.editReply({ content: "You are not a Mailman!" });

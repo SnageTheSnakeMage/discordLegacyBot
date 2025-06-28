@@ -42,7 +42,8 @@ module.exports = {
         var amount = interaction.options.getInteger('amount') ?? 1;
         const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
         const game = await models.Games.findByPk(gameId);
-        const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id, Game_ID: game.Game_ID}});
+        const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id, Game_ID: gameId}});
+        const playerClass = await models.Classes.findOne({where: {Class_ID: player.Class_ID}});
         var shootersTile;
         if(interaction.options.getInteger('body') === 2) {
             shootersTile = await models.Tiles.findByPk(player.Tile_ID_2);
@@ -54,8 +55,19 @@ module.exports = {
         var response = "";
         const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: x, Y_Position: y}});
 
+
         //get all tiles between player and target
         const attackPath = utils.getTileCordinatesOfLine([shootersTile.X_Position, shootersTile.Y_Position], [targetTile.X_Position, targetTile.Y_Position]);
+
+
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+        
+
 
         //Check if player has enough AP to shoot
         if (player.Action_Points < requiredAP) {
@@ -92,6 +104,17 @@ module.exports = {
             const tile = await models.Tiles.findOne({where: {X_Position: attackPath[attackTile][0], Y_Position: attackPath[attackTile][1], Layer_ID: shootersTile.Layer_ID}});
             //check if the tile is a wall and if so damage it
             if (tile.Tile_Type == "Wall") {
+                //Check if they are shooting from a bush tile & arent a hunter if so 50% chance of missing
+                if(shootersTile.Tile_Type == "Bush" && utils.getRandomInt(1) == 0 && playerClass.Class_Name != "Hunter"){
+                    //if the miss decrement the amount of shots
+                    amount--;
+                    //add the response of them missing
+                    response += `You missed a damaged wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
+                    //check if there are no shots left if so exit the loop
+                    if(amount == 0) {
+                        break;
+                    }
+                }
                 await models.Tiles.update({Tile_Type: "Wall_Damaged"}, {where: {X_Position: attackPath[attackTile][0], Y_Position: attackPath[attackTile][1], Layer_ID: shootersTile.Layer_ID}});
                 response += `You hit a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
                 //decrement amount of shots and check if there are any shots left if not exit the loop
@@ -102,6 +125,17 @@ module.exports = {
             }
             //check if the tile is a damaged wall if so destroy it
             if(tile.Tile_Type == "Wall_Damaged") {
+                //Check if they are shooting from a bush tile & arent a hunter if so 50% chance of missing
+                if(shootersTile.Tile_Type == "Bush" && utils.getRandomInt(1) == 0 && playerClass.Class_Name != "Hunter"){
+                    //if the miss decrement the amount of shots
+                    amount--;
+                    //add the response of them missing
+                    response += `You missed a damaged wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
+                    //check if there are no shots left if so exit the loop
+                    if(amount == 0) {
+                        break;
+                    }
+                }
                 await utils.revertTileToBlank(tile);
                 response += `You destroyed a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
                 //decrement amount of shotsand check if there are any shots left if not exit the loop
@@ -112,19 +146,31 @@ module.exports = {
             }
             //check if we are on the targeted tile if so damage the target
             if(tile.X_Position == x && tile.Y_Position == y) {
+                if(shootersTile.Tile_Type == "Bush" && utils.getRandomInt(1) == 0 && playerClass.Class_Name != "Hunter" || targetTile.Tile_Type == "Bush" && utils.getRandomInt(1) == 0 && playerClass.Class_Name != "Hunter") {
+                        amount--;
+                        response += `You missed the target tile!\n`;
+                    if(amount == 0) {
+                        break;
+                    }
+                }
                 //TODO finish this function
                 utils.dmgBuffTimeCheck(player);
                 //damage the target with whatever shots are left
-                await models.Players.update({Health_Points: targetPlayer.Health_Points - (amount * player.Damage * (player.DMG_BUFF + 1))}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: game.Game_ID}});
+                await models.Players.update({Health_Points: targetPlayer.Health_Points - (amount * player.Damage * (player.DMG_BUFF + 1))}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: gameId}});
                 response += `You hit <@${targetPlayer.Discord_ID}> for ${amount * player.Damage * (player.DMG_BUFF + 1)}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
                 //set the amount of shots left to 0 and exit the loop
                 amount = 0;
+
+                //if there was a DMG buff make sure to reset it
+                if (player.DMG_BUFF > 0) {
+                    await models.Players.update({DMG_BUFF: 0}, {where: {Player_ID: player.Player_ID, Game_ID: gameId}});
+                }
                 break;
             }
         }
 
         //Update AP
-        await models.Players.update({Action_Points: player.Action_Points - requiredAP}, {where: {Player_ID: player.Player_ID , Game_ID: game.Game_ID}});
+        await models.Players.update({Action_Points: player.Action_Points - requiredAP}, {where: {Player_ID: player.Player_ID , Game_ID: gameId}});
 
         return interaction.editReply({ content: response });
     }

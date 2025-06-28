@@ -44,6 +44,13 @@ module.exports = {
             return interaction.editReply({ content: "Could not find a gateway to lock at the given coordinates." });
         }
 
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+
         if(playerClass.Class_Name != "Guardian") {
             return interaction.editReply({ content: "You are not a Guardian!" });
         }

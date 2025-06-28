@@ -42,7 +42,14 @@ module.exports = {
 
         //Get Price
         const price = await utils.getUpgradePrice(stat, player.playerId, amount);
-
+        
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+        
         switch (stat) {
             case "Health_Points":
                 switch(player.HP_COST) {

@@ -22,6 +22,13 @@ module.exports = {
         var player = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.user.id}});
         var victim = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.options.getUser('victim').id}});
 
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+
         //Check the player is a Switchmate
         if (player.Class != "Switchmate") {
             return interaction.editReply({ content: "You are not a Switchmate!" });
@@ -52,3 +59,4 @@ module.exports = {
         return interaction.editReply({ content: "You have swapped places with " + interaction.options.getUser('victim').username });
 
     }
+};

@@ -27,6 +27,14 @@ module.exports = {
         const player = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, playerId: playerDiscordID}});
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
 
+
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+
         //Check if player is on a chest tile
         if(playerTile.Tile_Type != "Chest") {
             return interaction.editReply({ content: "You are not on a chest tile!" });

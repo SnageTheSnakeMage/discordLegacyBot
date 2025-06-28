@@ -33,6 +33,13 @@ module.exports = {
         var victim = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.options.getUser('victim').id}});
         var victimTile = await models.Tiles.findOne({where: {Game_ID: gameId, X_Position: x, Y_Position: y}});
 
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+
         //Check the player is a hot potato
         if (player.Class != "Hot Potato") {
             return interaction.editReply({ content: "You are not a Hot Potato!" });

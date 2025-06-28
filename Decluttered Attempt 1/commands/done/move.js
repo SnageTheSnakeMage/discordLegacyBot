@@ -115,6 +115,13 @@ module.exports = {
       var amountOfRepeats = 0;
       //#endregion Variables
 
+      //Check if the game is in timestop
+      if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+
       //#region Calculation of New Position
       if(interaction.options.getString('path') != null){
          for (run in utils.addStartToPathArray(direction, distance, utils.inputPathToArray(interaction.options.getString('path')))) {

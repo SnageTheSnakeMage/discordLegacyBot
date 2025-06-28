@@ -169,11 +169,11 @@ async  dbLayerIDtoCommonLayerID(game, dbLayerID){
 },
 
 // generates a layer from a game while checking what a player can see
-async  GenerateGameGridImage(game, inputtedlayerID, playerID) {
+async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
   const tileSize = 208;
 
   // Get layer dimensions
-  const layerData = commonLayerIDtoDbLayerID(game, inputtedlayerID);
+  const layerData = commonLayerIDtoDbLayerID(gameId, inputtedlayerID);
   const baseGridHeight = layerData.Y_Bound;
   const baseGridWidth = layerData.X_Bound;
   

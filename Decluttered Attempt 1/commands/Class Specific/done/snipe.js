@@ -44,6 +44,13 @@ module.exports = {
         var response = "";
         const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: x, Y_Position: y}});
 
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+
         //Check if player has enough AP to shoot
         if (player.Action_Points < requiredAP) {
             return interaction.editReply({ content: "You don't have enough AP to shoot that much!" });
