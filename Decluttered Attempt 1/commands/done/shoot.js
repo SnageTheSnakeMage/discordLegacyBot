@@ -60,12 +60,25 @@ module.exports = {
         const attackPath = utils.getTileCordinatesOfLine([shootersTile.X_Position, shootersTile.Y_Position], [targetTile.X_Position, targetTile.Y_Position]);
 
 
-        //Check if the game is in timestop
-        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
-        {
-          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
-          return
+         if(player.Dead){
+        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+        return
         }
+      //Check Gamestate
+      switch(game.GAMESTATES){
+        case GAMESTATES.TIMESTOPPED:
+          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
+          return
+        case GAMESTATES.PAUSED:
+          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
+          return
+        case GAMESTATES.FINISHED:
+          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
+          return
+        case GAMESTATES.REGISTRATION:
+          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
+          return
+      }
         
 
 
@@ -153,8 +166,6 @@ module.exports = {
                         break;
                     }
                 }
-                //TODO finish this function
-                utils.dmgBuffTimeCheck(player);
                 //damage the target with whatever shots are left
                 await models.Players.update({Health_Points: targetPlayer.Health_Points - (amount * player.Damage * (player.DMG_BUFF + 1))}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: gameId}});
                 response += `You hit <@${targetPlayer.Discord_ID}> for ${amount * player.Damage * (player.DMG_BUFF + 1)}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;

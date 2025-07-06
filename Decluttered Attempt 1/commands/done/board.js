@@ -68,11 +68,21 @@ module.exports = {
         })
       }
     }
-      if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
-        {
-          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+      //Check Gamestate
+      switch(game.GAMESTATES){
+        case GAMESTATES.TIMESTOPPED:
+          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
           return
-        }
+        case GAMESTATES.PAUSED:
+          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
+          return
+        case GAMESTATES.FINISHED:
+          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
+          return
+        case GAMESTATES.REGISTRATION:
+          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
+          return
+      }
 
         // Generate image from database and provided inputs
         const imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);

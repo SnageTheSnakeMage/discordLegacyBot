@@ -78,15 +78,14 @@ module.exports = function(sequelize, DataTypes) {
         key: 'Player_ID'
       }
     },
-    playerMax: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 74
-    },
     finaleThreshold: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 4
+    },
+    timestopExpirationTimestampInMS: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     }
   }, {
     tableName: 'Games',

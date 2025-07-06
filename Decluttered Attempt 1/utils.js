@@ -150,9 +150,6 @@ async  commandResolutionErrorThrower() {
   throw "Command Resolution Error";
 },
 
-dmgBuffTimeCheck(player){
-  //TODO: finish implementing this
-},
 
 //turns a layer id that would be known to a player for a game into the actual layer's id in the database
 async commonLayerIDtoDbLayerID(gameId, inputtedLayerID){
@@ -203,7 +200,7 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
         },
         Class_ID: player.Class_ID
       }}) != null ? true : false;
-    allLayerSight =await models.Classes.findOne({
+    allLayerSight = await models.Classes.findOne({
       where: {
         Class_Name: {
           [Op.or]: [
@@ -212,7 +209,11 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
         },
         Class_ID: player.Class_ID
       }}) != null ? true : false;
-    
+    //if a player is dead give them trapSight and allLayerSight
+    if(player.Dead) {
+      allLayerSight = true;
+      trapSight = true;
+    }
     if(!allLayerSight) {
       if (inputtedlayerID != playersTile.Layer_ID) {
         throw "You can only view the layer you are currently on, unless you are an oracle";
@@ -392,16 +393,17 @@ async  getUpgradePrice(stat, playerId, amount) {
 },
 
 //for checking all the things that happen when a player moves onto an off of a tile, returns wether they player moved or not
-async  moveFromTiletoTile(startTile, endTile, player) {
+async moveFromTiletoTile(startTile, endTile, player) {
   console.log("[INFO][VERBOSE] Player: " + player.Player_ID + " moved from tile: " + startTile + " to tile: " + endTile);
   switch(startTile.Tile_Type) {
       //Player takes damage from leaving fire tile
       case "Fire":
-        changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - fireDmg);
+        await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - fireDmg);
+        await this.playerDeathLogic(null, player);
         break;
       //Player destroys smoke tile by moving off of it
       case "Smoke":
-        revertTileToBlank(startTile);
+        await this.revertTileToBlank(startTile);
         break;
       default:
         break;
@@ -409,21 +411,22 @@ async  moveFromTiletoTile(startTile, endTile, player) {
   switch(endTile.Tile_Type) {
     //Player takes damage from entering fire tile
       case "Fire":
-        changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - fireDmg);
+        await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - fireDmg);
+        await this.playerDeathLogic(null, player);
         break;
     //Player must be moved randomly from entering storm tile
     //Every time a Robot or Stormchaser moves onto a storm tile they...
       case "Storm":
         //Robot heals
         if(player.Class_ID == 19) {
-          changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points + 1);
+          await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points + 1);
         }
         //Stormchaser gains 1d4-2 AP
         if(player.Class_ID == 15) {
-          changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Action_Points", player.Action_Points + (getRandomInt(3) - 1));
+          await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Action_Points", player.Action_Points + (getRandomInt(3) - 1));
         }
         //Player is moved in a random direction once
-        movePlayerToRandomSurroundingTile(player.Player_ID, startTile.Layer_ID, startTile.X_Position, startTile.Y_Position);
+        await this.movePlayerToRandomSurroundingTile(player.Player_ID, startTile.Layer_ID, startTile.X_Position, startTile.Y_Position);
         break;
       case "Void":
       case "Wall":
@@ -434,7 +437,7 @@ async  moveFromTiletoTile(startTile, endTile, player) {
             //all classes that can move on void wall, and wall damaged tiles
             Class_Name: "Cloudborn"
           }}).Class_ID) {
-            changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Tile_ID", startTile.Tile_ID);
+            await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Tile_ID", startTile.Tile_ID);
             console.error("[ERROR] Player " + player.Discord_ID + " cannot move onto void, wall or wall damaged tiles");
             throw "[ERROR] Player " + player.Discord_ID + " cannot move onto void wall or wall damaged tiles";
         }
@@ -444,9 +447,16 @@ async  moveFromTiletoTile(startTile, endTile, player) {
   }
   
   if(endTile.Trapped) {
+    //Get trapper
+    const trapper = await models.Players.findByPk(endTile.trapper);
+    if(!trapper) {
+      throw new Error("Mine without trapper found. Please contact snage.");
+    }
     //Damage player
     changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - mineDmg);
-    changeModelByPK(models.Tiles, "Tile_ID", endTile.Tile_ID, "Trapped", false);
+    playerDeathLogic(trapper, player);
+    //Remove trap
+    await models.Tiles.update({Trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
   }
 },
 
@@ -463,7 +473,7 @@ async  revertTileToBlank(startTile){
     }
 },
 
- movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
+ async  movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
   var randomDirection = getRandomInt(7);
   var player = models.Players.findByPk(playerId);
   var tile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
@@ -516,8 +526,8 @@ async  revertTileToBlank(startTile){
   }
 },
 
- changeModelByPK(model, id_field, id, field, value) {
-  model.update({field: value}, {where: {id_field: id}});
+async changeModelByPK(model, id_field, id, field, value) {
+  await model.update({field: value}, {where: {id_field: id}});
 },
 
 async  getRandomClass(game) {
@@ -725,8 +735,101 @@ async  getOldestGamestateGameId(playerID, gamestate) {
   return oldestGameId;
 },
 
-async  playerDeathLogic(killer, victim, game) {
+//takes in two players and checks if the second one is dead
+//if so it updates the second players dead boolean, take them off the board, and the first players kill count
+//killer is nullable for cases where the environment killed the player, like a fire tile
+async  playerDeathLogic(killer, victim) {
   //TODO: finish this and implement it anywhere hp is decreased
+
+  //get classes
+  killer ? killerClass = await models.Classes.findByPk(killer.Class_ID) : killerClass = null;
+  victimClass = await models.Classes.findByPk(victim.Class_ID);
+
+  //check if the victim is dead and there isnt a class with weird death logic involved
+  if (victim.Health_Points <= 0 
+    && victim.PharohHP <= 0 
+    && victimClass.Class_Name != "Twin" 
+    && killerClass.Class_Name != "Hitman"
+    && killerClass.Class_Name != "Cannibal" ) {
+    await models.Players.update({Dead: true}, {where: {playerId: victim.playerId}});
+    await models.Players.update({Tile_ID: null}, {where: {playerId: victim.playerId}});
+    await models.Players.update({Kills: killer.Kills + 1}, {where: {playerId: killer.playerId}});
+  }
+
+  //Weird death case #0 if the victim goes to 0 hp but has some revive hp revive them on a random tile with their pharaoh hp as their health and reset their pharaoh hp
+  //this still counts as a kill
+  if(victim.Health_Points <= 0 && victim.PharohHP > 0)
+  {
+    await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.PharohHP, PharaohHP: 0}, {where: {playerId: victim.playerId}});
+    await models.Players.update({Kills: killer.Kills + 1}, {where: {playerId: killer.playerId}});
+  }
+
+  //Weird death case #1 twins have two bodies and both have to be dead in order for the player to die      
+  //We need to make sure to remove both twins tiles and only one if only 1 twin dies
+  //WARN: ONLY HANDLES THE VICTIM SIDE OF THE DEATH
+  if(victimClass.Class_Name == "Twin"){
+    //Both twins are at 0 hp and the player doesnt have any pharoh hp so run the normal death logic and remove both twins tiles
+    if(victim.Health_Points <= 0 
+      && victim.Health_Points2 <= 0 
+      && victim.PharohHP <= 0 )
+    {
+      await models.Players.update({Dead: true}, {where: {playerId: victim.playerId}});
+      await models.Players.update({Tile_ID: null}, {where: {playerId: victim.playerId}});
+      await models.Players.update({Tile_ID2: null}, {where: {playerId: victim.playerId}});
+    }
+    //Both twins are at 0 hp but the player has some pharaoh hp so revive them on a random tile with their pharaoh hp as their health and reset their pharaoh hp
+    if(victim.Health_Points <= 0 
+      && victim.Health_Points2 <= 0 
+      && victim.PharohHP > 0 )
+    {
+      await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.PharohHP, PharaohHP: 0}, {where: {playerId: victim.playerId}});
+    }
+    //One twin is at 0 hp but the player has some pharaoh hp so revive the dead clone on a random tile with their pharaoh hp as their health and reset their pharaoh hp
+    if(victim.Health_Points <= 0 && victim.Health_Points2 > 0 && victim.PharohHP > 0)
+    {
+      await models.Players.update({Tile_ID2: this.getSpawnpointTile(victim.Game_ID), Health_Points2: victim.PharaohHP, PharaohHP: 0}, {where: {playerId: victim.playerId}});
+    }
+    if(victim.Health_Points > 0 && victim.Health_Points2 <= 0 && victim.PharohHP > 0)
+    {
+      await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.PharaohHP, PharaohHP: 0}, {where: {playerId: victim.playerId2}});
+    }
+    //One twin is at 0 hp so kill it but dont mark the player as dead
+    if(victim.Health_Points <= 0 && victim.Health_Points2 > 0){
+      await models.Players.update({Tile_ID2: null}, {where: {playerId: victim.playerId}});
+    }
+    if(victim.Health_Points > 0 && victim.Health_Points2 <= 0){
+      await models.Players.update({Tile_ID: null}, {where: {playerId: victim.playerId2}});
+    }
+  }
+  else if(victim.Health_Points <= 0){
+      await models.Players.update({Dead: true}, {where: {playerId: victim.playerId}});
+      await models.Players.update({Tile_ID: null}, {where: {playerId: victim.playerId}});
+    }
+//TODO fix this logic
+  if(victim.Health_Points <= 0){
+    switch(killerClass.Class_Name){
+      //Weird death case #2 hitman gets 4AP for every kill, do normal death logic but also update the hitman's AP
+      case "Hitman":
+        if(killer.Hitman_Target == victim.playerId ){
+          await models.Players.update({Kills: killer.Kills + 1, Action_Points: killer.Action_Points + 4}, {where: {playerId: killer.playerId}});
+        }
+        else if(victim.Health_Points <= 0){
+          await models.Players.update({Kills: killer.Kills + 1}, {where: {playerId: killer.playerId}});
+        }
+        break;
+      //Weird death case #3 cannibal gets 1AP for every kill, 6AP if the victim has max ap, do normal death logic but also update the cannibal's AP
+      case "Cannibal":
+        if(victim.Action_Points == victim.MAX_AP){
+          await models.Players.update({Kills: killer.Kills + 1, Action_Points: killer.Action_Points + 6}, {where: {playerId: killer.playerId}});
+        }else {
+          await models.Players.update({Kills: killer.Kills + 1, Action_Points: killer.Action_Points + 1}, {where: {playerId: killer.playerId}});
+        }
+        break;
+      default:
+        //Should only run if there is no killer
+        return;
+    }
+  }
 },
 
 //gets the direction one would go in if they started at point1 facing point 2 and walked forwards

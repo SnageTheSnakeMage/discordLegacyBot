@@ -65,7 +65,7 @@ module.exports = function(sequelize, DataTypes) {
     },
     Tile_ID: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: {
         model: 'Tiles',
         key: 'Tile_ID'
@@ -120,7 +120,7 @@ module.exports = function(sequelize, DataTypes) {
     },
     Hitman_Target: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       defaultValue: 1,
       references: {
         model: 'Players',
@@ -149,11 +149,11 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.INTEGER,
       allowNull: true
     },
-    Range_2: {
+    Range2: {
       type: DataTypes.INTEGER,
       allowNull: true
     },
-    'MarkedForDeath?': {
+    MarkedForDeath: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0

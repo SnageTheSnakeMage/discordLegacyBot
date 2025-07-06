@@ -34,6 +34,8 @@ function initModels(sequelize) {
   Players.hasMany(Games, { as: "LAST_CHEST_GIVER_Games", foreignKey: "LAST_CHEST_GIVER"});
   Players.belongsTo(Players, { as: "Hitman_Target_Player", foreignKey: "Hitman_Target"});
   Players.hasMany(Players, { as: "Players", foreignKey: "Hitman_Target"});
+  Tiles.belongsTo(Players, { as: "trapper_Player", foreignKey: "trapper"});
+  Players.hasMany(Tiles, { as: "trapper_Tiles", foreignKey: "trapper"});
   Tiles.belongsTo(Players, { as: "Player4_Player", foreignKey: "Player4"});
   Players.hasMany(Tiles, { as: "Player4_Tiles", foreignKey: "Player4"});
   Tiles.belongsTo(Players, { as: "Player3_Player", foreignKey: "Player3"});
@@ -59,3 +61,5 @@ function initModels(sequelize) {
 module.exports = initModels;
 module.exports.initModels = initModels;
 module.exports.default = initModels;
+
+//sequelize-auto -d "G:\LegacyBotDiscord\Decluttered Attempt 1\database\database.db" -o "G:\LegacyBotDiscord\Decluttered Attempt 1\database\Models" -e sqlite --useDefine   

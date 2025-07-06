@@ -44,13 +44,25 @@ module.exports = {
         var response = "";
         const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: x, Y_Position: y}});
 
-        //Check if the game is in timestop
-        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
-        {
-          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
-          return
+        if(player.Dead){
+        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+        return
         }
-
+      //Check Gamestate
+      switch(game.GAMESTATES){
+        case GAMESTATES.TIMESTOPPED:
+          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
+          return
+        case GAMESTATES.PAUSED:
+          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
+          return
+        case GAMESTATES.FINISHED:
+          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
+          return
+        case GAMESTATES.REGISTRATION:
+          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
+          return
+      }
         //Check if player has enough AP to shoot
         if (player.Action_Points < requiredAP) {
             return interaction.editReply({ content: "You don't have enough AP to shoot that much!" });
@@ -102,32 +114,28 @@ module.exports = {
             //Check if the tile has a player if so damage the player as you would damage the target 
             // but make sure that the player is not the target
             if(tile.Player1 != null && tile.Player1 != targetPlayer.Player_ID) {
-                //TODO finish this function
-                utils.dmgBuffTimeCheck(player);
+               
                 //get the player that is on the tile
                 const collateralPlayer = await models.Players.findOne({where: {Player_ID: tile.Player1, Game_ID: game.Game_ID}});
                 await models.Players.update({Health_Points: collateralPlayer.Health_Points - (1 * player.Damage * (player.DMG_BUFF + 1))}, {where: {Player_ID: collateralPlayer.Player_ID, Game_ID: game.Game_ID}});
                 response += `You hit <@${collateralPlayer.Discord_ID}> for ${amount * player.Damage * (player.DMG_BUFF + 1)}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
             }
             if(tile.Player2 != null && tile.Player2 != targetPlayer.Player_ID) {
-                //TODO finish this function
-                utils.dmgBuffTimeCheck(player);
+               
                 //get the player that is on the tile
                 const collateralPlayer = await models.Players.findOne({where: {Player_ID: tile.Player2, Game_ID: game.Game_ID}});
                 await models.Players.update({Health_Points: collateralPlayer.Health_Points - (1 * player.Damage * (player.DMG_BUFF + 1))}, {where: {Player_ID: collateralPlayer.Player_ID, Game_ID: game.Game_ID}});
                 response += `You hit <@${collateralPlayer.Discord_ID}> for ${amount * player.Damage * (player.DMG_BUFF + 1)}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
             }
             if(tile.Player3 != null && tile.Player3 != targetPlayer.Player_ID) {
-                //TODO finish this function
-                utils.dmgBuffTimeCheck(player);
+               
                 //get the player that is on the tile
                 const collateralPlayer = await models.Players.findOne({where: {Player_ID: tile.Player3, Game_ID: game.Game_ID}});
                 await models.Players.update({Health_Points: collateralPlayer.Health_Points - (1 * player.Damage * (player.DMG_BUFF + 1))}, {where: {Player_ID: collateralPlayer.Player_ID, Game_ID: game.Game_ID}});
                 response += `You hit <@${collateralPlayer.Discord_ID}> for ${amount * player.Damage * (player.DMG_BUFF + 1)}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
             }
             if(tile.Player4 != null && tile.Player4 != targetPlayer.Player_ID) {
-                //TODO finish this function
-                utils.dmgBuffTimeCheck(player);
+               
                 //get the player that is on the tile
                 const collateralPlayer = await models.Players.findOne({where: {Player_ID: tile.Player4, Game_ID: game.Game_ID}});
                 await models.Players.update({Health_Points: collateralPlayer.Health_Points - (1 * player.Damage * (player.DMG_BUFF + 1))}, {where: {Player_ID: collateralPlayer.Player_ID, Game_ID: game.Game_ID}});
@@ -135,12 +143,16 @@ module.exports = {
             }
             //Check if the tile is the target tile and damage the target if so
             if(tile.X_Position == x && tile.Y_Position == y) {
-                //TODO finish this function
-                utils.dmgBuffTimeCheck(player);
+               
                 await models.Players.update({Health_Points: targetPlayer.Health_Points - (amount * player.Damage * (player.DMG_BUFF + 1))}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: game.Game_ID}});
                 response += `You hit ${interaction.options.getUser('target').username} for ${amount * player.Damage * (player.DMG_BUFF + 1)}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
                 break;
             }
+        }
+
+        //If the sniper has a dmg buff take it away after the shot is used
+        if(player.DMG_BUFF > 0) {
+            await models.Players.update({DMG_BUFF: 0}, {where: {Player_ID: player.Player_ID, Game_ID: game.Game_ID}});
         }
 
         //Update AP

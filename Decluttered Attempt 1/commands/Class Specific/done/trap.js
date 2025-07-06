@@ -36,11 +36,24 @@ module.exports = {
                 const tileInRange = utils.getTileCordinatesOfLine([playerTile.X_Position, playerTile.Y_Position], [x, y]).length <= player.Range_;
                 const tileToChange = await models.Tiles.findOne({where: {X_Position: x, Y_Position: y, Layer_ID: playerTile.Layer_ID}});
 
-                //Check if the game is in timestop
-                if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name == "Clockwatcher")
-                {
-                await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
-                return
+                if(player.Dead){
+                    await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+                    return
+                }
+                //Check Gamestate
+                switch(game.GAMESTATES){
+                    case GAMESTATES.TIMESTOPPED:
+                    await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
+                    return
+                    case GAMESTATES.PAUSED:
+                    await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
+                    return
+                    case GAMESTATES.FINISHED:
+                    await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
+                    return
+                    case GAMESTATES.REGISTRATION:
+                    await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
+                    return
                 }
 
                 //Verification of Variables
@@ -64,7 +77,7 @@ module.exports = {
 
                 //Update tile to be trapped and update player AP
                 await models.Players.update({Action_Points: player.Action_Points - 1}, {where: {playerId: player.playerId}});
-                await models.Tiles.update({trapped: true}, {where: {Tile_ID: tileToChange.Tile_ID}});
+                await models.Tiles.update({trapped: true, trapper: player.playerId}, {where: {Tile_ID: tileToChange.Tile_ID}});
 
                 return interaction.editReply({ content: "You have planted a mine on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!", ephemeral: true });
                 
