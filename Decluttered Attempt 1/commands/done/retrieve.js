@@ -24,7 +24,7 @@ module.exports = {
 
         //Get Game and Player
         var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
-        const player = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, playerId: playerDiscordID}});
+        const player = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, Player_ID: playerDiscordID}});
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
 
 
@@ -37,7 +37,7 @@ module.exports = {
         case GAMESTATES.TIMESTOPPED:
           await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
           return
-        case GAMESTATES.PAUSED:
+        case GAMESTATES.DEV_PAUSED:
           await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
           return
         case GAMESTATES.FINISHED:
@@ -60,7 +60,7 @@ module.exports = {
 
         //Give player AP from the chest
         await models.Games.update({CHEST_AMOUNT: game.CHEST_AMOUNT - amount}, {where: {Game_ID: game.Game_ID}}); 
-        await models.Players.update({Action_Points: player.Action_Points + amount}, {where: {playerId: player.playerId}});
+        await models.Players.update({Action_Points: player.Action_Points + amount}, {where: {Player_ID: player.Player_ID}});
 
         return interaction.editReply({ content: "You have retrieved " + amount + " AP from the chest!" });
     }

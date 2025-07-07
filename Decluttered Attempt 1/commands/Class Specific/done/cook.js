@@ -28,8 +28,8 @@ module.exports = {
 
         //Variables
         const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
-        const player = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.user.id}});
-        const customer = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.options.getUser('customer').id}});
+        const player = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.user.id}});
+        const customer = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.options.getUser('customer').id}});
         const customersTile = await models.Tiles.findOne({where: {Game_ID: gameId, X_Position: interaction.options.getInteger('x'), Y_Position: interaction.options.getInteger('y')}});  
 
          if(player.Dead){
@@ -41,7 +41,7 @@ module.exports = {
         case GAMESTATES.TIMESTOPPED:
           await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
           return
-        case GAMESTATES.PAUSED:
+        case GAMESTATES.DEV_PAUSED:
           await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
           return
         case GAMESTATES.FINISHED:
@@ -79,11 +79,11 @@ module.exports = {
         }
 
         //Give reciever the AP & HP
-        await models.Players.update({Action_Points: customer.Action_Points + 2}, {where: {playerId: customer.playerId}}); 
-        await models.Players.update({Health: player.Health + 1}, {where: {playerId: customer.playerId}});
+        await models.Players.update({Action_Points: customer.Action_Points + 2}, {where: {Player_ID: customer.Player_ID}}); 
+        await models.Players.update({Health: player.Health + 1}, {where: {Player_ID: customer.Player_ID}});
 
         //Give player the AP
-        await models.Players.update({Action_Points: player.Action_Points + 1}, {where: {playerId: player.playerId}}); 
+        await models.Players.update({Action_Points: player.Action_Points + 1}, {where: {Player_ID: player.Player_ID}}); 
 
         return interaction.editReply({ content: "You have cooked for " + interaction.options.getUser('customer').username + " giving them 2 AP & 1 HP and yourself 1 AP!" });
         

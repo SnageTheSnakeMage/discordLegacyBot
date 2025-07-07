@@ -34,8 +34,8 @@ module.exports = {
 
         //Get Game and Player
         var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
-        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: playerDiscordID}});
-        const targetPlayer = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: targetDiscordID}});
+        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Player_ID: playerDiscordID}});
+        const targetPlayer = await models.Players.findOne({where: {Game_ID: game.Game_ID, Player_ID: targetDiscordID}});
 
         const playerClass = await models.Classes.findByPk(player.Class_ID);
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
@@ -51,7 +51,7 @@ module.exports = {
         case GAMESTATES.TIMESTOPPED:
           await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
           return
-        case GAMESTATES.PAUSED:
+        case GAMESTATES.DEV_PAUSED:
           await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
           return
         case GAMESTATES.FINISHED:
@@ -94,15 +94,13 @@ module.exports = {
         //Update tile to fire tile and update player AP
         if(!targetPlayer)
         {
-            await models.Players.update({Action_Points: player.Action_Points - 4}, {where: {playerId: player.playerId}});
+            await models.Players.update({Action_Points: player.Action_Points - 4}, {where: {Player_ID: player.Player_ID}});
             await utils.revertTileToBlank(tileToChange);
         }
 
         if (targetPlayer) {
-            await models.Players.update({Class_Name: "Average"}, {where: {playerId: targetPlayer.playerId}}); 
-            await models.Players.update({Action_Points: targetPlayer.Action_Points - 16}, {where: {playerId: targetPlayer.playerId}}); 
-
-            //TODO add this function
+            await models.Players.update({Class_Name: "Average"}, {where: {Player_ID: targetPlayer.Player_ID}}); 
+            await models.Players.update({Action_Points: targetPlayer.Action_Points - 16}, {where: {Player_ID: targetPlayer.Player_ID}}); 
             await utils.classRemoval(targetPlayer);
             return interaction.editReply({ content: "You have exorcised " + interaction.options.getUser('player').username + " and removed their class!" });
         }

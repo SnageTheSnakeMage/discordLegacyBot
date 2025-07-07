@@ -41,7 +41,7 @@ module.exports = {
         var damageBuyIndex
 
         //Get Price
-        const price = await utils.getUpgradePrice(stat, player.playerId, amount);
+        const price = await utils.getUpgradePrice(stat, player.Player_ID, amount);
         
  if(player.Dead){
         await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
@@ -52,7 +52,7 @@ module.exports = {
         case GAMESTATES.TIMESTOPPED:
           await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
           return
-        case GAMESTATES.PAUSED:
+        case GAMESTATES.DEV_PAUSED:
           await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
           return
         case GAMESTATES.FINISHED:
@@ -164,24 +164,24 @@ module.exports = {
         try {
 	        const confirmation = await response.resource.message.awaitMessageComponent({ filter: senderFilter, time: 60_000 });
             if (confirmation.customId === 'confirm') {
-                await models.Players.update({Action_Points: player.Action_Points - price}, {where: {playerId: player.playerId}}); //Update AP
+                await models.Players.update({Action_Points: player.Action_Points - price}, {where: {Player_ID: player.Player_ID}}); //Update AP
                 switch(stat) {//Update Stat
                     case "Health_Points":
-                        await models.Players.update({Health_Points: player.Health_Points + amount}, {where: {playerId: player.playerId}}); 
-                        if(hpBuyIndex == 3) await models.Players.update({HP_COST: 10}, {where: {playerId: player.playerId}});
-                        else await models.Players.update({HP_COST: rangeAndHpCostArray[hpBuyIndex + 1]}, {where: {playerId: player.playerId}});
+                        await models.Players.update({Health_Points: player.Health_Points + amount}, {where: {Player_ID: player.Player_ID}}); 
+                        if(hpBuyIndex == 3) await models.Players.update({HP_COST: 10}, {where: {Player_ID: player.Player_ID}});
+                        else await models.Players.update({HP_COST: rangeAndHpCostArray[hpBuyIndex + 1]}, {where: {Player_ID: player.Player_ID}});
                         break;
                     case "Range_":
-                        await models.Players.update({Range_: player.Range_ + amount}, {where: {playerId: player.playerId}}); 
+                        await models.Players.update({Range_: player.Range_ + amount}, {where: {Player_ID: player.Player_ID}}); 
                         if(rangeBuyIndex == 3) {
-                            await models.Players.update({RANGE_COST: 10}, {where: {playerId: player.playerId}});
+                            await models.Players.update({RANGE_COST: 10}, {where: {Player_ID: player.Player_ID}});
                         }
-                        else await models.Players.update({RANGE_COST: rangeAndHpCostArray[rangeBuyIndex + 1]}, {where: {playerId: player.playerId}});
+                        else await models.Players.update({RANGE_COST: rangeAndHpCostArray[rangeBuyIndex + 1]}, {where: {Player_ID: player.Player_ID}});
                         break;
                     case "Damage":
-                        await models.Players.update({Damage: player.Damage + amount}, {where: {playerId: player.playerId}}); 
-                        if(damageBuyIndex == 2) await models.Players.update({DAMAGE_COST: 16}, {where: {playerId: player.playerId}});
-                        else await models.Players.update({DAMAGE_COST: damageCostArray[damageBuyIndex + 1]}, {where: {playerId: player.playerId}});
+                        await models.Players.update({Damage: player.Damage + amount}, {where: {Player_ID: player.Player_ID}}); 
+                        if(damageBuyIndex == 2) await models.Players.update({DAMAGE_COST: 16}, {where: {Player_ID: player.Player_ID}});
+                        else await models.Players.update({DAMAGE_COST: damageCostArray[damageBuyIndex + 1]}, {where: {Player_ID: player.Player_ID}});
                         break;
                 }
                 await interaction.editReply({ content: "Successfully upgraded " + stat + " by " + amount + " for " + price + " AP!", components: [] });

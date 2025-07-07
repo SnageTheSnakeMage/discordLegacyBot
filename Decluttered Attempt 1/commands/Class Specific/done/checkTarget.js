@@ -15,7 +15,7 @@ module.exports = {
         try{
         //Variables
         const game = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
-        const player = await models.Players.findOne({where: {Game_ID: game, playerId: interaction.user.id}});
+        const player = await models.Players.findOne({where: {Game_ID: game, Player_ID: interaction.user.id}});
 
          if(player.Dead){
         await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
@@ -26,7 +26,7 @@ module.exports = {
         case GAMESTATES.TIMESTOPPED:
           await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
           return
-        case GAMESTATES.PAUSED:
+        case GAMESTATES.DEV_PAUSED:
           await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
           return
         case GAMESTATES.FINISHED:
@@ -41,7 +41,7 @@ module.exports = {
             return interaction.editReply({ content: "You are not a hitman!" });
         }
         
-        const target = await models.Players.findOne({where: {Game_ID: game, playerId: player.Hitman_Target}});
+        const target = await models.Players.findOne({where: {Game_ID: game, Player_ID: player.Hitman_Target}});
 
         return interaction.editReply({ content: "Target: <@" + target.Discord_ID + "> " + ", Location: (" + target.X_Position + ", " + target.Y_Position + ") layer: " + target.Layer_ID + ", Class: " + target.Class });
         }catch(error){

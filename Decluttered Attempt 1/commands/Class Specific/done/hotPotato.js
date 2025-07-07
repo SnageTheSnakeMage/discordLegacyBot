@@ -29,8 +29,8 @@ module.exports = {
         var x = interaction.options.getInteger('x');
         var y = interaction.options.getInteger('y');
         var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
-        var player = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.user.id}});
-        var victim = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.options.getUser('victim').id}});
+        var player = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.user.id}});
+        var victim = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.options.getUser('victim').id}});
         var victimTile = await models.Tiles.findOne({where: {Game_ID: gameId, X_Position: x, Y_Position: y}});
 
         if(player.Dead){
@@ -42,7 +42,7 @@ module.exports = {
         case GAMESTATES.TIMESTOPPED:
           await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
           return
-        case GAMESTATES.PAUSED:
+        case GAMESTATES.DEV_PAUSED:
           await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
           return
         case GAMESTATES.FINISHED:
@@ -81,8 +81,8 @@ module.exports = {
 
         //Swap classes
         var extraResponse = await utils.HotPotatoSwap(player, victim, interaction.user.username, interaction.options.getUser('victim').username);
-        await models.Players.update({Class_ID: victim.Class_ID}, {where: {playerId: player.playerId}}); 
-        await models.Players.update({Class_ID: player.Class_ID}, {where: {playerId: victim.playerId}}); 
+        await models.Players.update({Class_ID: victim.Class_ID}, {where: {Player_ID: player.Player_ID}}); 
+        await models.Players.update({Class_ID: player.Class_ID}, {where: {Player_ID: victim.Player_ID}}); 
         
 
         return interaction.editReply({ content: "You have swapped classes with " + interaction.options.getUser('victim').username + "!\n" + extraResponse });

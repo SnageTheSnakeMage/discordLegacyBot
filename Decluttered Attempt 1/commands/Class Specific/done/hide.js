@@ -29,7 +29,7 @@ module.exports = {
             
                 //Get Game and Player
                 var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
-                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: playerDiscordID}});
+                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Player_ID: playerDiscordID}});
 
                 if(player.Dead){
         await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
@@ -40,7 +40,7 @@ module.exports = {
         case GAMESTATES.TIMESTOPPED:
           await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
           return
-        case GAMESTATES.PAUSED:
+        case GAMESTATES.DEV_PAUSED:
           await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
           return
         case GAMESTATES.FINISHED:
@@ -75,7 +75,7 @@ module.exports = {
                 }
 
                 //Update tile to hide tile and update player AP
-                await models.Players.update({Action_Points: player.Action_Points - 5}, {where: {playerId: player.playerId}});
+                await models.Players.update({Action_Points: player.Action_Points - 5}, {where: {Player_ID: player.Player_ID}});
                 await models.Tiles.update({Tile_Type: "Bush"}, {where: {Tile_ID: tileToChange.Tile_ID}});
 
                 return interaction.editReply({ content: "You have made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });

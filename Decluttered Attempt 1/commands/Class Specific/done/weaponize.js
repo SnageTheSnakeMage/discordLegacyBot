@@ -28,12 +28,12 @@ module.exports = {
         //Variables
         var targetId = interaction.options.getUser('player').id ?? interaction.user.id;
         var gameId = interaction.options.getInteger('game');
-        var player = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.user.id}});
+        var player = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.user.id}});
         var playersTile = await models.Tiles.findOne({where: {Tile_ID: player.Tile_ID}});
         var x = interaction.options.getInteger('x') ?? playersTile.X_Position;
         var y = interaction.options.getInteger('y') ?? playersTile.Y_Position;
         var targetTile = await models.Tiles.findOne({where: {Layer_ID: playersTile.Layer_ID, X_Position: x, Y_Position: y}});
-        var targetPlayer = await models.Players.findOne({where: {Game_ID: gameId, playerId: targetId}});
+        var targetPlayer = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: targetId}});
 
         if(player.Dead){
         await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
@@ -44,7 +44,7 @@ module.exports = {
         case GAMESTATES.TIMESTOPPED:
           await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
           return
-        case GAMESTATES.PAUSED:
+        case GAMESTATES.DEV_PAUSED:
           await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
           return
         case GAMESTATES.FINISHED:
@@ -87,13 +87,12 @@ module.exports = {
         }
 
         //Give the target the buff
-        await models.Players.update({DMG_BUFF: targetPlayer.DMG_BUFF + 1}, {where: {Game_ID: gameId, playerId: targetId}});
+        await models.Players.update({DMG_BUFF: targetPlayer.DMG_BUFF + 1}, {where: {Game_ID: gameId, Player_ID: targetId}});
 
         //Take the AP
-        await models.Players.update({Action_Points: player.Action_Points - 6}, {where: {Game_ID: gameId, playerId: interaction.user.id}});
+        await models.Players.update({Action_Points: player.Action_Points - 6}, {where: {Game_ID: gameId, Player_ID: interaction.user.id}});
 
         //Send message
-        //TODO add in duration system and timestamps
-        return interaction.editReply({ content: "You have given " + interaction.options.getUser('player').username + " a double damage buff! it will expire " });
+        return interaction.editReply({ content: "You have given " + interaction.options.getUser('player').username + " a double damage buff! it will expire after their next attack." });
     },
 };

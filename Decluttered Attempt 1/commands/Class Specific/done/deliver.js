@@ -33,7 +33,7 @@ module.exports = {
         case GAMESTATES.TIMESTOPPED:
           await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
           return
-        case GAMESTATES.PAUSED:
+        case GAMESTATES.DEV_PAUSED:
           await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
           return
         case GAMESTATES.FINISHED:
@@ -59,8 +59,8 @@ module.exports = {
         }
 
         //Give reciever the AP
-        await models.Player.update({Action_Points: receiver.Action_Points + interaction.options.getInteger('amount')}, {where: {playerId: receiver.playerId}}); 
-        await models.Player.update({Action_Points: player.Action_Points - interaction.options.getInteger('amount')}, {where: {playerId: player.playerId}});
+        await models.Player.update({Action_Points: receiver.Action_Points + interaction.options.getInteger('amount')}, {where: {Player_ID: receiver.Player_ID}}); 
+        await models.Player.update({Action_Points: player.Action_Points - interaction.options.getInteger('amount')}, {where: {Player_ID: player.Player_ID}});
 
         return interaction.editReply({ content: "You have delivered " + interaction.options.getInteger('amount') + "AP to " + interaction.options.getUser('receiver').username + "!" });
     }

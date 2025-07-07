@@ -86,6 +86,15 @@ module.exports = function(sequelize, DataTypes) {
     timestopExpirationTimestampInMS: {
       type: DataTypes.INTEGER,
       allowNull: true
+    },
+    lastAPDistributionTimestampInMS: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    APAmount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 2
     }
   }, {
     tableName: 'Games',
