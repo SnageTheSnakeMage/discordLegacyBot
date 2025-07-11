@@ -61,5 +61,3 @@ function initModels(sequelize) {
 module.exports = initModels;
 module.exports.initModels = initModels;
 module.exports.default = initModels;
-
-//sequelize-auto -d "G:\LegacyBotDiscord\Decluttered Attempt 1\database\database.db" -o "G:\LegacyBotDiscord\Decluttered Attempt 1\database\Models" -e sqlite --useDefine   

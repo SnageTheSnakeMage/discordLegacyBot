@@ -83,7 +83,7 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       defaultValue: 4
     },
-    timestopExpirationTimestampInMS: {
+    timestopTurns: {
       type: DataTypes.INTEGER,
       allowNull: true
     },
@@ -95,6 +95,28 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 2
+    },
+    immutableDoomsday: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    deadChatChannelId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1392574348333678633
+    },
+    currentChaosPollMsgId: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    NEXT_CC_EVENT: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    overidden: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
     }
   }, {
     tableName: 'Games',

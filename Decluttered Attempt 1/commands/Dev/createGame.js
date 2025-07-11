@@ -14,7 +14,7 @@ module.exports = {
             option.setName('Chest Amount')
                 .setDescription('how many AP in the chest at the start of the game, defaults to 0')
                 .setRequired(false))
-        .addIntegerOption(option =>
+        .addStringOption(option =>
             option.setName('Current Chaos Council Event')
                 .setDescription('a starting chaos council event, defaults to null')
                 .setRequired(false))
@@ -55,12 +55,13 @@ module.exports = {
             .setDescription('the minimum number of players required to start the finale, defaults to 4')
             .setRequired(false)),
     async execute(interaction) {
+        if(interaction.user.id != process.env.DEV_ID) return;
         await interaction.deferReply();
-
+        //TODO update this
         //Variables
         var AP_Distribution_Interval = interaction.options.getInteger('AP Distribution Interval') ?? 720;
         var Chest_Amount = interaction.options.getInteger('Chest Amount') ?? 0;
-        var Current_Chaos_Council_Event = interaction.options.getInteger('Current Chaos Council Event');
+        var Current_Chaos_Council_Event = interaction.options.getString('Current Chaos Council Event');
         var Movement_Cost = interaction.options.getInteger('Movement Cost') ?? 1;
         var Shoot_Cost = interaction.options.getInteger('Shoot Cost') ?? 2;
         var Fire_Damage = interaction.options.getInteger('Fire Damage') ?? 1;
