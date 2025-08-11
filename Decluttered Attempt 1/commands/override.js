@@ -7,8 +7,8 @@ module.exports = {
         .setName('override')
         .setDescription('command for the Dead or Medium, overrides a Chaos Council Poll')
         .addIntegerOption(option =>
-            option.setName('pollOption')
-                .setDescription('which option to choose to win, goes 1 from the top')
+            option.setName('option')
+                .setDescription('which option in the poll to choose to win, goes 1 from the top')
                 .setRequired(true)
                 .setMinValue(1)
                 .setMaxValue(3))
@@ -33,9 +33,16 @@ module.exports = {
             return;
         }
 
-        game.overidden = true;
-        game.save();
-        interaction.editReply({content: "The Chaos Council has been overriden, the option " + pollOption + "option has been chosen,\n please wait for snage to update it, apologies for the inconvience"});
+        //check if the player has an overide
+        if(player.cCOverrides <= 0) {
+            await interaction.reply({ content: "You don't have any overrides left!"});
+            return;
+        }
+
+        //use the override
+        await models.Players.update({cCOverrides: player.cCOverrides - 1}, {where: {Player_ID: player.Player_ID}});
+        await models.Games.update({overrider: player.Discord_ID}, {where: {Game_ID: game.Game_ID}});
+        
         //poll.answers.keyAt(pollOption)
 
     }

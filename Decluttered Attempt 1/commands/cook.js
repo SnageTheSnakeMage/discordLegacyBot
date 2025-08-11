@@ -3,10 +3,9 @@ const utils = require('../utils');
 var models = require("../utils.js").models;
 
 module.exports = {
-    cooldown:86400,
     data: new SlashCommandBuilder()
         .setName('cook')
-        .setDescription('class command for Chef, give another player in range 2AP & 1 HP and recieve 1 AP. 24hr cooldown')
+        .setDescription('command for Chef, give another player 2AP & 1 HP and recieve 1 AP, once an ap distribution')
         .addUserOption(option =>
             option.setName('customer')
                 .setDescription('which player you cook for')
@@ -37,20 +36,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+      await utils.checkGameState(game.GAMESTATES, false);
 
         //Check if player is a Chef
         if (player.Class != "Chef") {

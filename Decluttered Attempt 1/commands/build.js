@@ -5,9 +5,9 @@ var models = require("../utils.js").models;
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('build')
-        .setDescription('class command for Construction Workers, turn any empty non-gateway tile in range into a wall tile or any non-gateway tile into a chest tile in range for 3AP')
+        .setDescription('command for Cons. Workers, turn a empty non-gateway tile in range into a wall/chest tile for 3AP')
         .addBooleanOption(option =>
-            option.setName('wall?')
+            option.setName('wall')
                 .setDescription('build a wall or a chest, true = wall, false = chest')
                 .setRequired(true))
         .addIntegerOption(option =>
@@ -36,21 +36,7 @@ module.exports = {
         await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
         return
         }
-      //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+
 
         //Get Game and Player
         var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
@@ -69,6 +55,9 @@ module.exports = {
         if(playerClass.Class_Name != "Construction Worker") {
             return interaction.editReply({ content: "You are not a Construction Worker!" });
         }
+
+        //Check Gamestate
+        await utils.checkGameState(game.GAMESTATES, false);
 
         //Check if inputted tile is a gateway tile
         if(tileToChange.Tile_Type == "Gateway_Open" || tileToChange.Tile_Type == "Gateway_Locked") {

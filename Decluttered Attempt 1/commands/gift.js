@@ -13,12 +13,11 @@ module.exports = {
         .addUserOption(option =>
             option.setName('player')
                 .setDescription('which player to give the AP to')
-                .setRequired(true)        
+                .setRequired(true))        
         .addIntegerOption(option =>
             option.setName('game')
                 .setDescription('which game, defaults to oldest active game')
-                .setRequired(false))),
-    
+                .setRequired(false)),
     async execute(interaction) {
         await deferredReply(interaction);
 
@@ -39,26 +38,14 @@ module.exports = {
         var gameId = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
         var recievingPlayer = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, Player_ID: recievingPlayerDiscordId}});
         var player = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, Player_ID: playerDiscordID}});
+        var playerClass = await models.Classes.findByPk(player.Class_ID);
 
         if(player.Dead){
         await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
         return
         }
       //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher");
 
         //Check if player has enough AP
         if (player.Action_Points < amount) {

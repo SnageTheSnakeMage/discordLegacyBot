@@ -26,7 +26,7 @@ module.exports = {
         .setMinValue(0))
     .addIntegerOption(option =>
       option.setName('body')
-        .setDescription('(FOR TWIN CLASS) Which body you are moving, accepts 1 & 2, defaults to 1. use stats to see which body is where')
+        .setDescription('(FOR TWIN CLASS) Which body you are moving, defaults to 1.')
         .setMaxValue(2)
         .setMinValue(1)
         .setRequired(false))
@@ -36,9 +36,8 @@ module.exports = {
         .setRequired(false))
     .addStringOption(option =>
       option.setName('path')
-        .setDescription('a collection of directions and distances, required if you wish to move on an ice tile, "direction,distance;direction,distance;..."')
+        .setDescription('a bunch of directions and distances, required to move on an ice tile, "dir,dist;dir,dist;..."')
         .setRequired(false)),
-
 
   async execute(interaction) {
 
@@ -120,20 +119,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher");
 
       //#region Calculation of New Position
       if(interaction.options.getString('path') != null){

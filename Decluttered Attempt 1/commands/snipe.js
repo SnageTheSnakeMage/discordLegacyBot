@@ -50,20 +50,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+      await utils.checkGameState(game.GAMESTATES, false);
         //Check if player has enough AP to shoot
         if (player.Action_Points < requiredAP) {
             return interaction.editReply({ content: "You don't have enough AP to shoot that much!" });

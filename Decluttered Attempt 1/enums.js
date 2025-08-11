@@ -23,17 +23,19 @@ const ChaosEvents = Object.freeze({
   "Frenzy!" : "Give triple ap during ap distribution",
   "Medkit Airdrop":"AP distribution gives 1 HP aswell, doctors and chefs get 2 HP instead",
   "Leftovers" : "Killing someone gives you their missed AP while this chaos event is in play",
+  "BOOOORRRINNNG":"No chaos",
   //TODO
   // "Blood Boil": "Killing someone deals damage to everyone in the surrounding tiles(includes the tile the victim was on)",
   // "Scope Airdrop": "Everyone gets +2 Range while this chaos event is in play",
   // "RAGE!!":"Everyone deals max damage while this chaos event is in play",
   // "World Peace":"No one can use a damaging command while this chaos even is in play",
   // "1-UP!":"Everyone gets an extra life where if they die they respawn on a random tile with 1 HP",
-  // "BOOOORRRINNNG":"No chaos",
+
   // "Throwback":"Dead can give living players 1 AP every 24hrs while this chaos event is in play",
   // "People Magnet": "Move everyone to a random layer",
 })
 
 module.exports = {
-  GAMESTATES
+  GAMESTATES,
+  ChaosEvents
 }

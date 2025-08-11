@@ -121,7 +121,6 @@ module.exports = function(sequelize, DataTypes) {
     Hitman_Target: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      defaultValue: 1,
       references: {
         model: 'Players',
         key: 'Player_ID'
@@ -133,7 +132,8 @@ module.exports = function(sequelize, DataTypes) {
     },
     Free_Move2: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 0
     },
     Pharoh_HP: {
       type: DataTypes.INTEGER,

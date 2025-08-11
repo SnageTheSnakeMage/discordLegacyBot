@@ -5,11 +5,7 @@ var models = require("../utils.js").models;
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('exorcise')
-        .setDescription('class command for Exorcists, turn any non-gateway tile in range into a blank tile for 3AP, and can remove a players class for 16 AP')
-        .addUserOption(option =>
-            option.setName('player')
-                .setDescription('which player to remove a class from, required if you wish to remove a class')
-                .setRequired(false))
+        .setDescription('command for Exorcists, turn a non-gateway into a blank tile(3AP), or remove a players class(16AP)')
         .addIntegerOption(option =>
             option.setName('x')
                 .setDescription('X coordinate of which tile to exorcise')
@@ -21,6 +17,10 @@ module.exports = {
         .addIntegerOption(option =>
             option.setName('game')
                 .setDescription('which game, defaults to oldest active game')
+                .setRequired(false))
+        .addUserOption(option =>
+            option.setName('player')
+                .setDescription('which player to remove a class from, required if you wish to remove a class')
                 .setRequired(false)),
     async execute(interaction) {
         await interaction.deferReply();
@@ -47,20 +47,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+      await utils.checkGameState(game.GAMESTATES, false);
 
         //Verification of Variables
         if (!tileToChange) {

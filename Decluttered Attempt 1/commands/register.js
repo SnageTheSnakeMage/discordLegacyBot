@@ -48,12 +48,14 @@ module.exports = {
     // Get game ID with proper validation
     let gameId = interaction.options.getInteger('game');
     if (!gameId) {
+      console.log("[INFO][VERBOSE][validateRegistrationInput] No game ID provided, using oldest registering game");
       gameId = await utils.getOldestGamestateGameId(null, GAMESTATES.REGISTRATION);
     }
     
     // Validate game exists and is active
-    const game = await models.Games.findByPk(gameId);
-    if (!game) {
+    try{
+      var game = await models.Games.findByPk(gameId);
+    }catch(error){
       throw new Error("Game not found. Please check the game ID.");
     }
     if (game.GAME_STATE !== GAMESTATES.REGISTRATION) {
@@ -77,9 +79,6 @@ module.exports = {
   },
 
   validateIconRequirements(attachment) {
-    if (!attachment) {
-      throw new Error("No icon provided");
-    }
     
     if (attachment.contentType !== ICON_REQUIREMENTS.FORMAT) {
       throw new Error("Player icon must be a PNG file");
@@ -92,13 +91,17 @@ module.exports = {
 
   async checkRegistrationEligibility(registrationData) {
     // Check if player is already registered in this game
-    const existingPlayer = await models.Players.findOne({
+    try {
+      var existingPlayer = await models.Players.findOne({
       where: {
         Game_ID: registrationData.gameId,
         Discord_ID: registrationData.playerId
       }
     });
-    
+    } catch (error) {
+      existingPlayer = null;
+    }
+    console.error("[ERROR][VERBOSE][checkRegistrationEligibility] Player: " + JSON.stringify(existingPlayer) + " Is already registered in Game: " + registrationData.gameId);
     if (existingPlayer) {
       throw new Error("You are already registered in this game");
     }
@@ -111,13 +114,7 @@ module.exports = {
 
   async handleRegistrationError(interaction, error) {
     console.error('[ERROR][register.js] Registration failed:', error);
-    
     const errorMessage = error.message || "Registration failed. Please try again or contact support.";
-    
-    if (interaction.replied || interaction.deferred) {
-      await interaction.editReply({ content: errorMessage });
-    } else {
-      await interaction.reply({ content: errorMessage, ephemeral: true });
-    }
+    await interaction.editReply({ content: errorMessage });
   }
 };

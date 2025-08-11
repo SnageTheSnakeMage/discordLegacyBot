@@ -26,25 +26,11 @@ module.exports = {
             throw new Error("Player not found in game! Please register for the game you wish to move in.");
         }
 
-      //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
-
         const playerClass = await models.Classes.findByPk(player.Class_ID);
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
         var playerTIle2
+        //Check Gamestate
+      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher");
         if(playerClass.name == "Twin") {
             playerTile2 = await models.Tiles.findByPk(player.Tile_ID_2);
         }

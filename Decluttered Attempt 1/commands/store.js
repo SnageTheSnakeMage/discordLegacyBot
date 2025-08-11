@@ -26,6 +26,7 @@ module.exports = {
         var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
         const player = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, Player_ID: playerDiscordID}});
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
+        var playerClass = await models.Classes.findByPk(player.Class_ID);
 
 
  if(player.Dead){
@@ -33,20 +34,8 @@ module.exports = {
         return
         }
       //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+      //Check Gamestate
+      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher");
 
         //Check if player is on a chest tile
         if(playerTile.Tile_Type != "Chest") {

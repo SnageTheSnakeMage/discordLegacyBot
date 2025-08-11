@@ -1,8 +1,9 @@
 const { SlashCommandBuilder } = require('discord.js');
+const { InteractionContextType, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
 	data: new SlashCommandBuilder()
-		.setName('reloadCommands')
+		.setName('reload_commands')
 		.setDescription('Reloads a command.')
 		.addStringOption(option =>
 			option.setName('command')

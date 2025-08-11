@@ -21,21 +21,9 @@ module.exports = {
         await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
         return
         }
-      //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+        //Check Gamestate
+        await utils.checkGameState(game.GAMESTATES, false);
+
         //Check if player is a hitman
         if (player.Class != "Hitman") {
             return interaction.editReply({ content: "You are not a hitman!" });

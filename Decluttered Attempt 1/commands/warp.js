@@ -5,15 +5,15 @@ var models = utils.models;
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('warp')
-        .setDescription('teleports you to a random gateway tile on the layer above or below you, or if your a Dimensional Hopper, to a random tile on the layer above or below you')
+        .setDescription('go to a random gateway on the layer above or below you, Dimensional Hoppers teleport to any tile')
+        .addBooleanOption(option =>
+            option.setName('up')
+                .setDescription('teleport up or down, true = up, false = down')
+                .setRequired(true))
         .addIntegerOption(option =>
             option.setName('game')
                 .setDescription('which game, defaults to oldest registering game')
-                .setRequired(false))
-        .addBooleanOption(option =>
-            option.setName('up?')
-                .setDescription('teleport up or down, true = up, false = down')
-                .setRequired(true)),
+                .setRequired(false)),
 
     async execute(interaction) {
         await interaction.deferReply();
@@ -24,6 +24,7 @@ module.exports = {
 
         //Get player
         const player = await models.Players.findOne({ where: { Game_ID: gameID, Discord_ID: userID } });
+        var playerClass = await models.Classes.findByPk(player.Class_ID);
 
         //Get current tile
         const currentTile = await models.Tiles.findOne({ where: { Tile_ID: player.Tile_ID } });
@@ -40,20 +41,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher");
 
         //Check player is either a Dimensional Hopper or on a Gateway tile
        const dimensionalHopperClass = await models.Classes.findOne({ where: { Class_Name: "Dimensional Hopper" } });

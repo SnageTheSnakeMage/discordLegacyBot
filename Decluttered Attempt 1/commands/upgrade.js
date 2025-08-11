@@ -13,16 +13,15 @@ module.exports = {
                 .addChoices(
                     { name: "health", value: "Health_Points" },
                     { name: "damage", value: "Damage" },
-                    { name: "range", value: "Range_" },)
-                .setAutocomplete(true))
+                    { name: "range", value: "Range_" }))
         .addIntegerOption(option =>
             option.setName('amount')
                 .setDescription('# of times you wish to upgrade the stat defaults to 1')
-                .setRequired(false)
+                .setRequired(false))
         .addIntegerOption(option =>
             option.setName('game')
                 .setDescription('which game, defaults to oldest active game')
-                .setRequired(false)))
+                .setRequired(false))
         .addIntegerOption(option =>
             option.setName('body')
                 .setDescription('(FOR TWIN CLASS) Which body you are upgrading, accepts 1 & 2, defaults to 1')
@@ -47,7 +46,7 @@ module.exports = {
         var hpBuyIndex
         var rangeBuyIndex
         var damageBuyIndex
-
+        var playerClass = await models.Classes.findByPk(player.Class_ID);
         //Get Price
         const price = await utils.getUpgradePrice(stat, player.Player_ID, amount);
         
@@ -56,20 +55,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher");
         
         switch (stat) {
             case "Health_Points":

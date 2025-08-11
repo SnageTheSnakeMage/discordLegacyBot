@@ -6,7 +6,7 @@ var models = utils.models;
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('lock')
-        .setDescription('class command for Guardians, lock or unlock a gateway tile in range for 2AP, If a game is in its finale then one Gateway on the layer must be open')
+        .setDescription('command for Guardians, lock/unlock a gateway tile(2AP), In a finale then 1 gateway  must be open')
         .addIntegerOption(option =>
             option.setName('x')
                 .setDescription('X coordinate of which gateway to lock/unlock')
@@ -49,20 +49,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+      await utils.checkGameState(game.GAMESTATES, false);
 
         if(playerClass.Class_Name != "Guardian") {
             return interaction.editReply({ content: "You are not a Guardian!" });

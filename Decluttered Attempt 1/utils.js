@@ -9,7 +9,7 @@ const initModels = require("G:/LegacyBotDiscord/Decluttered Attempt 1/database/M
 const { Sequelize, where, Op } = require('sequelize');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
-  storage: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database'
+  storage: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database.db'
 });
 const fs = require('fs');
 var models = initModels(sequelize);
@@ -58,7 +58,7 @@ buildChaosCouncilPoll(lastEventKey, game){
   }
 },
 
- startAPCheckInterval(game, client){
+   startAPCheckInterval(game, client){
   //every 30 seconds check if AP needs to be distributed if your behind distribute it multiple times for each interval you are behind on
   setInterval( async() => {
     //how often AP is distributed for the game in milliseconds
@@ -85,16 +85,11 @@ async distributeAP(game, times, client){
   var pyromainiacClass = await models.Classes.findOne({where: {Class_Name: "Pyromaniac"}});
   var snowmanClass = await models.Classes.findOne({where: {Class_Name: "Snowman"}});
 
-  if(game.NEXT_CC_EVENT != null && !game.overridden){
-    await models.Games.update({CURR_CC_EVENT: game.NEXT_CC_EVENT, NEXT_CC_EVENT: null}, {where: {Game_ID: game.Game_ID}});
-    game.currentChaosPollMsgId.poll.end();
-    game.currentChaosPollMsgId = null;
-  }
-  if(game.overridden && game.NEXT_CC_EVENT != null){
-    await models.Games.update({CURR_CC_EVENT: game.NEXT_CC_EVENT, NEXT_CC_EVENT: null, overridden: false}, {where: {Game_ID: game.Game_ID}});
-    game.currentChaosPollMsgId.poll.end();
-    game.currentChaosPollMsgId = null;
-  }
+  var channel = await client.channels.fetch(game.deadChatChannelId);
+  var poll = await channel.messages.fetch(game.currentChaosPollMsgId).poll;
+  game.currentChaosPollMsgId = null;
+  await models.Games.update({CURR_CC_EVENT: this.pollToResults(poll, game)}, {where: {Game_ID: game.Game_ID}});
+
 
   //get all alive players in the game and give them as much AP as the game gives per interval multiplied by times
   await models.Players.findAll({where: {Game_ID: game.Game_ID, Dead: false}}).then((players) => {
@@ -218,9 +213,26 @@ async distributeAP(game, times, client){
 
 
   const chaosCouncilChannel = client.channel.cache.get(game.deadChatChannelID);
-  chaosCouncilChannel.send(buildChaosCouncilPoll(game.CURR_CC_EVENT, game) )
+  chaosCouncilChannel.send(this.buildChaosCouncilPoll(game.CURR_CC_EVENT, game) )
   .then(msg => {game.currentChaosPollMsgId = msg.id}).catch(console.error);
   game.save();
+},
+
+async pollToResults(poll, game) {
+  var MostVotedAnswer = 0;
+  if(game.overrider == null)
+    for (answer in poll.answers) {
+    if (answer.voteCount > MostVotedAnswer) {
+      MostVotedAnswer = answer;
+    }
+    
+  }
+  if(game.overrider != null){
+    for (answer in poll.answers) {
+      if(await answer.fetchVoters({after: game.overrider, limit: 1})) MostVotedAnswer = answer;
+    }
+  }
+  return MostVotedAnswer.text;;
 },
 
 async loadTileTexture(layer, textureName) {
@@ -551,16 +563,17 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
 },
 
 //adds a player to a game and downloads their playerIcon to be used for GenerateGameGridImagewithSight 
-async  registerPlayer(game, playerId, playerIcon) {
-    if(await models.Players.count({where: {Discord_ID: playerId, Game_ID: game}}) > 0) throw "Your discord account is already registered for this game.";
-    var SelectedClass = this.getRandomClass(game);
+async  registerPlayer(gameId, playerId, playerIcon) {
+    var game = await models.Games.findByPk(gameId);
+    var SelectedClass = await this.getRandomClass(game);
+    console.log("[INFO][VERBOSE][registerPlayer] selected class: " + JSON.stringify(SelectedClass));
     if(SelectedClass.Class_Name == "Twin"){
-      var spawn1 = this.getSpawnpointTile(game)
-      var spawn2 = this.getSpawnpointTile(game)
-      while(spawn1.Tile_ID == spawn2.Tile_ID) spawn2 = this.getSpawnpointTile(game);
-      const player = models.Players.create({
+      var spawn1 = await this.getSpawnpointTile(gameId)
+      var spawn2 = await this.getSpawnpointTile(gameId)
+      while(spawn1.Tile_ID == spawn2.Tile_ID) spawn2 = await this.getSpawnpointTile(gameId);
+      await models.Players.create({
         Class_ID: SelectedClass.Class_ID,
-        Game_ID: game,
+        Game_ID: gameId,
         Action_Points: SelectedClass.Start_AP,
         MAX_AP: SelectedClass.Start_MAX_AP,
         Health_Points: SelectedClass.Start_HP,
@@ -576,12 +589,12 @@ async  registerPlayer(game, playerId, playerIcon) {
         Damage2: SelectedClass.Start_Damage,
         Range2: SelectedClass.Start_Range_,
       })
-
+      console.log("[INFO][registerPlayer] registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
     }
-    var spawn = this.getSpawnpointTile(game)
-    const player = models.Players.create({
+    var spawn = await this.getSpawnpointTile(gameId)
+    await models.Players.create({
       Class_ID: SelectedClass.Class_ID,
-      Game_ID: game,
+      Game_ID: gameId,
       Action_Points: SelectedClass.Start_AP,
       MAX_AP: SelectedClass.Start_MAX_AP,
       MISSED_AP: 0,
@@ -702,7 +715,7 @@ async moveFromTiletoTile(startTile, endTile, player) {
         }
         //Stormchaser gains 1d4-2 AP
         if(player.Class_ID == 15) {
-          await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Action_Points", player.Action_Points + (getRandomInt(3) - 1));
+          await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Action_Points", player.Action_Points + (this.getRandomInt(3) - 1));
         }
         //Player is moved in a random direction once
         await this.movePlayerToRandomSurroundingTile(player.Player_ID, startTile.Layer_ID, startTile.X_Position, startTile.Y_Position);
@@ -753,7 +766,7 @@ async  revertTileToBlank(startTile){
 },
 
  async  movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
-  var randomDirection = getRandomInt(7);
+  var randomDirection = this.getRandomInt(7);
   var player = models.Players.findByPk(playerId);
   var playerClass = await models.Classes.findByPk(player.Class_ID);
   var tile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
@@ -823,25 +836,41 @@ async changeModelByPK(model, id_field, id, field, value) {
   await model.update({field: value}, {where: {id_field: id}});
 },
 
-async  getRandomClass(game) {
-  var randomClassID = getRandomInt(await models.Classes.count());
+async getRandomClass(game) {
+  // Get a random class ID
+  var randomClassID = this.getRandomInt(await models.Classes.count());
   var randomClass = await models.Classes.findByPk(randomClassID);
-  if(!game.classBlacklist){
+  console.log("[INFO][VERBOSE][getRandomClass] rolled random class: " + randomClass.Class_Name);
+  
+  if (!game.classBlacklist) {
     game.classBlacklist = "";
   }
-  await models.Players.findAll({where: {Game_ID: game, Class_ID: randomClass}}).then((players) => {
-    if (players.length < game.classDupelicateMax || randomClass.Class_Name != "Average" || !game.classBlacklist.includes(randomClass.Class_Name)) {
-      return randomClass;
-    }
-    else {
-      getRandomClass(game);
-      console.log("[INFO] rerolling class...");
-    }
+  
+  // Find all players with this class
+  const playersWithRolledClass = await models.Players.findAll({
+    where: { Game_ID: game.Game_ID, Class_ID: randomClass.Class_ID }
   });
+  
+  // Check if we can use this class
+  const isClassAvailable = 
+    playersWithRolledClass.length < game.classDupelicateMax &&
+    randomClass.Class_Name !== "Average" &&
+    !game.classBlacklist.includes(randomClass.Class_Name);
+  
+  if (isClassAvailable) {
+    return randomClass;  // Now this returns from the main function
+  } else {
+    console.log("[INFO][getRandomClass] class " + randomClass.Class_Name + " is not available, rerolling class...");
+    return await this.getRandomClass(game);  // Properly await and return the recursive call
+  }
 },
 
- getSpawnpointTile(game) {
-  var randomTile = models.Tiles.findByPk(getRandomTileId(game));
+ async getSpawnpointTile(game) {
+  var gridID = await models.Grids.findOne({where: {Game_ID: game}}).Grid_ID
+  var layerIds = await models.Layers.findAll({where: {Grid_ID: gridID}}).then(layer => layer.Layer_ID); 
+  var possibleTiles = await models.Tiles.findAll({where: { Tile_Type: {[Op.ne]: ["Wall", "Wall_Damaged", "Void", "Fire", "Ice", "Storm"]}, Layer_ID: {[Op.in]: layerIds}}});
+  var randomTile = possibleTiles[this.getRandomInt(possibleTiles.length - 1)];
+  //I fucked up the data and somehow got rid of the primary keys 176, & 177 in the Tile table so now i gotta make sure to just roll for a new one if we hit those numbers
   console.log("[INFO] rolled tile: " + randomTile + " for a spawnpoint");
   playersInTile = [randomTile.Player_1, randomTile.Player_2, randomTile.Player_3, randomTile.Player_4];
   if ( !playersInTile.includes(null) || 
@@ -852,7 +881,7 @@ async  getRandomClass(game) {
       randomTile.Tile_Type == "Wall" ||
       randomTile.Tile_Type == "Wall_Damaged" ) {
     console.log("[INFO]  rerolling spawnpoint...");
-    getSpawnpointTile(game);
+    this.getSpawnpointTile(game);
   }
   else {
     return randomTile;
@@ -866,7 +895,7 @@ async  getRandomClass(game) {
 async  setPlayerToTile(playerId, layer, x, y) {
   var currentPlayer = await models.Players.findByPk(playerId)
   var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
-  removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
+  this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
   await models.Tiles.findOne({where: {Layer: layer, X_Position: x, Y_Position: y}}).then((tile) => {
     if(tile.Player_1 == null) {
       tile.Player_1 = playerId;
@@ -1008,24 +1037,49 @@ async  getOldestActiveGameId(playerID) {
   return oldestGameId;
 },
 
+async checkGameState(gamestate, isClockwatcher) {
+        switch(gamestate) {
+        case GAMESTATES.FINISHED:
+          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
+          return
+        case GAMESTATES.REGISTRATION:
+          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
+          return
+        case GAMESTATES.DEV_PAUSED:
+          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
+          return
+        case GAMESTATES.TIMESTOPPED:
+          if(!isClockwatcher){
+            await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
+            return
+          }
+          else{
+            break;
+          }
+      }
+},
+
 async  getOldestGamestateGameId(playerID, gamestate) {
-    if (playerID) {
-    var players = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
+  if (playerID) {
+    var gameIdsFromPlayer = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
     var games = await models.Games.findAll({where: {
-      GAME_STATE: gamestate,
-      Game_ID: players}});
-    }
+    GAME_STATE: gamestate,
+    Game_ID: gameIdsFromPlayer}});
+    console.log("[INFO][VERBOSE][getOldestGamestateGameId] Found Games by Player & Gamestate:" + JSON.stringify(games));
+  }
   else {
     var games = await models.Games.findAll({where: {
         GAME_STATE: gamestate
       }});
+    console.log("[INFO][VERBOSE][getOldestGamestateGameId] Found Games by Gamestate:" + JSON.stringify(games));
   }
-  //set oldestGameId to newest Id
-  var oldestGameId = games.length;
-  for (var i = 0; i < games.length; i++) {
+
+  //set oldestGameId to the numeric value of the newest games Id + 1
+  var oldestGameId = games[games.length - 1].Game_ID + 1;
+  for (var game in games) {
     //if a game id is lower its older so we swap it out
-    if (games[i].Game_ID < oldestGameId) {
-      oldestGameId = games[i].GAME_ID;
+    if (games[game].Game_ID < oldestGameId) {
+      oldestGameId = games[game].Game_ID;
     }
   }
   return oldestGameId;
@@ -1274,10 +1328,6 @@ async  removePlayerFromTile(playerId, layer, x, y) {
   return Math.round(Math.random() * max);
 },
 
-async  getRandomTileId(game) {
-  return getRandomInt(await models.Tiles.count({where: {Game_ID: game}}));
-},
-
 //Claude Provided Move Command Function Refactors
 async  validateAndParseMoveCommandInput(interaction) {
   // Gather all inputs with clear defaults
@@ -1336,9 +1386,9 @@ async  calculateMovement(moveRequest) {
   
   if (customPath) {
     // Use custom path - this needs the utils functions to be working
-    const pathArray = utils.inputPathToArray(customPath);
-    const completePathArray = utils.buildCompletePathArray(direction, distance, pathArray);
-    movementPath = utils.getTileCordinatesOfPath([newX, newY], completePathArray);
+    const pathArray = this.inputPathToArray(customPath);
+    const completePathArray = this.buildCompletePathArray(direction, distance, pathArray);
+    movementPath = this.getTileCordinatesOfPath([newX, newY], completePathArray);
   } else {
     // Use simple directional movement
     const directionMap = {
@@ -1357,7 +1407,7 @@ async  calculateMovement(moveRequest) {
     newY += deltaY;
     
     // Create a simple path for consistency
-    movementPath = utils.getTileCordinatesOfLine([currentTile.X_Position, currentTile.Y_Position], [newX, newY]);
+    movementPath = this.getTileCordinatesOfLine([currentTile.X_Position, currentTile.Y_Position], [newX, newY]);
   }
   
   // Check bounds

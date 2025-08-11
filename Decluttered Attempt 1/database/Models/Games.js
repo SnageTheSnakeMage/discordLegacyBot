@@ -98,7 +98,8 @@ module.exports = function(sequelize, DataTypes) {
     },
     immutableDoomsday: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 32
     },
     deadChatChannelId: {
       type: DataTypes.INTEGER,
@@ -113,10 +114,9 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.TEXT,
       allowNull: true
     },
-    overidden: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false
+    overrider: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     }
   }, {
     tableName: 'Games',

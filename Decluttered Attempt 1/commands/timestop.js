@@ -5,7 +5,7 @@ var models = require("../utils.js").models;
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('timestop')
-        .setDescription('class command for Clockwatchers, be the only one who can do anything for 4AP distributions at the cost of 12AP')
+        .setDescription('command for Clockwatchers, be the only one who can do anything for 4AP distributions, costs 12AP')
         .addIntegerOption(option =>
             option.setName('game')
                 .setDescription('which game, defaults to oldest active game')

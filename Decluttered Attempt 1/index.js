@@ -36,7 +36,6 @@ global.LAYERS = {
 
 // Collection to store commands
 client.commands = new Collection();
-client.cooldowns = new Collection();
 
 // Cache for tile textures (shared across commands)
 global.tileCache = {};

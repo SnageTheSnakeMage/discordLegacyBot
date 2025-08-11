@@ -15,12 +15,13 @@ module.exports = {
     .addIntegerOption(option =>
       option.setName('layer')
         .setDescription('which layer of that grid to show, defaults to the one you are on')
-        .setRequired(false)
-        .set)
+        .setRequired(false))
     .addIntegerOption(option =>
       option.setName('body')
-        .setDescription('(FOR TWIN CLASS) Which body you are trying to see, accepts 1 & 2, defaults to 1. use stats to see which body is where')
-        .setRequired(false)),
+        .setDescription('(FOR TWIN CLASS) Which body you are trying to see, defaults to 1.')
+        .setRequired(false)
+        .setMaxValue(2)
+        .setMinValue(1)),
   // Aliases for text-based commands
   aliases: ['playergrid', 'grid'],
   
@@ -71,20 +72,7 @@ module.exports = {
       }
     }
       //Check Gamestate
-      switch(game.GAMESTATES){
-        case GAMESTATES.TIMESTOPPED:
-          await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-          return
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
-        case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
-        case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
-      }
+      utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher");
 
         // Generate image from database and provided inputs
         const imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);
@@ -105,6 +93,10 @@ module.exports = {
     }
   },
   
+  validateInput(interaction) {
+    
+  }
+
 // Function for traditional message command execution
 //   async onMessage(message, args) {
 //     try {
@@ -132,4 +124,5 @@ module.exports = {
 //       message.reply(`Error: ${error.message}`);
 //     }
 //   }
+
 };
