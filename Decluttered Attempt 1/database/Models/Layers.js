@@ -7,14 +7,6 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
-    Grid_ID: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'Grids',
-        key: 'Grid_ID'
-      }
-    },
     Layer_Above: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -36,6 +28,10 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: true
     },
     Y_Bound: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    Game_ID: {
       type: DataTypes.INTEGER,
       allowNull: true
     }

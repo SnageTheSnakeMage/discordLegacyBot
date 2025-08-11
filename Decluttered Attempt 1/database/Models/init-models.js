@@ -1,7 +1,6 @@
 var DataTypes = require("sequelize").DataTypes;
 var _Classes = require("./Classes");
 var _Games = require("./Games");
-var _Grids = require("./Grids");
 var _Layers = require("./Layers");
 var _Players = require("./Players");
 var _Tiles = require("./Tiles");
@@ -9,19 +8,14 @@ var _Tiles = require("./Tiles");
 function initModels(sequelize) {
   var Classes = _Classes(sequelize, DataTypes);
   var Games = _Games(sequelize, DataTypes);
-  var Grids = _Grids(sequelize, DataTypes);
   var Layers = _Layers(sequelize, DataTypes);
   var Players = _Players(sequelize, DataTypes);
   var Tiles = _Tiles(sequelize, DataTypes);
 
   Players.belongsTo(Classes, { as: "Class", foreignKey: "Class_ID"});
   Classes.hasMany(Players, { as: "Players", foreignKey: "Class_ID"});
-  Grids.belongsTo(Games, { as: "Game", foreignKey: "Game_ID"});
-  Games.hasMany(Grids, { as: "Grids", foreignKey: "Game_ID"});
   Players.belongsTo(Games, { as: "Game_Game", foreignKey: "Game_ID"});
   Games.hasMany(Players, { as: "Players", foreignKey: "Game_ID"});
-  Layers.belongsTo(Grids, { as: "Grid", foreignKey: "Grid_ID"});
-  Grids.hasMany(Layers, { as: "Layers", foreignKey: "Grid_ID"});
   Layers.belongsTo(Layers, { as: "Layer_Below_Layer", foreignKey: "Layer_Below"});
   Layers.hasMany(Layers, { as: "Layers", foreignKey: "Layer_Below"});
   Layers.belongsTo(Layers, { as: "Layer_Above_Layer", foreignKey: "Layer_Above"});
@@ -52,7 +46,6 @@ function initModels(sequelize) {
   return {
     Classes,
     Games,
-    Grids,
     Layers,
     Players,
     Tiles,

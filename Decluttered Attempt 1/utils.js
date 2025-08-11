@@ -369,9 +369,8 @@ async  commandResolutionErrorThrower() {
 
 //turns a layer id that would be known to a player for a game into the actual layer's id in the database
 async commonLayerIDtoDbLayerID(gameId, inputtedLayerID){
-    var gridID = await models.Grids.findOne({where: {Game_ID: gameId}}).Grid_ID
-    var layersInGrid = await models.Layers.findAll({where: {Grid_ID: gridID}})
-    return layersInGrid[inputtedLayerID-1]
+    var allLayersInGame = await models.Layers.findAll({where: {Game_ID: gameId}})
+    return allLayersInGame[inputtedLayerID-1]
 },
 
 //removes a class from a player
@@ -428,9 +427,8 @@ async classRemoval(player, excorist){
 },
 
 async  dbLayerIDtoCommonLayerID(game, dbLayerID){ 
-  var gridID = await models.Grids.findOne({where: {Game_ID: game}}).Grid_ID
-  var layersInGrid = await models.Layers.findAll({where: {Grid_ID: gridID}})
-  return layersInGrid.indexOf(dbLayerID)+1
+  var allLayersInGame = await models.Layers.findAll({where: {Game_ID: game.Game_ID}})
+  return allLayersInGame.indexOf(dbLayerID)+1
   
 },
 
@@ -865,14 +863,25 @@ async getRandomClass(game) {
   }
 },
 
- async getSpawnpointTile(game) {
-  var gridID = await models.Grids.findOne({where: {Game_ID: game}}).Grid_ID
-  var layerIds = await models.Layers.findAll({where: {Grid_ID: gridID}}).then(layer => layer.Layer_ID); 
-  var possibleTiles = await models.Tiles.findAll({where: { Tile_Type: {[Op.ne]: ["Wall", "Wall_Damaged", "Void", "Fire", "Ice", "Storm"]}, Layer_ID: {[Op.in]: layerIds}}});
+ async getSpawnpointTile(gameId) {
+  var layerIds = await models.Layers.findAll({
+    where: {Game_ID: gameId}, 
+    attributes: ["Layer_ID"]
+  }).then(layerIds => layerIds.map(layerId => layerId.Layer_ID));
+  
+  console.log("[INFO] layerIds: " + JSON.stringify(layerIds));
+  
+  var possibleTiles = await models.Tiles.findAll({
+    where: {
+      Tile_Type: {[Op.notIn]: ["Void", "Fire", "Ice", "Storm", "Wall", "Wall_Damaged"]},
+      Layer_ID: {[Op.in]: layerIds}  // Fixed: proper Op.in usage
+    }
+  });
+  
+  console.log("[INFO] possibleTiles: " + JSON.stringify(possibleTiles));
   var randomTile = possibleTiles[this.getRandomInt(possibleTiles.length - 1)];
-  //I fucked up the data and somehow got rid of the primary keys 176, & 177 in the Tile table so now i gotta make sure to just roll for a new one if we hit those numbers
   console.log("[INFO] rolled tile: " + randomTile + " for a spawnpoint");
-  playersInTile = [randomTile.Player_1, randomTile.Player_2, randomTile.Player_3, randomTile.Player_4];
+  playersInTile = [randomTile.Player1, randomTile.Player2, randomTile.Player3, randomTile.Player4];
   if ( !playersInTile.includes(null) || 
       randomTile.Tile_Type == "Void" ||
       randomTile.Tile_Type == "Fire" ||
@@ -881,7 +890,7 @@ async getRandomClass(game) {
       randomTile.Tile_Type == "Wall" ||
       randomTile.Tile_Type == "Wall_Damaged" ) {
     console.log("[INFO]  rerolling spawnpoint...");
-    this.getSpawnpointTile(game);
+    this.getSpawnpointTile(gameId);
   }
   else {
     return randomTile;
