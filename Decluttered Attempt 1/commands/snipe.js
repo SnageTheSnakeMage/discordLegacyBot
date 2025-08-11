@@ -50,7 +50,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, false);
+      await utils.checkGameState(game.GAMESTATES, false, interaction);;
         //Check if player has enough AP to shoot
         if (player.Action_Points < requiredAP) {
             return interaction.editReply({ content: "You don't have enough AP to shoot that much!" });

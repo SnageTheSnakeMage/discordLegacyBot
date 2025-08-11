@@ -72,7 +72,7 @@ module.exports = {
       }
     }
       //Check Gamestate
-      utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher");
+      utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher", interaction);
 
         // Generate image from database and provided inputs
         const imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);

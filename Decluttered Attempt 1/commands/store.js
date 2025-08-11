@@ -35,7 +35,7 @@ module.exports = {
         }
       //Check Gamestate
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher");
+      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher", interaction);;
 
         //Check if player is on a chest tile
         if(playerTile.Tile_Type != "Chest") {

@@ -40,7 +40,7 @@ module.exports = {
         }
 
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, false);
+      await utils.checkGameState(game.GAMESTATES, false, interaction);;
         
         //Check if the player is a Fencer
         if (playerClass.Class_Name != "Fencer") {

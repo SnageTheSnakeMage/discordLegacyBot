@@ -47,7 +47,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, false);
+      await utils.checkGameState(game.GAMESTATES, false, interaction);;
 
         //Verification of Variables
         if (!tileToChange) {

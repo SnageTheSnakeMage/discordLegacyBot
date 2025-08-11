@@ -43,7 +43,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, false);
+      await utils.checkGameState(game.GAMESTATES, false, interaction);;
 
         //Check if player is a Necromancer
         if (player.Class != "Necromancer") {

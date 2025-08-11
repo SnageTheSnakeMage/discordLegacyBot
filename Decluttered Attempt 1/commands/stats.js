@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const utils = require('../utils');
 var models = utils.models;
 
@@ -13,6 +13,7 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply();
         let gameId = interaction.options.getInteger('game') 
+        let game = await models.Games.findByPk(gameId);
         if(!gameId) {
             gameId = await utils.getOldestActiveGameId(interaction.user.id);
         }
@@ -29,8 +30,12 @@ module.exports = {
         const playerClass = await models.Classes.findByPk(player.Class_ID);
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
         var playerTIle2
+
+        var playerTileImg = new AttachmentBuilder("Decluttered Attempt 1/tiles/environment/" + playerTile.Tile_Type + ".png")
+        var playerImg = new AttachmentBuilder("Decluttered Attempt 1/tiles/players/" + player.Discord_ID + ".png");
+
         //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher");
+    //   await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher", interaction);
         if(playerClass.name == "Twin") {
             playerTile2 = await models.Tiles.findByPk(player.Tile_ID_2);
         }
@@ -39,7 +44,7 @@ module.exports = {
         .setTitle(interaction.user.username)
         .setDescription("Stats for " + interaction.user.username)
         .setAuthor({ name: interaction.user.username, iconURL: interaction.user.avatarURL() })
-        .setThumbnail("Decluttered Attempt 1/tiles/environment/" + playerTile.Tile_Type + ".png")
+        .setThumbnail("attachment://" + playerTile.Tile_Type + ".png")
         .addFields(
             { name: "Class", value: playerClass.Class_Name, inline: true },
             { name: "Class Description", value: playerClass.Description, inline: true },
@@ -53,7 +58,7 @@ module.exports = {
             { name: "Missed Action Points", value: player.MISSED_AP.toString(), inline: true },
             { name: '\u200B', value: '\u200B' },
             { name: "Damage", value: (player.Damage * (player.DMG_BUFF + 1)).toString(), inline: true },
-            { name: "Max Damage", value: player.MAX_DMG.toString(), inline: true },
+            { name: "Max Damage", value: player.MAX_DAMAGE.toString(), inline: true },
             { name: '\u200B', value: '\u200B' },
             { name: "Range", value: player.Range_.toString(), inline: true },
             { name: "Max Range", value: player.MAX_RANGE.toString(), inline: true },
@@ -62,7 +67,8 @@ module.exports = {
             { name: '\u200B', value: '\u200B' },
             { name: "Kills", value: player.Kills.toString(), inline: true },
         )
-        .setImage("Decluttered Attempt 1/tiles/players/" + player.Discord_ID + ".png")
+        //TODO: fix MAX_DMG => MAX_DAMAGE, fix MISSED_HP = null => 0, fix MAX_RANGE = null => 2
+        .setImage("attachment://" + player.Discord_ID + ".png")
         .setTimestamp()
         .setFooter({ text: "Game ID: " + player.Game_ID });
         if(playerClass.Class_Name != "Spy" && playerClass.Class_Name != "Twin") {
@@ -70,17 +76,19 @@ module.exports = {
                 { name: '\u200B', value: '\u200B' },
                 { name: "X Position", value: playerTile.X_Position.toString(), inline: true },
                 { name: "Y Position", value: playerTile.Y_Position.toString(), inline: true },
-                { name: "Layer", value: utils.dbLayerIDtoCommonLayerID(playerTile.Layer_ID).toString(), inline: true },
+                { name: "Layer", value: await utils.dbLayerIDtoCommonLayerID(gameId, playerTile.Layer_ID).toString(), inline: true },
             )
         }
         if(playerClass.Class_Name == "Twin") {
             responseEmbed.addFields(
                 { name: '\u200B', value: '\u200B' },
-                { name: "Second Body's Layer", value: utils.dbLayerIDtoCommonLayerID(playerTile2.Layer_ID).toString(), inline: true },
+                { name: "Second Body's Layer", value: utils.dbLayerIDtoCommonLayerID(gameId, playerTile2.Layer_ID).toString(), inline: true },
                 { name: "Second Body's X Position", value: playerTile2.X_Position.toString(), inline: true },
                 { name: "Second Body's Y Position", value: playerTile2.Y_Position.toString(), inline: true },
             )
         }
-        await interaction.reply({ embeds: [responseEmbed] });
+        //TODO MAKE SURE TO BE USING EDITREPLY AND NOT REPLY
+        //TODO make the embed pretty
+        await interaction.editReply({ embeds: [responseEmbed] });
     }
 }

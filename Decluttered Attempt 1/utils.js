@@ -426,8 +426,8 @@ async classRemoval(player, excorist){
   }
 },
 
-async  dbLayerIDtoCommonLayerID(game, dbLayerID){ 
-  var allLayersInGame = await models.Layers.findAll({where: {Game_ID: game.Game_ID}})
+async  dbLayerIDtoCommonLayerID(gameId, dbLayerID){ 
+  var allLayersInGame = await models.Layers.findAll({where: {Game_ID: gameId}})
   return allLayersInGame.indexOf(dbLayerID)+1
   
 },
@@ -605,9 +605,19 @@ async  registerPlayer(gameId, playerId, playerIcon) {
       Tile_ID: spawn.Tile_ID,
       Discord_ID: playerId,
     });
-    fs.writeFileSync("G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/players/" + playerId + ".png", playerIcon);
+    this.downloadImageWithFetch(playerIcon.url, "G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/players/" + playerId + ".png");
     console.log("[INFO] registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + spawn +  " for spawn");
     return;
+},
+
+async downloadImageWithFetch(url, filepath) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.status}`);
+    }
+    
+    const buffer = await response.arrayBuffer();
+    fs.writeFileSync(filepath, Buffer.from(buffer));
 },
 
 async  getUpgradePrice(stat, playerId, amount) {
@@ -1046,20 +1056,20 @@ async  getOldestActiveGameId(playerID) {
   return oldestGameId;
 },
 
-async checkGameState(gamestate, isClockwatcher) {
+async checkGameState(gamestate, isClockwatcher, interaction) {
         switch(gamestate) {
         case GAMESTATES.FINISHED:
-          await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
+          await interaction.editReply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
           return
         case GAMESTATES.REGISTRATION:
-          await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
+          await interaction.editReply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
           return
         case GAMESTATES.DEV_PAUSED:
-          await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
+          await interaction.editReply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
           return
         case GAMESTATES.TIMESTOPPED:
           if(!isClockwatcher){
-            await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
+            await interaction.editReply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
             return
           }
           else{

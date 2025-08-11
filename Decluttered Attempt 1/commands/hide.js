@@ -36,7 +36,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, false);
+      await utils.checkGameState(game.GAMESTATES, false, interaction);;
                 //Verification of Variables
                 if (!tileToChange) {
                     return interaction.editReply({ content: "Could not find tile to hide at the given coordinates." });

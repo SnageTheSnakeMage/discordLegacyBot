@@ -57,7 +57,7 @@ module.exports = {
         }
 
         //Check Gamestate
-        await utils.checkGameState(game.GAMESTATES, false);
+        await utils.checkGameState(game.GAMESTATES, false, interaction);;
 
         //Check if inputted tile is a gateway tile
         if(tileToChange.Tile_Type == "Gateway_Open" || tileToChange.Tile_Type == "Gateway_Locked") {

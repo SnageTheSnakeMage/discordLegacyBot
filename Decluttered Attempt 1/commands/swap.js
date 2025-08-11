@@ -27,7 +27,7 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, false);
+      await utils.checkGameState(game.GAMESTATES, false, interaction);;
 
         //Check the player is a Switchmate
         if (player.Class != "Switchmate") {
