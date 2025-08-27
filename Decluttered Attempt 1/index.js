@@ -57,55 +57,18 @@ for (const file of commandFiles) {
   }
 }
 
-// When the client is ready, run this code
-client.once('ready', () => {
-  console.log(`Logged in as ${client.user.tag}!`);
-});
+const eventsPath = path.join(__dirname, 'events');
+const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
-// Legacy command handler for text commands
-client.on('messageCreate', async (message) => {
-  // Ignore messages from bots
-  if (message.author.bot) return;
-  
-  // Process commands based on prefix
-  const prefix = '!';
-  if (!message.content.startsWith(prefix)) return;
-  
-  const args = message.content.slice(prefix.length).trim().split(/ +/);
-  const commandName = args.shift().toLowerCase();
-  
-  // Find the command in our collection
-  const command = client.commands.find(cmd => cmd.aliases && cmd.aliases.includes(commandName));
-  
-  if (!command) return;
-  
-  try {
-    // Execute the command with the message and args
-    await command.onMessage(message, args);
-  } catch (error) {
-    console.error(error);
-    message.reply('There was an error executing that command.');
-  }
-});
-
-// Handle interaction events (slash commands)
-client.on('interactionCreate', async interaction => {
-  if (!interaction.isCommand()) return;
-  
-  const command = client.commands.get(interaction.commandName);
-  
-  if (!command) return;
-  
-  try {
-    await command.execute(interaction);
-  } catch (error) {
-    console.error(error);
-    await interaction.reply({ 
-      content: 'There was an error executing this command!', 
-      ephemeral: true 
-    });
-  }
-});
+for (const file of eventFiles) {
+	const filePath = path.join(eventsPath, file);
+	const event = require(filePath);
+	if (event.once) {
+		client.once(event.name, (...args) => event.execute(...args));
+	} else {
+		client.on(event.name, (...args) => event.execute(...args));
+	}
+}
 
 // Login to Discord with your client's token
 deployCommands();

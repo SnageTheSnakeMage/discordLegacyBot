@@ -8,7 +8,7 @@ module.exports = function(sequelize, DataTypes) {
       primaryKey: true
     },
     GAME_STATE: {
-      type: DataTypes.STRING(10),
+      type: DataTypes.STRING,
       allowNull: false
     },
     AP_INTERVAL_MIN: {
@@ -28,7 +28,94 @@ module.exports = function(sequelize, DataTypes) {
       }
     },
     CURR_CC_EVENT: {
-      type: "TEXT(50)",
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    moveCost: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    },
+    shootCost: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 2
+    },
+    fireDmg: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    },
+    mineDmg: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    },
+    classBlacklist: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    classDupelicateMax: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 2
+    },
+    maxIncreaseOnKill: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    },
+    chaosCouncilBool: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    },
+    winner: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'Players',
+        key: 'Player_ID'
+      }
+    },
+    finaleThreshold: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 4
+    },
+    timestopTurns: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    lastAPDistributionTimestampInMS: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    APAmount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 2
+    },
+    immutableDoomsday: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 32
+    },
+    deadChatChannelId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1392574348333678633
+    },
+    currentChaosPollMsgId: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    NEXT_CC_EVENT: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    overrider: {
+      type: DataTypes.INTEGER,
       allowNull: true
     }
   }, {

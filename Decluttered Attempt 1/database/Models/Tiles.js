@@ -20,7 +20,7 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: true
     },
     Player1: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL,
       allowNull: true,
       references: {
         model: 'Players',
@@ -63,6 +63,14 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.BOOLEAN,
       allowNull: true,
       defaultValue: false
+    },
+    trapper: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'Players',
+        key: 'Player_ID'
+      }
     }
   }, {
     tableName: 'Tiles',

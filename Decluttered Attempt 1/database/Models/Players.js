@@ -25,54 +25,64 @@ module.exports = function(sequelize, DataTypes) {
     },
     Action_Points: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 0
     },
     MAX_AP: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 12
     },
     MISSED_AP: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 0
     },
     Health_Points: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 6
     },
     MAX_HP: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 12
     },
     MISSED_HP: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 0
     },
     Damage: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 1
     },
     MAX_DAMAGE: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 2
     },
     Range_: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 1
     },
     MAX_RANGE: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 6
     },
     Tile_ID: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: {
         model: 'Tiles',
         key: 'Tile_ID'
       }
     },
     Discord_ID: {
-      type: DataTypes.STRING(1000),
+      type: DataTypes.STRING,
       allowNull: false
     },
     Kills: {
@@ -98,6 +108,69 @@ module.exports = function(sequelize, DataTypes) {
     Dead: {
       type: DataTypes.INTEGER,
       allowNull: true,
+      defaultValue: 0
+    },
+    Tile_ID2: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'Tiles',
+        key: 'Tile_ID'
+      }
+    },
+    DMG_BUFF: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    Free_Move: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    Hitman_Target: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'Players',
+        key: 'Player_ID'
+      }
+    },
+    Health_Points2: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    Free_Move2: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 0
+    },
+    Pharoh_HP: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    cCOverides: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    },
+    Damage2: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    Range2: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
+    MarkedForDeath: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    Meals: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
       defaultValue: 0
     }
   }, {
