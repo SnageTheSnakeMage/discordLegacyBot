@@ -32,11 +32,13 @@ module.exports = {
                 const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Player_ID: playerDiscordID}});
 
                 if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
-        return
-        }
-      //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, false, interaction);;
+                    await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+                    return
+                }
+                //Check Gamestate
+                if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+                    return
+                 }
                 //Verification of Variables
                 if (!tileToChange) {
                     return interaction.editReply({ content: "Could not find tile to hide at the given coordinates." });

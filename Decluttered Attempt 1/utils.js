@@ -369,8 +369,9 @@ async  commandResolutionErrorThrower() {
 
 //turns a layer id that would be known to a player for a game into the actual layer's id in the database
 async commonLayerIDtoDbLayerID(gameId, inputtedLayerID){
-    var allLayersInGame = await models.Layers.findAll({where: {Game_ID: gameId}})
-    return allLayersInGame[inputtedLayerID-1]
+  var allLayersInGame = (await models.Layers.findAll({where: {Game_ID: gameId}, attributes: ["Layer_ID"]})).map(layer => layer.Layer_ID);
+  console.log(JSON.stringify(allLayersInGame))
+  return allLayersInGame[inputtedLayerID-1]
 },
 
 //removes a class from a player
@@ -426,10 +427,9 @@ async classRemoval(player, excorist){
   }
 },
 
-async  dbLayerIDtoCommonLayerID(gameId, dbLayerID){ 
-  var allLayersInGame = await models.Layers.findAll({where: {Game_ID: gameId}})
+async dbLayerIDtoCommonLayerID(gameId, dbLayerID){ 
+  var allLayersInGame = (await models.Layers.findAll({where: {Game_ID: gameId}, attributes: ["Layer_ID"]})).map(layer => layer.Layer_ID);
   return allLayersInGame.indexOf(dbLayerID)+1
-  
 },
 
 // generates a layer from a game while checking what a player can see
@@ -437,9 +437,12 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
   const tileSize = 208;
 
   // Get layer dimensions
-  const layerData = commonLayerIDtoDbLayerID(gameId, inputtedlayerID);
-  const baseGridHeight = layerData.Y_Bound;
-  const baseGridWidth = layerData.X_Bound;
+  const layerDbId = await this.commonLayerIDtoDbLayerID(gameId, inputtedlayerID);
+  const selectedLayer = await models.Layers.findByPk(layerDbId);
+  if(verbose) console.log("[INFO][VERBOSE][utils.js][GenerateGameGridImage] selectedLayer: " + JSON.stringify(selectedLayer));
+  const baseGridHeight = selectedLayer.Y_Bound;
+  
+  const baseGridWidth = selectedLayer.X_Bound;
   
   const canvasWidth = baseGridWidth * tileSize;
   const canvasHeight = baseGridHeight * tileSize;
@@ -453,11 +456,11 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
   context.fillRect(0, 0, canvasWidth, canvasHeight);
 
   // Get all tiles for this layer
-  const layerTiles = await models.Tiles.findAll({where: {Layer_ID: layer}});
+  const layerTiles = await models.Tiles.findAll({where: {Layer_ID: layerDbId}});
 
   if(playerID != null) {
-    const player = await models.Players.findByPk(playerID);
-    const playersTile = await models.Tiles.findByPk(player.Tile_ID);
+    const playerSeeing = await models.Players.findByPk(playerID);
+    const playersTile = await models.Tiles.findByPk(playerSeeing.Tile_ID);
     trapSight = await models.Classes.findOne({
       where: {
         Class_Name: {
@@ -465,7 +468,7 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
             "Oracle", "Minesweeper"
           ]
         },
-        Class_ID: player.Class_ID
+        Class_ID: playerSeeing.Class_ID
       }}) != null ? true : false;
     allLayerSight = await models.Classes.findOne({
       where: {
@@ -474,15 +477,15 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
             "Oracle"
           ]
         },
-        Class_ID: player.Class_ID
+        Class_ID: playerSeeing.Class_ID
       }}) != null ? true : false;
     //if a player is dead give them trapSight and allLayerSight
-    if(player.Dead) {
+    if(playerSeeing.Dead) {
       allLayerSight = true;
       trapSight = true;
     }
     if(!allLayerSight) {
-      if (inputtedlayerID != playersTile.Layer_ID) {
+      if (layerDbId != playersTile.Layer_ID) {
         throw "You can only view the layer you are currently on, unless you are an oracle";
       }
     }
@@ -494,16 +497,21 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
 
   // Process each tile
   for (const currentTile of layerTiles) {
-    // Get players on this tile
-    const tilePlayers = await Promise.all([
-      models.Tiles.findOne({where: {Player_ID: currentTile.Player1}}),
-      models.Tiles.findOne({where: {Player_ID: currentTile.Player2}}), 
-      models.Tiles.findOne({where: {Player_ID: currentTile.Player3}}), 
-      models.Tiles.findOne({where: {Player_ID: currentTile.Player4}})
-    ]);
+    var tilePlayers = [];
+    if(currentTile.Player1 != null || currentTile.Player2 != null || currentTile.Player3 != null || currentTile.Player4 != null) {
+      // Get players on this tile
+      tilePlayers = await Promise.all([
+        models.Players.findOne({where: {Player_ID: currentTile.Player1}}),
+        models.Players.findOne({where: {Player_ID: currentTile.Player2}}), 
+        models.Players.findOne({where: {Player_ID: currentTile.Player3}}), 
+        models.Players.findOne({where: {Player_ID: currentTile.Player4}})
+      ]);
+      if (verbose) console.log("[INFO][VERBOSE] got players: " + JSON.stringify(tilePlayers) + " for tile: " + currentTile.Tile_ID);
+    }
+
 
     // Load environment tile image
-    const tileImage = await loadTileTexture("environment", currentTile.Tile_Type);
+    const tileImage = await this.loadTileTexture("environment", currentTile.Tile_Type);
     
     // Calculate canvas position
     const canvasX = ((currentTile.X_Position - 1)* tileSize);
@@ -515,14 +523,15 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
     context.drawImage(tileImage, canvasX, canvasY, tileSize, tileSize);
 
     // Draw players
-    for (let playerIndex = 0; playerIndex < tilePlayers.length; playerIndex++) {
-      const player = tilePlayers[playerIndex];
-      if (player === null) continue;
-      if(player.Class_ID == await models.Classes.findOne({where: {Class_Name: "Spy"}}).Class_ID && !allLayerSight) continue;
+    for ( playerIndex in tilePlayers ) {
+      const tilePlayer = tilePlayers[playerIndex];
+      if (tilePlayer === null) continue;
+      if(tilePlayer.Class_ID == await models.Classes.findOne({where: {Class_Name: "Spy"}}).Class_ID && !allLayerSight) continue;
 
-      const playerImage = await loadTileTexture("players", player.Discord_ID);
+      const playerImage = await this.loadTileTexture("players", tilePlayer.Discord_ID);
       let playerTilePositionX = canvasX;
       let playerTilePositionY = canvasY;
+      if(verbose) console.log("[INFO][VERBOSE] playerTileWidth: " + playerTileWidth + ", playerTileHeight: " + playerTileHeight);
 
       // Position players in quadrants
       switch (playerIndex) {
@@ -539,7 +548,7 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
           playerTilePositionY += playerTileHeight;
           break;
       }
-
+      console.log("[INFO][VERBOSE] drawing player " + tilePlayer.Discord_ID + " at " + playerTilePositionX + ", " + playerTilePositionY)
       context.drawImage(
         playerImage,
         playerTilePositionX,
@@ -587,6 +596,30 @@ async  registerPlayer(gameId, playerId, playerIcon) {
         Damage2: SelectedClass.Start_Damage,
         Range2: SelectedClass.Start_Range_,
       })
+    if(spawn1.Player_1 == null) {
+      await models.Tiles.update({Player_1: playerId}, {where: {Tile_ID: spawn1.Tile_ID}});
+    }
+    else if(spawn1.Player_2 == null) {
+      await models.Tiles.update({Player_2: playerId}, {where: {Tile_ID: spawn1.Tile_ID}});
+    }
+    else if(spawn1.Player_3 == null) {
+      await models.Tiles.update({Player_3: playerId}, {where: {Tile_ID: spawn1.Tile_ID}});
+    }
+    else if(spawn1.Player_4 == null) {
+      await models.Tiles.update({Player_4: playerId}, {where: {Tile_ID: spawn1.Tile_ID}});
+    }
+    if(spawn2.Player_1 == null) {
+      await models.Tiles.update({Player_1: playerId}, {where: {Tile_ID: spawn2.Tile_ID}});
+    }
+    else if(spawn2.Player_2 == null) {
+      await models.Tiles.update({Player_2: playerId}, {where: {Tile_ID: spawn2.Tile_ID}});
+    }
+    else if(spawn2.Player_3 == null) {
+      await models.Tiles.update({Player_3: playerId}, {where: {Tile_ID: spawn2.Tile_ID}});
+    }
+    else if(spawn2.Player_4 == null) {
+      await models.Tiles.update({Player_4: playerId}, {where: {Tile_ID: spawn2.Tile_ID}});
+    }
       console.log("[INFO][registerPlayer] registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
     }
     var spawn = await this.getSpawnpointTile(gameId)
@@ -605,6 +638,19 @@ async  registerPlayer(gameId, playerId, playerIcon) {
       Tile_ID: spawn.Tile_ID,
       Discord_ID: playerId,
     });
+    if(spawn.Player_1 == null) {
+      await models.Tiles.update({Player_1: playerId}, {where: {Tile_ID: spawn.Tile_ID}});
+    }
+    else if(spawn.Player_2 == null) {
+      await models.Tiles.update({Player_2: playerId}, {where: {Tile_ID: spawn.Tile_ID}});
+    }
+    else if(spawn.Player_3 == null) {
+      await models.Tiles.update({Player_3: playerId}, {where: {Tile_ID: spawn.Tile_ID}});
+    }
+    else if(spawn.Player_4 == null) {
+      await models.Tiles.update({Player_4: playerId}, {where: {Tile_ID: spawn.Tile_ID}});
+    }
+    
     this.downloadImageWithFetch(playerIcon.url, "G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/players/" + playerId + ".png");
     console.log("[INFO] registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + spawn +  " for spawn");
     return;
@@ -879,27 +925,21 @@ async getRandomClass(game) {
     attributes: ["Layer_ID"]
   }).then(layerIds => layerIds.map(layerId => layerId.Layer_ID));
   
-  console.log("[INFO] layerIds: " + JSON.stringify(layerIds));
+  if(verbose) console.log("[INFO][VERBOSE][getSpawnpointTile] layerIds: " + JSON.stringify(layerIds));
   
   var possibleTiles = await models.Tiles.findAll({
     where: {
       Tile_Type: {[Op.notIn]: ["Void", "Fire", "Ice", "Storm", "Wall", "Wall_Damaged"]},
-      Layer_ID: {[Op.in]: layerIds}  // Fixed: proper Op.in usage
+      Layer_ID: {[Op.in]: layerIds}  
     }
   });
   
-  console.log("[INFO] possibleTiles: " + JSON.stringify(possibleTiles));
+  if (verbose) console.log("[INFO][VERBOSE][getSpawnpointTile] possibleTiles: " + JSON.stringify(possibleTiles));
   var randomTile = possibleTiles[this.getRandomInt(possibleTiles.length - 1)];
-  console.log("[INFO] rolled tile: " + randomTile + " for a spawnpoint");
+  if (verbose) console.log("[INFO][VERBOSE][getSpawnpointTile] rolled tile: " + JSON.stringify(randomTile) + " for a spawnpoint");
   playersInTile = [randomTile.Player1, randomTile.Player2, randomTile.Player3, randomTile.Player4];
-  if ( !playersInTile.includes(null) || 
-      randomTile.Tile_Type == "Void" ||
-      randomTile.Tile_Type == "Fire" ||
-      randomTile.Tile_Type == "Ice" ||
-      randomTile.Tile_Type == "Storm" ||
-      randomTile.Tile_Type == "Wall" ||
-      randomTile.Tile_Type == "Wall_Damaged" ) {
-    console.log("[INFO]  rerolling spawnpoint...");
+  if ( !playersInTile.includes(null) ) {
+    console.log("[INFO][getSpawnpointTile] spawnpoint full, rerolling spawnpoint...");
     this.getSpawnpointTile(gameId);
   }
   else {
@@ -907,15 +947,17 @@ async getRandomClass(game) {
   };
 },
 
+//TODO revamp all console.logs to be ("[PURPOSE][VERBOSE?][FILE NAME][FUNCTION NAME] message")
+//TODO MAKE SURE ALL INSTANCES OF A PLAYERS TILE BIENG SET WE ALSO SET A TILE.PLAYERX to THE PLAYERS ID
  delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 },
 
-async  setPlayerToTile(playerId, layer, x, y) {
+async setPlayerToTile(playerId, layer, x, y) {
   var currentPlayer = await models.Players.findByPk(playerId)
   var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
   this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
-  await models.Tiles.findOne({where: {Layer: layer, X_Position: x, Y_Position: y}}).then((tile) => {
+  models.Tiles.findOne({where: {Layer: layer, X_Position: x, Y_Position: y}}).then((tile) => {
     if(tile.Player_1 == null) {
       tile.Player_1 = playerId;
     }
@@ -933,6 +975,7 @@ async  setPlayerToTile(playerId, layer, x, y) {
     }
     tile.save();
   });
+  await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
 },
 
 //turns a path([[direction, distance]]) into an array of [[x, y]] of each tile where the direction changes
@@ -1001,34 +1044,56 @@ async  setPlayerToTile(playerId, layer, x, y) {
 //includes tileCord1 and tileCord2 in the returned array of tiles on the line
  getTileCordinatesOfLine(tileCord1, tileCord2) {
   var returnedTiles = [tileCord1];
-  var slope = (tileCord1[1] - tileCord2[1] / tileCord1[0] - tileCord2[0]);
-  var x = tileCord1[0];
-  var y = tileCord1[1];
-  var direction = getDirection(tileCord1, tileCord2)
+  const slope = ((tileCord1[1] - tileCord2[1]) / (tileCord1[0] - tileCord2[0]));
+  const deltaX = tileCord2[0] - tileCord1[0];
+  const deltaY = tileCord2[1] - tileCord1[1];
+  var iteratorX = tileCord1[0];
+  var iteratorY = tileCord1[1];
+  var incrementX
+  var incrementY
+  var direction = this.getDirection(tileCord1, tileCord2)
 
-  while([x, y] != tileCord2) {
-    switch (direction) {
-      case "north":
-        x = tileCord1[0];
-        y++;
-        break;
-      case "south":
-        x = tileCord1[0];
-        y--;
-        break;
-      case "east": case "northeast": case "southeast":
-        x++;
-        y = Math.round(slope * (x - tileCord2[0]) + tileCord2[1]);
-        break;
-      case "west": case"northwest": case "southwest":
-        x--;
-        y = Math.round(slope * (x - tileCord2[0]) + tileCord2[1]);
+  while([iteratorX, iteratorY] != tileCord2) {
+    if(iteratorX == tileCord2[0] && iteratorY == tileCord2[1]) {
       break;
     }
-    returnedTiles.push([x, y]);
+    switch (direction) {
+      case "north":
+        iteratorX = tileCord1[0];
+        iteratorY--;
+        break;
+      case "south":
+        iteratorX = tileCord1[0];
+        iteratorY++;
+        break;
+      case "east": 
+        iteratorX++;
+        iteratorY = tileCord1[1] 
+        break;
+      case "west": 
+        iteratorX--;
+        iteratorY = tileCord1[1]
+        break;
+      case"northwest": case "southwest": case "southeast": case "northeast":  
+        if(Math.abs(deltaY) < Math.abs(deltaX)) {
+          incrementX = Math.round(deltaX / Math.abs(deltaX));
+          incrementY = Math.round(deltaY / Math.abs(deltaX));
+          iteratorX += incrementX;
+          iteratorY += incrementY; 
+        }
+        else {
+          incrementX = Math.round(deltaX / Math.abs(deltaY));
+          incrementY = Math.round(deltaY / Math.abs(deltaY));
+          iteratorX += incrementX;
+          iteratorY += incrementY;
+        }
+        break;
+    }
+    returnedTiles.push([iteratorX, iteratorY]);
   }
   return returnedTiles;
 },
+
 
 async  getOldestActiveGameId(playerID) {
   if (playerID) {
@@ -1059,28 +1124,51 @@ async  getOldestActiveGameId(playerID) {
 async checkGameState(gamestate, isClockwatcher, interaction) {
         switch(gamestate) {
         case GAMESTATES.FINISHED:
+          console.log("[INFO][checkGameState] gamestate: " + gamestate );
           await interaction.editReply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          return
+          return true
         case GAMESTATES.REGISTRATION:
           await interaction.editReply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-          return
+          return true
         case GAMESTATES.DEV_PAUSED:
           await interaction.editReply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          return
+          return true
         case GAMESTATES.TIMESTOPPED:
           if(!isClockwatcher){
             await interaction.editReply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-            return
+            return true
           }
           else{
             break;
           }
+        default:
+          await interaction.editReply({ content: "Gamestate out of enum gamestate: " + gamestate + ".", ephemeral: true });
+          throw "[ERROR][utils.js][checkGameState] Gamestate out of enum gamestate: " + gamestate + "."
       }
 },
 
-async  getOldestGamestateGameId(playerID, gamestate) {
-  if (playerID) {
-    var gameIdsFromPlayer = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
+async getOldestGameId(playerDiscordID) {
+    if (playerDiscordID) {
+    var gameIdsFromPlayer = await models.Players.findAll({where: {Discord_ID: playerDiscordID}, attributes: ["Game_ID"]}).then(gameIdsFromPlayer => gameIdsFromPlayer.map(gameIdFromPlayer => gameIdFromPlayer.Game_ID));
+    //.then(layerIds => layerIds.map(layerId => layerId.Layer_ID))
+    console.log("[INFO][VERBOSE][getOldestGameId] Found Game Ids by Player:" + JSON.stringify(gameIdsFromPlayer));
+    var games = await models.Games.findAll({where: {Game_ID: {[Op.in]: gameIdsFromPlayer}}});
+    console.log("[INFO][VERBOSE][getOldestGameId] Found Games by Player & Gamestate:" + JSON.stringify(games));
+  }
+
+  var oldestGameId = games[games.length - 1].Game_ID + 1;
+  for (var game in games) {
+    //if a game id is lower its older so we swap it out
+    if (games[game].Game_ID < oldestGameId) {
+      oldestGameId = games[game].Game_ID;
+    }
+  }
+  return oldestGameId;
+},
+
+async  getOldestGamestateGameId(playerDiscordID, gamestate) {
+  if (playerDiscordID) {
+    var gameIdsFromPlayer = await models.Players.findAll({where: {Discord_ID: playerDiscordID}, attributes: ["Game_ID"]});
     var games = await models.Games.findAll({where: {
     GAME_STATE: gamestate,
     Game_ID: gameIdsFromPlayer}});
@@ -1108,8 +1196,8 @@ async ChaosEventDeathCheck(gameId, killer, victim) {
   var game = await models.Games.findByPk(gameId);
   switch(game.CURR_CC_EVENT) {
     case "Leftovers":
-    await models.Players.update({Action_Points: Math.min(killer.Action_Points + victim.MISSED_AP, killer.MAX_AP)}, {where: {Player_ID: killer.Player_ID}});
-    break;
+      await models.Players.update({Action_Points: Math.min(killer.Action_Points + victim.MISSED_AP, killer.MAX_AP)}, {where: {Player_ID: killer.Player_ID}});
+      break;
   }
 },
 

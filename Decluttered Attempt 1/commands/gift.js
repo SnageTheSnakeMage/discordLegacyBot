@@ -45,7 +45,9 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher", interaction);;
+      if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+            return
+        }
 
         //Check if player has enough AP
         if (player.Action_Points < amount) {

@@ -29,14 +29,15 @@ module.exports = {
         var playerClass = await models.Classes.findByPk(player.Class_ID);
 
 
- if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
-        return
+        if(player.Dead){
+            await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+            return
         }
-      //Check Gamestate
-      //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher", interaction);;
-
+      
+        //Check Gamestate
+        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+          return
+        }
         //Check if player is on a chest tile
         if(playerTile.Tile_Type != "Chest") {
             return interaction.editReply({ content: "You are not on a chest tile!" });

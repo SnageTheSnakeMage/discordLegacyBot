@@ -38,7 +38,9 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, false, interaction);;
+      if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+          return
+        }
 
         //Check the player is a hot potato
         if (player.Class != "Hot Potato") {

@@ -30,7 +30,9 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, false, interaction);;
+      if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+            return
+        }
         //Check if player is a Mailman
         if (player.Class != "Mailman") {
             return interaction.editReply({ content: "You are not a Mailman!" });

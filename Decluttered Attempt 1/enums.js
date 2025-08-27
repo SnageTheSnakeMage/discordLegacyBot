@@ -15,7 +15,7 @@ const ChaosEvents = Object.freeze({
   "Free Movement": "Along with AP distribution everyone gets 1 free movement",
   "Scorchers Joy": "Everyone on a blank tile that isnt a lava diver or pyromainiac takes 1 Damage every AP distribution",
   "Winters Hollow": "-1 free movement(first move costs 1 move) every AP distribution except for Snowmen",
-  "Blockade": "Walls can not be damaged while this chaos event is in play",
+  "Blockade": "Walls can not be damaged while this chaos event is in play, snipes go through walls still.",
   "Northern Gust": "move everyone two spaces up every AP distribution",
   "Western Gust": "move everyone two spaces left every AP distribution",
   "Eastern Gust": "move everyone two spaces right every AP distribution",

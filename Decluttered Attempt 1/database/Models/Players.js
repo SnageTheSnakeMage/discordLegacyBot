@@ -25,43 +25,53 @@ module.exports = function(sequelize, DataTypes) {
     },
     Action_Points: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 0
     },
     MAX_AP: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 12
     },
     MISSED_AP: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 0
     },
     Health_Points: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 6
     },
     MAX_HP: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 12
     },
     MISSED_HP: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 0
     },
     Damage: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 1
     },
     MAX_DAMAGE: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 2
     },
     Range_: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 1
     },
     MAX_RANGE: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      defaultValue: 6
     },
     Tile_ID: {
       type: DataTypes.INTEGER,

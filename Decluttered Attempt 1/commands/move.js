@@ -119,7 +119,9 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher", interaction);;
+      if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+        return
+      }
 
       //#region Calculation of New Position
       if(interaction.options.getString('path') != null){

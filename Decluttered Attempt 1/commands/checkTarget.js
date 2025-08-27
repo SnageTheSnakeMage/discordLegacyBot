@@ -22,7 +22,9 @@ module.exports = {
         return
         }
         //Check Gamestate
-        await utils.checkGameState(game.GAMESTATES, false, interaction);;
+        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+            return
+        }
 
         //Check if player is a hitman
         if (player.Class != "Hitman") {

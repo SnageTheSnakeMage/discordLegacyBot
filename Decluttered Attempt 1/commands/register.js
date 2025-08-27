@@ -113,6 +113,17 @@ module.exports = {
   },
 
   async handleRegistrationError(interaction, error) {
+    //Make sure to delete any populated DB rows
+    var existingPlayer = await models.Players.findOne({
+      where: {
+        Game_ID: registrationData.gameId,
+        Discord_ID: registrationData.playerId
+      }});
+    if(!error.message == "You are already registered in this game" && existingPlayer){
+      await models.Players.destroy({where: {Game_ID: registrationData.gameId, Discord_ID: registrationData.playerId}});
+      console.log("[INFO][VERBOSE][handleRegistrationError] Player: " + registrationData.playerId + " was removed from Game: " + registrationData.gameId);
+    }
+    // Tell the user & me what went wrong
     console.error('[ERROR][register.js] Registration failed:', error);
     const errorMessage = error.message || "Registration failed. Please try again or contact support.";
     await interaction.editReply({ content: errorMessage });

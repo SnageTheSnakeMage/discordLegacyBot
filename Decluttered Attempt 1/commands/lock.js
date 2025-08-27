@@ -49,7 +49,9 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, false, interaction);;
+      if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+            return
+        }
 
         if(playerClass.Class_Name != "Guardian") {
             return interaction.editReply({ content: "You are not a Guardian!" });

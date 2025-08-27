@@ -40,7 +40,9 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, false, interaction);;
+        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+          return
+        }
 
         //Check if the tile provided is in the game
         if (!targetTile) {

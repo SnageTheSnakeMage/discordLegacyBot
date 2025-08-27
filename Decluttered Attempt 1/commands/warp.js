@@ -41,7 +41,9 @@ module.exports = {
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher", interaction);;
+        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+          return
+        }
 
         //Check player is either a Dimensional Hopper or on a Gateway tile
        const dimensionalHopperClass = await models.Classes.findOne({ where: { Class_Name: "Dimensional Hopper" } });

@@ -28,60 +28,73 @@ module.exports = {
   // Function for slash command execution
   async execute(interaction) {
     try {
-      await interaction.deferReply();
+      await interaction.deferReply({ ephemeral: true });
+
+      var gameId = interaction.options.getInteger('game') ?? await utils.getOldestGameId(interaction.user.id);
 
       var player = await models.Players.findOne({
         where: {
-          Game_ID: interaction.options.getInteger('game'),
-          discordId: interaction.user.id
+          Game_ID:gameId,
+          Discord_ID: interaction.user.id
         }
       })
+
+      const playerTile = await models.Tiles.findOne({ where: { Tile_ID: player.Tile_ID } });
+      
       const playerClass = await models.Classes.findByPk(player.Class_ID);
       if(playerClass.Class_Name != "Twin" && interaction.options.getInteger('body') != null) {
         interaction.editReply({ content: "You can only choose a body if you are a Twin." });
       }
 
-      var gameId = interaction.options.getInteger('game') ?? utils.getOldestActiveGameId(interaction.user.id);
+
       const game = await models.Games.findByPk(gameId);
       var layer = interaction.options.getInteger('layer')
       //Check which layer to show the player if they dont provide it, and if they are a twin make sure to show the one with the body they chose
       if(!layer){
         if (interaction.options.getInteger('body') == 2) {
-        layer = await models.Layers.findOne({
-          where: {
-            Layer_ID: await models.Tiles.findOne({
-                where: {
-                    Tile_ID: player.Tile_ID_2
-                }
-            }).Layer_ID
-          }
-        })
+        var playerTile2 = await models.Tiles.findOne({ where: { Tile_ID: player.Tile_ID_2 }})
+        layer = await models.Layers.findOne({ where: { Layer_ID:  playerTile2.Layer_ID }})
+        layer = await utils.dbLayerIDtoCommonLayerID(gameId, layer.Layer_ID)
       }
       //ellegantly catches all the other cases, if they dont pass a body it defaults to body 1 and if they arent a twin it defaults to the one they are on
       else{
-        if(!player.Dead)
-        layer = await models.Layers.findOne({
-          where: {
-            Layer_ID: await models.Tiles.findOne({
-                where: {
-                    Tile_ID: player.Tile_ID
-                }
-            }).Layer_ID
-          }
-        })
+        if(!player.Dead){
+          layer = await models.Layers.findOne({
+            where: {
+              Layer_ID: playerTile.Layer_ID
+            }
+          })
+          layer = await utils.dbLayerIDtoCommonLayerID(gameId, layer.Layer_ID)
+        }
+        else{
+          interaction.editReply({ content: "Dead players can't use this command.", ephemeral: true });
+          return
+        }
       }
     }
+      
       //Check Gamestate
-      utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher", interaction);
+      utils.checkGameState(game.GAME_STATE, playerClass.Class_Name == "Clockwatcher", interaction);
 
         // Generate image from database and provided inputs
-        const imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);
+        var imageBuffer;
+        console.log("[INFO][COMMAND][board.js] layer: " + layer + "\n"
+          + "[INFO][COMMAND][board.js] gameId: " + gameId + "\n"
+          + "[INFO][COMMAND][board.js] playerId: " + player.Player_ID
+        )
+        if(interaction.options.getInteger('body') == 2){
+          imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);
+        }
+        else{
+          imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);
+        }
 
+        
         // Create attachment
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
         
         // Send the image
-        await interaction.reply({ files: [attachment] ,  flags: MessageFlags.Ephemeral });
+        await interaction.editReply({ files: [attachment] ,  ephemeral: true });
         
     } catch (error) {
       console.error('[ERROR][COMMAND][board.js]:', error);
@@ -92,10 +105,7 @@ module.exports = {
       }
     }
   },
-  
-  validateInput(interaction) {
-    
-  }
+
 
 // Function for traditional message command execution
 //   async onMessage(message, args) {

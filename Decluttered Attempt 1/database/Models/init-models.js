@@ -14,6 +14,8 @@ function initModels(sequelize) {
 
   Players.belongsTo(Classes, { as: "Class", foreignKey: "Class_ID"});
   Classes.hasMany(Players, { as: "Players", foreignKey: "Class_ID"});
+  Layers.belongsTo(Games, { as: "Game", foreignKey: "Game_ID"});
+  Games.hasMany(Layers, { as: "Layers", foreignKey: "Game_ID"});
   Players.belongsTo(Games, { as: "Game_Game", foreignKey: "Game_ID"});
   Games.hasMany(Players, { as: "Players", foreignKey: "Game_ID"});
   Layers.belongsTo(Layers, { as: "Layer_Below_Layer", foreignKey: "Layer_Below"});
@@ -54,3 +56,5 @@ function initModels(sequelize) {
 module.exports = initModels;
 module.exports.initModels = initModels;
 module.exports.default = initModels;
+
+//sequelize-auto -d "G:\LegacyBotDiscord\Decluttered Attempt 1\database\database.db" -o "G:\LegacyBotDiscord\Decluttered Attempt 1\database\Models" -e sqlite --useDefine

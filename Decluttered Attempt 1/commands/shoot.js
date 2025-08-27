@@ -55,17 +55,19 @@ module.exports = {
         var response = "";
         const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: x, Y_Position: y}});
 
-
+        //TODO: handle shootersTile = targetTile edge case
         //get all tiles between player and target
         const attackPath = utils.getTileCordinatesOfLine([shootersTile.X_Position, shootersTile.Y_Position], [targetTile.X_Position, targetTile.Y_Position]);
 
 
-         if(player.Dead){
+        if(player.Dead){
         await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
         return
         }
       //Check Gamestate
-      await utils.checkGameState(game.GAMESTATES, playerClass.Class_Name == "Clockwatcher", interaction);;
+        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+          return
+        }
         
 
 
@@ -113,14 +115,14 @@ module.exports = {
                     //if the miss decrement the amount of shots
                     amount--;
                     //add the response of them missing
-                    response += `You missed a damaged wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
+                    response += `You missed a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
                     //check if there are no shots left if so exit the loop
                     if(amount == 0) {
                         break;
                     }
                 }
                 await models.Tiles.update({Tile_Type: "Wall_Damaged"}, {where: {X_Position: attackPath[attackTile][0], Y_Position: attackPath[attackTile][1], Layer_ID: shootersTile.Layer_ID}});
-                response += `You hit a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
+                response += `You hit a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
                 //decrement amount of shots and check if there are any shots left if not exit the loop
                 amount--;
                 if (amount == 0) {

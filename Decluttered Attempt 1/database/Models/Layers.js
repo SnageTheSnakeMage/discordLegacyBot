@@ -33,7 +33,11 @@ module.exports = function(sequelize, DataTypes) {
     },
     Game_ID: {
       type: DataTypes.INTEGER,
-      allowNull: true
+      allowNull: true,
+      references: {
+        model: 'Games',
+        key: 'Game_ID'
+      }
     }
   }, {
     tableName: 'Layers',
