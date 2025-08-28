@@ -27,7 +27,7 @@ module.exports = {
       
       // Step 1: Validate and gather inputs
       const registrationData = await this.validateRegistrationInput(interaction);
-
+      console.log("[INFO][VERBOSE][register.js] Registration data verified as: " + JSON.stringify(registrationData));
       // Step 2: Check if registration is allowed
       await this.checkRegistrationEligibility(registrationData);
       
@@ -81,7 +81,7 @@ module.exports = {
   validateIconRequirements(attachment) {
     
     if (attachment.contentType !== ICON_REQUIREMENTS.FORMAT) {
-      throw new Error("Player icon must be a PNG file");
+      throw new Error("The file is a " + attachment.contentType + " file. Player icon must be a PNG file");
     }
     
     if (attachment.width !== ICON_REQUIREMENTS.WIDTH || attachment.height !== ICON_REQUIREMENTS.HEIGHT) {
@@ -114,11 +114,13 @@ module.exports = {
 
   async handleRegistrationError(interaction, error) {
     //Make sure to delete any populated DB rows
-    var existingPlayer = await models.Players.findOne({
-      where: {
-        Game_ID: registrationData.gameId,
-        Discord_ID: registrationData.playerId
-      }});
+    if(typeof registrationData !== "undefined") {
+      var existingPlayer = await models.Players.findOne({
+        where: {
+          Game_ID: registrationData.gameId,
+          Discord_ID: registrationData.playerId
+        }});
+    }
     if(!error.message == "You are already registered in this game" && existingPlayer){
       await models.Players.destroy({where: {Game_ID: registrationData.gameId, Discord_ID: registrationData.playerId}});
       console.log("[INFO][VERBOSE][handleRegistrationError] Player: " + registrationData.playerId + " was removed from Game: " + registrationData.gameId);

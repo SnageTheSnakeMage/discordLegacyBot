@@ -577,12 +577,16 @@ async  registerPlayer(gameId, playerId, playerIcon) {
     if(SelectedClass.Class_Name == "Twin"){
       var spawn1 = await this.getSpawnpointTile(gameId)
       var spawn2 = await this.getSpawnpointTile(gameId)
-      while(spawn1.Tile_ID == spawn2.Tile_ID) spawn2 = await this.getSpawnpointTile(gameId);
+      var spawnSearchAttempts = 0
+      while(spawn1.Tile_ID == spawn2.Tile_ID && spawnSearchAttempts < 20){ spawn2 = await this.getSpawnpointTile(gameId); spawnSearchAttempts++; }
+      console.log("[INFO][VERBOSE][registerPlayer] Rolled same spawnpoint, spawn1: " + JSON.stringify(spawn1) + ", spawn2: " + JSON.stringify(spawn2));
+      if(spawn1.Tile_ID == spawn2.Tile_ID) throw "Failed to generate spawnpoint for Twin, please try again so a new class may be selected for you.";
       await models.Players.create({
         Class_ID: SelectedClass.Class_ID,
         Game_ID: gameId,
         Action_Points: SelectedClass.Start_AP,
         MAX_AP: SelectedClass.Start_MAX_AP,
+        MISSED_AP: 0,
         Health_Points: SelectedClass.Start_HP,
         MAX_HP: SelectedClass.Start_MAX_HP,
         Damage: SelectedClass.Start_Damage,
@@ -596,31 +600,34 @@ async  registerPlayer(gameId, playerId, playerIcon) {
         Damage2: SelectedClass.Start_Damage,
         Range2: SelectedClass.Start_Range_,
       })
-    if(spawn1.Player_1 == null) {
-      await models.Tiles.update({Player_1: playerId}, {where: {Tile_ID: spawn1.Tile_ID}});
-    }
-    else if(spawn1.Player_2 == null) {
-      await models.Tiles.update({Player_2: playerId}, {where: {Tile_ID: spawn1.Tile_ID}});
-    }
-    else if(spawn1.Player_3 == null) {
-      await models.Tiles.update({Player_3: playerId}, {where: {Tile_ID: spawn1.Tile_ID}});
-    }
-    else if(spawn1.Player_4 == null) {
-      await models.Tiles.update({Player_4: playerId}, {where: {Tile_ID: spawn1.Tile_ID}});
-    }
-    if(spawn2.Player_1 == null) {
-      await models.Tiles.update({Player_1: playerId}, {where: {Tile_ID: spawn2.Tile_ID}});
-    }
-    else if(spawn2.Player_2 == null) {
-      await models.Tiles.update({Player_2: playerId}, {where: {Tile_ID: spawn2.Tile_ID}});
-    }
-    else if(spawn2.Player_3 == null) {
-      await models.Tiles.update({Player_3: playerId}, {where: {Tile_ID: spawn2.Tile_ID}});
-    }
-    else if(spawn2.Player_4 == null) {
-      await models.Tiles.update({Player_4: playerId}, {where: {Tile_ID: spawn2.Tile_ID}});
-    }
+     var createdPlayer = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: playerId}});
+      if(spawn1.Player1 == null) {
+        await models.Tiles.update({Player1: createdPlayer.Player_ID}, {where: {Tile_ID: spawn1.Tile_ID}});
+      }
+      else if(spawn1.Player2 == null) {
+        await models.Tiles.update({Player2: createdPlayer.Player_ID}, {where: {Tile_ID: spawn1.Tile_ID}});
+      }
+      else if(spawn1.Player3 == null) {
+        await models.Tiles.update({Player3: createdPlayer.Player_ID}, {where: {Tile_ID: spawn1.Tile_ID}});
+      }
+      else if(spawn1.Player4 == null) {
+        await models.Tiles.update({Player4: createdPlayer.Player_ID}, {where: {Tile_ID: spawn1.Tile_ID}});
+      }
+      if(spawn2.Player1 == null) {
+        await models.Tiles.update({Player1: createdPlayer.Player_ID}, {where: {Tile_ID: spawn2.Tile_ID}});
+      }
+      else if(spawn2.Player2 == null) {
+        await models.Tiles.update({Player2: createdPlayer.Player_ID}, {where: {Tile_ID: spawn2.Tile_ID}});
+      }
+      else if(spawn2.Player3 == null) {
+        await models.Tiles.update({Player3: createdPlayer.Player_ID}, {where: {Tile_ID: spawn2.Tile_ID}});
+      }
+      else if(spawn2.Player4 == null) {
+        await models.Tiles.update({Player4: createdPlayer.Player_ID}, {where: {Tile_ID: spawn2.Tile_ID}});
+      }
+      this.downloadImageWithFetch(playerIcon.url, "G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/players/" + playerId + ".png");
       console.log("[INFO][registerPlayer] registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
+      return;
     }
     var spawn = await this.getSpawnpointTile(gameId)
     await models.Players.create({
@@ -638,21 +645,25 @@ async  registerPlayer(gameId, playerId, playerIcon) {
       Tile_ID: spawn.Tile_ID,
       Discord_ID: playerId,
     });
-    if(spawn.Player_1 == null) {
-      await models.Tiles.update({Player_1: playerId}, {where: {Tile_ID: spawn.Tile_ID}});
+    var createdPlayer = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: playerId}});
+    if(spawn.Player1 == null) {
+      await models.Tiles.update({Player1: createdPlayer.Player_ID}, {where: {Tile_ID: spawn.Tile_ID}});
     }
-    else if(spawn.Player_2 == null) {
-      await models.Tiles.update({Player_2: playerId}, {where: {Tile_ID: spawn.Tile_ID}});
+    else if(spawn.Player2 == null) {
+      await models.Tiles.update({Player2: createdPlayer.Player_ID}, {where: {Tile_ID: spawn.Tile_ID}});
     }
-    else if(spawn.Player_3 == null) {
-      await models.Tiles.update({Player_3: playerId}, {where: {Tile_ID: spawn.Tile_ID}});
+    else if(spawn.Player3 == null) {
+      await models.Tiles.update({Player3: createdPlayer.Player_ID}, {where: {Tile_ID: spawn.Tile_ID}});
     }
-    else if(spawn.Player_4 == null) {
-      await models.Tiles.update({Player_4: playerId}, {where: {Tile_ID: spawn.Tile_ID}});
+    else if(spawn.Player4 == null) {
+      await models.Tiles.update({Player4: createdPlayer.Player_ID}, {where: {Tile_ID: spawn.Tile_ID}});
+    }
+    else {
+      throw "selected spawn tile is full somehow???";
     }
     
     this.downloadImageWithFetch(playerIcon.url, "G:/LegacyBotDiscord/Decluttered Attempt 1/tiles/players/" + playerId + ".png");
-    console.log("[INFO] registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + spawn +  " for spawn");
+    console.log("[INFO] registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + JSON.stringify(spawn) +  " for spawn");
     return;
 },
 
@@ -1181,15 +1192,7 @@ async  getOldestGamestateGameId(playerDiscordID, gamestate) {
     console.log("[INFO][VERBOSE][getOldestGamestateGameId] Found Games by Gamestate:" + JSON.stringify(games));
   }
 
-  //set oldestGameId to the numeric value of the newest games Id + 1
-  var oldestGameId = games[games.length - 1].Game_ID + 1;
-  for (var game in games) {
-    //if a game id is lower its older so we swap it out
-    if (games[game].Game_ID < oldestGameId) {
-      oldestGameId = games[game].Game_ID;
-    }
-  }
-  return oldestGameId;
+  return games[games.length - 1].Game_ID;
 },
 
 async ChaosEventDeathCheck(gameId, killer, victim) {
