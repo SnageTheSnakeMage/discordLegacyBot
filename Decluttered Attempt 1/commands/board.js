@@ -10,7 +10,7 @@ module.exports = {
     .setDescription('shows the grid that you are on without input, and the inputted grid if given and your an Oracle')
     .addIntegerOption(option => 
       option.setName('game')
-        .setDescription('which grid to show from which game, defaults to oldest active game')
+        .setDescription('which grid to show from which game, defaults to oldest active/registration game you are in')
         .setRequired(false))
     .addIntegerOption(option =>
       option.setName('layer')
@@ -30,8 +30,35 @@ module.exports = {
     try {
       await interaction.deferReply({ ephemeral: true });
 
-      var gameId = interaction.options.getInteger('game') ?? await utils.getOldestGameId(interaction.user.id);
+      var commandVariables = await this.validateInputsAndGetVariables(interaction);
 
+      utils.checkGameState(commandVariables.game.GAME_STATE, commandVariables.playerClass.Class_Name == "Clockwatcher", interaction);
+
+      // Generate image from database and provided inputs
+
+      if(commandVariables.body == 2){
+        commandVariables.imageBuffer = await utils.GenerateGameGridImage(commandVariables.gameId, commandVariables.layer, commandVariables.player.Player_ID);
+      }
+      else{
+        commandVariables.imageBuffer = await utils.GenerateGameGridImage(commandVariables.gameId, commandVariables.layer, commandVariables.player.Player_ID);
+      } 
+
+      // Create attachment
+      const attachment = new AttachmentBuilder(commandVariables.imageBuffer, { name: 'grid.png' });
+      
+      // Send the image
+      await interaction.editReply({ files: [attachment] ,  ephemeral: true });
+        
+    } catch (error) {
+      console.error('[ERROR][board.js][execute]:', error);
+      await interaction.editReply('[ERROR][board.js][execute]:', error);
+    }
+  },
+  async validateInputsAndGetVariables(interaction){
+    try
+    {
+      var gameId = interaction.options.getInteger('game') ?? await utils.getOldestGameId(interaction.user.id);
+      var body = interaction.options.getInteger('body') ?? 1;
       var player = await models.Players.findOne({
         where: {
           Game_ID:gameId,
@@ -72,67 +99,14 @@ module.exports = {
         }
       }
     }
-      
-      //Check Gamestate
-      utils.checkGameState(game.GAME_STATE, playerClass.Class_Name == "Clockwatcher", interaction);
+    var imageBuffer
 
-        // Generate image from database and provided inputs
-        var imageBuffer;
-        console.log("[INFO][COMMAND][board.js] layer: " + layer + "\n"
-          + "[INFO][COMMAND][board.js] gameId: " + gameId + "\n"
-          + "[INFO][COMMAND][board.js] playerId: " + player.Player_ID
-        )
-        if(interaction.options.getInteger('body') == 2){
-          imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);
-        }
-        else{
-          imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);
-        }
-
-        
-        // Create attachment
-        const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
-        
-        // Send the image
-        await interaction.editReply({ files: [attachment] ,  ephemeral: true });
-        
-    } catch (error) {
-      console.error('[ERROR][COMMAND][board.js]:', error);
-      if (interaction.replied || interaction.deferred) {
-        await interaction.editReply(`Error: ${error.message}`);
-      } else {
-        await interaction.reply({ content: `Error: ${error.message}`, ephemeral: true });
-      }
-    }
-  },
-
-
-// Function for traditional message command execution
-//   async onMessage(message, args) {
-//     try {
-//       // Send a "processing" message
-//       const processingMsg = await message.reply('generating grid image...');
-      
-      
-//       // Generate layered grid image from data
-//       if(interaction.user.roles.cache.some(role => role.name === 'Oracle') || interaction.user.roles.cache.some(role => role.name === 'Minesweeper')){ 
-//         const imageBuffer = await GenerateGameGridImagewithSight(args[0], args[1]);
-//       }
-//       else {
-//         const imageBuffer = await GenerateGameGridImagewithoutSight(args[0], args[1]);
-//       }
-      
-//       // Create attachment
-//       const attachment = new AttachmentBuilder(imageBuffer, { name: 'layered_grid.png' });
-      
-//       // Send the image and delete the processing message
-//       await interaction.user.send({ files: [attachment] });
-//       processingMsg.delete().catch(console.error);
-      
-//     } catch (error) {
-//       console.error('[ERROR][COMMAND] layered-grid.onMessage: Error generating layered grid:', error);
-//       message.reply(`Error: ${error.message}`);
-//     }
-//   }
+    return {gameId, body, player, playerTile, playerClass, game, layer, playerTile2, imageBuffer};
+  }
+  catch (error) {
+    console.error('[ERROR][board.js][validateInputsAndGetVariables]:', error);
+    await interaction.editReply('[ERROR][board.js][execute]:', error);
+  }
+ },
 
 };
