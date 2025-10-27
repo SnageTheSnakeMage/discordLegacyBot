@@ -53,6 +53,14 @@ module.exports = {
         .addIntegerOption(option =>
             option.setName('Finale Player Threshold')
             .setDescription('the minimum number of players required to start the finale, defaults to 4')
+            .setRequired(false))
+        .addIntegerOption(option =>
+            option.setName('APAmount')
+            .setDescription('how much AP is given each distribution, defaults to 2')
+            .setRequired(false))
+        .addIntegerOption(option =>
+            option.setName('immutableDoomsday')
+            .setDescription('how many AP distributions until immutables are killed, defaults to 32')
             .setRequired(false)),
     async execute(interaction) {
         if(interaction.user.id != process.env.DEV_ID) return;
@@ -61,17 +69,18 @@ module.exports = {
         //Variables
         var AP_Distribution_Interval = interaction.options.getInteger('AP Distribution Interval') ?? 720;
         var Chest_Amount = interaction.options.getInteger('Chest Amount') ?? 0;
-        var Current_Chaos_Council_Event = interaction.options.getString('Current Chaos Council Event');
+        var Current_Chaos_Council_Event = interaction.options.getString('Current Chaos Council Event') ?? "BOOOORRRINNNG";
         var Movement_Cost = interaction.options.getInteger('Movement Cost') ?? 1;
         var Shoot_Cost = interaction.options.getInteger('Shoot Cost') ?? 2;
         var Fire_Damage = interaction.options.getInteger('Fire Damage') ?? 1;
         var Mine_Damage = interaction.options.getInteger('Mine Damage') ?? 1;
-        var Class_Blacklist = interaction.options.getString('Class Blacklist');
+        var Class_Blacklist = interaction.options.getString('Class Blacklist') ?? "";
         var Chaos_Council_Boolean = interaction.options.getInteger('Chaos Council Boolean') ?? true;
         var Class_Dupe_Limit = interaction.options.getInteger('Class Dupe Limit') ?? 2;
         var Finale_Player_Threshold = interaction.options.getInteger('Finale Player Threshold') ?? 4;
         var Max_Stat_Increase = interaction.options.getInteger('Max Stat Increase') ?? 1;
-
+        var APAmount = interaction.options.getInteger('APAmount') ?? 2;
+        var immutableDoomsday = interaction.options.getInteger('immutableDoomsday') ?? 32;
         //Create Game in Database
         await models.Game.create({ 
             GAME_STATE: GAMESTATES.REGISTRATION,
@@ -89,9 +98,11 @@ module.exports = {
             chaosCouncilBool: Chaos_Council_Boolean, 
             winner: null,
             finaleThreshold: Finale_Player_Threshold, 
+            APAmount: APAmount,
+            immutableDoomsday: immutableDoomsday
         });
 
-        await interaction.editReply({ content: "Game created!" });
+        await interaction.editReply({ content: "Game "+ await models.Games.count() + " created!" });
     }
 
 

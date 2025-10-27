@@ -29,12 +29,13 @@ module.exports = {
         var x = interaction.options.getInteger('x');
         var y = interaction.options.getInteger('y');
         var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
-        var player = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.user.id}});
+        var player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
+        var playerClass = await models.Classes.findByPk(player.Class_ID) 
         var victim = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.options.getUser('victim').id}});
         var victimTile = await models.Tiles.findOne({where: {Game_ID: gameId, X_Position: x, Y_Position: y}});
 
         if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+        await interaction.editReply({ content: "Dead players can't use this command."});
         return
         }
       //Check Gamestate
@@ -43,7 +44,7 @@ module.exports = {
         }
 
         //Check the player is a hot potato
-        if (player.Class != "Hot Potato") {
+        if (playerClass != "Hot Potato") {
             return interaction.editReply({ content: "You are not a Hot Potato!" });
         }
 

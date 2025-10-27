@@ -29,10 +29,10 @@ module.exports = {
             
                 //Get Game and Player
                 var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
-                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Player_ID: playerDiscordID}});
+                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
 
                 if(player.Dead){
-                    await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+                    await interaction.editReply({ content: "Dead players can't use this command."});
                     return
                 }
                 //Check Gamestate

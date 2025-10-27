@@ -38,7 +38,7 @@ module.exports = {
         try {
         const x = interaction.options.getInteger('x');
         const y = interaction.options.getInteger('y');
-        const targetsDiscordID = interaction.options.getUser('target').id ?? null;
+        const targetDiscord = interaction.options.getUser('target') ;
         var amount = interaction.options.getInteger('amount') ?? 1;
         const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
         const game = await models.Games.findByPk(gameId);
@@ -51,17 +51,17 @@ module.exports = {
             shootersTile = await models.Tiles.findByPk(player.Tile_ID);
         }
         const requiredAP = game.shootCost * amount;
-        const targetPlayer = await models.Players.findOne({where: {Discord_ID: targetsDiscordID}});
+        const targetPlayer = await models.Players.findOne({where: {Discord_ID: targetDiscord.id, Game_ID: gameId}});
         var response = "";
         const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: x, Y_Position: y}});
 
-        //TODO: handle shootersTile = targetTile edge case
         //get all tiles between player and target
         const attackPath = utils.getTileCordinatesOfLine([shootersTile.X_Position, shootersTile.Y_Position], [targetTile.X_Position, targetTile.Y_Position]);
 
+        
 
         if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+        await interaction.editReply({ content: "Dead players can't use this command."});
         return
         }
       //Check Gamestate

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils');
+const utils = require('../utils.js');
 var models = require("../utils.js").models;
 
 module.exports = {
@@ -20,7 +20,7 @@ module.exports = {
                 .setRequired(false))
         .addUserOption(option =>
             option.setName('player')
-                .setDescription('which player to remove a class from, required if you wish to remove a class')
+                .setDescription('which player to remove a class from, required if you are exorcising a player')
                 .setRequired(false)),
     async execute(interaction) {
         await interaction.deferReply();
@@ -28,14 +28,14 @@ module.exports = {
         //Variables
         var x = interaction.options.getInteger('x');
         var y = interaction.options.getInteger('y');
-        var gameId = interaction.options.getInteger('game');
+        var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
         var targetDiscordID = interaction.options.getUser('player').id ?? null;
         var playerDiscordID = interaction.user.id;
 
         //Get Game and Player
-        var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
-        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Player_ID: playerDiscordID}});
-        const targetPlayer = await models.Players.findOne({where: {Game_ID: game.Game_ID, Player_ID: targetDiscordID}});
+        var game = await models.Games.findByPk(gameId);
+        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
+        const targetPlayer = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: targetDiscordID}});
 
         const playerClass = await models.Classes.findByPk(player.Class_ID);
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
@@ -43,7 +43,7 @@ module.exports = {
         const tileToChange = await models.Tiles.findOne({where: {X_Position: x, Y_Position: y, Layer_ID: playerTile.Layer_ID}});
         
          if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+        await interaction.editReply({ content: "Dead players can't use this command."});
         return
         }
       //Check Gamestate
@@ -90,12 +90,12 @@ module.exports = {
         if (targetPlayer) {
             await models.Players.update({Class_Name: "Average"}, {where: {Player_ID: targetPlayer.Player_ID}}); 
             await models.Players.update({Action_Points: targetPlayer.Action_Points - 16}, {where: {Player_ID: targetPlayer.Player_ID}}); 
-            await utils.classRemoval(targetPlayer);
-            return interaction.editReply({ content: "You have exorcised " + interaction.options.getUser('player').username + " and removed their class!" });
+            await utils.classRemoval(targetPlayer, player);
+            return interaction.editReply({ content: interaction.user.username + " exorcised " + interaction.options.getUser('player').username + " and removed their class!" });
         }
         
 
-        return interaction.editReply({ content: "You have made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
+        return interaction.editReply({ content: interaction.user.username + " made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
     }
     catch (error) {
      return interaction.editReply({ content: "An error occurred: " + error.message || "Unknown error", ephemeral: true });

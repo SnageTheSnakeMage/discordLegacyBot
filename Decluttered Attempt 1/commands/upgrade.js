@@ -34,7 +34,9 @@ module.exports = {
         try {
 
         //Variables
-        const gameId = await models.Games.findByPk(interaction.options.getInteger('game'));
+        const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
+        const game = await models.Games.findByPk(gameId);
+        console.log("[INFO][VERBOSE][upgrade.js][execute] Game ID: " + gameId);
         const player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}}); 
         const stat = interaction.options.getString('stat');
         const amount = interaction.options.getInteger('amount') ?? 1;
@@ -46,15 +48,17 @@ module.exports = {
         var hpBuyIndex
         var rangeBuyIndex
         var damageBuyIndex
-        var playerClass = await models.Classes.findByPk(player.Class_ID);
+        //var playerClass = await models.Classes.findByPk(player.Class_ID);
         //Get Price
+        console.log("[INFO][VERBOSE][upgrade.js][execute] player object: " + JSON.stringify(player));
+
         const price = await utils.getUpgradePrice(stat, player.Player_ID, amount);
         
- if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
-        return
+        if(player.Dead){
+            await interaction.editReply({ content: "Dead players can't use this command."});
+            return
         }
-      //Check Gamestate
+        //Check Gamestate
         if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
           return
         }
@@ -141,7 +145,7 @@ module.exports = {
         //Make Confirmation Buttons
         const confirm = new ButtonBuilder()
 			.setCustomId('confirm')
-			.setLabel(`Buy ${amount} ${stat} for ${price}.`)
+			.setLabel(`Buy ${amount} ${stat} for ${price} AP.`)
 			.setStyle(ButtonStyle.Danger);
 
 		const cancel = new ButtonBuilder()

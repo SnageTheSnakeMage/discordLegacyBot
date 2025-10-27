@@ -1,11 +1,11 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils');
+const utils = require('../utils.js');
 var models = require("../utils.js").models;
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('build')
-        .setDescription('command for Cons. Workers, turn a empty non-gateway tile in range into a wall/chest tile for 3AP')
+        .setDescription('command for Constr. Workers, turn a empty non-gateway tile in range into a wall/chest tile for 3AP')
         .addBooleanOption(option =>
             option.setName('wall')
                 .setDescription('build a wall or a chest, true = wall, false = chest')
@@ -26,21 +26,21 @@ module.exports = {
         await interaction.deferReply();
         try {
         //Variables
-        var wall = interaction.options.getBoolean('wall?');
+        var wall = interaction.options.getBoolean('wall');
         var x = interaction.options.getInteger('x');
         var y = interaction.options.getInteger('y');
-        var gameId = interaction.options.getInteger('game');
+        var gameId = interaction.options.getInteger('game') ?? await utils.getOldestGameId(interaction.user.id);
         var playerDiscordID = interaction.user.id;
         
         if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
-        return
+            await interaction.editReply({ content: "Dead players can't use this command."});
+            return
         }
 
 
         //Get Game and Player
-        var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
-        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Player_ID: playerDiscordID}});
+        var game = await models.Games.findByPk(gameId);
+        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
 
         const playerClass = await models.Classes.findByPk(player.Class_ID);
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
@@ -73,7 +73,7 @@ module.exports = {
 
         //Check if player is in range of the tile they want to build on
         if (!tileInRange) {
-            return interaction.editReply({ content: "You are not in range of the tile you want to build!" });
+            return interaction.editReply({ content: "You are not in range of the tile you want to build on!" });
         }
 
         //Check if player has enough AP to build a wall or chest
@@ -91,12 +91,12 @@ module.exports = {
             await models.Tiles.update({Tile_Type: "Chest"}, {where: {Tile_ID: tileToChange.Tile_ID}}); 
         }
 
-        return interaction.editReply({ content:  "You have made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
+        return interaction.editReply({ content: interaction.user.username + " made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
 
         
     }
     catch (error) {
-     return interaction.editReply({ content: "An error occurred: " + error.message || "Unknown error", ephemeral: true });
+     return interaction.editReply({ content: "An error occurred: " + error.message });
     }
     }
 };

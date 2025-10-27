@@ -29,23 +29,22 @@ module.exports = {
 
         //Variables
         var amount = interaction.options.getInteger('amount');
-        var gameId = interaction.options.getInteger('game');
+        var gameId = interaction.options.getInteger('game')  ?? await utils.getOldestActiveGameId(interaction.user.id);
         var recievingPlayerDiscordId = interaction.options.getUser('player').id;
         var remainder = 0;
         var playerDiscordID = interaction.user.id;
 
         //Get Game and Player
-        var gameId = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
-        var recievingPlayer = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, Player_ID: recievingPlayerDiscordId}});
-        var player = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, Player_ID: playerDiscordID}});
-        var playerClass = await models.Classes.findByPk(player.Class_ID);
+        var game = await models.Games.findByPk(gameId);
+        var recievingPlayer = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: recievingPlayerDiscordId}});
+        var player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: playerDiscordID}});
 
         if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
-        return
+            await interaction.editReply({ content: "Dead players can't use this command."});
+            return
         }
-      //Check Gamestate
-      if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+        //Check Gamestate
+        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
             return
         }
 
@@ -61,11 +60,11 @@ module.exports = {
         }
 
         //Give AP
-        await models.Players.update({Action_Points: recievingPlayer.Action_Points + amount}, {where: {Game_ID: gameId.Game_ID, Player_ID: recievingPlayerDiscordId}});
-        await models.Players.update({Action_Points: player.Action_Points - amount}, {where: {Game_ID: gameId.Game_ID, Player_ID: playerDiscordID}});
-        if(remainder > 0) await models.Players.update({Action_Points: player.Missed_AP + remainder}, {where: {Game_ID: gameId.Game_ID, Player_ID: recievingPlayerDiscord}});
-
-        return interaction.editReply({ content: "You have given " + amount + " AP to " + recievingPlayer.Discord_ID });
+        await models.Players.update({Action_Points: recievingPlayer.Action_Points + amount}, {where: {Game_ID: gameId, Discord_ID: recievingPlayerDiscordId}});
+        //Take AP
+        await models.Players.update({Action_Points: player.Action_Points - amount}, {where: {Game_ID: gameId, Discord_ID: playerDiscordID}});
+        if(remainder > 0) await models.Players.update({Action_Points: player.Missed_AP + remainder}, {where: {Game_ID: gameId, Discord_ID: recievingPlayerDiscord}});
+            return interaction.editReply({ content: interaction.user.username + " gave " + amount + " AP to " + recievingPlayer.Discord_ID });
         }
         catch (error) {
             console.log(error);

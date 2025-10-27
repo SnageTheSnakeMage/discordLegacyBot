@@ -32,14 +32,15 @@ module.exports = {
         //Variables
  
         const game = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
-        const player = await models.Players.findOne({where: {Game_ID: game, Player_ID: interaction.user.id}});
+        const player = await models.Players.findOne({where: {Game_ID: game, Discord_ID: interaction.user.id}});
+        const playerClass = await models.Classes.findByPk(player.Class_ID)
         const playersTile = await models.Tiles.findOne({where: {Tile_ID: player.Tile_ID}});
         const layer = await utils.commonLayerIDtoDbLayerID(game,interaction.options.getInteger('layer')) ?? playersTile.Layer_ID;
         const inputtedTile = await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: interaction.options.getInteger('x'), Y_Position: interaction.options.getInteger('y')}});
         const resurectee = await models.Players.findOne({where: {Game_ID: game, Player_ID: interaction.options.getUser('player').id}});
 
          if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+        await interaction.editReply({ content: "Dead players can't use this command."});
         return
         }
       //Check Gamestate
@@ -47,7 +48,7 @@ module.exports = {
             return
         }
         //Check if player is a Necromancer
-        if (player.Class != "Necromancer") {
+        if (playerClass != "Necromancer") {
             return interaction.editReply({ content: "You are not a Necromancer!" });
         }
 

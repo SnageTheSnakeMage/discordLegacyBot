@@ -38,6 +38,7 @@ module.exports = {
         const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
         const game = await models.Games.findByPk(gameId);
         const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id, Game_ID: gameId}});
+        const playerClass = await models.Classes.findByPk(player.Class_ID)
         const shootersTile = await models.Tiles.findByPk(player.Tile_ID);
         const targetPlayer = await models.Players.findOne({where: {Discord_ID: targetsDiscordID, Game_ID: gameId}});
         const attackPath = utils.getTileCordinatesOfLine([shootersTile.X_Position, shootersTile.Y_Position], [targetTile.X_Position, targetTile.Y_Position]);
@@ -46,7 +47,7 @@ module.exports = {
         const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: inputX, Y_Position: inputY}});
 
         if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+        await interaction.editReply({ content: "Dead players can't use this command."});
         return
         }
       //Check Gamestate
@@ -74,7 +75,7 @@ module.exports = {
         }
         
         //Check if player is a Sniper
-        if (player.Class != "Sniper") {
+        if (playerClass != "Sniper") {
             return interaction.editReply({ content: "You are not a Sniper!" });
         }
 

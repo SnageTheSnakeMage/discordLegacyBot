@@ -28,7 +28,8 @@ module.exports = {
         //Variables
         var targetId = interaction.options.getUser('player').id ?? interaction.user.id;
         var gameId = interaction.options.getInteger('game');
-        var player = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.user.id}});
+        var player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
+        var playerClass = await models.Classes.findByPk(player.Class_ID)
         var playersTile = await models.Tiles.findOne({where: {Tile_ID: player.Tile_ID}});
         var x = interaction.options.getInteger('x') ?? playersTile.X_Position;
         var y = interaction.options.getInteger('y') ?? playersTile.Y_Position;
@@ -36,7 +37,7 @@ module.exports = {
         var targetPlayer = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: targetId}});
 
         if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+        await interaction.editReply({ content: "Dead players can't use this command."});
         return
         }
       //Check Gamestate
@@ -61,7 +62,7 @@ module.exports = {
         }
 
         //Check the player is a Blacksmith
-        if (player.Class != "Blacksmith") {
+        if (playerClass != "Blacksmith") {
             return interaction.editReply({ content: "You are not a Blacksmith!" });
         }
 
@@ -79,7 +80,7 @@ module.exports = {
         await models.Players.update({DMG_BUFF: targetPlayer.DMG_BUFF + 1}, {where: {Game_ID: gameId, Player_ID: targetId}});
 
         //Take the AP
-        await models.Players.update({Action_Points: player.Action_Points - 6}, {where: {Game_ID: gameId, Player_ID: interaction.user.id}});
+        await models.Players.update({Action_Points: player.Action_Points - 6}, {where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
 
         //Send message
         return interaction.editReply({ content: "You have given " + interaction.options.getUser('player').username + " a double damage buff! it will expire after their next attack." });

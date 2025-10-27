@@ -30,22 +30,16 @@ timeCheck(client){
   })
 },
 
+getRandomItemInCollection(collection) {
+  return collection[this.getRandomInt(collection.length)];
+},
+
 buildChaosCouncilPoll(lastEventKey, game){
-  var randomEvent1 = Object.keys(ChaosEvents)[this.getRandomInt(Object.keys(ChaosEvents).length)];
-  var randomEvent2 = Object.keys(ChaosEvents)[this.getRandomInt(Object.keys(ChaosEvents).length)];
+  var chaosEventNames = Object.keys(ChaosEvents);
+  var randomEvent1 = getRandomItemInCollection(chaosEventNames);
+  var randomEvent2 = getRandomItemInCollection(chaosEventNames);
   while(randomEvent1 == randomEvent2){
-    randomEvent2 = Object.keys(ChaosEvents)[this.getRandomInt(Object.keys(ChaosEvents).length)];
-  }
-  if(Math.round(game.AP_INTERVAL_MIN / 60) == 0){
-    return {
-      question: {text: "Chaos Council Poll, Choose A Chaos Event"},
-      answers: [
-        {text: "previous event: "+ lastEventKey},
-        {text: randomEvent1},
-        {text: randomEvent2}
-      ],
-      duration: 1
-    }
+    randomEvent2 = getRandomItemInCollection(chaosEventNames);
   }
   return {
     question: {text: "Chaos Council Poll, Choose A Chaos Event"},
@@ -58,7 +52,7 @@ buildChaosCouncilPoll(lastEventKey, game){
   }
 },
 
-   startAPCheckInterval(game, client){
+startAPCheckInterval(game, client){
   //every 30 seconds check if AP needs to be distributed if your behind distribute it multiple times for each interval you are behind on
   setInterval( async() => {
     //how often AP is distributed for the game in milliseconds
@@ -276,7 +270,7 @@ async loadTileTexture(layer, textureName) {
   return inputPath.split(';').map(row => row.split(','));
 },
 
-async  verifyinputPath(inputPath, layer, startingTileX, startingTileY){
+async verifyinputPath(inputPath, layer, startingTileX, startingTileY){
   regex =  /^((?:left|right|up|down|ne|nw|se|sw),\d+;)+$/;
   result = regex.test(inputPath);
 
@@ -399,6 +393,9 @@ async classRemoval(player, excorist){
       break;
     case "Pharaoh":
       await models.Players.update({Class_ID: avgClass.Class_ID, PharaohHP: 0}, {where: {Player_ID: player.Player_ID}});
+      if(player.PharaohHP > 0){
+        await models.Players.update({Kills: excorist.Kills + 1}, {where: {Player_ID: excorist.Player_ID}});
+      }
       break;
     case "Robot":
       await models.Players.update({Class_ID: avgClass.Class_ID, MAX_HP: player.MAX_HP - 2}, {where: {Player_ID: player.Player_ID}});
@@ -677,19 +674,25 @@ async downloadImageWithFetch(url, filepath) {
     fs.writeFileSync(filepath, Buffer.from(buffer));
 },
 
-async  getUpgradePrice(stat, playerId, amount) {
+async getUpgradePrice(stat, playerId, amount) {
+  console.log("[INFO][VERBOSE][utils.js][getUpgradePrice] running getUpgradePrice with \n stat: " + stat + " playerId: " + playerId + " amount: " + amount);
   const player = await models.Players.findByPk(playerId);
   var initalCost = 0;
   var returnedCost = 0;
   switch(stat) {
     case "Health_Points":
       initalCost = player.HP_COST;
+      break;
     case "Range_":
       initalCost = player.RANGE_COST;
+      break;
     case "Damage":
       initalCost = player.DAMAGE_COST;
+      break;
   }
-
+  console.log("[INFO][VERBOSE][utils.js][getUpgradePrice] initalCost: " + initalCost);
+  console.log("[INFO][VERBOSE][utils.js][getUpgradePrice] stat: " + stat);
+  console.log("[INFO][VERBOSE][utils.js][getUpgradePrice] costs: " + player.RANGE_COST + "\n" + player.HP_COST + "\n" + player.DAMAGE_COST);
   // +1 Range (4 -> 5 -> 7 -> 10 AP)
 // +1 HP (4 -> 5 -> 7 -> 10 AP)
 // +1 Damage (12 -> 14 -> 16 AP)
@@ -697,15 +700,19 @@ async  getUpgradePrice(stat, playerId, amount) {
     if(stat == "Range_" || stat == "Health_Points") {
       switch(initalCost) {
         case 4:
-          returnedCost = getHPAndRangePriceScaled(amount);
+          returnedCost = this.getHPAndRangePriceScaled(amount);
+          break;
         case 5:
-          returnedCost = getHPAndRangePriceScaled(amount + 1) - 4;
+          returnedCost = this.getHPAndRangePriceScaled(amount + 1) - 4;
+          break;
         case 7:
-          returnedCost = getHPAndRangePriceScaled(amount + 2) - (4 + 5);
+          returnedCost = this.getHPAndRangePriceScaled(amount + 2) - (4 + 5);
+          break;
         case 10:
-          returnedCost = getHPAndRangePriceScaled(amount + 3) - (4 + 5 + 7);
+          returnedCost = this.getHPAndRangePriceScaled(amount + 3) - (4 + 5 + 7);
+          break;
         default:
-          throw new Error("Incorrect initial range and/or health cost for player");
+          throw new Error("Incorrect initial range and/or health cost for player.\n Expected: 4, 5, 7, or 10\n Received: " + initalCost);
       }
     }
 
@@ -713,10 +720,13 @@ async  getUpgradePrice(stat, playerId, amount) {
       switch(initalCost){
         case 12:
           returnedCost = getDamagePriceScaled(amount);
+          break;
         case 14:
           returnedCost = getDamagePriceScaled(amount + 1) - 12;
+          break;
         case 16:
           returnedCost = getDamagePriceScaled(amount + 2) - (12 + 14);
+          break;
         default:
           throw new Error("Incorrect initial damage cost for player");
       }
@@ -1055,7 +1065,7 @@ async setPlayerToTile(playerId, layer, x, y) {
 //includes tileCord1 and tileCord2 in the returned array of tiles on the line
  getTileCordinatesOfLine(tileCord1, tileCord2) {
   var returnedTiles = [tileCord1];
-  const slope = ((tileCord1[1] - tileCord2[1]) / (tileCord1[0] - tileCord2[0]));
+  // const slope = ((tileCord1[1] - tileCord2[1]) / (tileCord1[0] - tileCord2[0]));
   const deltaX = tileCord2[0] - tileCord1[0];
   const deltaY = tileCord2[1] - tileCord1[1];
   var iteratorX = tileCord1[0];
@@ -1085,7 +1095,10 @@ async setPlayerToTile(playerId, layer, x, y) {
         iteratorX--;
         iteratorY = tileCord1[1]
         break;
-      case"northwest": case "southwest": case "southeast": case "northeast":  
+      case"northwest": 
+      case "southwest": 
+      case "southeast": 
+      case "northeast":  
         if(Math.abs(deltaY) < Math.abs(deltaX)) {
           incrementX = Math.round(deltaX / Math.abs(deltaX));
           incrementY = Math.round(deltaY / Math.abs(deltaX));
@@ -1099,6 +1112,9 @@ async setPlayerToTile(playerId, layer, x, y) {
           iteratorY += incrementY;
         }
         break;
+      default:
+        console.log("[ERROR][utils.js][getTileCordinatesOfLine] Direction not found given direction: "+ direction + ". Assuming direction is null due to tiles bieng the same.");
+        return returnedTiles
     }
     returnedTiles.push([iteratorX, iteratorY]);
   }
@@ -1106,9 +1122,9 @@ async setPlayerToTile(playerId, layer, x, y) {
 },
 
 
-async  getOldestActiveGameId(playerID) {
-  if (playerID) {
-    var players = await models.Players.findAll({where: {Discord_ID: playerID}, attributes: ["Game_ID"]});
+async  getOldestActiveGameId(playerDiscordID) {
+  if (playerDiscordID) {
+    var players = await models.Players.findAll({where: {Discord_ID: playerDiscordID}, attributes: ["Game_ID"]});
   var games = await models.Games.findAll({where: {
     GAME_STATE: {
       [Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE]

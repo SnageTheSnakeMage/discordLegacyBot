@@ -15,7 +15,7 @@ module.exports = {
 
         //Variables
         var game = await utils.getGame(interaction.options.getInteger('game')) ?? await utils.getOldestActiveGame(interaction.user.id);
-        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Player_ID: interaction.user.id}});
+        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: interaction.user.id}});
         const playerClass = await models.Classes.findByPk(player.Class_ID);
 
         //Check if the player is a Clockwatcher

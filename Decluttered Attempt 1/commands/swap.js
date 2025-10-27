@@ -19,11 +19,11 @@ module.exports = {
 
         //Variables
         var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
-        var player = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.user.id}});
+        var player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
         var victim = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.options.getUser('victim').id}});
 
          if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
+        await interaction.editReply({ content: "Dead players can't use this command."});
         return
         }
       //Check Gamestate

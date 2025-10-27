@@ -1,10 +1,10 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils');
+const utils = require('../utils.js');
 var models = require("../utils.js").models;
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('checktarget')
+        .setName('checkTarget')
         .setDescription('class command for Hitmen, Get the location, name, and class of your target')
         .addIntegerOption(option =>
             option.setName('game')
@@ -13,29 +13,30 @@ module.exports = {
     async execute(interaction) {
         await deferReply(interaction);
         try{
-        //Variables
-        const game = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
-        const player = await models.Players.findOne({where: {Game_ID: game, Player_ID: interaction.user.id}});
+            //Variables
+            const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
+            const player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
+            const playerClass = await models.Classes.findByPK(player.Class_ID)
+            if(player.Dead){
+                await interaction.editReply({ content: "Dead players can't use this command."});
+                return
+            }
+            
+            //Check Gamestate
+            if(await utils.checkGameState(gameId.GAMESTATES, false, interaction)){
+                return
+            }
 
-         if(player.Dead){
-        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
-        return
-        }
-        //Check Gamestate
-        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
-            return
-        }
+            //Check if player is a hitman
+            if (playerClass != "Hitman") {
+                return interaction.editReply({ content: "You are not a hitman!" });
+            }
+            
+            const target = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: player.Hitman_Target}});
 
-        //Check if player is a hitman
-        if (player.Class != "Hitman") {
-            return interaction.editReply({ content: "You are not a hitman!" });
-        }
-        
-        const target = await models.Players.findOne({where: {Game_ID: game, Player_ID: player.Hitman_Target}});
-
-        return interaction.editReply({ content: "Target: <@" + target.Discord_ID + "> " + ", Location: (" + target.X_Position + ", " + target.Y_Position + ") layer: " + target.Layer_ID + ", Class: " + target.Class });
+            return interaction.editReply({ content: "Target: <@" + target.Discord_ID + "> " + ", Location: (" + target.X_Position + ", " + target.Y_Position + ") layer: " + target.Layer_ID + ", Class: " + target.Class });
         }catch(error){
-            return interaction.editReply({ content: "Error: " + error.message , ephemeral: true });
+            return interaction.editReply({ content: "Error: " + error.message });
         }
 
     }

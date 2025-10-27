@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils');
+const utils = require('../utils.js');
 var models = require("../utils.js").models;
 
 module.exports = {
@@ -24,12 +24,12 @@ module.exports = {
                 //Variables
                 var x = interaction.options.getInteger('x');
                 var y = interaction.options.getInteger('y');
-                var gameId = interaction.options.getInteger('game');
+                var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
                 var playerDiscordID = interaction.user.id;
        
                 //Get Game and Player
-                var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
-                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Player_ID: playerDiscordID}});
+                var game = await models.Games.findByPk(gameId);
+                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
 
                 const playerClass = await models.Classes.findByPk(player.Class_ID);
                 const playerTile = await models.Tiles.findByPk(player.Tile_ID);
@@ -37,24 +37,14 @@ module.exports = {
                 const tileToChange = await models.Tiles.findOne({where: {X_Position: x, Y_Position: y, Layer_ID: playerTile.Layer_ID}});
 
                 if(player.Dead){
-                        await interaction.reply({ content: "Dead players can't use this command.", ephemeral: true });
-                        return
-                        }
-                    //Check Gamestate
-                    switch(game.GAMESTATES){
-                        case GAMESTATES.TIMESTOPPED:
-                        await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-                        return
-                        case GAMESTATES.DEV_PAUSED:
-                        await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-                        return
-                        case GAMESTATES.FINISHED:
-                        await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-                        return
-                        case GAMESTATES.REGISTRATION:
-                        await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-                        return
-                    }
+                    await interaction.editReply({ content: "Dead players can't use this command."});
+                    return
+                }
+
+                //Check Gamestate
+                if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+                    return
+                }
 
                 //Verification of Variables
                 if (!tileToChange) {
@@ -84,10 +74,10 @@ module.exports = {
                 await models.Players.update({Action_Points: player.Action_Points - 4}, {where: {Player_ID: player.Player_ID}});
                 await models.Tiles.update({Tile_Type: "Storm"}, {where: {Tile_ID: tileToChange.Tile_ID}});
 
-                return interaction.editReply({ content: "You have made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
+                return interaction.editReply({ content: interaction.user.username + " made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
         }
         catch (error) {
-        return interaction.editReply({ content: "An error occurred: " + error.message || "Unknown error", ephemeral: true });
+            return interaction.editReply({ content: "An error occurred: " + error.message || "Unknown error", ephemeral: true });
         }
     }
 };
