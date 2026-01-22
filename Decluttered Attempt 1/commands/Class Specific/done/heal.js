@@ -28,32 +28,24 @@ module.exports = {
                 var playerDiscordID = interaction.user.id;
         
                 //Get Game and Player
-                var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
-                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
+                var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
+                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: playerDiscordID}});
 
                 const playerClass = await models.Classes.findByPk(player.Class_ID);
                 const playerTile = await models.Tiles.findByPk(player.Tile_ID);
                 const tileInRange = utils.getTileCordinatesOfLine([playerTile.X_Position, playerTile.Y_Position], [x, y]).length <= player.Range_;
                 const tileToChange = await models.Tiles.findOne({where: {X_Position: x, Y_Position: y, Layer_ID: playerTile.Layer_ID}});
 
-                if(player.Dead){
-                    await interaction.editReply({ content: "Dead players can't use this command."});
-                    return
+                if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+                {
+                await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+                return
                 }
-                //Check Gamestate
-                switch(game.GAMESTATES){
-                    case GAMESTATES.TIMESTOPPED:
-                    await interaction.reply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-                    return
-                    case GAMESTATES.DEV_PAUSED:
-                    await interaction.reply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-                    return
-                    case GAMESTATES.FINISHED:
-                    await interaction.reply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-                    return
-                    case GAMESTATES.REGISTRATION:
-                    await interaction.reply({ content: "Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.", ephemeral: true });
-                    return
+                //Check if the game is paused
+                if(game.GAME_STATE == GAMESTATES.PAUSED)
+                {
+                await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
+                return
                 }
 
                 //Verification of Variables
@@ -81,7 +73,7 @@ module.exports = {
                 }
 
                 //Update tile to fire tile and update player AP
-                await models.Players.update({Action_Points: player.Action_Points - 5}, {where: {Player_ID: player.Player_ID}});
+                await models.Players.update({Action_Points: player.Action_Points - 5}, {where: {playerId: player.playerId}});
                 await models.Tiles.update({Tile_Type: "Heal"}, {where: {Tile_ID: tileToChange.Tile_ID}});
 
                 return interaction.editReply({ content: "You have made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });

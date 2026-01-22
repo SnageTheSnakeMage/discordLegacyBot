@@ -3,7 +3,7 @@ var models = require("../utils.js").models;
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('changeGamestate')
+        .setName('change-gamestate')
         .setDescription('starts a game, and if it doesnt find one then creates one')
         .addIntegerOption(option =>
             option.setName('game')

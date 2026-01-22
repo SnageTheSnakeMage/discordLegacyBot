@@ -4,7 +4,7 @@ var models = require("../utils.js").models;
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('timestop_dev')
+        .setName('timestop-dev')
         .setDescription('pauses the game')
         .addIntegerOption(option =>
             option.setName('game')

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils');
+const utils = require('../../utils');
 var models = utils.models;
 
 module.exports = {
@@ -23,21 +23,24 @@ module.exports = {
         var playerDiscordID = interaction.user.id;
 
         //Get Game and Player
-        var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
-        const player = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, Discord_ID: playerDiscordID}});
+        var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
+        const player = await models.Players.findOne({where: {Game_ID: gameId.Game_ID, playerId: playerDiscordID}});
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
-        var playerClass = await models.Classes.findByPk(player.Class_ID);
 
 
-        if(player.Dead){
-            await interaction.editReply({ content: "Dead players can't use this command."});
-            return
-        }
-      
-        //Check Gamestate
-        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
           return
         }
+        //Check if the game is paused
+        if(game.GAME_STATE == GAMESTATES.PAUSED)
+        {
+          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
+          return
+        }
+
         //Check if player is on a chest tile
         if(playerTile.Tile_Type != "Chest") {
             return interaction.editReply({ content: "You are not on a chest tile!" });
@@ -50,7 +53,7 @@ module.exports = {
 
         //Give the chest AP from the player
         await models.Games.update({CHEST_AMOUNT: game.CHEST_AMOUNT + amount}, {where: {Game_ID: game.Game_ID}}); 
-        await models.Players.update({Action_Points: player.Action_Points - amount}, {where: {Player_ID: player.Player_ID}});
+        await models.Players.update({Action_Points: player.Action_Points - amount}, {where: {playerId: player.playerId}});
 
         return interaction.editReply({ content: "You have stored " + amount + " AP in the chest!" });
     }

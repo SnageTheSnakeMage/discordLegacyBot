@@ -1,12 +1,12 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils');
+const utils = require('../../utils');
 var models = utils.models;
 
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('shoot')
-        .setDescription('spend AP to attack another player in range')
+        .setName('punish')
+        .setDescription('spend AP to deal (targets Missed AP+HP) damage to another player in range')
         .addIntegerOption(option =>
             option.setName('x')
             .setDescription('X coordinate of which tile to attack')
@@ -20,27 +20,16 @@ module.exports = {
                 .setDescription('who you are attacking')
                 .setRequired(true))
         .addIntegerOption(option =>
-            option.setName('amount')
-                .setDescription('# of times you wish to attack the target defaults to 1')
-                .setRequired(false))
-        .addIntegerOption(option =>
             option.setName('game')
                 .setDescription('which game, defaults to oldest active game')
-                .setRequired(false))
-        .addIntegerOption(option =>
-            option.setName('body')
-            .setDescription('(FOR TWIN CLASS) Which body you are shooting from,  defaults to 1')
-            .setMaxValue(2)
-            .setMinValue(1)
-            .setRequired(false)),
+                .setRequired(false)),
     async execute(interaction) {
         await interaction.deferReply();
         try {
         const x = interaction.options.getInteger('x');
         const y = interaction.options.getInteger('y');
-        const targetDiscord = interaction.options.getUser('target') ;
-        var amount = interaction.options.getInteger('amount') ?? 1;
-        const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
+        const targetsDiscordID = interaction.options.getUser('target').id ?? null;
+        const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
         const game = await models.Games.findByPk(gameId);
         const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id, Game_ID: gameId}});
         const playerClass = await models.Classes.findOne({where: {Class_ID: player.Class_ID}});
@@ -50,22 +39,32 @@ module.exports = {
         } else {
             shootersTile = await models.Tiles.findByPk(player.Tile_ID);
         }
-        const requiredAP = game.shootCost * amount;
-        const targetPlayer = await models.Players.findOne({where: {Discord_ID: targetDiscord.id, Game_ID: gameId}});
+        const requiredAP = 4;
+        //TODO:FINISH PUNISH CLASS IMPLEMENTATION
+        //TODO: finish punish command
+        //TODO: add punish class to DB
+        //TODO: review class code to make sure 39 classes do not break anything
+        //TODO: review punish command to ensure leftover shoot command code doesnt not cause bugs
+        //TODO: write down steps and review what it takes to make a new class
+        const targetPlayer = await models.Players.findOne({where: {Discord_ID: targetsDiscordID}});
         var response = "";
         const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: x, Y_Position: y}});
+
 
         //get all tiles between player and target
         const attackPath = utils.getTileCordinatesOfLine([shootersTile.X_Position, shootersTile.Y_Position], [targetTile.X_Position, targetTile.Y_Position]);
 
-        
 
-        if(player.Dead){
-        await interaction.editReply({ content: "Dead players can't use this command."});
-        return
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
         }
-      //Check Gamestate
-        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+        //Check if the game is paused
+        if(game.GAME_STATE == GAMESTATES.PAUSED)
+        {
+          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
           return
         }
         
@@ -106,23 +105,19 @@ module.exports = {
             const tile = await models.Tiles.findOne({where: {X_Position: attackPath[attackTile][0], Y_Position: attackPath[attackTile][1], Layer_ID: shootersTile.Layer_ID}});
             //check if the tile is a wall and if so damage it
             if (tile.Tile_Type == "Wall") {
-                if(game.CURR_CC_EVENT == "Blockade"){
-                    response += `You hit a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n! Due to the blockade the wall blocked all the shots!\n`;
-                    break;
-                }
                 //Check if they are shooting from a bush tile & arent a hunter if so 50% chance of missing
                 if(shootersTile.Tile_Type == "Bush" && utils.getRandomInt(1) == 0 && playerClass.Class_Name != "Hunter"){
                     //if the miss decrement the amount of shots
                     amount--;
                     //add the response of them missing
-                    response += `You missed a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
+                    response += `You missed a damaged wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
                     //check if there are no shots left if so exit the loop
                     if(amount == 0) {
                         break;
                     }
                 }
                 await models.Tiles.update({Tile_Type: "Wall_Damaged"}, {where: {X_Position: attackPath[attackTile][0], Y_Position: attackPath[attackTile][1], Layer_ID: shootersTile.Layer_ID}});
-                response += `You hit a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
+                response += `You hit a wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n!`;
                 //decrement amount of shots and check if there are any shots left if not exit the loop
                 amount--;
                 if (amount == 0) {
@@ -131,10 +126,6 @@ module.exports = {
             }
             //check if the tile is a damaged wall if so destroy it
             if(tile.Tile_Type == "Wall_Damaged") {
-                if(game.CURR_CC_EVENT == "Blockade"){
-                    response += `You hit a damaged wall at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}\n! Due to the blockade the wall blocked all the shots!\n`;
-                    break;
-                }
                 //Check if they are shooting from a bush tile & arent a hunter if so 50% chance of missing
                 if(shootersTile.Tile_Type == "Bush" && utils.getRandomInt(1) == 0 && playerClass.Class_Name != "Hunter"){
                     //if the miss decrement the amount of shots
@@ -164,8 +155,8 @@ module.exports = {
                     }
                 }
                 //damage the target with whatever shots are left
-                await models.Players.update({Health_Points: targetPlayer.Health_Points - Math.min(amount * player.Damage * (player.DMG_BUFF + 1), player.MAX_DAMAGE)}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: gameId}});
-                utils.playerDeathLogic(player, targetPlayer);
+                await models.Players.update({Health_Points: targetPlayer.Health_Points - (amount * player.Damage * (player.DMG_BUFF + 1))}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: gameId}});
+                await utils.playerDeathLogic(player, targetPlayer);
                 response += `You hit <@${targetPlayer.Discord_ID}> for ${amount * player.Damage * (player.DMG_BUFF + 1)}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
                 //set the amount of shots left to 0 and exit the loop
                 amount = 0;

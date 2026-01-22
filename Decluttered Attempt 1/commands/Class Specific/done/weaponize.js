@@ -28,20 +28,24 @@ module.exports = {
         //Variables
         var targetId = interaction.options.getUser('player').id ?? interaction.user.id;
         var gameId = interaction.options.getInteger('game');
-        var player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
-        var playerClass = await models.Classes.findByPk(player.Class_ID)
+        var player = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.user.id}});
         var playersTile = await models.Tiles.findOne({where: {Tile_ID: player.Tile_ID}});
         var x = interaction.options.getInteger('x') ?? playersTile.X_Position;
         var y = interaction.options.getInteger('y') ?? playersTile.Y_Position;
         var targetTile = await models.Tiles.findOne({where: {Layer_ID: playersTile.Layer_ID, X_Position: x, Y_Position: y}});
-        var targetPlayer = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: targetId}});
+        var targetPlayer = await models.Players.findOne({where: {Game_ID: gameId, playerId: targetId}});
+        var game = await models.Games.findByPk(gameId);
 
-        if(player.Dead){
-        await interaction.editReply({ content: "Dead players can't use this command."});
-        return
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
         }
-      //Check Gamestate
-        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+        //Check if the game is paused
+        if(game.GAME_STATE == GAMESTATES.PAUSED)
+        {
+          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
           return
         }
 
@@ -62,7 +66,7 @@ module.exports = {
         }
 
         //Check the player is a Blacksmith
-        if (playerClass != "Blacksmith") {
+        if (player.Class != "Blacksmith") {
             return interaction.editReply({ content: "You are not a Blacksmith!" });
         }
 
@@ -77,12 +81,13 @@ module.exports = {
         }
 
         //Give the target the buff
-        await models.Players.update({DMG_BUFF: targetPlayer.DMG_BUFF + 1}, {where: {Game_ID: gameId, Player_ID: targetId}});
+        await models.Players.update({DMG_BUFF: targetPlayer.DMG_BUFF + 1}, {where: {Game_ID: gameId, playerId: targetId}});
 
         //Take the AP
-        await models.Players.update({Action_Points: player.Action_Points - 6}, {where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
+        await models.Players.update({Action_Points: player.Action_Points - 6}, {where: {Game_ID: gameId, playerId: interaction.user.id}});
 
         //Send message
-        return interaction.editReply({ content: "You have given " + interaction.options.getUser('player').username + " a double damage buff! it will expire after their next attack." });
+        //TODO add in duration system and timestamps
+        return interaction.editReply({ content: "You have given " + interaction.options.getUser('player').username + " a double damage buff! it will expire " });
     },
 };

@@ -1,13 +1,13 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils.js');
+const utils = require('../utils');
 var models = require("../utils.js").models;
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('build')
-        .setDescription('command for Constr. Workers, turn a empty non-gateway tile in range into a wall/chest tile for 3AP')
+        .setDescription('class command for Construction Workers, turn any empty non-gateway tile in range into a wall tile or any non-gateway tile into a chest tile in range for 3AP')
         .addBooleanOption(option =>
-            option.setName('wall')
+            option.setName('wall?')
                 .setDescription('build a wall or a chest, true = wall, false = chest')
                 .setRequired(true))
         .addIntegerOption(option =>
@@ -26,21 +26,34 @@ module.exports = {
         await interaction.deferReply();
         try {
         //Variables
-        var wall = interaction.options.getBoolean('wall');
+        var wall = interaction.options.getBoolean('wall?');
         var x = interaction.options.getInteger('x');
         var y = interaction.options.getInteger('y');
-        var gameId = interaction.options.getInteger('game') ?? await utils.getOldestGameId(interaction.user.id);
+        var gameId = interaction.options.getInteger('game');
         var playerDiscordID = interaction.user.id;
         
-        if(player.Dead){
-            await interaction.editReply({ content: "Dead players can't use this command."});
-            return
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
+        }
+        //Check if the game is paused
+        if(game.GAME_STATE == GAMESTATES.PAUSED)
+        {
+          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
+          return
+        }
+        //Check if the game is over
+        if(game.GAME_STATE == GAMESTATES.OVER)
+        {
+          await interaction.editReply("Game is over! only the dev can use commands for this game at this time.");
+          return
         }
 
-
         //Get Game and Player
-        var game = await models.Games.findByPk(gameId);
-        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
+        var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
+        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: playerDiscordID}});
 
         const playerClass = await models.Classes.findByPk(player.Class_ID);
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
@@ -56,11 +69,6 @@ module.exports = {
             return interaction.editReply({ content: "You are not a Construction Worker!" });
         }
 
-        //Check Gamestate
-        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
-            return
-        }
-
         //Check if inputted tile is a gateway tile
         if(tileToChange.Tile_Type == "Gateway_Open" || tileToChange.Tile_Type == "Gateway_Locked") {
             return interaction.editReply({ content: "You cannot build on a gateway tile!" });
@@ -73,7 +81,7 @@ module.exports = {
 
         //Check if player is in range of the tile they want to build on
         if (!tileInRange) {
-            return interaction.editReply({ content: "You are not in range of the tile you want to build on!" });
+            return interaction.editReply({ content: "You are not in range of the tile you want to build!" });
         }
 
         //Check if player has enough AP to build a wall or chest
@@ -83,20 +91,20 @@ module.exports = {
 
         //Build a wall or chest
         if (wall) {
-            await models.Players.update({Action_Points: player.Action_Points - 3}, {where: {Player_ID: player.Player_ID}});
+            await models.Players.update({Action_Points: player.Action_Points - 3}, {where: {playerId: player.playerId}});
             await models.Tiles.update({Tile_Type: "Wall"}, {where: {Tile_ID: tileToChange.Tile_ID}});
         }
         else {
-            await models.Players.update({Action_Points: player.Action_Points - 3}, {where: {Player_ID: player.Player_ID}}); 
+            await models.Players.update({Action_Points: player.Action_Points - 3}, {where: {playerId: player.playerId}}); 
             await models.Tiles.update({Tile_Type: "Chest"}, {where: {Tile_ID: tileToChange.Tile_ID}}); 
         }
 
-        return interaction.editReply({ content: interaction.user.username + " made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
+        return interaction.editReply({ content:  "You have made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
 
         
     }
     catch (error) {
-     return interaction.editReply({ content: "An error occurred: " + error.message });
+     return interaction.editReply({ content: "An error occurred: " + error.message || "Unknown error", ephemeral: true });
     }
     }
 };

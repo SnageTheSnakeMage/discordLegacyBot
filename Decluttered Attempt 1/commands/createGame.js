@@ -4,7 +4,7 @@ var GAMESTATES = require('G:/LegacyBotDiscord/Decluttered Attempt 1/enums.js').G
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('createGame')
+        .setName('create-game')
         .setDescription('creates a new game')
         .addIntegerOption(option =>
             option.setName('AP Distribution Interval')

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils.js');
+const utils = require('../utils');
 var models = require("../utils.js").models;
 
 module.exports = {
@@ -28,21 +28,24 @@ module.exports = {
                 var playerDiscordID = interaction.user.id;
         
                 //Get Game and Player
-                var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
-                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
+                var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
+                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: playerDiscordID}});
 
                 const playerClass = await models.Classes.findByPk(player.Class_ID);
                 const playerTile = await models.Tiles.findByPk(player.Tile_ID);
                 const tileInRange = utils.getTileCordinatesOfLine([playerTile.X_Position, playerTile.Y_Position], [x, y]).length <= player.Range_;
                 const tileToChange = await models.Tiles.findOne({where: {X_Position: x, Y_Position: y, Layer_ID: playerTile.Layer_ID}});
 
-                if(player.Dead){
-                    await interaction.editReply({ content: "Dead players can't use this command."});
-                    return
+                if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+                {
+                await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+                return
                 }
-                //Check Gamestate
-                if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
-                    return
+                //Check if the game is paused
+                if(game.GAME_STATE == GAMESTATES.PAUSED)
+                {
+                await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
+                return
                 }
 
                 //Verification of Variables
@@ -65,21 +68,21 @@ module.exports = {
                 }
 
 
-                //Check if player is in range of the tile they want to dig
+                //Check if player is in range of the tile they want to burn
                 if (!tileInRange) {
                     return interaction.editReply({ content: "You are not in range of the tile you want to dig!" });
                 }
 
-                //Check if player has enough AP to dig
+                //Check if player has enough AP to burn
                 if (player.Action_Points < 4) {
                     return interaction.editReply({ content: "You dont have enough AP to dig a tile!" });
                 }
 
-                //Update tile to void tile and update player AP
-                await models.Players.update({Action_Points: player.Action_Points - 4}, {where: {Player_ID: player.Player_ID}});
+                //Update tile to fire tile and update player AP
+                await models.Players.update({Action_Points: player.Action_Points - 4}, {where: {playerId: player.playerId}});
                 await models.Tiles.update({Tile_Type: "Void"}, {where: {Tile_ID: tileToChange.Tile_ID}});
 
-                return interaction.editReply({ content: interaction.user.username + " made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
+                return interaction.editReply({ content: "You have made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
         }
         catch (error) {
         return interaction.editReply({ content: "An error occurred: " + error.message || "Unknown error", ephemeral: true });

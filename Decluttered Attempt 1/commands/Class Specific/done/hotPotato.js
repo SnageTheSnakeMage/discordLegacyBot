@@ -28,23 +28,27 @@ module.exports = {
         //Variables
         var x = interaction.options.getInteger('x');
         var y = interaction.options.getInteger('y');
-        var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
-        var player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
-        var playerClass = await models.Classes.findByPk(player.Class_ID) 
-        var victim = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.options.getUser('victim').id}});
+        var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
+        var player = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.user.id}});
+        var victim = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.options.getUser('victim').id}});
         var victimTile = await models.Tiles.findOne({where: {Game_ID: gameId, X_Position: x, Y_Position: y}});
+        var game = await models.Games.findOne({where: {Game_ID: gameId}});
 
-        if(player.Dead){
-        await interaction.editReply({ content: "Dead players can't use this command."});
-        return
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
         }
-      //Check Gamestate
-      if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+        //Check if the game is paused
+        if(game.GAME_STATE == GAMESTATES.PAUSED)
+        {
+          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
           return
         }
 
         //Check the player is a hot potato
-        if (playerClass != "Hot Potato") {
+        if (player.Class != "Hot Potato") {
             return interaction.editReply({ content: "You are not a Hot Potato!" });
         }
 
@@ -71,8 +75,8 @@ module.exports = {
 
         //Swap classes
         var extraResponse = await utils.HotPotatoSwap(player, victim, interaction.user.username, interaction.options.getUser('victim').username);
-        await models.Players.update({Class_ID: victim.Class_ID}, {where: {Player_ID: player.Player_ID}}); 
-        await models.Players.update({Class_ID: player.Class_ID}, {where: {Player_ID: victim.Player_ID}}); 
+        await models.Players.update({Class_ID: victim.Class_ID}, {where: {playerId: player.playerId}}); 
+        await models.Players.update({Class_ID: player.Class_ID}, {where: {playerId: victim.playerId}}); 
         
 
         return interaction.editReply({ content: "You have swapped classes with " + interaction.options.getUser('victim').username + "!\n" + extraResponse });

@@ -1,6 +1,6 @@
  const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils.js');
-var models = require("../utils.js").models;
+const utils = require('../../utils.js');
+var models = require("../../utils.js").models;
 const ChaosEvents = require('G:/LegacyBotDiscord/Decluttered Attempt 1/enums.js').ChaosEvents;
 
 module.exports = {

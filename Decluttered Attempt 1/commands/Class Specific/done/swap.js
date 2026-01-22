@@ -18,16 +18,21 @@ module.exports = {
         await deferReply(interaction);
 
         //Variables
-        var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
-        var player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
-        var victim = await models.Players.findOne({where: {Game_ID: gameId, Player_ID: interaction.options.getUser('victim').id}});
+        var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId();
+        var player = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.user.id}});
+        var victim = await models.Players.findOne({where: {Game_ID: gameId, playerId: interaction.options.getUser('victim').id}});
+        var game = await models.Games.findByPk(gameId);
 
-         if(player.Dead){
-        await interaction.editReply({ content: "Dead players can't use this command."});
-        return
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
         }
-      //Check Gamestate
-        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+        //Check if the game is paused
+        if(game.GAME_STATE == GAMESTATES.PAUSED)
+        {
+          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
           return
         }
 
@@ -55,8 +60,8 @@ module.exports = {
         }
 
         //Swap their tiles
-        await models.Players.update({ Tile_ID: victimsTile.Tile_ID }, { where: { Game_ID: gameId, Player_ID: player.Player_ID } });
-        await models.Players.update({ Tile_ID: playersTIle.Tile_ID }, { where: { Game_ID: gameId, Player_ID: victim.Player_ID } });
+        await models.Players.update({ Tile_ID: victimsTile.Tile_ID }, { where: { Game_ID: gameId, playerId: player.playerId } });
+        await models.Players.update({ Tile_ID: playersTIle.Tile_ID }, { where: { Game_ID: gameId, playerId: victim.playerId } });
 
         return interaction.editReply({ content: "You have swapped places with " + interaction.options.getUser('victim').username });
 

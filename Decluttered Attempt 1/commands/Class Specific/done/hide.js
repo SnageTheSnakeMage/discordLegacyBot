@@ -28,17 +28,20 @@ module.exports = {
                 var playerDiscordID = interaction.user.id;
             
                 //Get Game and Player
-                var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
-                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
+                var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
+                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: playerDiscordID}});
 
-                if(player.Dead){
-                    await interaction.editReply({ content: "Dead players can't use this command."});
+                //Check if the game is in timestop
+                if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher"){
+                    await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
                     return
                 }
-                //Check Gamestate
-                if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+                //Check if the game is paused
+                if(game.GAME_STATE == GAMESTATES.PAUSED){
+                    await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
                     return
-                 }
+                }
+
                 //Verification of Variables
                 if (!tileToChange) {
                     return interaction.editReply({ content: "Could not find tile to hide at the given coordinates." });
@@ -64,7 +67,7 @@ module.exports = {
                 }
 
                 //Update tile to hide tile and update player AP
-                await models.Players.update({Action_Points: player.Action_Points - 5}, {where: {Player_ID: player.Player_ID}});
+                await models.Players.update({Action_Points: player.Action_Points - 5}, {where: {playerId: player.playerId}});
                 await models.Tiles.update({Tile_Type: "Bush"}, {where: {Tile_ID: tileToChange.Tile_ID}});
 
                 return interaction.editReply({ content: "You have made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });

@@ -1,11 +1,11 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils.js');
+const utils = require('../utils');
 var models = require("../utils.js").models;
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('freeze')
-        .setDescription('class command for Snowmen, turn any empty non-gateway tile in range into an ice tile for 3AP')
+        .setDescription('class command for Snowmen, turn any non-gateway tile in range into an ice tile for 3AP')
         .addIntegerOption(option =>
             option.setName('x')
                 .setDescription('X coordinate of which tile to freeze')
@@ -24,30 +24,23 @@ module.exports = {
                 //Variables
                 var x = interaction.options.getInteger('x');
                 var y = interaction.options.getInteger('y');
-                var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
+                var gameId = interaction.options.getInteger('game');
                 var playerDiscordID = interaction.user.id;
             
                 //Get Game and Player
-                var game = await models.Games.findByPk(gameId);
-                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
+                var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
+                const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: playerDiscordID}});
 
-                const playerClass = await models.Classes.findByPk(player.Class_ID);
-                const playerTile = await models.Tiles.findByPk(player.Tile_ID);
-                const tileInRange = utils.getTileCordinatesOfLine([playerTile.X_Position, playerTile.Y_Position], [x, y]).length <= player.Range_;
-                const tileToChange = await models.Tiles.findOne({where: {X_Position: x, Y_Position: y, Layer_ID: playerTile.Layer_ID}});
-
-                if(player.Dead){
-                    await interaction.editReply({ content: "Dead players can't use this command."});
-                    return
+                if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+                {
+                await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+                return
                 }
-                //Check if the tile is empty
-                if(tileToChange.Player1 != null || tileToChange.Player2 != null || tileToChange.Player3 != null || tileToChange.Player4 != null) {
-                    return interaction.editReply({ content: "There is a player on this tile!" });
-                }
-
-                //Check Gamestate
-                if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
-                    return
+                //Check if the game is paused
+                if(game.GAME_STATE == GAMESTATES.PAUSED)
+                {
+                await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
+                return
                 }
 
                 //Verification of Variables
@@ -75,10 +68,10 @@ module.exports = {
                 }
 
                 //Update tile to fire tile and update player AP
-                await models.Players.update({Action_Points: player.Action_Points - 3}, {where: {Player_ID: player.Player_ID}});
+                await models.Players.update({Action_Points: player.Action_Points - 3}, {where: {playerId: player.playerId}});
                 await models.Tiles.update({Tile_Type: "Ice"}, {where: {Tile_ID: tileToChange.Tile_ID}});
 
-                return interaction.editReply({ content: interaction.user.username + " made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
+                return interaction.editReply({ content: "You have made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
         }
         catch (error) {
         return interaction.editReply({ content: "An error occurred: " + error.message || "Unknown error", ephemeral: true });

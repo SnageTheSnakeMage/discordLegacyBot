@@ -31,24 +31,28 @@ module.exports = {
 
         //Variables
  
-        const game = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
-        const player = await models.Players.findOne({where: {Game_ID: game, Discord_ID: interaction.user.id}});
-        const playerClass = await models.Classes.findByPk(player.Class_ID)
+        const game = await models.Games.findByPk(interaction.options.getInteger('game')) ?? await utils.getOldestActiveGameId();
+        const player = await models.Players.findOne({where: {Game_ID: game, playerId: interaction.user.id}});
         const playersTile = await models.Tiles.findOne({where: {Tile_ID: player.Tile_ID}});
         const layer = await utils.commonLayerIDtoDbLayerID(game,interaction.options.getInteger('layer')) ?? playersTile.Layer_ID;
         const inputtedTile = await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: interaction.options.getInteger('x'), Y_Position: interaction.options.getInteger('y')}});
-        const resurectee = await models.Players.findOne({where: {Game_ID: game, Player_ID: interaction.options.getUser('player').id}});
+        const resurectee = await models.Players.findOne({where: {Game_ID: game, playerId: interaction.options.getUser('player').id}});
 
-         if(player.Dead){
-        await interaction.editReply({ content: "Dead players can't use this command."});
-        return
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
         }
-      //Check Gamestate
-      if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
-            return
+        //Check if the game is paused
+        if(game.GAME_STATE == GAMESTATES.PAUSED)
+        {
+          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
+          return
         }
+
         //Check if player is a Necromancer
-        if (playerClass != "Necromancer") {
+        if (player.Class != "Necromancer") {
             return interaction.editReply({ content: "You are not a Necromancer!" });
         }
 
@@ -82,9 +86,9 @@ module.exports = {
         }
 
         //Resurrect the player
-        await models.Players.update({Dead: 0}, {where: {Player_ID: resurectee.Player_ID}}); 
-        await models.Tiles.update({Player_ID: resurectee.Player_ID}, {where: {Tile_ID: resurectee.Tile_ID}}); 
-        await models.Players.update({Action_Points: player.Action_Points - 12}, {where: {Player_ID: player.Player_ID}}); 
+        await models.Players.update({Dead: 0}, {where: {playerId: resurectee.playerId}}); 
+        await models.Tiles.update({Player_ID: resurectee.playerId}, {where: {Tile_ID: resurectee.Tile_ID}}); 
+        await models.Players.update({Action_Points: player.Action_Points - 12}, {where: {playerId: player.playerId}}); 
 
         return interaction.editReply({ content: "You have resurrected " + interaction.options.getUser('player').username + " to the tile provided!" });
 

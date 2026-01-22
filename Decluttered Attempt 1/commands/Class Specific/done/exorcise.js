@@ -1,11 +1,15 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils.js');
+const utils = require('../utils');
 var models = require("../utils.js").models;
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('exorcise')
-        .setDescription('command for Exorcists, turn a non-gateway into a blank tile(3AP), or remove a players class(16AP)')
+        .setDescription('class command for Exorcists, turn any non-gateway tile in range into a blank tile for 3AP, and can remove a players class for 16 AP')
+        .addUserOption(option =>
+            option.setName('player')
+                .setDescription('which player to remove a class from, required if you wish to remove a class')
+                .setRequired(false))
         .addIntegerOption(option =>
             option.setName('x')
                 .setDescription('X coordinate of which tile to exorcise')
@@ -17,10 +21,6 @@ module.exports = {
         .addIntegerOption(option =>
             option.setName('game')
                 .setDescription('which game, defaults to oldest active game')
-                .setRequired(false))
-        .addUserOption(option =>
-            option.setName('player')
-                .setDescription('which player to remove a class from, required if you are exorcising a player')
                 .setRequired(false)),
     async execute(interaction) {
         await interaction.deferReply();
@@ -28,27 +28,31 @@ module.exports = {
         //Variables
         var x = interaction.options.getInteger('x');
         var y = interaction.options.getInteger('y');
-        var gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
+        var gameId = interaction.options.getInteger('game');
         var targetDiscordID = interaction.options.getUser('player').id ?? null;
         var playerDiscordID = interaction.user.id;
 
         //Get Game and Player
-        var game = await models.Games.findByPk(gameId);
-        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
-        const targetPlayer = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: targetDiscordID}});
+        var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
+        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: playerDiscordID}});
+        const targetPlayer = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: targetDiscordID}});
 
         const playerClass = await models.Classes.findByPk(player.Class_ID);
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
         const tileInRange = utils.getTileCordinatesOfLine([playerTile.X_Position, playerTile.Y_Position], [x, y]).length <= player.Range_;
         const tileToChange = await models.Tiles.findOne({where: {X_Position: x, Y_Position: y, Layer_ID: playerTile.Layer_ID}});
         
-         if(player.Dead){
-        await interaction.editReply({ content: "Dead players can't use this command."});
-        return
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
         }
-      //Check Gamestate
-      if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
-            return
+        //Check if the game is paused
+        if(game.GAME_STATE == GAMESTATES.PAUSED)
+        {
+          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
+          return
         }
 
         //Verification of Variables
@@ -83,19 +87,21 @@ module.exports = {
         //Update tile to fire tile and update player AP
         if(!targetPlayer)
         {
-            await models.Players.update({Action_Points: player.Action_Points - 4}, {where: {Player_ID: player.Player_ID}});
+            await models.Players.update({Action_Points: player.Action_Points - 4}, {where: {playerId: player.playerId}});
             await utils.revertTileToBlank(tileToChange);
         }
 
         if (targetPlayer) {
-            await models.Players.update({Class_Name: "Average"}, {where: {Player_ID: targetPlayer.Player_ID}}); 
-            await models.Players.update({Action_Points: targetPlayer.Action_Points - 16}, {where: {Player_ID: targetPlayer.Player_ID}}); 
-            await utils.classRemoval(targetPlayer, player);
-            return interaction.editReply({ content: interaction.user.username + " exorcised " + interaction.options.getUser('player').username + " and removed their class!" });
+            await models.Players.update({Class_Name: "Average"}, {where: {playerId: targetPlayer.playerId}}); 
+            await models.Players.update({Action_Points: targetPlayer.Action_Points - 16}, {where: {playerId: targetPlayer.playerId}}); 
+
+            //TODO add this function
+            await utils.classRemoval(targetPlayer);
+            return interaction.editReply({ content: "You have exorcised " + interaction.options.getUser('player').username + " and removed their class!" });
         }
         
 
-        return interaction.editReply({ content: interaction.user.username + " made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
+        return interaction.editReply({ content: "You have made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
     }
     catch (error) {
      return interaction.editReply({ content: "An error occurred: " + error.message || "Unknown error", ephemeral: true });

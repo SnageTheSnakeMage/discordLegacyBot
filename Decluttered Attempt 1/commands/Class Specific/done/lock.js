@@ -1,12 +1,12 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../utils');
+const utils = require('../../../utils');
 const GameStates = require('G:/LegacyBotDiscord/Decluttered Attempt 1/enums.js').GAMESTATES;
 var models = utils.models;
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('lock')
-        .setDescription('command for Guardians, lock/unlock a gateway tile(2AP), In a finale then 1 gateway  must be open')
+        .setDescription('class command for Guardians, lock or unlock a gateway tile in range for 2AP, If a game is in its finale then one Gateway on the layer must be open')
         .addIntegerOption(option =>
             option.setName('x')
                 .setDescription('X coordinate of which gateway to lock/unlock')
@@ -29,8 +29,8 @@ module.exports = {
         var playerDiscordID = interaction.user.id;
 
         //Get Game and Player
-        var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId(interaction.user.id));
-        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
+        var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
+        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: playerDiscordID}});
 
         const playerClass = await models.Classes.findByPk(player.Class_ID);
         const playerTile = await models.Tiles.findByPk(player.Tile_ID);
@@ -44,13 +44,17 @@ module.exports = {
             return interaction.editReply({ content: "Could not find a gateway to lock at the given coordinates." });
         }
 
-         if(player.Dead){
-        await interaction.editReply({ content: "Dead players can't use this command."});
-        return
+        //Check if the game is in timestop
+        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
+        {
+          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+          return
         }
-      //Check Gamestate
-      if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
-            return
+        //Check if the game is paused
+        if(game.GAME_STATE == GAMESTATES.PAUSED)
+        {
+          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
+          return
         }
 
         if(playerClass.Class_Name != "Guardian") {
@@ -84,7 +88,7 @@ module.exports = {
         else if(tileToChange.Tile_Type == "Gateway_Locked") {
             await models.Tiles.update({Tile_Type: "Gateway_Open"}, {where: {Tile_ID: tileToChange.Tile_ID}});
         }
-        await models.Players.update({Action_Points: player.Action_Points - 2 }, {where: {Player_ID: player.Player_ID}});
+        await models.Players.update({Action_Points: player.Action_Points - 2 }, {where: {playerId: player.playerId}});
 
         return interaction.editReply({ content: "You have made a " + tileToChange.Tile_Type + " tile on coordinates (" + x + ", " + y + ") on layer " + tileToChange.Layer_ID + "!" });
     }
