@@ -13,7 +13,7 @@ const ChaosEvents = Object.freeze({
   //DONE
   "Free Movement": "Give everyone one tile of free movement every AP distribution while this chaos event is in play.",
   "Scorchers Joy": "Everyone on a blank tile that isnt a lava diver or pyromainiac takes 1 Damage every AP distribution while this chaos event is in play.",
-  "Winters Hollow": "The first movement after every AP distribution while this chaos event is in play costs an additional tile of movement for everyone except for Snowmen",
+  "Winters Hollow": "The first movement after every AP distribution costs an additional tile of movement for everyone except for Snowmen while this chaos event is in play.",
   "Blockade": "Walls can not be damaged while this chaos event is in play, sniper's snipes go through walls still.",
   //TODO update gust implementation
   "Northern Gust": "move everyone two spaces up every AP distribution while this chaos event is in play(cannot move players onto ice,void, or wall tiles unless the player is a Cloudborn)",
@@ -21,7 +21,7 @@ const ChaosEvents = Object.freeze({
   "Eastern Gust": "move everyone two spaces right every AP distribution while this chaos event is in play(cannot move players onto ice,void, or wall tiles unless the player is a Cloudborn)",
   "Southern Gust": "move everyone two spaces down every AP distribution while this chaos event is in play(cannot move players onto ice,void, or wall tiles unless the player is a Cloudborn)",
   "Time Acceleration!" : "AP distribution happens three times where it should only happen once while this chaos event is in play",
-  "Medkit Airdrop":"AP distribution gives 1 HP aswell, doctors and chefs get 2 HP instead",
+  "Medkit Airdrop":"AP distribution gives 1 HP aswell, doctors and chefs get 2 HP instead while this chaos event is in play",
   "Leftovers" : "Killing someone gives you their missed AP while this chaos event is in play",
   "BOOOORRRINNNG":"No chaos",
   //TODO implement following chaos events and override command
@@ -39,6 +39,15 @@ const ChaosEvents = Object.freeze({
   // "Double Trouble: Southern Hurricane": "Move everyone two(effectively six) spaces down every AP distribution & do everything in an AP distribution thrice instead of once while this chaos event is in play (Cannot move players onto ice,void, or wall tiles unless the player is a Cloudborn)",
   // "Double Trouble: Eastern Hurricane": "Move everyone two(effectively six)  spaces right every AP distribution & do everything in an AP distribution thrice instead of once while this chaos event is in play (Cannot move players onto ice,void, or wall tiles unless the player is a Cloudborn)",
   // "Double Trouble: Western Hurricane": "Move everyone two(effectively six) spaces left every AP distribution & do everything in an AP distribution thrice instead of once while this chaos event is in play (Cannot move players onto ice,void, or wall tiles unless the player is a Cloudborn)",
+  // "Pacifists Reward": "What ever player has the least kills gets 1 extra AP every AP distribution while this chaos event is in play",
+  // "Killers Bounty": "What ever player has the most kills gets 1 extra AP every AP distribution while this chaos event is in play",
+  // "Inactives Punishment": "What ever player has the most missed AP loses 1 HP every AP distribution while this chaos event is in play",
+  // "Boogie Woogie": "Everyone's places are swapped when this chaos event enters play"
+  // "Chaotic Award: Sightseer": "What ever player has the most range gets 12 AP when this chaos event enters play",
+  // "Chaotic Award: Most Sturdy": "What ever player has the most HP gets 12 AP when this chaos event enters play",
+  // "Chaotic Award: Deadliest": "What ever player has the most damage gets 12 AP when this chaos event enters play",
+  // "Chaotic Award: Murderer": "What ever player has the most kills gets 12 AP when this chaos event enters play",
+  // "Chaotic Award: Lottery": "A random player gets 12 AP when this chaos event enters play",
 
 })
 
