@@ -1169,7 +1169,7 @@ async checkGameState(gamestate, isClockwatcher, interaction) {
             break;
           }
         default:
-          await interaction.editReply({ content: "Gamestate out of enum gamestate: " + gamestate + ".", ephemeral: true });
+          await interaction.editReply({ content: "Gamestate out of enum gamestate: " + gamestate + "."});
           throw "[ERROR][utils.js][checkGameState] Gamestate out of enum gamestate: " + gamestate + "."
       }
 },
