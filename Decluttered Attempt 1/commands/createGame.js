@@ -7,59 +7,59 @@ module.exports = {
         .setName('create-game')
         .setDescription('creates a new game')
         .addIntegerOption(option =>
-            option.setName('AP Distribution Interval')
+            option.setName('ap-distribution-interval')
                 .setDescription('how often players recieve ap in minutes, defaults to 720 (12 hours)')
                 .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('Chest Amount')
+            option.setName('chest-amount')
                 .setDescription('how many AP in the chest at the start of the game, defaults to 0')
                 .setRequired(false))
         .addStringOption(option =>
-            option.setName('Current Chaos Council Event')
+            option.setName('current-chaos-council-event')
                 .setDescription('a starting chaos council event, defaults to null')
                 .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('Movement Cost')
+            option.setName('movement-cost')
             .setDescription('how many AP it costs to move one square, defaults to 1')
             .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('Shoot Cost')
+            option.setName('shoot-cost')
             .setDescription('how many AP it costs to attack, defaults to 2')
             .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('Fire Damage')
+            option.setName('fire-damage')
             .setDescription('how much damage moving onto and off of a fire tile does, defaults to 1')
             .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('Mine Damage')
+            option.setName('mine-damage')
             .setDescription('how much damage moving onto a mine/trapped tile does, defaults to 1')
             .setRequired(false))
         .addStringOption(option =>
-            option.setName('Class Blacklist')
+            option.setName('class-blacklist')
             .setDescription('a comma separated list of classes that cannot be in this game, defaults to null')
             .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('Chaos Council Boolean')
+            option.setName('chaos-council-boolean')
             .setDescription('whether or not the game has chaos council events, defaults to true')
             .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('Class Dupe Limit')
+            option.setName('class-dupe-limit')
             .setDescription('the maximum number of players allowed of a single class in the game, defaults to 2')
             .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('Max Stat Increase')
+            option.setName('max-stat-increase')
             .setDescription('the amount the max stats increase when a player gets a kill, defaults to 1')
             .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('Finale Player Threshold')
+            option.setName('finale-player-threshold')
             .setDescription('the minimum number of players required to start the finale, defaults to 4')
             .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('APAmount')
+            option.setName('ap-amount')
             .setDescription('how much AP is given each distribution, defaults to 2')
             .setRequired(false))
         .addIntegerOption(option =>
-            option.setName('immutableDoomsday')
+            option.setName('immutable-doomsday')
             .setDescription('how many AP distributions until immutables are killed, defaults to 32')
             .setRequired(false)),
     async execute(interaction) {
@@ -67,20 +67,20 @@ module.exports = {
         await interaction.deferReply();
         //TODO update this
         //Variables
-        var AP_Distribution_Interval = interaction.options.getInteger('AP Distribution Interval') ?? 720;
-        var Chest_Amount = interaction.options.getInteger('Chest Amount') ?? 0;
-        var Current_Chaos_Council_Event = interaction.options.getString('Current Chaos Council Event') ?? "BOOOORRRINNNG";
-        var Movement_Cost = interaction.options.getInteger('Movement Cost') ?? 1;
-        var Shoot_Cost = interaction.options.getInteger('Shoot Cost') ?? 2;
-        var Fire_Damage = interaction.options.getInteger('Fire Damage') ?? 1;
-        var Mine_Damage = interaction.options.getInteger('Mine Damage') ?? 1;
-        var Class_Blacklist = interaction.options.getString('Class Blacklist') ?? "";
-        var Chaos_Council_Boolean = interaction.options.getInteger('Chaos Council Boolean') ?? true;
-        var Class_Dupe_Limit = interaction.options.getInteger('Class Dupe Limit') ?? 2;
-        var Finale_Player_Threshold = interaction.options.getInteger('Finale Player Threshold') ?? 4;
-        var Max_Stat_Increase = interaction.options.getInteger('Max Stat Increase') ?? 1;
-        var APAmount = interaction.options.getInteger('APAmount') ?? 2;
-        var immutableDoomsday = interaction.options.getInteger('immutableDoomsday') ?? 32;
+        var AP_Distribution_Interval = interaction.options.getInteger('ap-distribution-interval') ?? 720;
+        var Chest_Amount = interaction.options.getInteger('chest-amount') ?? 0;
+        var Current_Chaos_Council_Event = interaction.options.getString('current-chaos-council-event') ?? "BOOOORRRINNNG";
+        var Movement_Cost = interaction.options.getInteger('movement-cost') ?? 1;
+        var Shoot_Cost = interaction.options.getInteger('shoot-cost') ?? 2;
+        var Fire_Damage = interaction.options.getInteger('fire-damage') ?? 1;
+        var Mine_Damage = interaction.options.getInteger('mine-damage') ?? 1;
+        var Class_Blacklist = interaction.options.getString('class-blacklist') ?? "";
+        var Chaos_Council_Boolean = interaction.options.getInteger('chaos-council-boolean') ?? true;
+        var Class_Dupe_Limit = interaction.options.getInteger('class-dupe-limit') ?? 2;
+        var Finale_Player_Threshold = interaction.options.getInteger('finale-player-threshold') ?? 4;
+        var Max_Stat_Increase = interaction.options.getInteger('max-stat-increase') ?? 1;
+        var APAmount = interaction.options.getInteger('ap-amount') ?? 2;
+        var immutableDoomsday = interaction.options.getInteger('immutable-doomsday') ?? 32;
         //Create Game in Database
         await models.Game.create({ 
             GAME_STATE: GAMESTATES.REGISTRATION,
