@@ -42,17 +42,9 @@ module.exports = {
         const tileInRange = utils.getTileCordinatesOfLine([playerTile.X_Position, playerTile.Y_Position], [x, y]).length <= player.Range_;
         const tileToChange = await models.Tiles.findOne({where: {X_Position: x, Y_Position: y, Layer_ID: playerTile.Layer_ID}});
         
-        //Check if the game is in timestop
-        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
-        {
-          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
-          return
-        }
-        //Check if the game is paused
-        if(game.GAME_STATE == GAMESTATES.PAUSED)
-        {
-          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
-          return
+        //Check Gamestate
+        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+            return
         }
 
         //Verification of Variables

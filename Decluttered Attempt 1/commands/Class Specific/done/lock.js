@@ -44,17 +44,9 @@ module.exports = {
             return interaction.editReply({ content: "Could not find a gateway to lock at the given coordinates." });
         }
 
-        //Check if the game is in timestop
-        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
-        {
-          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
-          return
-        }
-        //Check if the game is paused
-        if(game.GAME_STATE == GAMESTATES.PAUSED)
-        {
-          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
-          return
+        //Check Gamestate
+        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+            return
         }
 
         if(playerClass.Class_Name != "Guardian") {
@@ -77,7 +69,7 @@ module.exports = {
         }
 
         //Check if the game is in finale and if this would lock the last gateway of the layer
-        if(game.GAME_STATE == GameStates.FINALE && tileToChange.Tile_Type == "Gateway_Locked" && gatewaysRemaining.length == 1) {
+        if(game.GAME_STATE == GameStates.FINALE && tileToChange.Tile_Type == "Gateway_Open" && gatewaysRemaining.length == 1) {
             return interaction.editReply({ content: "You cannot lock the last open gateway in the layer during a finale!" });
         }
 

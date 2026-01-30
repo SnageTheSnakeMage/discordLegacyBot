@@ -5,7 +5,7 @@ var models = require("../utils.js").models;
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('build')
-        .setDescription('class command for Construction Workers, turn any empty non-gateway tile in range into a wall tile or any non-gateway tile into a chest tile in range for 3AP')
+        .setDescription('class command for Construction Workers, build wall on an empty tile or chest on a tile in range. 3AP')
         .addBooleanOption(option =>
             option.setName('wall?')
                 .setDescription('build a wall or a chest, true = wall, false = chest')
@@ -32,25 +32,6 @@ module.exports = {
         var gameId = interaction.options.getInteger('game');
         var playerDiscordID = interaction.user.id;
         
-        //Check if the game is in timestop
-        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
-        {
-          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
-          return
-        }
-        //Check if the game is paused
-        if(game.GAME_STATE == GAMESTATES.PAUSED)
-        {
-          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
-          return
-        }
-        //Check if the game is over
-        if(game.GAME_STATE == GAMESTATES.OVER)
-        {
-          await interaction.editReply("Game is over! only the dev can use commands for this game at this time.");
-          return
-        }
-
         //Get Game and Player
         var game = await models.Games.findByPk(gameId ?? await utils.getOldestActiveGameId());
         const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, playerId: playerDiscordID}});
@@ -89,7 +70,12 @@ module.exports = {
             return interaction.editReply({ content: "You dont have enough AP to build a wall or chest!" });
         }
 
-        //Build a wall or chest
+        //Check Game State
+        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+            return
+        }
+
+        //Build a wall or chest and deduct AP from the player
         if (wall) {
             await models.Players.update({Action_Points: player.Action_Points - 3}, {where: {playerId: player.playerId}});
             await models.Tiles.update({Tile_Type: "Wall"}, {where: {Tile_ID: tileToChange.Tile_ID}});

@@ -27,17 +27,9 @@ module.exports = {
         }
         const game = await models.Games.findByPk(gameId);
 
-        //Check if the game is in timestop
-        if(game.GAME_STATE == GAMESTATES.TIMESTOPPED && playerClass.Class_Name != "Clockwatcher")
-        {
-          await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
-          return
-        }
-        //Check if the game is paused
-        if(game.GAME_STATE == GAMESTATES.PAUSED)
-        {
-          await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
-          return
+        //Check Gamestate
+        if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
+            return
         }
 
         const playerClass = await models.Classes.findByPk(player.Class_ID);
