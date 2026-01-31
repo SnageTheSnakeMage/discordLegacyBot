@@ -8,7 +8,8 @@ module.exports = {
         .setDescription('gives a player in range an amount of AP')
         .addIntegerOption(option =>
             option.setName('amount')
-                .setDescription('# of times you wish to upgrade the stat defaults to 1')
+                .setDescription('how much AP you wish to give, defaults to 1')
+                .setMin(1)
                 .setRequired(true))
         .addUserOption(option =>
             option.setName('player')
