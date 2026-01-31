@@ -163,6 +163,17 @@ class ClientApplication extends Application {
       this.approximateUserInstallCount ??= null;
     }
 
+    if ('approximate_user_authorization_count' in data) {
+      /**
+       * An approximate amount of users that have OAuth2 authorizations for this application.
+       *
+       * @type {?number}
+       */
+      this.approximateUserAuthorizationCount = data.approximate_user_authorization_count;
+    } else {
+      this.approximateUserAuthorizationCount ??= null;
+    }
+
     if ('guild_id' in data) {
       /**
        * The id of the guild associated with this application.
@@ -364,9 +375,9 @@ class ClientApplication extends Application {
    * Data for creating or editing an application role connection metadata.
    * @typedef {Object} ApplicationRoleConnectionMetadataEditOptions
    * @property {string} name The name of the metadata field
-   * @property {?Object<Locale, string>} [nameLocalizations] The name localizations for the metadata field
+   * @property {?LocalizationMap} [nameLocalizations] The name localizations for the metadata field
    * @property {string} description The description of the metadata field
-   * @property {?Object<Locale, string>} [descriptionLocalizations] The description localizations for the metadata field
+   * @property {?LocalizationMap} [descriptionLocalizations] The description localizations for the metadata field
    * @property {string} key The dictionary key of the metadata field
    * @property {ApplicationRoleConnectionMetadataType} type The type of the metadata field
    */
