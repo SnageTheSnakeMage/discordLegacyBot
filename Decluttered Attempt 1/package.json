@@ -1,21 +1,21 @@
 {
   "dependencies": {
-    "canvas": "^3.2.1",
-    "discord.js": "^14.25.1",
-    "dotenv": "^17.2.3",
-    "sequelize": "^6.37.7",
-    "sqlite3": "^5.1.7"
+    "canvas": "*",
+    "discord.js": "^14.26.5",
+    "dotenv": "*",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3",
+    "sequelize": "*",
+    "sqlite3": "*"
   },
   "scripts": {
     "start": "node index.js",
     "test": "jest"
   },
   "devDependencies": {
-    "jest": "^30.2.0",
-    "sequelize-auto": "^0.8.8"
+    "jest": "^30.2.0"
   },
   "overrides": {
-    "undici": "7.19.2",
-    "tar": "7.5.7"
+    "uuid": "latest"
   }
 }

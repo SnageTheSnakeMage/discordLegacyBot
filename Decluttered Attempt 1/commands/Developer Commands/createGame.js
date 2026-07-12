@@ -82,7 +82,7 @@ module.exports = {
         var APAmount = interaction.options.getInteger('ap-amount') ?? 2;
         var immutableDoomsday = interaction.options.getInteger('immutable-doomsday') ?? 32;
         //Create Game in Database
-        await models.Game.create({ 
+        await models.Games.create({ 
             GAME_STATE: GAMESTATES.REGISTRATION,
             AP_INTERVAL_MIN: AP_Distribution_Interval, 
             CHEST_AMOUNT: Chest_Amount, 

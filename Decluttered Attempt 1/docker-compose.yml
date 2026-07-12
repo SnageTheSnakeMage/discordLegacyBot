@@ -1,0 +1,10 @@
+services:
+  bot:
+    build: .
+    container_name: discord-bot
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production

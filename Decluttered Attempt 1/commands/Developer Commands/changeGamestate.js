@@ -29,7 +29,7 @@ module.exports = {
             await interaction.reply('You must be a dev to use this command!'); 
             return;
         }
-        models.Games.update({GAME_STATE: interaction.options.getString('gamestate')}, {where: {Game_ID: interaction.options.getInteger('game')}}).then((result) => {
+        await models.Games.update({GAME_STATE: interaction.options.getString('gamestate')}, {where: {Game_ID: interaction.options.getInteger('game')}}).then((result) => {
             interaction.reply(`Game ${interaction.options.getInteger('game')} has been changed to ${interaction.options.getString('gamestate')}!`);
         });
 

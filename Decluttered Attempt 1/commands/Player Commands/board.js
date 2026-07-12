@@ -28,7 +28,6 @@ module.exports = {
   aliases: ['playergrid', 'grid'],
   
   // Function for slash command execution
-  // TODO: implement Twin Class
   async execute(interaction) {
     try {
       await interaction.deferReply();
@@ -40,67 +39,57 @@ module.exports = {
         }
       })
       const playerClass = await models.Classes.findByPk(player.Class_ID);
-      
 
       var gameId = interaction.options.getInteger('game') ?? utils.getOldestActiveGameId();
       const game = await models.Games.findByPk(gameId);
       var layer = interaction.options.getInteger('layer')
+
       //Check which layer to show the player if they dont provide it, and if they are a twin make sure to show the one with the body they chose
       if(!layer){
         if (interaction.options.getInteger('body') == 2) {
-        await models.Layers.findOne({
-          where: {
-            Layer_ID: await models.Tiles.findOne({
-                where: {
-                    Tile_ID: player.Tile_ID_2
-                }
-            }).Layer_ID
-          }
-        })
+          const playerTile2 = await models.Tiles.findByPk(player.Tile_ID_2)
+          layer = playerTile2.Layer_ID
       }
-      //ellegantly catches all the other cases, if they dont pass a body it defaults to body 1 and if they arent a twin it defaults to the one they are on
+      //if they dont pass a body it defaults to body 1 and 
+      // if they arent a twin it defaults to the one they are on
+      // unless they're an oracle then it lets them see whatever layer was inputted
       else{
-        await models.Layers.findOne({
-          where: {
-            Layer_ID: await models.Tiles.findOne({
-                where: {
-                    Tile_ID: player.Tile_ID
-                }
-            }).Layer_ID
-          }
-        })
+        if(!playerClass.Class_Name == "Oracle"){
+          const playerTile = await models.Tiles.findByPk(player.Tile_ID)
+          layer = playerTile.Layer_ID
+        }
       }
     }
-      
-        //Check gamestate
-        switch (game.GAME_STATE) {
-          case GAMESTATES.TIMESTOPPED:
-            if(playerClass.Class_Name != "Clockwatcher")
-            {await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
-            return;}
-            break;
-          case GAMESTATES.PAUSED:
-            await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
-            return;
-          case GAMESTATES.OVER:
-            await interaction.editReply("Game has ended! only the dev can use commands for this game at this time.\n Please register for a new game.");
-            return;
-          case GAMESTATES.REGISTRATION:
-            await interaction.editReply("Game is in registration! only the dev can use commands for this game at this time.\n Please wait for the game to start.");
-            return;
-          default:
-            break;
-        }
+    
+    //Check gamestate
+    switch (game.GAME_STATE) {
+      case GAMESTATES.TIMESTOPPED:
+        if(playerClass.Class_Name != "Clockwatcher")
+        {await interaction.editReply("Time is stopped! only Clockwatchers can use commands at this time.");
+        return;}
+        break;
+      case GAMESTATES.PAUSED:
+        await interaction.editReply("Game is paused! only the dev can use commands for this game at this time.");
+        return;
+      case GAMESTATES.OVER:
+        await interaction.editReply("Game has ended! only the dev can use commands for this game at this time.\n Please register for a new game.");
+        return;
+      case GAMESTATES.REGISTRATION:
+        await interaction.editReply("Game is in registration! only the dev can use commands for this game at this time.\n Please wait for the game to start.");
+        return;
+      default:
+        break;
+    }
 
-        // Generate image from database and provided inputs
-        const imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);
+    // Generate image from database and provided inputs
+    const imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);
 
-        // Create attachment
-        const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
-        
-        // Send the image
-        await interaction.reply({ files: [attachment] ,  flags: MessageFlags.Ephemeral });
-        
+    // Create attachment
+    const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
+    
+    // Send the image
+    await interaction.reply({ files: [attachment] ,  flags: MessageFlags.Ephemeral });
+    
     } catch (error) {
       console.error('[ERROR][COMMAND][board.js]:', error);
       if (interaction.replied || interaction.deferred) {

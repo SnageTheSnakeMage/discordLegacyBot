@@ -20,7 +20,7 @@ function createMockModel() {
 
 /**
  * Creates a full mock models object matching utils.models shape.
- * Override individual methods in tests: e.g. models.Games.findByPk.mockResolvedValue(game).
+ * Override individual methods in tests: e.g. await models.Games.findByPk.mockResolvedValue(game).
  *
  * @returns {{ Games: ReturnType<createMockModel>, Players: ReturnType<createMockModel>, Tiles: ReturnType<createMockModel>, Classes: ReturnType<createMockModel>, Layers: ReturnType<createMockModel> }}
  */
@@ -127,7 +127,7 @@ function createFakeLayer(overrides = {}) {
  */
 function createUtilsMock() {
   const models = createMockModels();
-  models.Player = models.Players;
+  await models.Player = await models.Players;
   const gameObj = createFakeGame({ Game_ID: 1 });
   return {
     models,

@@ -9,7 +9,7 @@ module.exports = {
         .addIntegerOption(option =>
             option.setName('amount')
                 .setDescription('how much AP you wish to give, defaults to 1')
-                .setMin(1)
+                .setMinValue(1)
                 .setRequired(true))
         .addUserOption(option =>
             option.setName('player')

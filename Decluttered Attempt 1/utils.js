@@ -12,9 +12,11 @@ const sequelize = new Sequelize({
   storage: 'G:/LegacyBotDiscord/Decluttered Attempt 1/database/database.db'
 });
 const fs = require('fs');
+const Players = require('./database/Models/Players');
 var models = initModels(sequelize);
 var GAMESTATES = require('G:/LegacyBotDiscord/Decluttered Attempt 1/enums.js').GAMESTATES;
 const ChaosEvents = require('G:/LegacyBotDiscord/Decluttered Attempt 1/enums.js').ChaosEvents;
+const APCHECKINTERVAL_SECONDS = 30;
 //#endregion BOILERPLATE
 module.exports = {
   models,
@@ -64,10 +66,10 @@ startAPCheckInterval(game, client){
       //amount of times ap should have been distributed
       var times = Math.floor(lastDistrib / apInterval);
       await this.distributeAP(game, times, client);
-      game.lastAPDistributionTimestampInMS = Date.now();
+      await models.Games.update({lastAPDistributionTimestampInMS: Date.now()}, {where: {Game_ID: game.Game_ID}});
     }
 
-  }, 30000)
+  }, APCHECKINTERVAL_SECONDS * 1000)
 },
 
 async distributeAP(game, times, client){
@@ -84,62 +86,81 @@ async distributeAP(game, times, client){
   game.currentChaosPollMsgId = null;
   await models.Games.update({CURR_CC_EVENT: this.pollToResults(poll, game)}, {where: {Game_ID: game.Game_ID}});
 
-
+    //find the player(s) with the most missed AP
+  if(playersWithMostMissedAP.length > 0 && game.CURR_CC_EVENT == "Inactives Punishment"){
+    //find the player(s) with missed AP
+    var Inactives = await models.Players.findAll({where: {Game_ID: game.Game_ID, MISSED_AP: { [Op.gt]: 0 }}});
+    var mostMissedAP = 0;
+    var playerIDsWithMostMissedAP = [];
+    //find largest number of missed AP
+    for(const inactive of Inactives){
+      if(inactive.MISSED_AP > mostMissedAP){
+        mostMissedAP = inactive.MISSED_AP;
+      }
+    }
+    //get the IDs of the players with the most missed AP
+    for(const inactive of Inactives){
+      if(inactive.MISSED_AP == mostMissedAP){
+        playerIDsWithMostMissedAP.push(inactive.Player_ID);
+      }
+    }
+  }
   //get all alive players in the game and give them as much AP as the game gives per interval multiplied by times
-  await models.Players.findAll({where: {Game_ID: game.Game_ID, Dead: false}}).then((players) => {
-    players.forEach((player) => {
+  const livingPlayers = await models.Players.findAll({where: {Game_ID: game.Game_ID, Dead: false}});
+  for (const player of livingPlayers) {
       //give AP to everyone
-      models.Players.update({Action_Points: player.Action_Points + game.APAmount * times}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+      await models.Players.update({Action_Points: player.Action_Points + game.APAmount * times}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
       //give AP to gluttons again
       if(player.Class_ID == gluttonClass.Class_ID){
-        models.Players.update({Action_Points: player.Action_Points + game.APAmount * times}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});        
+        await models.Players.update({Action_Points: player.Action_Points + game.APAmount * times}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});        
       }
       //kill immutables if their doomsday is 0
       if(game.immutableDoomsday <= 0 && player.Class_ID == immutableClass.Class_ID){
-        models.Players.update({Dead: true, Tile_ID: null}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+        await models.Players.update({Dead: true, Tile_ID: null}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
       }
       //give meals to chefs
       if(player.Class_ID == chefClass.Class_ID){
-        models.Players.update({Meals: player.Meals + 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});        
+        await models.Players.update({Meals: player.Meals + 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});        
       }
       //give hitmen another target if they dont have one or if their target is dead
-      if(player.Class_ID == hitmanClass.Class_ID && player.Hitman_Target == null || player.Hitman_Target != null && players.find((p) => p.Player_ID == player.Hitman_Target).Dead == true){
-        var randomPlayer = players[this.getRandomInt(players.length)];
-        models.Players.update({Hitman_Target: randomPlayer.Player_ID}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+      if(player.Class_ID == hitmanClass.Class_ID && player.Hitman_Target == null || player.Hitman_Target != null && livingPlayers.find((p) => p.Player_ID == player.Hitman_Target).Dead == true){
+        var randomPlayer = livingPlayers[this.getRandomInt(livingPlayers.length)];
+        await models.Players.update({Hitman_Target: randomPlayer.Player_ID}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
       }
-      switch(game.CURR_CC_EVENT){
+      // Chaos Council Event Logic That Triggers Every AP Distribution
+      switch(game.CURR_CC_EVENT) {
       case "Free Movement":
         //give everyone 1 free movement
-        models.Players.update({Free_Movement: player.Free_Movement + 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+        await models.Players.update({Free_Movement: player.Free_Movement + 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
         break;
       case "Scorchers Joy":
         //everyone on a blank tile that isnt a lava diver or pyromainiac takes 1 Damage every AP distribution
-        var tileType = models.Tiles.findByPk(player.Tile_ID).Tile_Type;
+        var tileType = await models.Tiles.findByPk(player.Tile_ID).Tile_Type;
         if(tileType == "Blank1" || tileType == "Blank2"){
           if(player.Class_ID != lavaDiverClass.Class_ID || player.Class_ID != pyromainiacClass.Class_ID){
-              models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+              await models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
           }
         }
         break;
       case "Winters Hollow":
         //give everyone -1 free movement unless they are a snowman
         if(player.Class_ID != snowmanClass.Class_ID){
-          models.Players.update({Free_Movement: player.Free_Movement - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+          await models.Players.update({Free_Movement: player.Free_Movement - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
         }
         break;
-      case "Frenzy":
+      case "Time Acceleration!":
         //give every AP two more times
-        models.Players.update({Action_Points: player.Action_Points + game.APAmount * times * 2}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+        await models.Players.update({Action_Points: player.Action_Points + game.APAmount * times * 2}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
         break;
       case "Medkit Airdrop":
         //give everyone 1 HP
-        models.Players.update({Health_Points: player.Health_Points + 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+        await models.Players.update({Health_Points: player.Health_Points + 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
         break;
       case "Northern Gust":
         //move everyone two spaces up if possible
         //get tile
-        currentTile = models.Tiles.findByPk(player.Tile_ID);
-        newTile = models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X, Y: currentTile.Y - 2}});
+        currentTile = await models.Tiles.findByPk(player.Tile_ID);
+        newTile = await models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X, Y: currentTile.Y - 2}});
         if(newTile != null){
           this.moveFromTiletoTile(currentTile, newTile, player);
         }
@@ -147,8 +168,8 @@ async distributeAP(game, times, client){
       case "Western Gust":
         //move everyone two spaces left if possible
         //get tile
-        currentTile = models.Tiles.findByPk(player.Tile_ID);
-        newTile = models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X - 2, Y: currentTile.Y}});
+        currentTile = await models.Tiles.findByPk(player.Tile_ID);
+        newTile = await models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X - 2, Y: currentTile.Y}});
         if(newTile != null){
           this.moveFromTiletoTile(currentTile, newTile, player);
         }
@@ -156,8 +177,8 @@ async distributeAP(game, times, client){
       case "Eastern Gust":
         //move everyone two spaces right if possible
         //get tile
-        currentTile = models.Tiles.findByPk(player.Tile_ID);
-        newTile = models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X + 2, Y: currentTile.Y}});
+        currentTile = await models.Tiles.findByPk(player.Tile_ID);
+        newTile = await models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X + 2, Y: currentTile.Y}});
         if(newTile != null){
           this.moveFromTiletoTile(currentTile, newTile, player);
         }
@@ -165,27 +186,57 @@ async distributeAP(game, times, client){
       case "Southern Gust":
         //move everyone two spaces right if possible
         //get tile
-        currentTile = models.Tiles.findByPk(player.Tile_ID);
-        newTile = models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X, Y: currentTile.Y + 2}});
-        if(newTile != null){
-          this.moveFromTiletoTile(currentTile, newTile, player);
+        currentTile = await models.Tiles.findByPk(player.Tile_ID);
+        //see where the player would move to
+        var newTile = await models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X, Y: currentTile.Y + 2}});
+        //if the player would move to a valid tile move them
+        //check if the tile exists
+        //check if the tile is a wall, ice, void, or wall damaged or if the player is a cloudborn
+        if(newTile != null && (newTile.Tile_Type != "Wall" && newTile.Tile_Type != "Wall_Damaged" && newTile.Tile_Type != "Ice" && newTile.Tile_Type != "Void" || player.Class_ID == cloudbornClass.Class_ID)){
+            //move the player to the new tile
+            this.moveFromTiletoTile(currentTile, newTile, player);
+        }
+        //if the player would move to an invalid tile move them to the next valid tile
+        else{
+          newTile = await models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X, Y: currentTile.Y + 1}});
+          if(newTile != null && (newTile.Tile_Type != "Wall" && newTile.Tile_Type != "Wall_Damaged" && newTile.Tile_Type != "Ice" && newTile.Tile_Type != "Void" || player.Class_ID == cloudbornClass.Class_ID)){
+            this.moveFromTiletoTile(currentTile, newTile, player);
+          }
+        }
+        break;
+      case "Double Trouble: Icy-Hot":
+        //everyone on a blank tile that isnt a lava diver or pyromainiac takes 1 Damage every AP distribution
+        var tileType = await models.Tiles.findByPk(player.Tile_ID).Tile_Type;
+        if(tileType == "Blank1" || tileType == "Blank2"){
+          if(player.Class_ID != lavaDiverClass.Class_ID || player.Class_ID != pyromainiacClass.Class_ID){
+              await models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+          }
+        }
+        //give everyone -1 free movement unless they are a snowman
+        if(player.Class_ID != snowmanClass.Class_ID){
+          await models.Players.update({Free_Movement: player.Free_Movement - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+        }
+        break;
+      case "Inactives Punishment":
+        //damage the player if they are one of the players with the most missed AP
+        if(playerIDsWithMostMissedAP.includes(player.Player_ID)){
+          await models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
         }
         break;
       }
-      
-    });
-  });
+  }
+  //TODO REWRITE THIS
   //also damage any players that are on the same tile as a lava diver and arent lava divers themselves
   //first get all the lava divers
-  await models.Players.findAll({where: {Game_ID: game.Game_ID, Class_ID: lavaDiverClass.Class_ID}}).then((allLavaDivers) => {
+  await models.Players.findAll({where: {Game_ID: game.Game_ID, Class_ID: lavaDiverClass.Class_ID}}).then(async (allLavaDivers) => {
     //then get all the players on the same tile as a lava diver
     for(diver in allLavaDivers){
-      models.Tiles.findAll({where: {Game_ID: game.Game_ID, Layer_ID: allLavaDivers[diver].Layer_ID, X: allLavaDivers[diver].X, Y: allLavaDivers[diver].Y}}).then((tiles) => {
-        tiles.forEach((tile) => {
+      await models.Tiles.findAll({where: {Game_ID: game.Game_ID, Layer_ID: allLavaDivers[diver].Layer_ID, X: allLavaDivers[diver].X, Y: allLavaDivers[diver].Y}}).then((tiles) => {
+        tiles.forEach(async (tile) => {
           //then damage all the non lava diver players on the same tile
-          models.Players.findAll({where: {Game_ID: game.Game_ID, Tile_ID: tile.Tile_ID, Class_ID: { [Op.ne]: lavaDiverClass.Class_ID }}}).then((players) => {
-            players.forEach((player) => {
-                models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+          await models.Players.findAll({where: {Game_ID: game.Game_ID, Tile_ID: tile.Tile_ID, Class_ID: { [Op.ne]: lavaDiverClass.Class_ID }}}).then(async (players) => {
+            players.forEach(async (player) => {
+                await models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
                 this.playerDeathLogic(allLavaDivers[diver], player);
             });
           });
@@ -212,6 +263,7 @@ async distributeAP(game, times, client){
   game.save();
 },
 
+//Returns the text of a discord polls most voted option
 async pollToResults(poll, game) {
   var MostVotedAnswer = 0;
   if(game.overrider == null)
@@ -370,56 +422,68 @@ async commonLayerIDtoDbLayerID(gameId, inputtedLayerID){
 
 //removes a class from a player
 //is a function due to weird edge cases
-async classRemoval(player, excorist){
-  //if the player is a twin and we are removing their class get rid of their second body and give the exorcist a kill
-  var playerClass = await models.Players.findByPk(player.Class_ID)
+// takes in a player object for the victim & exorcist
+async classRemoval(victim, excorist){
+  var playerClass = await models.Classes.findByPk(victim.Class_ID)
   var avgClass = await models.Classes.findOne({where: {Class_Name: "Average"}})
   switch(playerClass.Class_Name){
+    //if the player is a twin get rid of their second body and give the exorcist a kill
     case "Twin":
-      await models.Players.update({Class_ID: avgClass.Class_ID, Health_Points2: 0, Damage2: 0, Tile_ID2: null, Free_Move2: 0, Range2: 0}, {where: {Player_ID: player.Player_ID}});
+      //TODO make sure any given free movement is also given to the twins other body
+      await models.Players.update({Class_ID: avgClass.Class_ID, Health_Points2: 0, Damage2: 0, Tile_ID2: null, Free_Move2: 0, Range2: 0}, {where: {Player_ID: victim.Player_ID}});
       await models.Players.update({Kills: excorist.Kills + 1}, {where: {Player_ID: excorist.Player_ID}});
       break;
+    //if the player is a cloudborn make sure they aren't put on a tile they can't be on
     case "Cloudborn":
       //get the players current tile
-      var playerTile = await models.Tiles.findByPk(player.Tile_ID)
+      var playerTile = await models.Tiles.findByPk(victim.Tile_ID)
       //remove class
-      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: player.Player_ID}});
+      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: victim.Player_ID}});
       //move player onto a surrounding tile if they are on an ice, void, or wall tile
       if(playerTile.Tile_Type == "Ice" || playerTile.Tile_Type == "Void" || playerTile.Tile_Type == "Wall" || playerTile.Tile_Type == "Wall_Damaged"){
-        this.movePlayerToRandomSurroundingTile(player.Player_ID, playerTile.Layer_ID, playerTile.X_Position, playerTile.Y_Position);
+        this.movePlayerToRandomSurroundingTile(victim.Player_ID, playerTile.Layer_ID, playerTile.X_Position, playerTile.Y_Position);
       }
+    //if the player is a hitman remove their target
     case "Hitman":
-      await models.Players.update({Class_ID: avgClass.Class_ID, Hitman_Target: null}, {where: {Player_ID: player.Player_ID}});
+      await models.Players.update({Class_ID: avgClass.Class_ID, Hitman_Target: null}, {where: {Player_ID: victim.Player_ID}});
       break;
+    //if the player is a pharaoh take away of their revive HP and if any and give a kill to exorcist
     case "Pharaoh":
-      await models.Players.update({Class_ID: avgClass.Class_ID, PharaohHP: 0}, {where: {Player_ID: player.Player_ID}});
-      if(player.PharaohHP > 0){
+      await models.Players.update({Class_ID: avgClass.Class_ID, PharaohHP: 0}, {where: {Player_ID: victim.Player_ID}});
+      if(victim.PharaohHP > 0){
         await models.Players.update({Kills: excorist.Kills + 1}, {where: {Player_ID: excorist.Player_ID}});
       }
       break;
+    //if the player is a robot remove their extra Max HP
     case "Robot":
-      await models.Players.update({Class_ID: avgClass.Class_ID, MAX_HP: player.MAX_HP - 2}, {where: {Player_ID: player.Player_ID}});
+      await models.Players.update({Class_ID: avgClass.Class_ID, MAX_HP: victim.MAX_HP - 2}, {where: {Player_ID: victim.Player_ID}});
       break;
+    //if the player is a minesweeper remove all of their mines
     case "Minesweeper":
-      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: player.Player_Id}});
-      await models.Tiles.update({trapped: false, trapper: null}, {where: {trapper: player.Player_ID}});
+      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: victim.Player_Id}});
+      await models.Tiles.update({trapped: false, trapper: null}, {where: {trapper: victim.Player_ID}});
       break;
+    //if the player is a medium and they haven't used their overrides take away their extra one
     case "Medium":
-      if(player.ccOverrides >= 2){
-        await models.Players.update({Class_ID: avgClass.Class_ID, ccOverrides: player.ccOverrides - 1}, {where: {Player_ID: player.Player_Id}});
+      if(victim.ccOverrides >= 2){
+        await models.Players.update({Class_ID: avgClass.Class_ID, ccOverrides: victim.ccOverrides - 1}, {where: {Player_ID: victim.Player_Id}});
       }
       break;
+    //if the player is a glutton give them their lost 2 starting AP back
     case "Glutton":
-      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: player.Action_Points + 2}, {where: {Player_ID: player.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points + 2}, {where: {Player_ID: victim.Player_Id}});
       break;
+    //if the player is a hoarder take away their extra starting AP and give them back their lost range
     case "Hoarder":
-      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: player.Action_Points - 6, Range_: player.Range_ + 1}, {where: {Player_ID: player.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points - 6, Range_: victim.Range_ + 1}, {where: {Player_ID: victim.Player_Id}});
       break;
+    //if the player is a protagonist remove their extra starting AP and their extra potential/max stats and give them back their lost starting HP
     case "Protagonist":
-      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: player.Action_Points - 4, Health_Points: player.Health_Points + 2, MAX_AP: player.MAX_AP - 4, MAX_HP: player.MAX_HP - 4, Range_: player.Range_ - 4, Damage: player.Damage - 2}, {where: {Player_ID: player.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points - 4, Health_Points: victim.Health_Points + 2, MAX_AP: victim.MAX_AP - 4, MAX_HP: victim.MAX_HP - 4, MAX_RANGE: victim.MAX_RANGE - 4, MAX_DAMAGE: victim.MAX_DAMAGE - 2}, {where: {Player_ID: victim.Player_Id}});
       break;
+    //elsewise just remove their class
     default:
-      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: player.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: victim.Player_Id}});
       break;
   }
 },
@@ -498,10 +562,10 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
     if(currentTile.Player1 != null || currentTile.Player2 != null || currentTile.Player3 != null || currentTile.Player4 != null) {
       // Get players on this tile
       tilePlayers = await Promise.all([
-        models.Players.findOne({where: {Player_ID: currentTile.Player1}}),
-        models.Players.findOne({where: {Player_ID: currentTile.Player2}}), 
-        models.Players.findOne({where: {Player_ID: currentTile.Player3}}), 
-        models.Players.findOne({where: {Player_ID: currentTile.Player4}})
+        await models.Players.findOne({where: {Player_ID: currentTile.Player1}}),
+        await models.Players.findOne({where: {Player_ID: currentTile.Player2}}), 
+        await models.Players.findOne({where: {Player_ID: currentTile.Player3}}), 
+        await models.Players.findOne({where: {Player_ID: currentTile.Player4}})
       ]);
       if (verbose) console.log("[INFO][VERBOSE] got players: " + JSON.stringify(tilePlayers) + " for tile: " + currentTile.Tile_ID);
     }
@@ -759,73 +823,7 @@ async getUpgradePrice(stat, playerId, amount) {
 }
 },
 
-//for checking all the things that happen when a player moves onto an off of a tile, returns wether they player moved or not
-async moveFromTiletoTile(startTile, endTile, player) {
-  console.log("[INFO][VERBOSE] Player: " + player.Player_ID + " moved from tile: " + startTile + " to tile: " + endTile);
-  switch(startTile.Tile_Type) {
-      //Player takes damage from leaving fire tile
-      case "Fire":
-        await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - fireDmg);
-        await this.playerDeathLogic(null, player);
-        break;
-      //Player destroys smoke tile by moving off of it
-      case "Smoke":
-        await this.revertTileToBlank(startTile);
-        break;
-      default:
-        break;
-  }
-  switch(endTile.Tile_Type) {
-    //Player takes damage from entering fire tile
-      case "Fire":
-        await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - fireDmg);
-        await this.playerDeathLogic(null, player);
-        break;
-    //Player must be moved randomly from entering storm tile
-    //Every time a Robot or Stormchaser moves onto a storm tile they...
-      case "Storm":
-        //Robot heals
-        if(player.Class_ID == 19) {
-          await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points + 1);
-        }
-        //Stormchaser gains 1d4-2 AP
-        if(player.Class_ID == 15) {
-          await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Action_Points", player.Action_Points + (this.getRandomInt(3) - 1));
-        }
-        //Player is moved in a random direction once
-        await this.movePlayerToRandomSurroundingTile(player.Player_ID, startTile.Layer_ID, startTile.X_Position, startTile.Y_Position);
-        break;
-      case "Void":
-      case "Wall":
-      case "Wall_Damaged":
-       //Check if player can move on these tiles  
-        if(!player.Class_ID == models.Classes.findAll({
-          where: {
-            //all classes that can move on void wall, and wall damaged tiles
-            Class_Name: "Cloudborn"
-          }}).Class_ID) {
-            await this.changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Tile_ID", startTile.Tile_ID);
-            console.error("[ERROR] Player " + player.Discord_ID + " cannot move onto void, wall or wall damaged tiles");
-            throw "[ERROR] Player " + player.Discord_ID + " cannot move onto void wall or wall damaged tiles";
-        }
-        break;
-      default:
-        break;
-  }
-  
-  if(endTile.Trapped) {
-    //Get trapper
-    const trapper = await models.Players.findByPk(endTile.trapper);
-    if(!trapper) {
-      throw new Error("Mine without trapper found. Please contact snage.");
-    }
-    //Damage player
-    changeModelByPK(models.Players, "Player_ID", player.Player_ID, "Health_Points", player.Health_Points - mineDmg);
-    playerDeathLogic(trapper, player);
-    //Remove trap
-    await models.Tiles.update({Trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
-  }
-},
+
 
 //turns a given tile into a its corresponding blank tile to preserve the checkerboard pattern
 async  revertTileToBlank(startTile){
@@ -838,77 +836,6 @@ async  revertTileToBlank(startTile){
      await models.Tiles.update({Tile_Type: "Blank2"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
      return;
     }
-},
-
- async  movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
-  var randomDirection = this.getRandomInt(7);
-  var player = models.Players.findByPk(playerId);
-  var playerClass = await models.Classes.findByPk(player.Class_ID);
-  var tile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
-  var newTile;
-  switch(randomDirection) {
-    case 0:
-      // West
-      newTile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x - 1, Y_Position: y}});
-      this.moveFromTiletoTile(tile, layer, x - 1, y);
-      this.setPlayerToTile(playerId, layer, x - 1, y);
-      break;
-    case 1:
-      // Southwest
-      newTile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x - 1, Y_Position: y + 1}});
-      moveFromTiletoTile(tile, layer, x - 1, y + 1);
-      this.setPlayerToTile(playerId, layer, x - 1, y + 1);
-      break;
-    case 2:
-      // South
-      newTile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y + 1}});
-      moveFromTiletoTile(tile, layer, x, y + 1);
-      this.setPlayerToTile(playerId, layer, x, y + 1);
-      break;
-    case 3:
-      // Southeast
-      newTile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x + 1, Y_Position: y + 1}});
-      moveFromTiletoTile(tile, layer, x + 1, y + 1);
-      this.setPlayerToTile(playerId, layer, x + 1, y + 1);
-      break;
-    case 4:
-      // East
-      newTile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x + 1, Y_Position: y}});
-      moveFromTiletoTile(tile, layer, x + 1, y);
-      this.setPlayerToTile(playerId, layer, x + 1, y);
-      break;
-    case 5:
-      // Northeast
-      newTile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x + 1, Y_Position: y - 1}});
-      moveFromTiletoTile(tile, layer, x + 1, y - 1);
-      this.setPlayerToTile(playerId, layer, x + 1, y - 1);
-      break;
-    case 6:
-      // North
-      newTile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y - 1}});
-      moveFromTiletoTile(tile, layer, x, y - 1);
-      this.setPlayerToTile(playerId, layer, x, y - 1);
-      break;
-    case 7:
-      // Northwest
-      newTile = models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x - 1, Y_Position: y - 1}});
-      moveFromTiletoTile(tile, layer, x - 1, y - 1);
-      this.setPlayerToTile(playerId, layer, x - 1, y - 1);
-      break;
-    default:
-      console.error("Invalid random direction from derived random number: " + randomDirection);
-      break;
-  }
-  //make sure the storm tile doesnt put them on a tile they usually couldnt move onto
-  if(playerClass.Class_Name != "Cloudborn"){
-    if(newTile.Tile_Type == "Wall" || newTile.Tile_Type == "Wall_Damaged" || newTile.Tile_Type == "Void") {
-      this.movePlayerToRandomSurroundingTile(playerId, layer, x, y);
-    }
-  }
-},
-
-async changeModelByPK(model, id_field, id, field, value) {
-  await model.update({field: value}, {where: {id_field: id}});
 },
 
 async getRandomClass(game) {
@@ -972,79 +899,6 @@ async getRandomClass(game) {
 //TODO MAKE SURE ALL INSTANCES OF A PLAYERS TILE BIENG SET WE ALSO SET A TILE.PLAYERX to THE PLAYERS ID
  delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
-},
-
-async setPlayerToTile(playerId, layer, x, y) {
-  var currentPlayer = await models.Players.findByPk(playerId)
-  var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
-  this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
-  models.Tiles.findOne({where: {Layer: layer, X_Position: x, Y_Position: y}}).then((tile) => {
-    if(tile.Player_1 == null) {
-      tile.Player_1 = playerId;
-    }
-    else if(tile.Player_2 == null) {
-      tile.Player_2 = playerId;
-    }
-    else if(tile.Player_3 == null) {
-      tile.Player_3 = playerId;
-    }
-    else if(tile.Player_4 == null) {
-      tile.Player_4 = playerId;
-    }
-    else {
-      throw "tile is full";
-    }
-    tile.save();
-  });
-  await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
-},
-
-//turns a path([[direction, distance]]) into an array of [[x, y]] of each tile where the direction changes
-// mainly used for generating a cordinate array for getTileCordinatesOfPath
-//path takes in a result of inputPathToArray
-//startingTile takes in an array of [x, y] of where the path starts
- pathToTiles(startingTile, path) {
-
-  var tiles = [];
-  //add the starting tile
-  tiles.push([startingTile.X_Position, startingTile.Y_Position]);
-  for (run in path){
-    //find where the next tile is and add its cordinates to the array
-    //case "direction":
-    //  destination = [x +/- distance, y +/- distance];
-    //  break;
-    //tiles.push(destination);
-      switch(path[run][0]){
-        case "left":
-          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position];
-          break;
-        case "right":
-          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position];
-          break;
-        case "up":
-          destination = [startingTile.X_Position, startingTile.Y_Position - parseInt(path[run][1])];
-          break;
-        case "down":
-          destination = [startingTile.X_Position, startingTile.Y_Position + parseInt(path[run][1])];
-          break;
-        case "nw":
-          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position - parseInt(path[run][1])];
-          break;
-        case "ne":
-          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position - parseInt(path[run][1])];
-          break;
-        case "sw":
-          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position + parseInt(path[run][1])];
-          break;
-        case "se":
-          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position + parseInt(path[run][1])];
-          break;
-        default:
-          throw "[ERROR][pathToTiles][SITUATIONAL] Invalid input path, your are using a direction that isnt: left,right,up,down,nw,ne,sw, or se";
-      }
-      tiles.push(destination);
-    }
-  return tiles
 },
 
 //the same as getTileCordinatesOfLine but for paths
@@ -1217,13 +1071,43 @@ async ChaosEventDeathCheck(gameId, killer, victim) {
     case "Leftovers":
       await models.Players.update({Action_Points: Math.min(killer.Action_Points + victim.MISSED_AP, killer.MAX_AP)}, {where: {Player_ID: killer.Player_ID}});
       break;
+    case "Corpse Explosion":
+      var playersToHurt = [] 
+      var surroundingSquares = await this.getSurroundingTiles(victim.Player_ID, victim.Tile_ID)
+      surroundingSquares.forEach((tile) => {
+        playersToHurt.push(this.getAllPlayersOnTile)
+      })
+      await playersToHurt.forEach(async (player) => {
+        //TODO make sure there are no PlayerID in db calls
+        //TODO check each function that is async is bieng called with await
+        if(player.Player_ID != victim.Player_ID){
+          models.Players.update({Health_Points: player.Health_Points - 1}, {where:{Player_ID: player.Player_ID}})
+          await this.playerDeathLogic(killer,player)
+        }
+      })
   }
 },
 
+//returns an array of players on the given tile, takes in either a tileID or a tile object
+//array is formatted as [player1, player2, player3, player4]
+async getAllPlayersOnTile(tileID, tile) {
+  var playersOnTile = []
+  if(tileID != null) {
+    tile = await models.Tiles.findByPk(tileID)
+  }
+  if(tile == null) {
+    console.error("[getAllPlayersOnTile]could not find tile")
+  }
+  playersOnTile.push([tile.Player1, tile.Player2, tile.Player3, tile.Player4])
+
+},
+
 //takes in two players and checks if the second one is dead
-//if so it updates the second players dead boolean, take them off the board, and the first players kill count
+//if so it updates the second players dead boolean, 
+// takes them off the board, 
+// and increases the first players kill count
 //killer is nullable for cases where the environment killed the player, like a fire tile
-async  playerDeathLogic(killer, victim) {
+async playerDeathLogic(killer, victim) {
   //get classes
   killer ? killerClass = await models.Classes.findByPk(killer.Class_ID) : killerClass = null;
   victimClass = await models.Classes.findByPk(victim.Class_ID);
@@ -1235,8 +1119,12 @@ async  playerDeathLogic(killer, victim) {
     && killerClass.Class_Name != "Cannibal"
     && killerClass.Class_Name != "Minesweeper"
     && killer != null) {
-    await models.Players.update({Dead: true}, {where: {Player_ID: victim.Player_ID}});
-    await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID}});
+    //TODO ensure any changes to Tile_ID cascade to the tile itself aswell with either
+    // a Tiles db call 
+    // or a utils removePlayerFromTile call
+    var victimTile = await models.Tiles.findByPk(victim.Tile_ID)
+    this.removePlayerFromTile(victim.Player_ID, victimTile.Layer_ID, victimTile.X_Position, victimTile.Y_Position)
+    await models.Players.update({Tile_ID: null, Dead: true}, {where: {Player_ID: victim.Player_ID}});
     this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
     await models.Players.update({Kills: killer.Kills + 1}, {where: {Player_ID: killer.Player_ID}});
     return
@@ -1297,7 +1185,7 @@ async  playerDeathLogic(killer, victim) {
 
   if(victim.Health_Points <= 0){
     switch(killerClass.Class_Name){
-      //Weird death case #2 hitman gets 4AP for every kill, do normal death logic but also update the hitman's AP
+      //Weird death case #2 hitman gets 4AP for every killed target, do normal death logic but also update the hitman's AP
       case "Hitman":
         if(killer.Hitman_Target == victim.Player_ID ){
           await models.Players.update({Kills: killer.Kills + 1, Action_Points: killer.Action_Points + 4}, {where: {Player_ID: killer.Player_ID}});
@@ -1433,7 +1321,7 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
 },
 
 async  removePlayerFromTile(playerId, layer, x, y) {
-  await models.Tiles.findOne({where: {Layer: layer, X: x, Y: y}}).then((tile) => {
+  await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}}).then((tile) => {
       if(tile.Player_1 == playerId) {
         tile.Player_1 = null;
       }
@@ -1497,55 +1385,6 @@ async  validateAndParseMoveCommandInput(interaction) {
     distance,
     customPath: inputtedPath,
     gameId
-  };
-},
-
-async  calculateMovement(moveRequest) {
-  const { currentTile, direction, distance, customPath } = moveRequest;
-  
-  // Start from current position
-  let newX = currentTile.X_Position;
-  let newY = currentTile.Y_Position;
-  
-  // Calculate movement path
-  let movementPath;
-  
-  if (customPath) {
-    // Use custom path - this needs the utils functions to be working
-    const pathArray = this.inputPathToArray(customPath);
-    const completePathArray = this.buildCompletePathArray(direction, distance, pathArray);
-    movementPath = this.getTileCordinatesOfPath([newX, newY], completePathArray);
-  } else {
-    // Use simple directional movement
-    const directionMap = {
-      'west': [-distance, 0],
-      'east': [distance, 0],
-      'north': [0, distance],
-      'south': [0, -distance],
-      'northeast': [distance, distance],
-      'northwest': [-distance, distance],
-      'southeast': [distance, -distance],
-      'southwest': [-distance, -distance]
-    };
-    
-    const [deltaX, deltaY] = directionMap[direction];
-    newX += deltaX;
-    newY += deltaY;
-    
-    // Create a simple path for consistency
-    movementPath = this.getTileCordinatesOfLine([currentTile.X_Position, currentTile.Y_Position], [newX, newY]);
-  }
-  
-  // Check bounds
-  const currentLayer = await models.Layers.findByPk(currentTile.Layer_ID);
-  newX = Math.min(currentLayer.X_Bound, Math.max(1, newX));
-  newY = Math.min(currentLayer.Y_Bound, Math.max(1, newY));
-  
-  return {
-    startTile: currentTile,
-    endPosition: { x: newX, y: newY },
-    movementPath,
-    layer: currentLayer
   };
 },
 

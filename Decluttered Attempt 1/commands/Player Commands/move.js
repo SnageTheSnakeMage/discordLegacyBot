@@ -36,7 +36,7 @@ module.exports = {
         .setRequired(false))
     .addStringOption(option =>
       option.setName('path')
-        .setDescription('a bunch of directions and distances, required to move on an ice tile, "dir,dist;dir,dist;..."')
+        .setDescription('a list of DIRections and DISTances Ex: "dir,dist;dir,dist;...", required to move on an ice tile')
         .setRequired(false)),
 
   async execute(interaction) {
@@ -95,6 +95,11 @@ module.exports = {
           content: "Current tile not found! please register, or ask a Dev about why your not on the board" 
         });
       }
+      
+      if(player.Dead){
+        await interaction.editReply({ content: "Dead players can't use this command."});
+        return
+        }
       //#endregion Verification
       //#region Variables
       var iceTileDeduction = 0;
@@ -113,11 +118,6 @@ module.exports = {
       var lastStringAddedToResponse = "";
       var amountOfRepeats = 0;
       //#endregion Variables
-
-      if(player.Dead){
-        await interaction.editReply({ content: "Dead players can't use this command."});
-        return
-        }
       //Check Gamestate
       if(await utils.checkGameState(game.GAMESTATES, false, interaction)){
         return
@@ -126,70 +126,10 @@ module.exports = {
       //#region Calculation of New Position
       if(interaction.options.getString('path') != null){
          for (run in utils.addStartToPathArray(direction, distance, utils.inputPathToArray(interaction.options.getString('path')))) {
-        switch (direction) {
-          case 'west':
-            newX -= distance;
-            break;
-          case 'east':
-            newX += distance;
-            break;
-          case 'north':
-            newY += distance;
-            break;
-          case 'south':
-            newY -= distance;
-            break;
-          case 'northeast':
-            newX += distance;
-            newY += distance;
-            break;
-          case 'northwest':
-            newX -= distance;
-            newY += distance;
-            break;
-          case 'southeast':
-            newX += distance;
-            newY -= distance;
-            break;
-          case 'southwest':
-            newX -= distance;
-            newY -= distance;
-            break;
-          default:
-            throw "Invalid direction";
-        }
+          this.calculateMovement(direction,distance,originalTile,player)
       }}
       else {
-        switch (direction) {
-          case 'west':
-            newX -= distance;
-            break;
-          case 'east':
-            newX += distance;
-            break;
-          case 'north':
-            newY += distance;
-            break;
-          case 'south':
-            newY -= distance;
-            break;
-          case 'northeast':
-            newX += distance;
-            newY += distance;
-            break;
-          case 'northwest':
-            newX -= distance;
-            newY += distance;
-            break;
-          case 'southeast':
-            newX += distance;
-            newY -= distance;
-            break;
-          case 'southwest':
-            newX -= distance;
-            newY -= distance;
-            break;
-        }
+        this.calculateMovement(direction,distance,originalTile,player)
       }
       
       // Ensure coordinates don't go above max
@@ -236,10 +176,9 @@ module.exports = {
           if(lastStringAddedToResponse != `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`){
             if(nxt_Tile.trapped){
               response += `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile IT WAS TRAPPED took ${game.mineDmg}! \n`
-              //TODO: Damage player
             }
             else{
-            response += `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`;
+              response += `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`;
             }
             lastStringAddedToResponse = `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`;
             amountOfRepeats = 1;
@@ -247,20 +186,21 @@ module.exports = {
           else{
             response += `x${amountOfRepeats + 1} \n`;
           }
+          // for some reason holds the trapped tile damage logic
           utils.moveFromTiletoTile(cur_Tile, nxt_Tile, player);
         }
 
         // Add player to new tile
-        await utils.movePlayerToTile(
+        await utils.setPlayerToTile(
           player.Player_ID, 
           originalTile.Layer_ID, 
           newX, 
           newY
         );
 
-        // Deduct action points
+        // Deduct action points & update free movement
         await models.Players.update(
-          { Action_Points: player.Action_Points - spentAP } , 
+          { Action_Points: player.Action_Points - spentAP, Free_Move: Math.min(player.Free_Move - (iceChecklist.length - (iceTileDeduction + player.Free_Move)), 0) } , 
           {where: {
            Discord_ID: interaction.user.id,
             Player_ID: player.Player_ID,
@@ -274,7 +214,7 @@ module.exports = {
         });
 
         //if player is a spy delete their action logs after 5 seconds
-        if(player.Class_ID == models.Classes.findOne({where: {Class_Name: "Spy"}}).Class_ID) {
+        if(player.Class_ID == await models.Classes.findOne({where: {Class_Name: "Spy"}}).Class_ID) {
           await utils.delay(5000);
           await interaction.deleteReply();
         }
@@ -292,5 +232,317 @@ module.exports = {
       content: `Error: ${error.message}`, 
       ephemeral: true 
     });
-  }}
+  }},
+
+  async calculateMovement(direction, distance, originalTile, player){
+    switch (direction) {
+      case 'west':
+        newX -= distance;
+        var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: originalTile.Y_Position, Layer_ID: originalTile.Layer_ID}})
+        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        break;
+      case 'east':
+        newX += distance;
+        var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: originalTile.Y_Position, Layer_ID: originalTile.Layer_ID}})
+        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        break;
+      case 'north':
+        newY += distance;
+        var endTile = await models.Tiles.findOne({where: {X_Position: originalTile.X_Position, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
+        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        break;
+      case 'south':
+        newY -= distance;
+        var endTile = await models.Tiles.findOne({where: {X_Position: originalTile.X_Position, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
+        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        break;
+      case 'northeast':
+        newX += distance;
+        newY += distance;
+        var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
+        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        break;
+      case 'northwest':
+        newX -= distance;
+        newY += distance;
+        var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
+        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        break;
+      case 'southeast':
+        newX += distance;
+        newY -= distance;
+        var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
+        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        break;
+      case 'southwest':
+        newX -= distance;
+        newY -= distance;
+        var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
+        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        break;
+      default:
+        throw "Invalid direction";
+    }
+  },
+
+  async movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
+    var randomDirection = this.getRandomInt(7);
+    var player = await models.Players.findByPk(playerId);
+    var playerClass = await models.Classes.findByPk(player.Class_ID);
+    var tile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
+    var newTile;
+    switch(randomDirection) {
+      case 0:
+        // West
+        newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x - 1, Y_Position: y}});
+        this.moveFromTiletoTile(tile, layer, x - 1, y);
+        break;
+      case 1:
+        // Southwest
+        newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x - 1, Y_Position: y + 1}});
+        moveFromTiletoTile(tile, layer, x - 1, y + 1);
+        break;
+      case 2:
+        // South
+        newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y + 1}});
+        moveFromTiletoTile(tile, layer, x, y + 1);
+        break;
+      case 3:
+        // Southeast
+        newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x + 1, Y_Position: y + 1}});
+        moveFromTiletoTile(tile, layer, x + 1, y + 1);
+        break;
+      case 4:
+        // East
+        newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x + 1, Y_Position: y}});
+        moveFromTiletoTile(tile, layer, x + 1, y);
+        break;
+      case 5:
+        // Northeast
+        newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x + 1, Y_Position: y - 1}});
+        moveFromTiletoTile(tile, layer, x + 1, y - 1);
+        break;
+      case 6:
+        // North
+        newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y - 1}});
+        moveFromTiletoTile(tile, layer, x, y - 1);
+        break;
+      case 7:
+        // Northwest
+        newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x - 1, Y_Position: y - 1}});
+        moveFromTiletoTile(tile, layer, x - 1, y - 1);
+        break;
+      default:
+        console.error("Invalid random direction from derived random number: " + randomDirection);
+        break;
+    }
+    //make sure the storm tile doesnt put them on a tile they usually couldnt move onto
+    if(playerClass.Class_Name != "Cloudborn"){
+      if(newTile.Tile_Type == "Wall" || newTile.Tile_Type == "Wall_Damaged" || newTile.Tile_Type == "Void" || newTile.Tile_Type == "Ice") {
+        this.movePlayerToRandomSurroundingTile(playerId, layer, x, y);
+      }
+    }
+  },
+  //for checking all the things that happen when a player moves onto an off of a tile,
+//  returns wether they player moved or not
+// secondBody is nullable boolean
+async moveFromTiletoTile(startTile, endTile, player, secondBody) {
+  console.log("[INFO][VERBOSE] Player: " + player.Player_ID + " moved from tile: " + startTile + " to tile: " + endTile);
+  if(secondBody == null || !secondBody){
+      switch(startTile.Tile_Type) {
+        //Player takes damage from leaving fire tile
+        case "Fire":
+          await models.Players.update({Health_Points: player.Health_Points - fireDmg},{ where: {Player_ID: player.Player_ID}})
+          await this.playerDeathLogic(null, player);
+          break;
+        //Player destroys smoke tile by moving off of it
+        case "Smoke":
+          await this.revertTileToBlank(startTile);
+          break;
+        default:
+          break;
+    }
+    switch(endTile.Tile_Type) {
+      //Player takes damage from entering fire tile
+        case "Fire":
+          await models.Players.update({Health_Points: player.Health_Points - fireDmg},{ where: {Player_ID: player.Player_ID}})
+          await this.playerDeathLogic(null, player);
+          break;
+      //Player must be moved randomly from entering storm tile
+      //Every time a Stormchaser moves onto a storm tile they...
+      //Every time a Robot moves onto a storm tile they...
+        case "Storm":
+          //Robot gainst 1 HP
+          if(player.Class_ID == 19){
+            await models.Players.update({Health_Points: player.Health_Points + 1}, {where: {Player_ID: player.Player_ID}})
+          }
+          //Stormchaser gains 1d4-2 AP
+          if(player.Class_ID == 15) {
+            await models.Players.update({Action_Points: player.Action_Points + (this.getRandomInt(3) - 1)},{ where: {Player_ID: player.Player_ID}})
+          }
+          //Player is moved in a random direction once
+          await this.movePlayerToRandomSurroundingTile(player.Player_ID, startTile.Layer_ID, startTile.X_Position, startTile.Y_Position);
+          break;
+        case "Void":
+        case "Wall":
+        case "Wall_Damaged":
+        //Check if player can move on these tiles(Currently they MUST be a clowdborn in order to) 
+          if(!player.Class_ID == 6) {
+              console.error("[ERROR] Player " + player.Discord_ID + " cannot move onto void, wall or wall damaged tiles");
+              throw "[ERROR] Player " + player.Discord_ID + " cannot move onto void wall or wall damaged tiles";
+          }
+          break;
+        default:
+          break;
+    }
+    
+    if(endTile.Trapped) {
+      //Get trapper
+      const trapper = await models.Players.findByPk(endTile.trapper);
+      if(!trapper) {
+        //TODO fix logging and make proper logs and errors
+        throw new Error("Mine without trapper found. Please contact snage.");
+      }
+      //Damage player
+      await models.Players.update({Health_Points: player.Health_Points - mineDmg}, {where: {Player_ID: player.Player_ID}});
+      this.playerDeathLogic(trapper, player);
+      //Remove trap
+      await models.Tiles.update({Trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
+    }
+  }
+  else{
+    switch(startTile.Tile_Type) {
+      //Player takes damage from leaving fire tile
+      case "Fire":
+        await models.Players.update({Health_Points2: player.Health_Points2 - fireDmg},{ where: {Player_ID: player.Player_ID}})
+        await this.playerDeathLogic(null, player);
+        break;
+      //Player destroys smoke tile by moving off of it
+      case "Smoke":
+        await this.revertTileToBlank(startTile);
+        break;
+      default:
+        break;
+  }
+  switch(endTile.Tile_Type) {
+    //Player takes damage from entering fire tile
+      case "Fire":
+        await models.Players.update({Health_Points2: player.Health_Points2 - fireDmg},{ where: {Player_ID: player.Player_ID}})
+        await this.playerDeathLogic(null, player);
+        break;
+    //Player must be moved randomly from entering storm tile
+    //Every time a Stormchaser moves onto a storm tile they...
+    //Every time a Robot moves onto a storm tile they...
+      case "Storm":
+        //Robot gainst 1 HP
+        if(player.Class_ID == 19){
+          await models.Players.update({Health_Points2: player.Health_Points2 + 1}, {where: {Player_ID: player.Player_ID}})
+        }
+        //Stormchaser gains 1d4-2 AP
+        if(player.Class_ID == 15) {
+          await models.Players.update({Action_Points: player.Action_Points + (this.getRandomInt(3) - 1)},{ where: {Player_ID: player.Player_ID}})
+        }
+        //Player is moved in a random direction once
+        await this.movePlayerToRandomSurroundingTile(player.Player_ID, startTile.Layer_ID, startTile.X_Position, startTile.Y_Position);
+        break;
+      case "Void":
+      case "Wall":
+      case "Wall_Damaged":
+      //Check if player can move on these tiles(Currently they MUST be a clowdborn in order to) 
+        if(!player.Class_ID == 6) {
+            console.error("[ERROR] Player " + player.Discord_ID + " cannot move onto void, wall or wall damaged tiles");
+            throw "[ERROR] Player " + player.Discord_ID + " cannot move onto void wall or wall damaged tiles";
+        }
+        break;
+      default:
+        break;
+  }
+  
+  if(endTile.Trapped) {
+    //Get trapper
+    const trapper = await models.Players.findByPk(endTile.trapper);
+    if(!trapper) {
+      //TODO fix logging and make proper logs and errors
+      throw new Error("Mine without trapper found. Please contact snage.");
+    }
+    //Damage player
+    await models.Players.update({Health_Points2: player.Health_Points2 - mineDmg}, {where: {Player_ID: player.Player_ID}});
+    this.playerDeathLogic(trapper, player);
+    //Remove trap
+    await models.Tiles.update({Trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
+  }
+  }
+},
+async setPlayerToTile(playerId, layer, x, y) {
+  var currentPlayer = await models.Players.findByPk(playerId)
+  var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
+  this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
+  await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}}).then((tile) => {
+    if(tile.Player_1 == null) {
+      tile.Player_1 = playerId;
+    }
+    else if(tile.Player_2 == null) {
+      tile.Player_2 = playerId;
+    }
+    else if(tile.Player_3 == null) {
+      tile.Player_3 = playerId;
+    }
+    else if(tile.Player_4 == null) {
+      tile.Player_4 = playerId;
+    }
+    else {
+      throw "tile is full";
+    }
+    tile.save();
+  });
+  await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
+},
+
+//turns a path([[direction, distance]]) into an array of [[x, y]] of each tile where the direction changes
+// mainly used for generating a cordinate array for getTileCordinatesOfPath
+//path takes in a result of inputPathToArray
+//startingTile takes in an array of [x, y] of where the path starts
+ pathToTiles(startingTile, path) {
+
+  var tiles = [];
+  //add the starting tile
+  tiles.push([startingTile.X_Position, startingTile.Y_Position]);
+  for (run in path){
+    //find where the next tile is and add its cordinates to the array
+    //case "direction":
+    //  destination = [x +/- distance, y +/- distance];
+    //  break;
+    //tiles.push(destination);
+      switch(path[run][0]){
+        case "left":
+          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position];
+          break;
+        case "right":
+          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position];
+          break;
+        case "up":
+          destination = [startingTile.X_Position, startingTile.Y_Position - parseInt(path[run][1])];
+          break;
+        case "down":
+          destination = [startingTile.X_Position, startingTile.Y_Position + parseInt(path[run][1])];
+          break;
+        case "nw":
+          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position - parseInt(path[run][1])];
+          break;
+        case "ne":
+          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position - parseInt(path[run][1])];
+          break;
+        case "sw":
+          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position + parseInt(path[run][1])];
+          break;
+        case "se":
+          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position + parseInt(path[run][1])];
+          break;
+        default:
+          throw "[ERROR][pathToTiles][SITUATIONAL] Invalid input path, your are using a direction that isnt: left,right,up,down,nw,ne,sw, or se";
+      }
+      tiles.push(destination);
+    }
+  return tiles
+},
 };

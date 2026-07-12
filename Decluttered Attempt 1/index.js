@@ -4,7 +4,17 @@ const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 const deployCommands = require('./deploy-commands');
-
+const pino = require('pino')
+const prettyPino = require('pino-pretty')
+const logger100 = pino(
+  {
+  transport: {
+    target: 'pino-pretty',
+    options: {
+      colorize: true
+    }
+  }
+ })
 // async function testConnection() {
 //   try {
 //     await sequelize.authenticate();
@@ -19,6 +29,7 @@ const deployCommands = require('./deploy-commands');
 
 // Load environment variables
 dotenv.config();
+logger100.silent({file: 'index.js', function: 'null(Top Level)'}, "Loaded enviorment variables.")
 
 // Create a new client instance
 const client = new Client({
@@ -26,19 +37,17 @@ const client = new Client({
     562950221957184
   ],
 });
-
-// Define layer types (global constant that can be used by command files)
-global.LAYERS = {
-  ENVIRONMENT: 'environment',
-  MINES: 'mines',
-  PLAYERS: 'players'
-};
+logger100.silent({file: 'index.js', function: 'null(Top Level)'}, 'Created discord.js Client with Intents')//TODO add intents to this log
 
 // Collection to store commands
 client.commands = new Collection();
+logger100.silent({file: 'index.js', function: 'null(Top Level)'}, "Created command collection object")
+
+console.log(client.commands)
 
 // Cache for tile textures (shared across commands)
 global.tileCache = {};
+logger100.silent({file: 'index.js', function: 'null(Top Level)'}, "Created tile image cache object")
 
 // Read command files
 const commandsPath = path.join(__dirname, 'commands');
@@ -53,10 +62,11 @@ for (const file of commandFiles) {
   if ('data' in command && 'execute' in command) {
     client.commands.set(command.data.name, command);
   } else {
-    console.log(`[WARNING] The command at ${filePath} is missing required "data" or "execute" property.`);
+    logger100.warn({file: 'index.js', function: 'null(Top Level)'}, `A javascript file at ${filePath} is missing the required "data" or "execute" properties needed to be a command so it was skipped and not added to the command collection object`)
   }
 }
 
+console.log(client.commands)
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
@@ -71,6 +81,7 @@ for (const file of eventFiles) {
 }
 
 // Login to Discord with your client's token
-deployCommands();
+deployCommands()
 
 client.login(process.env.DISCORD_TOKEN);
+

@@ -10,7 +10,7 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply();
         
-        models.Games.findAll().then((games) => {
+        await models.Games.findAll().then((games) => {
             var gameList = "";
             for (var i = 0; i < games.length; i++) {
                 gameList += "Game ID:" + games[i].Game_ID + " - Game State: " + games[i].GAME_STATE +
