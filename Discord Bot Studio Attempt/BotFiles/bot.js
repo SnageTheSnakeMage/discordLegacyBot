@@ -714,46 +714,46 @@ function deepSearchItems(object, key, predicate) {
 }
 
 
-// Grid Site Code
-const gridSite = express();
-gridSite.get("/", async (req, res) => {
-    res.sendFile(__dirname + '/index.html');
-})
+// // Grid Site Code
+// const gridSite = express();
+// gridSite.get("/", async (req, res) => {
+//     res.sendFile(__dirname + '/index.html');
+// })
 
-gridSite.listen(3000, () => {
-    console.log('grid website is running on port 3000');
-});
+// gridSite.listen(3000, () => {
+//     console.log('grid website is running on port 3000');
+// });
 
-// Database Code
-let db = new sqlite3.Database( __dirname + "/BotData/variables/database.db" );
+// // Database Code
+// let db = new sqlite3.Database( __dirname + "/BotData/variables/database.db" );
 
-function createTable() {
-    db.run("SELECT load_extension('json1')");
-    db.run("CREATE TABLE grid (layer INTEGER, x INTEGER, y INTEGER, tile INTEGER, players)");
-}
+// function createTable() {
+//     db.run("SELECT load_extension('json1')");
+//     db.run("CREATE TABLE grid (layer INTEGER, x INTEGER, y INTEGER, tile INTEGER, players)");
+// }
 
-function createGrid() {
-    const stmt = db.run("INSERT INTO grid (layer,x,y,tile,players) VALUES (?, ?, ?, ?, ?)")
-    for (let l = 0; l < 3; l++) {
-        for (let i = 0; i < 10; i++) {
-            for (let j = 0; j < 10; j++) {
-                stmt.run(l, i, j, 0, '{}');
-            }
-        }
-    }
-}
-createTable();
-createGrid();
+// function createGrid() {
+//     const stmt = db.run("INSERT INTO grid (layer,x,y,tile,players) VALUES (?, ?, ?, ?, ?)")
+//     for (let l = 0; l < 3; l++) {
+//         for (let i = 0; i < 10; i++) {
+//             for (let j = 0; j < 10; j++) {
+//                 stmt.run(l, i, j, 0, '{}');
+//             }
+//         }
+//     }
+// }
+// createTable();
+// createGrid();
 
-//updates the tile and players on said tile based on the layer x and y
-function updateTable(layer, x, y, tile, players) {
-    db.run("UPDATE grid SET tile = ?, players = ? WHERE layer = ? AND x = ? AND y = ?", [tile, players, layer, x, y]);
-}
+// //updates the tile and players on said tile based on the layer x and y
+// function updateTable(layer, x, y, tile, players) {
+//     db.run("UPDATE grid SET tile = ?, players = ? WHERE layer = ? AND x = ? AND y = ?", [tile, players, layer, x, y]);
+// }
 
-function deleteTable() {
-    db.run("DELETE FROM grid")
-}
+// function deleteTable() {
+//     db.run("DELETE FROM grid")
+// }
 
-function closeConnection() {
-    db.close();
-}
+// function closeConnection() {
+//     db.close();
+// }
