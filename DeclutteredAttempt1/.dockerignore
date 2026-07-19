@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+README.md
+.DS_Store
+TESTING.md
+tests
+jest.config.js
+.vscode
+.idea
+*.log
+combined.log
+G:\LegacyBotDiscord\package-lock.json
+G:\LegacyBotDiscord\package.json
