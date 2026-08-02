@@ -16,13 +16,6 @@ const GAMESTATES = Object.freeze({
 //Medium priority
 //task has been current place at Index@Line 68
 //TODO fix logging and make proper logs and errors
-//TODO revamp all console.logs to be logger.purpose("[FILE NAME][FUNCTION NAME] message")
-// purposes are follows
-// SILENT - irrelevant verbose sanity checking information
-// INFO - general information about an action the bot did
-// WARN - User error encountered
-// ERROR - Error or impossiblility detected in logic or processing 
-// FATAL - Bot broke :(
 
 //Lower Priority
 //TODO MAKE SURE ALL INSTANCES OF A PLAYERS TILE BIENG SET WE ALSO SET A TILE.PLAYERX to THE PLAYERS ID

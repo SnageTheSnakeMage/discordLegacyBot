@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
-
+const logger200 = commandExecutionLogger.child({file: 'gift.js'})
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('gift')
@@ -68,7 +68,7 @@ module.exports = {
             return interaction.editReply({ content: interaction.user.username + " gave " + amount + " AP to " + recievingPlayer.Discord_ID });
         }
         catch (error) {
-            console.log(error);
+            logger200.error({function: "execute"}, error);
             return interaction.editReply({ content: "Something went wrong! Please try again later. Error: " + error.message, ephemeral: true });
         }
     }

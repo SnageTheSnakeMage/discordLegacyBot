@@ -23,9 +23,9 @@ for (const folder of commandFolders) {
 		const command = require(filePath);
 		if ('data' in command && 'execute' in command) {
 			commands.push(command.data.toJSON());
-      console.log(`loaded command #${commands.length}: ${command.data.name}`);
+      topLogger.debug({file: 'deploy-commands.js', function: 'null(Top Level)'},`loaded command #${commands.length}: ${command.data.name}`);
 		} else {
-			console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+			topLogger.warn({file: 'deploy-commands.js', function: 'null(Top Level)'},`The command at ${filePath} is missing a required "data" or "execute" property.`);
 		}
 	}
 }
@@ -35,13 +35,13 @@ const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 // and deploy your commands!
 (async () => {
 	try {
-		console.log(`Started refreshing ${commands.length} application (/) commands.`);
+		topLogger.debug({file: 'deploy-commands.js', function: 'null(Top Level)'},`Started refreshing ${commands.length} application (/) commands.`);
 		// The put method is used to fully refresh all commands in the guild with the current set
 		const data = await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands });
-		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+		topLogger.debug({file: 'deploy-commands.js', function: 'null(Top Level)'},`Successfully reloaded ${data.length} application (/) commands.`);
 	} catch (error) {
 		// And of course, make sure you catch and log any errors!
-		console.error(error);
+		topLogger.error({file: 'deploy-commands.js', function: 'null(Top Level)'}, `${error}`);
 	}
 })()};
 

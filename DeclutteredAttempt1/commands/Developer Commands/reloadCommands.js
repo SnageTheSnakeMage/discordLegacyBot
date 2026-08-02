@@ -2,6 +2,7 @@ const { SlashCommandBuilder } = require('discord.js');
 const { InteractionContextType, PermissionFlagsBits } = require('discord.js');
 const path = require(`path`);
 const fs = require(`fs`)
+const logger200 = commandExecutionLogger.child({file: 'reloadCommands.js'})
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -32,7 +33,7 @@ module.exports = {
 	        		interaction.client.commands.set(newCommand.data.name, newCommand);
 	        		await interaction.reply(`Command \`${newCommand.data.name}\` was reloaded!`);
         		} catch (error) {
-	       			 console.error(error);
+	       			logger200.error({function: "execute"}, error);
 	        		await interaction.reply(`There was an error while reloading a command \`${command.data.name}\`:\n\`${error.message}\``);
        			}
 			}

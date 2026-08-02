@@ -6,6 +6,7 @@ const ICON_REQUIREMENTS = {
   HEIGHT: 80,
   FORMAT: 'image/png',
 };
+const logger200 = commandExecutionLogger.child({file: 'register.js'})
 const GAMESTATES = utils.GAMESTATES;
 
 module.exports = {
@@ -27,7 +28,7 @@ module.exports = {
       
       // Step 1: Validate and gather inputs
       const registrationData = await this.validateRegistrationInput(interaction);
-      console.log("[INFO][VERBOSE][register.js] Registration data verified as: " + JSON.stringify(registrationData));
+      logger200.debug({function: 'execute'}, "Registration data verified as: " + JSON.stringify(registrationData));
       // Step 2: Check if registration is allowed
       await this.checkRegistrationEligibility(registrationData);
       
@@ -48,20 +49,24 @@ module.exports = {
     // Get game ID with proper validation
     let gameId = interaction.options.getInteger('game');
     if (!gameId) {
-      console.log("[INFO][VERBOSE][validateRegistrationInput] No game ID provided, using oldest registering game");
+      logger200.debug({function: 'validateRegistrationInput'}, "No game ID provided, using oldest registering game");
       gameId = await utils.getOldestGamestateGameId(null, GAMESTATES.REGISTRATION);
+      logger200.debug({function: 'validateRegistrationInput'}, `Grabbed game with id: ${gameId}`);
     }
     
     // Validate game exists and is active
     try{
       var game = await models.Games.findByPk(gameId);
     }catch(error){
+      logger200.error({function: 'validateRegistrationInput'}, `Game with id ${gameId} not found.`)
       throw new Error("Game not found. Please check the game ID.");
     }
     if (game.GAME_STATE !== GAMESTATES.REGISTRATION) {
+      logger200.warn({function: 'validateRegistrationInput'}, `player attempted to register for game with id:${gameId}, game is not in registration phase`)
       throw new Error("Cannot register for games not in registration phase.");
     }
     if(await models.Players.count({where: {Game_ID: gameId}}) >= game.playerMax){
+      logger200.warn({function: 'validateRegistrationInput'}, `player attempted to register for game with id:${gameId}, game was at max capacity`)
       throw new Error("Game is full. Please try another game.");
     }
 
@@ -101,7 +106,7 @@ module.exports = {
     } catch (error) {
       existingPlayer = null;
     }
-    console.error("[ERROR][VERBOSE][checkRegistrationEligibility] Player: " + JSON.stringify(existingPlayer) + " Is already registered in Game: " + registrationData.gameId);
+    logger200.warn({function: checkRegistrationEligibility}, " Player: " + JSON.stringify(existingPlayer) + " Is already registered in Game with id: " + registrationData.gameId);
     if (existingPlayer) {
       throw new Error("You are already registered in this game");
     }
@@ -123,10 +128,10 @@ module.exports = {
     }
     if(!error.message == "You are already registered in this game" && existingPlayer){
       await models.Players.destroy({where: {Game_ID: registrationData.gameId, Discord_ID: registrationData.playerId}});
-      console.log("[INFO][VERBOSE][handleRegistrationError] Player: " + registrationData.playerId + " was removed from Game: " + registrationData.gameId);
+      logger200.debug({function: "handleRegistrationError"},"Player: " + registrationData.playerId + " was removed from Game with id: " + registrationData.gameId);
     }
     // Tell the user & me what went wrong
-    console.error('[ERROR][register.js] Registration failed:', error);
+    logger200.warn({function: "handleRegistrationError"}, 'Registration failed:', error);
     const errorMessage = error.message || "Registration failed. Please try again or contact support.";
     await interaction.editReply({ content: errorMessage });
   }

@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, ActionRowBuilder, range } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
+const logger200 = commandExecutionLogger.child({file: 'upgrade.js'})
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -36,7 +37,7 @@ module.exports = {
         //Variables
         const gameId = interaction.options.getInteger('game') ?? await utils.getOldestActiveGameId(interaction.user.id);
         const game = await models.Games.findByPk(gameId);
-        console.log("[INFO][VERBOSE][upgrade.js][execute] Game ID: " + gameId);
+        logger.debug("[VERBOSE][upgrade.js][execute] Game ID: " + gameId);
         const player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}}); 
         const stat = interaction.options.getString('stat');
         const amount = interaction.options.getInteger('amount') ?? 1;
@@ -50,7 +51,7 @@ module.exports = {
         var damageBuyIndex
         //var playerClass = await models.Classes.findByPk(player.Class_ID);
         //Get Price
-        console.log("[INFO][VERBOSE][upgrade.js][execute] player object: " + JSON.stringify(player));
+        logger.debug("[VERBOSE][upgrade.js][execute] player object: " + JSON.stringify(player));
 
         const price = await utils.getUpgradePrice(stat, player.Player_ID, amount);
         
@@ -213,7 +214,7 @@ module.exports = {
         }
     }
     catch (error) {
-        console.error(error);
+        logger200.error({function: "execute"}, error);
         await interaction.editReply({ content: 'There was an error while executing this command!', ephemeral: true });
     }
 }

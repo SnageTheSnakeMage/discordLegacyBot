@@ -3,7 +3,7 @@ const { SlashCommandBuilder, AttachmentBuilder, MessageFlags } = require('discor
 const utils = require('../../utils');
 var models = utils.models;
 const GAMESTATES = require('../../enums.js').GAMESTATES;
-
+const logger200 = commandExecutionLogger.child({file: 'board.js'})
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('board')
@@ -119,7 +119,7 @@ module.exports = {
   }
     
     } catch (error) {
-      console.error('[ERROR][COMMAND][board.js]:', error);
+      logger200.error({function: "execute"}, error);
       if (interaction.replied || interaction.deferred) {
         await interaction.editReply(`Error: ${error.message}`);
       } else {
@@ -127,7 +127,11 @@ module.exports = {
       }
     }
   },
+        }
   
+      }
+      return attachment
+  }
 // Function for traditional message command execution
 //   async onMessage(message, args) {
 //     try {

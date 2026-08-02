@@ -1,6 +1,7 @@
 // commands/layered-grid.js - Layered Grid Command
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const utils = require('../../utils');
+const logger200 = commandExecutionLogger.child({file: 'grid_dev.js'})
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -33,7 +34,7 @@ module.exports = {
         await interaction.user.send({ files: [attachment] });
         await interaction.deleteReply();
     } catch (error) {
-      console.error('[ERROR][COMMAND] layered-grid.execute: Error executing grid_dev command:', error);
+      logger200.error({function:"execute"}, "Error executing grid_dev command:', error");
       if (interaction.replied || interaction.deferred) {
         await interaction.editReply(`Error: ${error.message}`);
       } else {

@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
-
+const logger200 = commandExecutionLogger.child({file: 'move.js'})
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('move')
@@ -221,14 +221,14 @@ module.exports = {
         }
 
       } catch (error) {
-        console.error('[ERROR][move.js] Error moving player:', error);
+        logger200.error({function: "execute"}, `Error moving player: ${error}`);
         await interaction.editReply({ 
           content: response + error.message 
         });
       }
   }
   catch (error) {
-    console.error('[ERROR][move.js] Error executing move command:', error);
+    logger200.error({function: "execute"}, `Error executing move command: ${error}`);
     await interaction.reply({ 
       content: `Error: ${error.message}`, 
       ephemeral: true 
@@ -334,7 +334,7 @@ module.exports = {
         moveFromTiletoTile(tile, layer, x - 1, y - 1);
         break;
       default:
-        console.error("Invalid random direction from derived random number: " + randomDirection);
+        logger200.error({function: "movePlayerToRandomSurroundingTile"}, "Invalid random direction from derived random number: " + randomDirection);
         break;
     }
     //make sure the storm tile doesnt put them on a tile they usually couldnt move onto
@@ -348,7 +348,7 @@ module.exports = {
 //  returns wether they player moved or not
 // secondBody is nullable boolean
 async moveFromTiletoTile(startTile, endTile, player, secondBody) {
-  console.log("[INFO][VERBOSE] Player: " + player.Player_ID + " moved from tile: " + startTile + " to tile: " + endTile);
+  logger.debug("[VERBOSE] Player: " + player.Player_ID + " moved from tile: " + startTile + " to tile: " + endTile);
   if(secondBody == null || !secondBody){
       switch(startTile.Tile_Type) {
         //Player takes damage from leaving fire tile
@@ -389,7 +389,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
         case "Wall_Damaged":
         //Check if player can move on these tiles(Currently they MUST be a clowdborn in order to) 
           if(!player.Class_ID == 6) {
-              console.error("[ERROR] Player " + player.Discord_ID + " cannot move onto void, wall or wall damaged tiles");
+              logger200.error({function: "moveFromTiletoTile"},"Player " + player.Discord_ID + " cannot move onto void, wall or wall damaged tiles");
               throw "[ERROR] Player " + player.Discord_ID + " cannot move onto void wall or wall damaged tiles";
           }
           break;
@@ -451,7 +451,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
       case "Wall_Damaged":
       //Check if player can move on these tiles(Currently they MUST be a clowdborn in order to) 
         if(!player.Class_ID == 6) {
-            console.error("[ERROR] Player " + player.Discord_ID + " cannot move onto void, wall or wall damaged tiles");
+            logger200.error({function: "moveFromTileToTile"},"Player " + player.Discord_ID + " cannot move onto void, wall or wall damaged tiles");
             throw "[ERROR] Player " + player.Discord_ID + " cannot move onto void wall or wall damaged tiles";
         }
         break;

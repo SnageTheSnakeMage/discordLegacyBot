@@ -6,7 +6,7 @@ const dotenv = require('dotenv');
 const deployCommands = require('./deploy-commands');
 const pino = require('pino')
 const prettyPino = require('pino-pretty')
-const logger100 = pino(
+var logger100 = pino(
   {
   transport: {
     target: 'pino-pretty',
@@ -15,39 +15,26 @@ const logger100 = pino(
     }
   }
  })
-// async function testConnection() {
-//   try {
-//     await sequelize.authenticate();
-//     initModels(sequelize);
-//   console.log('Connection has been established successfully.');
-//   } catch (error) {
-//     console.error('Unable to connect to the database:', error);
-//   }
-// }
-
-// testConnection();
 
 // Load environment variables
+globalThis.topLogger = logger100
 dotenv.config();
-logger100.silent({file: 'index.js', function: 'null(Top Level)'}, "Loaded enviorment variables.")
-
+logger100.debug({file: 'index.js', function: 'null(Top Level)'}, "Loaded enviorment variables.")
 // Create a new client instance
 const client = new Client({
   intents: [
     562950221957184
   ],
 });
-logger100.silent({file: 'index.js', function: 'null(Top Level)'}, 'Created discord.js Client with Intents')//TODO add intents to this log
+logger100.debug({file: 'index.js', function: 'null(Top Level)'}, 'Created discord.js Client with Intents')//TODO add intents to this log
 
 // Collection to store commands
 client.commands = new Collection();
-logger100.silent({file: 'index.js', function: 'null(Top Level)'}, "Created command collection object")
-
-console.log(client.commands)
+logger100.debug({file: 'index.js', function: 'null(Top Level)'}, "Created command collection object")
 
 // Cache for tile textures (shared across commands)
 global.tileCache = {};
-logger100.silent({file: 'index.js', function: 'null(Top Level)'}, "Created tile image cache object")
+logger100.debug({file: 'index.js', function: 'null(Top Level)'}, "Created tile image cache object")
 
 // Read command files
 const foldersPath = path.join(__dirname, 'commands');
@@ -70,7 +57,6 @@ for (const folder of commandFolders) {
 }
 }
 
-console.log(client.commands)
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 

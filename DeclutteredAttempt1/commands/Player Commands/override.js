@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
-
+const logger200 = commandExecutionLogger.child({file: 'override.js'})
 //TODO make poll handler in utils
 module.exports = {
     data: new SlashCommandBuilder()

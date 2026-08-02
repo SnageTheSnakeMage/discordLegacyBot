@@ -2,7 +2,7 @@
 const utils = require('../../utils.js');
 var models = require("../../utils.js").models;
 const ChaosEvents = require('../../enums.js').ChaosEvents;
-
+const logger200 = commandExecutionLogger.child({file: 'listGames.js'})
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('listgames')

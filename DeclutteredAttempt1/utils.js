@@ -13,15 +13,18 @@ const sequelize = new Sequelize({
 });
 const fs = require('fs');
 const Players = require('./database/Models/Players');
+const { logger } = require('sequelize/lib/utils/logger');
 var models = initModels(sequelize);
 var GAMESTATES = require('./enums.js').GAMESTATES;
 const ChaosEvents = require('./enums.js').ChaosEvents;
 const APCHECKINTERVAL_SECONDS = 30;
+var logger150 = topLogger.child({file: 'utils.js'})
 //#endregion BOILERPLATE
 module.exports = {
   models,
   GAMESTATES,
 // Function to load a tile texture
+
 
 timeCheck(client){ 
   //start apcheckinterval for each active game
@@ -57,7 +60,7 @@ buildChaosCouncilPoll(lastEventKey, game){
 startAPCheckInterval(game, client){
   //every 30 seconds check if AP needs to be distributed if your behind distribute it multiple times for each interval you are behind on
   setInterval( async() => {
-    console.log("[INFO][utils.js][startAPCheckInterval] started the interval!")
+    logger150.debug({function: "startAPCheckInterval"},  "started an ap check interval!")
     //how often AP is distributed for the game in milliseconds
     var apInterval = game.AP_INTERVAL_MIN *  60000
     //how long it has been since the last AP distribution in milliseconds
@@ -65,7 +68,7 @@ startAPCheckInterval(game, client){
     if(lastDistrib > apInterval){
       //amount of times ap should have been distributed
       var times = Math.floor(lastDistrib / apInterval);
-      console.log(`[INFO][utils.js][startAPCheckInterval] calculated ${times.toString()} AP distributions (lastDitrib: ${lastDistrib}, apInterval: ${apInterval}, times: ${times})`)
+      logger150.debug({function: "startAPCheckInterval"}, `calculated ${times.toString()} AP distributions (lastDitrib: ${lastDistrib}, apInterval: ${apInterval}, times: ${times})`)
       await this.distributeAP(game, times, client);
       if(times >= 1){await models.Games.update({lastAPDistributionTimestampInMS: Date.now()}, {where: {Game_ID: game.Game_ID}});}
     }
@@ -291,13 +294,13 @@ async loadTileTexture(layer, textureName) {
   }
 
   if(textureName == null) {
-    if(verbose) console.log("[INFO][VERBOSE] No texture name provided, using transparent texture.");
+    if(verbose) logger150.debug({function: "loadTileTexture"}, "No texture name provided, using transparent texture.");
     textureName = 'transparent';
   }
 
   // Path to tile textures folder (organized by layer)
   const tilePath =  "./tiles/" + layer + "/" + textureName + ".png";
-  console.log("[INFO][VERBOSE] Loading tile texture:", tilePath);
+  logger150.debug({function: "loadTileTexture"}, "Loading tile texture:", tilePath);
   
   try {
     // Load the image
@@ -307,7 +310,7 @@ async loadTileTexture(layer, textureName) {
     
     return image;
   } catch (error) {
-    console.error(`[ERROR][VERBOSE] Utils.loadTileTexture: Failed to load tile texture ${textureName}:`, error);
+    logger150.error({function: "loadTileTexture"}, `Failed to load tile texture ${textureName}: ${error}`);
     // Return a default texture or placeholder for the appropriate layer  
     const defaultTile = await Canvas.loadImage("./tiles/" + layer + "/default.png");
     return defaultTile;
@@ -416,7 +419,7 @@ async  commandResolutionErrorThrower() {
 //turns a layer id that would be known to a player for a game into the actual layer's id in the database
 async commonLayerIDtoDbLayerID(gameId, inputtedLayerID){
   var allLayersInGame = (await models.Layers.findAll({where: {Game_ID: gameId}, attributes: ["Layer_ID"]})).map(layer => layer.Layer_ID);
-  console.log(JSON.stringify(allLayersInGame))
+  logger150.debug({function: 'commonLayerIdtoDbLayerID'}, `fetched the layers: ${JSON.stringify(allLayersInGame)} from the database`)
   return allLayersInGame[inputtedLayerID-1]
 },
 
@@ -490,7 +493,7 @@ async classRemoval(victim, excorist){
 
 async dbLayerIDtoCommonLayerID(gameId, dbLayerID){ 
   var allLayersInGame = (await models.Layers.findAll({where: {Game_ID: gameId}, attributes: ["Layer_ID"]})).map(layer => layer.Layer_ID);
-  console.log(`[SILENT][VERBOSE][utils.js][dbLayerIDtoCommonLayerId] converted layer id: ${dbLayerID} to ${allLayersInGame.indexOf(dbLayerID)+1}`)
+  logger150.debug({function: dbLayerIDtoCommonLayerId}, ` converted layer id: ${dbLayerID} to ${allLayersInGame.indexOf(dbLayerID)+1}`)
   return allLayersInGame.indexOf(dbLayerID)+1
 },
 
@@ -501,7 +504,7 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
   // Get layer dimensions
   const layerDbId = await this.commonLayerIDtoDbLayerID(gameId, inputtedlayerID);
   const selectedLayer = await models.Layers.findByPk(layerDbId);
-  if(verbose) console.log("[INFO][VERBOSE][utils.js][GenerateGameGridImage] selectedLayer: " + JSON.stringify(selectedLayer));
+  logger150.debug({function: "GenerateGameGridImage"}, `selectedLayer:  + ${JSON.stringify(selectedLayer)} to generate`);
   const baseGridHeight = selectedLayer.Y_Bound;
   
   const baseGridWidth = selectedLayer.X_Bound;
@@ -568,7 +571,7 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
         await models.Players.findOne({where: {Player_ID: currentTile.Player3}}), 
         await models.Players.findOne({where: {Player_ID: currentTile.Player4}})
       ]);
-      if (verbose) console.log("[INFO][VERBOSE] got players: " + JSON.stringify(tilePlayers) + " for tile: " + currentTile.Tile_ID);
+      logger150.debug({function: "GenerateGameGridImage"},"got players: " + JSON.stringify(tilePlayers) + " for tile: " + currentTile.Tile_ID);
     }
 
 
@@ -593,7 +596,7 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
       const playerImage = await this.loadTileTexture("players", tilePlayer.Discord_ID);
       let playerTilePositionX = canvasX;
       let playerTilePositionY = canvasY;
-      if(verbose) console.log("[INFO][VERBOSE] playerTileWidth: " + playerTileWidth + ", playerTileHeight: " + playerTileHeight);
+      logger150.debug({function: "GenerateGameGridImage"}, "playerTileWidth: " + playerTileWidth + ", playerTileHeight: " + playerTileHeight);
 
       // Position players in quadrants
       switch (playerIndex) {
@@ -610,7 +613,7 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
           playerTilePositionY += playerTileHeight;
           break;
       }
-      console.log("[INFO][VERBOSE] drawing player " + tilePlayer.Discord_ID + " at " + playerTilePositionX + ", " + playerTilePositionY)
+      logger150.debug({function: "GenerateGameGridImage"}, "drawing player " + tilePlayer.Discord_ID + " at " + playerTilePositionX + ", " + playerTilePositionY)
       context.drawImage(
         playerImage,
         playerTilePositionX,
@@ -635,13 +638,13 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
 async  registerPlayer(gameId, playerId, playerIcon) {
     var game = await models.Games.findByPk(gameId);
     var SelectedClass = await this.getRandomClass(game);
-    console.log("[INFO][VERBOSE][registerPlayer] selected class: " + JSON.stringify(SelectedClass));
+    logger150.debug({function: "registerPlayer"},"selected class: " + JSON.stringify(SelectedClass));
     if(SelectedClass.Class_Name == "Twin"){
       var spawn1 = await this.getSpawnpointTile(gameId)
       var spawn2 = await this.getSpawnpointTile(gameId)
       var spawnSearchAttempts = 0
       while(spawn1.Tile_ID == spawn2.Tile_ID && spawnSearchAttempts < 20){ spawn2 = await this.getSpawnpointTile(gameId); spawnSearchAttempts++; }
-      console.log("[INFO][VERBOSE][registerPlayer] Rolled same spawnpoint, spawn1: " + JSON.stringify(spawn1) + ", spawn2: " + JSON.stringify(spawn2));
+      logger150.debug({function: "registerPlayer"},"Rolled same spawnpoint, spawn1: " + JSON.stringify(spawn1) + ", spawn2: " + JSON.stringify(spawn2));
       if(spawn1.Tile_ID == spawn2.Tile_ID) throw "Failed to generate spawnpoint for Twin, please try again so a new class may be selected for you.";
       await models.Players.create({
         Class_ID: SelectedClass.Class_ID,
@@ -688,7 +691,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
         await models.Tiles.update({Player4: createdPlayer.Player_ID}, {where: {Tile_ID: spawn2.Tile_ID}});
       }
       this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + ".png");
-      console.log("[INFO][registerPlayer] registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
+      logger150({function: "registerPlayer"}, "registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
       return;
     }
     var spawn = await this.getSpawnpointTile(gameId)
@@ -725,7 +728,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
     }
     
     this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + ".png");
-    console.log("[INFO] registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + JSON.stringify(spawn) +  " for spawn");
+    logger150({function: "registerPlayer"}, "registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + JSON.stringify(spawn) +  " for spawn");
     return;
 },
 
@@ -740,7 +743,7 @@ async downloadImageWithFetch(url, filepath) {
 },
 
 async getUpgradePrice(stat, playerId, amount) {
-  console.log("[INFO][VERBOSE][utils.js][getUpgradePrice] running getUpgradePrice with \n stat: " + stat + " playerId: " + playerId + " amount: " + amount);
+  logger150.debug({function: "getUpgradePrice"}, "running getUpgradePrice with \n stat: " + stat + " playerId: " + playerId + " amount: " + amount);
   const player = await models.Players.findByPk(playerId);
   var initalCost = 0;
   var returnedCost = 0;
@@ -755,9 +758,9 @@ async getUpgradePrice(stat, playerId, amount) {
       initalCost = player.DAMAGE_COST;
       break;
   }
-  console.log("[INFO][VERBOSE][utils.js][getUpgradePrice] initalCost: " + initalCost);
-  console.log("[INFO][VERBOSE][utils.js][getUpgradePrice] stat: " + stat);
-  console.log("[INFO][VERBOSE][utils.js][getUpgradePrice] costs: " + player.RANGE_COST + "\n" + player.HP_COST + "\n" + player.DAMAGE_COST);
+  logger150.debug({function: "getUpgradePrice"}, "initalCost: " + initalCost);
+  logger150.debug({function: "getUpgradePrice"}, "stat: " + stat);
+  logger150.debug({function: "getUpgradePrice"}, "costs: " + player.RANGE_COST + "\n" + player.HP_COST + "\n" + player.DAMAGE_COST);
   // +1 Range (4 -> 5 -> 7 -> 10 AP)
 // +1 HP (4 -> 5 -> 7 -> 10 AP)
 // +1 Damage (12 -> 14 -> 16 AP)
@@ -843,7 +846,7 @@ async getRandomClass(game) {
   // Get a random class ID
   var randomClassID = this.getRandomInt(await models.Classes.count());
   var randomClass = await models.Classes.findByPk(randomClassID);
-  console.log("[INFO][VERBOSE][getRandomClass] rolled random class: " + randomClass.Class_Name);
+  logger150.debug({function: "getRandomClass"}, "rolled random class: " + randomClass.Class_Name);
   
   if (!game.classBlacklist) {
     game.classBlacklist = "";
@@ -863,7 +866,7 @@ async getRandomClass(game) {
   if (isClassAvailable) {
     return randomClass;  // Now this returns from the main function
   } else {
-    console.log("[INFO][getRandomClass] class " + randomClass.Class_Name + " is not available, rerolling class...");
+    logger150.debug({function: "getRandomClass"}, "class " + randomClass.Class_Name + " is not available, rerolling class...");
     return await this.getRandomClass(game);  // Properly await and return the recursive call
   }
 },
@@ -874,7 +877,7 @@ async getRandomClass(game) {
     attributes: ["Layer_ID"]
   }).then(layerIds => layerIds.map(layerId => layerId.Layer_ID));
   
-  if(verbose) console.log("[INFO][VERBOSE][getSpawnpointTile] layerIds: " + JSON.stringify(layerIds));
+  logger150.debug({function: "getSpawnpointTile"}, "layerIds: " + JSON.stringify(layerIds));
   
   var possibleTiles = await models.Tiles.findAll({
     where: {
@@ -883,12 +886,12 @@ async getRandomClass(game) {
     }
   });
   
-  if (verbose) console.log("[INFO][VERBOSE][getSpawnpointTile] possibleTiles: " + JSON.stringify(possibleTiles));
+  logger150.debug({function: "getSpawnpointTile"}, "possibleTiles: " + JSON.stringify(possibleTiles));
   var randomTile = possibleTiles[this.getRandomInt(possibleTiles.length - 1)];
-  if (verbose) console.log("[INFO][VERBOSE][getSpawnpointTile] rolled tile: " + JSON.stringify(randomTile) + " for a spawnpoint");
+  logger150.debug({function:"getSpawnpointTile"}, "rolled tile: " + JSON.stringify(randomTile) + " for a spawnpoint");
   playersInTile = [randomTile.Player1, randomTile.Player2, randomTile.Player3, randomTile.Player4];
   if ( !playersInTile.includes(null) ) {
-    console.log("[INFO][getSpawnpointTile] spawnpoint full, rerolling spawnpoint...");
+    logger150.debug({function: "getSpawnpointTile"}, "spawnpoint full, rerolling spawnpoint...");
     this.getSpawnpointTile(gameId);
   }
   else {
@@ -896,7 +899,6 @@ async getRandomClass(game) {
   };
 },
 
-//TODO revamp all console.logs to be ("[PURPOSE][VERBOSE?][FILE NAME][FUNCTION NAME] message")
 //TODO MAKE SURE ALL INSTANCES OF A PLAYERS TILE BIENG SET WE ALSO SET A TILE.PLAYERX to THE PLAYERS ID
  delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -968,7 +970,7 @@ async getRandomClass(game) {
         }
         break;
       default:
-        console.log("[ERROR][utils.js][getTileCordinatesOfLine] Direction not found given direction: "+ direction + ". Assuming direction is null due to tiles bieng the same.");
+        logger150.error({function: "getTileCordinatesOfLine"}, "Direction not found given direction: "+ direction + ". Assuming direction is null due to tiles bieng the same.");
         return returnedTiles
     }
     returnedTiles.push([iteratorX, iteratorY]);
@@ -987,7 +989,7 @@ async getOldestGameId(playerDiscordID){
       oldestGameId = games[i].GAME_ID;
     }
   }
-  console.log("[SILENT][utils.js][getOldestGameId] found game id: "+ oldestGameId.toString())
+  logger150.debug({function:"getOldestGameId"}, "found game id: "+ oldestGameId.toString())
   return oldestGameId;
   }
 },
@@ -1019,7 +1021,7 @@ async  getOldestActiveGameId(playerDiscordID) {
 },
 
 async checkGameState(gamestate, isClockwatcher, interaction) {
-        console.log("[INFO][checkGameState] gamestate: " + gamestate );
+        logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate );
         switch(gamestate) {
         case GAMESTATES.FINISHED:
           
@@ -1050,9 +1052,9 @@ async getOldestGameId(playerDiscordID) {
     if (playerDiscordID) {
     var gameIdsFromPlayer = await models.Players.findAll({where: {Discord_ID: playerDiscordID}, attributes: ["Game_ID"]}).then(gameIdsFromPlayer => gameIdsFromPlayer.map(gameIdFromPlayer => gameIdFromPlayer.Game_ID));
     //.then(layerIds => layerIds.map(layerId => layerId.Layer_ID))
-    console.log("[INFO][VERBOSE][getOldestGameId] Found Game Ids by Player:" + JSON.stringify(gameIdsFromPlayer));
+    logger150.debug({function: "getOldestGameId"}, "Found Game Ids by Player:" + JSON.stringify(gameIdsFromPlayer));
     var games = await models.Games.findAll({where: {Game_ID: {[Op.in]: gameIdsFromPlayer}}});
-    console.log("[INFO][VERBOSE][getOldestGameId] Found Games by Player & Gamestate:" + JSON.stringify(games));
+    logger150.debug({function: "getOldestGameId"}, "Found Games by Player & Gamestate:" + JSON.stringify(games));
     var oldestGameId = games[games.length - 1].Game_ID + 1;
   for (var game in games) {
     //if a game id is lower its older so we swap it out
@@ -1073,13 +1075,13 @@ async  getOldestGamestateGameId(playerDiscordID, gamestate) {
     var games = await models.Games.findAll({where: {
     GAME_STATE: gamestate,
     Game_ID: gameIdsFromPlayer}});
-    console.log("[INFO][VERBOSE][getOldestGamestateGameId] Found Games by Player & Gamestate:" + JSON.stringify(games));
+    logger150.debug({function: "getOldestGamestateGameId"}, "Found Games by Player & Gamestate:" + JSON.stringify(games));
   }
   else {
     var games = await models.Games.findAll({where: {
         GAME_STATE: gamestate
       }});
-    console.log("[INFO][VERBOSE][getOldestGamestateGameId] Found Games by Gamestate:" + JSON.stringify(games));
+    logger150.debug({function: "getOldestGamestateGameId"}, "Found Games by Gamestate:" + JSON.stringify(games));
   }
 
   return games[games.length - 1].Game_ID;
@@ -1116,7 +1118,7 @@ async getAllPlayersOnTile(tileID, tile) {
     tile = await models.Tiles.findByPk(tileID)
   }
   if(tile == null) {
-    console.error("[getAllPlayersOnTile]could not find tile")
+    logger150.error({function: "getAllPlayersOnTile"}, "could not find tile")
   }
   playersOnTile.push([tile.Player1, tile.Player2, tile.Player3, tile.Player4])
 
@@ -1291,7 +1293,7 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
       switch (xDiff) {
         // x1 = x2
         case 0:
-          console.error("[ERROR] Utils.getDirection: Same points, no direction");
+          logger150.error({function: "getDirection"}, "Same points, no direction");
           return null;
         // x1 > x2
         case (xDiff > 0):

@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
-
+const logger200 = commandExecutionLogger.child({file: 'punish.js'})
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -165,7 +165,7 @@ module.exports = {
         return interaction.editReply({ content: response });
     }
         catch (error) {
-            console.log(error);
+            logger200.error({function: "execute"}, `${error}`);
             return interaction.editReply({ content: "An error has occured + " + error.message + "!", ephemeral: true });
         }
     }
