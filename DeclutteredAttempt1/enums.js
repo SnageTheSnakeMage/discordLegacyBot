@@ -12,6 +12,8 @@ const GAMESTATES = Object.freeze({
 //Higher priority
 //TODO: add twin functionality to Tile movement check in utils(Line 827)
 //TODO update gust implementation
+//TODO create proper tests
+//TODO rewrite commands for better testing <--- CURRENT TASK
 
 //Medium priority
 //task has been current place at Index@Line 68
