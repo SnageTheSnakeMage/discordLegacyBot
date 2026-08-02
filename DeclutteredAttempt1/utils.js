@@ -503,26 +503,27 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
 
   // Get layer dimensions
   const layerDbId = await this.commonLayerIDtoDbLayerID(gameId, inputtedlayerID);
+  logger150.silent({function: "GenereateGameGridImage"}, `set layerDbId to ${layerDbId}`)
   const selectedLayer = await models.Layers.findByPk(layerDbId);
-  logger150.debug({function: "GenerateGameGridImage"}, `selectedLayer:  + ${JSON.stringify(selectedLayer)} to generate`);
+  logger150.debug({function: "GenerateGameGridImage"}, `selectedLayer:  + ${JSON.stringify(selectedLayer)} from database to generate`);
   const baseGridHeight = selectedLayer.Y_Bound;
-  
+  logger150.silent({function: "GenereateGameGridImage"}, `set baseGridHeight to ${baseGridHeight}`)
   const baseGridWidth = selectedLayer.X_Bound;
-  
+  logger150.silent({function: "GenereateGameGridImage"}, `set baseGridWidth to ${baseGridWidth}`)
   const canvasWidth = baseGridWidth * tileSize;
   const canvasHeight = baseGridHeight * tileSize;
   
   // Create canvas
   const canvas = Canvas.createCanvas(canvasWidth, canvasHeight);
   const context = canvas.getContext('2d');
-  
+  logger150.silent({function: "GenereateGameGridImage"}, `created canvas`)
   // Fill background
   context.fillStyle = '#222222';
   context.fillRect(0, 0, canvasWidth, canvasHeight);
-
+  logger150.silent({function: "GenereateGameGridImage"}, `created canvas context`)
   // Get all tiles for this layer
   const layerTiles = await models.Tiles.findAll({where: {Layer_ID: layerDbId}});
-
+  logger150.silent({function: "GenereateGameGridImage"}, `fetched the following tiles of the layer: ${JSON.stringify(layerTiles)}`)
   if(playerID != null) {
     const playerSeeing = await models.Players.findByPk(playerID);
     const playersTile = await models.Tiles.findByPk(playerSeeing.Tile_ID);
