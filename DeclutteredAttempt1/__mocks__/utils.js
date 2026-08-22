@@ -1,4 +1,4 @@
-// utils.js - Shared utility functions
+// mock utils.js - Shared utility functions with sequelize dependancy removed
 
 
   //#region BOILERPLATE
@@ -482,11 +482,11 @@ async dbLayerIDtoCommonLayerID(gameId, dbLayerID){
 },
 
 // generates a layer from a game while checking what a player can see
-async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
+async  GenerateGameGridImage(gameId, databaselayerID, playerID) {
   const tileSize = 208;
 
   // Get layer dimensions
-  const layerDbId = await this.commonLayerIDtoDbLayerID(gameId, inputtedlayerID);
+  const layerDbId = await this.commonLayerIDtoDbLayerID(gameId, databaselayerID);
   const selectedLayer = await models.Layers.findByPk(layerDbId);
   const baseGridHeight = selectedLayer.Y_Bound;
   const baseGridWidth = selectedLayer.X_Bound;
