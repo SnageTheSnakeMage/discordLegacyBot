@@ -416,12 +416,7 @@ async  commandResolutionErrorThrower() {
 },
 
 
-//turns a layer id that would be known to a player for a game into the actual layer's id in the database
-async commonLayerIDtoDbLayerID(gameId, inputtedLayerID){
-  var allLayersInGame = (await models.Layers.findAll({where: {Game_ID: gameId}, attributes: ["Layer_ID"]})).map(layer => layer.Layer_ID);
-  logger150.debug({function: 'commonLayerIdtoDbLayerID'}, `fetched the layers: ${JSON.stringify(allLayersInGame)} from the database`)
-  return allLayersInGame[inputtedLayerID-1]
-},
+
 
 //removes a class from a player
 //is a function due to weird edge cases
@@ -491,11 +486,7 @@ async classRemoval(victim, excorist){
   }
 },
 
-async dbLayerIDtoCommonLayerID(gameId, dbLayerID){ 
-  var allLayersInGame = (await models.Layers.findAll({where: {Game_ID: gameId}, attributes: ["Layer_ID"]})).map(layer => layer.Layer_ID);
-  logger150.debug({function: `dbLayerIDtoCommonLayerID`}, ` converted layer id: ${dbLayerID} to ${allLayersInGame.indexOf(dbLayerID)+1}`)
-  return allLayersInGame.indexOf(dbLayerID)+1
-},
+
 
 // generates a layer from a game while checking what a player can see
 async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
@@ -621,7 +612,7 @@ async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
     }
 
     // Draw mines if tile is trapped
-    if (currentTile.trapped && player.Class_ID == 22) {
+    if (currentTile.trapped && (trapSight)) {
       const mineImage = await loadTileTexture("mines", "Mine");
       context.drawImage(mineImage, canvasX, canvasY, tileSize, tileSize);
     }

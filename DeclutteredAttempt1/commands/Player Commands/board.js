@@ -1,4 +1,3 @@
-// commands/layered-grid.js - Layered Grid Command
 const { SlashCommandBuilder, AttachmentBuilder, MessageFlags } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
@@ -66,7 +65,8 @@ module.exports = {
  
      var layer = interaction.options.getInteger('layer')
      logger200.debug( `set layer to ${JSON.stringify(layer)}`)
- 
+     //common = true
+     //database = false
      var commonOrDB = true;
  
      //Check which layer to show the player if they dont provide it, and if they are a twin make sure to show the one with the body they chose
@@ -135,7 +135,7 @@ module.exports = {
   async logic(inputs){
     const logger200 = globalThis.CommandExecutionLogger.child({file: `board.js`, function: `logic`})
     logger200.debug(`running board.js logic with inputs: ${JSON.stringify(inputs)}`)
-    if(inputs.commonOrDB){
+    if(!inputs.commonOrDB){
         logger200.debug(`using database layer id and running utils.GenerateGridImage`)
         // Generate image from database and provided inputs
         const imageBuffer = await utils.GenerateGameGridImage(inputs.gameId, inputs.layer, inputs.player.Player_ID);
@@ -156,7 +156,7 @@ module.exports = {
   },
 async commonLayerIDtoDbLayerID(gameId, inputtedLayerID){
   var allLayersInGame = (await models.Layers.findAll({where: {Game_ID: gameId}, attributes: ["Layer_ID"]})).map(layer => layer.Layer_ID);
-  logger150.debug({function: 'commonLayerIdtoDbLayerID'}, `fetched the layers: ${JSON.stringify(allLayersInGame)} from the database`)
+  logger200.debug({function: 'commonLayerIdtoDbLayerID'}, `fetched the layers: ${JSON.stringify(allLayersInGame)} from the database`)
   return allLayersInGame[inputtedLayerID-1]
 },
 // Function for traditional message command execution
