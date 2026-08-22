@@ -498,12 +498,9 @@ async dbLayerIDtoCommonLayerID(gameId, dbLayerID){
 },
 
 // generates a layer from a game while checking what a player can see
-async  GenerateGameGridImage(gameId, commonlayerID, playerID) {
+async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
   const tileSize = 208;
-
-  // Get layer dimensions
-  const layerDbId = await this.commonLayerIDtoDbLayerID(gameId, commonlayerID);
-  logger150.debug({function: "GenereateGameGridImage"}, `set layerDbId to ${layerDbId}`)
+  logger150.trace({})
   const selectedLayer = await models.Layers.findByPk(layerDbId);
   logger150.debug({function: "GenerateGameGridImage"}, `selectedLayer:  + ${JSON.stringify(selectedLayer)} from database to generate`);
   const baseGridHeight = selectedLayer.Y_Bound;

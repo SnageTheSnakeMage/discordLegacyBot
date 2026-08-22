@@ -107,23 +107,12 @@ module.exports = {
        return;
      case GAMESTATES.REGISTRATION:
        logger200.debug(`gamestate is REGISTRATION, processing input`)
-       if(commonOrDB){
-         // Generate image from database and provided inputs
-         const imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);
-         // Create attachment
-         const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
-         await interaction.editReply({ content: "Game is in registration! only the dev can use commands for this game at this time.\n Please wait for the game to start.", files: [attachment] });
-         return;
-       }
-       else{
-         layer = await utils.dbLayerIDtoCommonLayerID(gameId, layer)
-         // Generate image from database and provided inputs
-         const imageBuffer = await utils.GenerateGameGridImage(gameId, layer, player.Player_ID);
-         // Create attachment
-         const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
-         await interaction.editReply({ content: "Game is in registration! only the dev can use commands for this game at this time.\n Please wait for the game to start.", files: [attachment] });
-         return;
-       }
+       return {
+        commonOrDB,
+        gameId,
+        layer,
+        player,
+      }
      default:
        logger200.debug(`gamestate is OUT OF BOUNDS(${game.GAME_STATE}), processing input`)
        break;
@@ -144,8 +133,8 @@ module.exports = {
     }
   },
   async logic(inputs){
-    //const logger200 = globalThis.CommandExecutionLogger.child({file: `board.js`, function: `logic`})
-    //logger200.debug(`running board.js logic with inputs: ${JSON.stringify(inputs)}`)
+    const logger200 = globalThis.CommandExecutionLogger.child({file: `board.js`, function: `logic`})
+    logger200.debug(`running board.js logic with inputs: ${JSON.stringify(inputs)}`)
     if(inputs.commonOrDB){
         logger200.debug(`using database layer id and running utils.GenerateGridImage`)
         // Generate image from database and provided inputs
@@ -155,8 +144,8 @@ module.exports = {
         return attachment
       }
     else {
-      //logger200.debug(`converting to database layer id from common layer id ${inputs.layer} and running utils.GenerateGridImage`)
-        inputs.layer = await utils.dbLayerIDtoCommonLayerID(inputs.gameId, inputs.layer)
+        logger200.debug(`converting to database layer id from common layer id ${inputs.layer} and running utils.GenerateGridImage`)
+        inputs.layer = await this.commonLayerIDtoDbLayerID(inputs.gameId, inputs.layer)
         // Generate image from database and provided inputs
         const imageBuffer = await utils.GenerateGameGridImage(inputs.gameId, inputs.layer, inputs.player.Player_ID);
 
@@ -165,6 +154,11 @@ module.exports = {
         return attachment
       }
   },
+async commonLayerIDtoDbLayerID(gameId, inputtedLayerID){
+  var allLayersInGame = (await models.Layers.findAll({where: {Game_ID: gameId}, attributes: ["Layer_ID"]})).map(layer => layer.Layer_ID);
+  logger150.debug({function: 'commonLayerIdtoDbLayerID'}, `fetched the layers: ${JSON.stringify(allLayersInGame)} from the database`)
+  return allLayersInGame[inputtedLayerID-1]
+},
 // Function for traditional message command execution
 //   async onMessage(message, args) {
 //     try {
