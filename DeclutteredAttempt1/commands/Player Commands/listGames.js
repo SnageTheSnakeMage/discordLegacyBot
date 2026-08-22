@@ -2,12 +2,13 @@
 const utils = require('../../utils.js');
 var models = require("../../utils.js").models;
 const ChaosEvents = require('../../enums.js').ChaosEvents;
-const logger200 = commandExecutionLogger.child({file: 'listGames.js'})
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('listgames')
         .setDescription('lists all games'),
     async execute(interaction) {
+        const logger200 = globalThis.CommandExecutionLogger.child({file: 'listGames.js'})
         await interaction.deferReply();
         
         await models.Games.findAll().then((games) => {

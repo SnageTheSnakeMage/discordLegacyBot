@@ -5,7 +5,7 @@
 const Canvas = require('canvas');
 const path = require('path');
 const verbose = true;
-const initModels = require("./database/Models/init-models.js");
+const initModels = require("./database/init-models.js");
 const { Sequelize, where, Op } = require('sequelize');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
@@ -18,7 +18,7 @@ var models = initModels(sequelize);
 var GAMESTATES = require('./enums.js').GAMESTATES;
 const ChaosEvents = require('./enums.js').ChaosEvents;
 const APCHECKINTERVAL_SECONDS = 30;
-var logger150 = topLogger.child({file: 'utils.js'})
+var logger150 = globalThis.topLogger.child({file: 'utils.js'})
 //#endregion BOILERPLATE
 module.exports = {
   models,
@@ -493,37 +493,37 @@ async classRemoval(victim, excorist){
 
 async dbLayerIDtoCommonLayerID(gameId, dbLayerID){ 
   var allLayersInGame = (await models.Layers.findAll({where: {Game_ID: gameId}, attributes: ["Layer_ID"]})).map(layer => layer.Layer_ID);
-  logger150.debug({function: dbLayerIDtoCommonLayerId}, ` converted layer id: ${dbLayerID} to ${allLayersInGame.indexOf(dbLayerID)+1}`)
+  logger150.debug({function: `dbLayerIDtoCommonLayerID`}, ` converted layer id: ${dbLayerID} to ${allLayersInGame.indexOf(dbLayerID)+1}`)
   return allLayersInGame.indexOf(dbLayerID)+1
 },
 
 // generates a layer from a game while checking what a player can see
-async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
+async  GenerateGameGridImage(gameId, commonlayerID, playerID) {
   const tileSize = 208;
 
   // Get layer dimensions
-  const layerDbId = await this.commonLayerIDtoDbLayerID(gameId, inputtedlayerID);
-  logger150.silent({function: "GenereateGameGridImage"}, `set layerDbId to ${layerDbId}`)
+  const layerDbId = await this.commonLayerIDtoDbLayerID(gameId, commonlayerID);
+  logger150.debug({function: "GenereateGameGridImage"}, `set layerDbId to ${layerDbId}`)
   const selectedLayer = await models.Layers.findByPk(layerDbId);
   logger150.debug({function: "GenerateGameGridImage"}, `selectedLayer:  + ${JSON.stringify(selectedLayer)} from database to generate`);
   const baseGridHeight = selectedLayer.Y_Bound;
-  logger150.silent({function: "GenereateGameGridImage"}, `set baseGridHeight to ${baseGridHeight}`)
+  logger150.debug({function: "GenereateGameGridImage"}, `set baseGridHeight to ${baseGridHeight}`)
   const baseGridWidth = selectedLayer.X_Bound;
-  logger150.silent({function: "GenereateGameGridImage"}, `set baseGridWidth to ${baseGridWidth}`)
+  logger150.debug({function: "GenereateGameGridImage"}, `set baseGridWidth to ${baseGridWidth}`)
   const canvasWidth = baseGridWidth * tileSize;
   const canvasHeight = baseGridHeight * tileSize;
   
   // Create canvas
   const canvas = Canvas.createCanvas(canvasWidth, canvasHeight);
   const context = canvas.getContext('2d');
-  logger150.silent({function: "GenereateGameGridImage"}, `created canvas`)
+  logger150.debug({function: "GenereateGameGridImage"}, `created canvas`)
   // Fill background
   context.fillStyle = '#222222';
   context.fillRect(0, 0, canvasWidth, canvasHeight);
-  logger150.silent({function: "GenereateGameGridImage"}, `created canvas context`)
+  logger150.debug({function: "GenereateGameGridImage"}, `created canvas context`)
   // Get all tiles for this layer
   const layerTiles = await models.Tiles.findAll({where: {Layer_ID: layerDbId}});
-  logger150.silent({function: "GenereateGameGridImage"}, `fetched the following tiles of the layer: ${JSON.stringify(layerTiles)}`)
+  logger150.debug({function: "GenereateGameGridImage"}, `fetched the following tiles of the layer: ${JSON.stringify(layerTiles)}`)
   if(playerID != null) {
     const playerSeeing = await models.Players.findByPk(playerID);
     const playersTile = await models.Tiles.findByPk(playerSeeing.Tile_ID);
@@ -593,8 +593,7 @@ async  GenerateGameGridImage(gameId, inputtedlayerID, playerID) {
       const tilePlayer = tilePlayers[playerIndex];
       if (tilePlayer === null) continue;
       if(tilePlayer.Class_ID == await models.Classes.findOne({where: {Class_Name: "Spy"}}).Class_ID && !allLayerSight) continue;
-
-      const playerImage = await this.loadTileTexture("players", tilePlayer.Discord_ID);
+      const playerImage = await this.loadTileTexture("players", tilePlayer.Discord_ID + "_" + gameId);
       let playerTilePositionX = canvasX;
       let playerTilePositionY = canvasY;
       logger150.debug({function: "GenerateGameGridImage"}, "playerTileWidth: " + playerTileWidth + ", playerTileHeight: " + playerTileHeight);
@@ -691,7 +690,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
       else if(spawn2.Player4 == null) {
         await models.Tiles.update({Player4: createdPlayer.Player_ID}, {where: {Tile_ID: spawn2.Tile_ID}});
       }
-      this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + ".png");
+      this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + "_" + gameId + ".png");
       logger150({function: "registerPlayer"}, "registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
       return;
     }

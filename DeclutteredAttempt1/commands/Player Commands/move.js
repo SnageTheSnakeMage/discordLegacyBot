@@ -1,7 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
-const logger200 = commandExecutionLogger.child({file: 'move.js'})
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('move')
@@ -40,7 +39,7 @@ module.exports = {
         .setRequired(false)),
 
   async execute(interaction) {
-
+    const logger200 = globalThis.CommandExecutionLogger.child({file: 'move.js'})
     await interaction.deferReply();
     try{
 

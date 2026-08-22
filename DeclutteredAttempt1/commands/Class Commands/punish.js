@@ -1,7 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
-const logger200 = commandExecutionLogger.child({file: 'punish.js'})
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -24,6 +23,7 @@ module.exports = {
                 .setDescription('which game, defaults to oldest active game')
                 .setRequired(false)),
     async execute(interaction) {
+        const logger200 = globalThis.CommandExecutionLogger.child({file: 'punish.js'})
         await interaction.deferReply();
         try {
         const x = interaction.options.getInteger('x');

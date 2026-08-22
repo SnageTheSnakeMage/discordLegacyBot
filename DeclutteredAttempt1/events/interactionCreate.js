@@ -1,5 +1,6 @@
 const { Events, MessageFlags } = require('discord.js');
 const { logger } = require('sequelize/lib/utils/logger');
+const pino = require('pino')
 const commandExecutionLogger = pino({
 	transport: {
 		target: 'pino-pretty',
@@ -7,7 +8,7 @@ const commandExecutionLogger = pino({
 		  colorize: true
 		}
 	  },
-	level: 'info',
+	level: 'trace',
 	}
 )
 module.exports = {

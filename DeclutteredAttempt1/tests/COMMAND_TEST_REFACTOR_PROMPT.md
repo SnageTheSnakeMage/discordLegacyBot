@@ -208,7 +208,7 @@ Example:
 [board-14] missing game: invalid game id → error message via catch
 [board-15] GenerateGameGridImage throws: → Error: <message> ephemeral/editReply
 [board-16] aliases: command exposes playergrid, grid aliases (export smoke)
-
+[board-17] 
 ```
 
 **Notes:** Oracle can view arbitrary layer; non-Oracle defaults to own layer; Twin `body: 2` uses `Tile_ID2` to determine the layer viewed; `REGISTRATION` still attaches grid image; timestop/pause/over messages.

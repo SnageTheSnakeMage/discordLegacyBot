@@ -1,7 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
-const logger200 = commandExecutionLogger.child({file: 'gift.js'})
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('gift')
@@ -20,6 +19,7 @@ module.exports = {
                 .setDescription('which game, defaults to oldest active game')
                 .setRequired(false)),
     async execute(interaction) {
+        const logger200 = globalThis.CommandExecutionLogger.child({file: 'gift.js'})
         await deferredReply(interaction);
 
         try {
@@ -71,5 +71,5 @@ module.exports = {
             logger200.error({function: "execute"}, error);
             return interaction.editReply({ content: "Something went wrong! Please try again later. Error: " + error.message, ephemeral: true });
         }
-    }
+    },
 }

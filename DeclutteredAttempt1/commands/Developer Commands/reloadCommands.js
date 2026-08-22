@@ -2,7 +2,6 @@ const { SlashCommandBuilder } = require('discord.js');
 const { InteractionContextType, PermissionFlagsBits } = require('discord.js');
 const path = require(`path`);
 const fs = require(`fs`)
-const logger200 = commandExecutionLogger.child({file: 'reloadCommands.js'})
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -11,6 +10,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
 	    .setContexts(InteractionContextType.Guild),
 	async execute(interaction) {
+		const logger200 = globalThis.CommandExecutionLogger.child({file: 'reloadCommands.js'})
 	    if(interaction.user.id != process.env.DEV_ID) return;
 		
 		// Read command files

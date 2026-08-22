@@ -1,7 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
-const logger200 = commandExecutionLogger.child({file: 'stab.js'})
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -20,6 +19,7 @@ module.exports = {
                 .setDescription('which game, defaults to oldest active game')
                 .setRequired(false)),
     async execute(interaction) {
+        const logger200 = globalThis.CommandExecutionLogger.child({file: 'stab.js'})
         await interaction.deferReply();
         try {
         const targetsDiscordID = interaction.options.getUser('target').id ?? null;

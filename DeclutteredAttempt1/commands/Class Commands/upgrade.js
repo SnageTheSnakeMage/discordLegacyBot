@@ -1,7 +1,6 @@
 const { SlashCommandBuilder, ActionRowBuilder, range } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
-const logger200 = commandExecutionLogger.child({file: 'upgrade.js'})
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -30,6 +29,7 @@ module.exports = {
                 .setMinValue(1)
                 .setRequired(false)),
     async execute(interaction) {
+        const logger200 = globalThis.CommandExecutionLogger.child({file: 'upgrade.js'})
         await interaction.deferReply();
 
         try {

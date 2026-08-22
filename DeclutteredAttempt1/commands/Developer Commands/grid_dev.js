@@ -1,7 +1,6 @@
 // commands/layered-grid.js - Layered Grid Command
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const utils = require('../../utils');
-const logger200 = commandExecutionLogger.child({file: 'grid_dev.js'})
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,6 +19,7 @@ module.exports = {
   
   // Function for slash command execution
   async execute(interaction) {
+  const logger200 = globalThis.CommandExecutionLogger.child({file: 'grid_dev.js'})
    if(interaction.user.id != process.env.DEV_ID) return;
     try {
       await interaction.deferReply();

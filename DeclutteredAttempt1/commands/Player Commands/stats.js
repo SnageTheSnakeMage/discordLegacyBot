@@ -1,7 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, MessageFlags } = require('discord.js');
 const utils = require('../../utils');
 var models = utils.models;
-const logger200 = commandExecutionLogger.child({file: 'stats.js'})
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stats')
@@ -21,6 +20,7 @@ module.exports = {
             .setRequired(false)
         ),
     async execute(interaction) {
+        const logger200 = globalThis.CommandExecutionLogger.child({file: 'stats.js'})
         if(interaction.options.getBoolean('visible')){
             await interaction.deferReply();
         }

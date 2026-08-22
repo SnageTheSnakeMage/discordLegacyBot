@@ -6,7 +6,6 @@ const ICON_REQUIREMENTS = {
   HEIGHT: 80,
   FORMAT: 'image/png',
 };
-const logger200 = commandExecutionLogger.child({file: 'register.js'})
 const GAMESTATES = utils.GAMESTATES;
 
 module.exports = {
@@ -23,6 +22,7 @@ module.exports = {
         .setRequired(false)),
 
   async execute(interaction) {
+    const logger200 = globalThis.CommandExecutionLogger.child({file: 'register.js'})
     try {
       await interaction.deferReply();
       
