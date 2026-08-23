@@ -545,4 +545,16 @@ async setPlayerToTile(playerId, layer, x, y) {
     }
   return tiles
 },
+//the same as getTileCordinatesOfLine but for paths
+//startingTile takes in an array of [x, y] of where the path starts
+//path takes in a result of inputPathToArray
+//returns an array of arrays of [x, y] cordinates that the path goes through
+getTileCordinatesOfPath(startingTile, path) {
+  var tiles = this.pathToTiles(startingTile, path);
+  var returnedTiles
+  for (tile in tiles) {
+    returnedTiles.push(utils.getTileCordinatesOfLine(tiles[tile], tiles[tile + 1]));
+  }
+  return returnedTiles
+},
 };

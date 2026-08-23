@@ -867,45 +867,31 @@ async getRandomClass(game) {
   return new Promise(resolve => setTimeout(resolve, ms));
 },
 
-//the same as getTileCordinatesOfLine but for paths
-//startingTile takes in an array of [x, y] of where the path starts
-//path takes in a result of inputPathToArray
-//returns an array of arrays of [x, y] cordinates that the path goes through
- getTileCordinatesOfPath(startingTile, path) {
-  var tiles = pathToTiles(startingTile, path);
-  var returnedTiles
-  for (tile in tiles) {
-    returnedTiles.push(getTileCordinatesOfLine(tiles[tile], tiles[tile + 1]));
-  }
-  return returnedTiles
-},
-
 //returns the rounded x and y cordinates of tiles found on a line if it was drown from tileCord1 to tileCord2
 //tileCord1 and tileCord2 are arrays of [x, y]
 //includes tileCord1 and tileCord2 in the returned array of tiles on the line
  getTileCordinatesOfLine(tileCord1, tileCord2) {
   var returnedTiles = [tileCord1];
   // const slope = ((tileCord1[1] - tileCord2[1]) / (tileCord1[0] - tileCord2[0]));
-  const deltaX = tileCord2[0] - tileCord1[0];
-  const deltaY = tileCord2[1] - tileCord1[1];
+  var deltaX = tileCord2[0] - tileCord1[0];
+  var deltaY = tileCord2[1] - tileCord1[1];
   var iteratorX = tileCord1[0];
   var iteratorY = tileCord1[1];
   var incrementX
   var incrementY
   var direction = this.getDirection(tileCord1, tileCord2)
-
   while([iteratorX, iteratorY] != tileCord2) {
     if(iteratorX == tileCord2[0] && iteratorY == tileCord2[1]) {
-      break;
+      return returnedTiles;
     }
     switch (direction) {
       case "north":
         iteratorX = tileCord1[0];
-        iteratorY--;
+        iteratorY++;
         break;
       case "south":
         iteratorX = tileCord1[0];
-        iteratorY++;
+        iteratorY--;
         break;
       case "east": 
         iteratorX++;
@@ -922,6 +908,7 @@ async getRandomClass(game) {
         if(Math.abs(deltaY) < Math.abs(deltaX)) {
           incrementX = Math.round(deltaX / Math.abs(deltaX));
           incrementY = Math.round(deltaY / Math.abs(deltaX));
+
           iteratorX += incrementX;
           iteratorY += incrementY; 
         }
@@ -931,6 +918,8 @@ async getRandomClass(game) {
           iteratorX += incrementX;
           iteratorY += incrementY;
         }
+        deltaX = tileCord2[0] - iteratorX
+        deltaY = tileCord2[1] - iteratorY
         break;
       default:
         return returnedTiles
@@ -1241,14 +1230,14 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
  getDirection(point1, point2) {
   xDiff = point1[0] - point2[0];
   yDiff = point1[1] - point2[1];
-  returnedDirection = null;
-  switch (yDiff) {
+  returnedDirection = "";
+  switch (true) {
     //y1 = y2
-    case 0:
+    case yDiff === 0:
       returnedDirection += ""
-      switch (xDiff) {
+      switch (true) {
         // x1 = x2
-        case 0:
+        case xDiff === 0:
           logger150.error({function: "getDirection"}, "Same points, no direction");
           return null;
         // x1 > x2
@@ -1263,10 +1252,10 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
       break;
     //y1 > y2
     case (yDiff > 0):
-      returnedDirection + "south";
-      switch (xDiff) {
+      returnedDirection += "south";
+      switch (true) {
         // x1 = x2
-        case 0:
+        case xDiff === 0:
           return returnedDirection;
         // x1 > x2
         case (xDiff > 0):
@@ -1277,13 +1266,14 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
           returnedDirection += "east";
           return returnedDirection;
       }
+      return returnedDirection
       break;
     //y1 < y2
     case (yDiff < 0):
       returnedDirection += "north";
-      switch (xDiff) {
+      switch (true) {
         // x1 = x2
-        case 0:
+        case xDiff === 0:
           return returnedDirection;
         // x1 > x2
         case (xDiff > 0):
@@ -1294,6 +1284,7 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
           returnedDirection += "east";
           return returnedDirection;
       }
+      return returnedDirection
       break;
   }
 },

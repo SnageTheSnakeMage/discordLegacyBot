@@ -36,9 +36,9 @@ module.exports = {
     } catch (error) {
       logger200.error(error.message);
       if (interaction.replied || interaction.deferred) {
-        await interaction.editReply(`Error: ${error.message}`);
+        await interaction.editReply(`Something went wrong! Please contact snage and try again later. Error caught during /board command execution : ${error.message}`);
       } else {
-        await interaction.reply({ content: `Error: ${error.message}`, ephemeral: true });
+        await interaction.reply({ content: `Something went wrong! Please contact snage and try again later. Error caught during /board command execution : ${error.message}`, ephemeral: true });
       }
     }
   },
@@ -46,7 +46,7 @@ module.exports = {
    try {
      const logger200 = globalThis.CommandExecutionLogger.child({file: `board.js`, function: "inputValidation"})
  
-     var gameId = interaction.options.getInteger('game')
+     var gameId = interaction.options.getInteger('game') ?? utils.getOldestGameId(interaction.user.id)
      logger200.debug( `set gameId to ${gameId}`)
  
      var player = await models.Players.findOne({
@@ -126,9 +126,9 @@ module.exports = {
    } catch (error) {
     logger200.error(error.message);
       if (interaction.replied || interaction.deferred) {
-        await interaction.editReply(`Error: ${error.message}`);
+        await interaction.editReply(`Something went wrong! Please contact snage and try again later. Error caught during input validation: ${error.message}`);
       } else {
-        await interaction.reply({ content: `Error: ${error.message}`, ephemeral: true });
+        await interaction.reply({ content: `Something went wrong! Please contact snage and try again later. Error caught during input validation : ${error.message}`, ephemeral: true });
       }
     }
   },

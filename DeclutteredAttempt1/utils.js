@@ -892,53 +892,55 @@ async getRandomClass(game) {
   return new Promise(resolve => setTimeout(resolve, ms));
 },
 
-//the same as getTileCordinatesOfLine but for paths
-//startingTile takes in an array of [x, y] of where the path starts
-//path takes in a result of inputPathToArray
-//returns an array of arrays of [x, y] cordinates that the path goes through
- getTileCordinatesOfPath(startingTile, path) {
-  var tiles = pathToTiles(startingTile, path);
-  var returnedTiles
-  for (tile in tiles) {
-    returnedTiles.push(getTileCordinatesOfLine(tiles[tile], tiles[tile + 1]));
+check(value, amount){
+  switch(value){
+    case "Health Points":
+      break;
+    case "MAX AP":
+      break;
+    case "":
+      break;
+    case "Action Points":
+      break;
   }
-  return returnedTiles
 },
-
 //returns the rounded x and y cordinates of tiles found on a line if it was drown from tileCord1 to tileCord2
 //tileCord1 and tileCord2 are arrays of [x, y]
 //includes tileCord1 and tileCord2 in the returned array of tiles on the line
- getTileCordinatesOfLine(tileCord1, tileCord2) {
+getTileCordinatesOfLine(tileCord1, tileCord2) {
   var returnedTiles = [tileCord1];
-  // const slope = ((tileCord1[1] - tileCord2[1]) / (tileCord1[0] - tileCord2[0]));
-  const deltaX = tileCord2[0] - tileCord1[0];
-  const deltaY = tileCord2[1] - tileCord1[1];
+  var deltaX = tileCord2[0] - tileCord1[0];
+  var deltaY = tileCord2[1] - tileCord1[1];
   var iteratorX = tileCord1[0];
   var iteratorY = tileCord1[1];
   var incrementX
   var incrementY
   var direction = this.getDirection(tileCord1, tileCord2)
-
   while([iteratorX, iteratorY] != tileCord2) {
     if(iteratorX == tileCord2[0] && iteratorY == tileCord2[1]) {
-      break;
+      logger150.debug({function: `getTileCordinatesOfLine`},`loop ran but the iterators are the same as the destination tile, exiting loop`)
+      return returnedTiles;
     }
     switch (direction) {
       case "north":
         iteratorX = tileCord1[0];
-        iteratorY--;
+        iteratorY++;
+        logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with direction: ${direction} and iterators: [${iteratorX},${iteratorY}]`)
         break;
       case "south":
         iteratorX = tileCord1[0];
-        iteratorY++;
+        iteratorY--;
+        logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with direction: ${direction} and iterators: [${iteratorX},${iteratorY}]`)
         break;
       case "east": 
         iteratorX++;
         iteratorY = tileCord1[1] 
+        logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with direction: ${direction} and iterators: [${iteratorX},${iteratorY}]`)
         break;
       case "west": 
         iteratorX--;
         iteratorY = tileCord1[1]
+        logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with direction: ${direction} and iterators: [${iteratorX},${iteratorY}]`)
         break;
       case"northwest": 
       case "southwest": 
@@ -947,18 +949,22 @@ async getRandomClass(game) {
         if(Math.abs(deltaY) < Math.abs(deltaX)) {
           incrementX = Math.round(deltaX / Math.abs(deltaX));
           incrementY = Math.round(deltaY / Math.abs(deltaX));
+          logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with increments [${deltaX / Math.abs(deltaX)},${deltaY / Math.abs(deltaX)}]`)
           iteratorX += incrementX;
           iteratorY += incrementY; 
         }
         else {
           incrementX = Math.round(deltaX / Math.abs(deltaY));
           incrementY = Math.round(deltaY / Math.abs(deltaY));
+          logger150.debug({function: `getTileCordinatesOfLine`},`ran loop with increments [${deltaX / Math.abs(deltaY)},${deltaY / Math.abs(deltaY)}]`)
           iteratorX += incrementX;
           iteratorY += incrementY;
         }
+        deltaX = tileCord2[0] - iteratorX
+        deltaY = tileCord2[1] - iteratorY
+        logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with direction: ${direction} and iterators: [${iteratorX},${iteratorY}]`)
         break;
       default:
-        logger150.error({function: "getTileCordinatesOfLine"}, "Direction not found given direction: "+ direction + ". Assuming direction is null due to tiles bieng the same.");
         return returnedTiles
     }
     returnedTiles.push([iteratorX, iteratorY]);
@@ -984,6 +990,8 @@ async getOldestGameId(playerDiscordID){
 
 async  getOldestActiveGameId(playerDiscordID) {
   if (playerDiscordID) {
+    logger150.debug({function: `getOldestActiveGameId`}, `game id was not inputted taking in player discord id: ${playerDiscordID}` +
+       `and finding the oldest game they are in that is in gamestate: ACTIVE, TIMESTOPPED, or FINALE`)
     var players = await models.Players.findAll({where: {Discord_ID: playerDiscordID}, attributes: ["Game_ID"]});
   var games = await models.Games.findAll({where: {
     GAME_STATE: {
@@ -992,19 +1000,23 @@ async  getOldestActiveGameId(playerDiscordID) {
     Game_ID: players}});
   }
   else {
+    logger150.debug({function: `getOldestActiveGameId`}, `game id was not inputted, finding the oldest game they are in that is in gamestate: ACTIVE, TIMESTOPPED, or FINALE`)
     var games = await models.Games.findAll({where: {
       GAME_STATE: {
-        [Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED]
+        [Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE]
       }}});
   }
+  logger150.debug({function: `getOldestActiveGameId`}, `found the following games: ${JSON.stringify(games)} determining which is the oldest via lowest Game_ID`)
   //set oldestGameId to newest Id
   var oldestGameId = games.length;
   for (var i = 0; i < games.length; i++) {
     //if a game id is lower its older so we swap it out
     if (games[i].Game_ID < oldestGameId) {
+      logger150.debug({function: `getOldestActiveGameId`}, `Game_ID: ${games[i].Game_ID} is lower than ${oldestGameId} making it the newest oldest game id`)
       oldestGameId = games[i].GAME_ID;
     }
   }
+  logger150.debug({function: `getOldestActiveGameId`}, `oldest game was decided to have the id: ${oldestGameId}`)
   return oldestGameId;
 },
 
@@ -1012,7 +1024,6 @@ async checkGameState(gamestate, isClockwatcher, interaction) {
         logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate );
         switch(gamestate) {
         case GAMESTATES.FINISHED:
-          
           await interaction.editReply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
           return true
         case GAMESTATES.DEV_PAUSED:
@@ -1270,17 +1281,17 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
 },
 
 //gets the direction one would go in if they started at point1 facing point 2 and walked forwards
- getDirection(point1, point2) {
+getDirection(point1, point2) {
   xDiff = point1[0] - point2[0];
   yDiff = point1[1] - point2[1];
-  returnedDirection = null;
-  switch (yDiff) {
+  returnedDirection = "";
+  switch (true) {
     //y1 = y2
-    case 0:
+    case yDiff === 0:
       returnedDirection += ""
-      switch (xDiff) {
+      switch (true) {
         // x1 = x2
-        case 0:
+        case xDiff === 0:
           logger150.error({function: "getDirection"}, "Same points, no direction");
           return null;
         // x1 > x2
@@ -1295,10 +1306,10 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
       break;
     //y1 > y2
     case (yDiff > 0):
-      returnedDirection + "south";
-      switch (xDiff) {
+      returnedDirection += "south";
+      switch (true) {
         // x1 = x2
-        case 0:
+        case xDiff === 0:
           return returnedDirection;
         // x1 > x2
         case (xDiff > 0):
@@ -1309,13 +1320,14 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
           returnedDirection += "east";
           return returnedDirection;
       }
+      return returnedDirection
       break;
     //y1 < y2
     case (yDiff < 0):
       returnedDirection += "north";
-      switch (xDiff) {
+      switch (true) {
         // x1 = x2
-        case 0:
+        case xDiff === 0:
           return returnedDirection;
         // x1 > x2
         case (xDiff > 0):
@@ -1326,6 +1338,7 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
           returnedDirection += "east";
           return returnedDirection;
       }
+      return returnedDirection
       break;
   }
 },
