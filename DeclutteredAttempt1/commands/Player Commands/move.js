@@ -23,6 +23,10 @@ module.exports = {
         .setDescription('how many tiles you move')
         .setRequired(true)
         .setMinValue(0))
+    .addStringOption(option =>
+          option.setName('path')
+            .setDescription('a list of DIRections and DISTances Ex: "dir,dist;dir,dist;...", required to move on an ice tile')
+            .setRequired(false))
     .addIntegerOption(option =>
       option.setName('body')
         .setDescription('(FOR TWIN CLASS) Which body you are trying to see, defaults to 1')
@@ -32,11 +36,8 @@ module.exports = {
     .addIntegerOption(option =>
       option.setName('game')
         .setDescription('which game, defaults to oldest active game')
-        .setRequired(false))
-    .addStringOption(option =>
-      option.setName('path')
-        .setDescription('a list of DIRections and DISTances Ex: "dir,dist;dir,dist;...", required to move on an ice tile')
         .setRequired(false)),
+    
 
   async execute(interaction) {
     const logger200 = globalThis.CommandExecutionLogger.child({file: 'move.js'})
@@ -45,7 +46,7 @@ module.exports = {
 
       //#region Verification
       if(!interaction.options.getInteger('game')) {
-        var gameId = await utils.getOldestGameId();
+        var gameId = await utils.getOldestActiveGameId(interaction.user.id);
       }
       else {
         var gameId = interaction.options.getInteger('game');
@@ -64,29 +65,18 @@ module.exports = {
       }
       const playerClass = await models.Classes.findByPk(player.Class_ID);
 
-      const originalTile = await models.Tiles.findOne({
-        where: {
-          Tile_ID: player.Tile_ID
-        }});
+      const originalTile = await models.Tiles.findByPk(player.Tile_ID)
       if(interaction.options.getString('path') != null) {
-        await utils.verifyinputPath(interaction.options.getString('path'), originalTile.Layer_ID, originalTile.X_Position, originalTile.Y_Position);
+        await this.verifyinputPath(interaction.options.getString('path'), originalTile.Layer_ID, originalTile.X_Position, originalTile.Y_Position);
       }
 
       // Determine which body to move (for Twin class)
       const bodyToMove = interaction.options.getInteger('body');
 
       if (bodyToMove === 2) {
-        originalTile = await models.Tiles.findOne({
-          where: {
-            Tile_ID: player.Tile_ID_2
-          }
-        });
+        originalTile = await models.Tiles.findByPk(player.Tile_ID_2);
       } else {
-        originalTile = await models.Tiles.findOne({
-          where: {
-            Tile_ID: player.Tile_ID
-          }
-        });
+        originalTile = await models.Tiles.findByPk(player.Tile_ID);
       }
 
       if (!originalTile) {
@@ -124,7 +114,7 @@ module.exports = {
 
       //#region Calculation of New Position
       if(interaction.options.getString('path') != null){
-         for (run in utils.addStartToPathArray(direction, distance, utils.inputPathToArray(interaction.options.getString('path')))) {
+         for (run in this.verifyinputPath(direction, distance, this.inputPathToArray(interaction.options.getString('path')))) {
           this.calculateMovement(direction,distance,originalTile,player)
         }
       }
@@ -140,7 +130,9 @@ module.exports = {
       
 
       //iceChecklist represents all the cordinates of the tiles a player is moving onto
-      interaction.options.getString('path') == null ? iceChecklist = utils.getTileCordinatesOfLine([originalTile.X_Position, originalTile.Y_Position], [newX, newY]) : iceChecklist = utils.getTileCordinatesOfPath([originalTile.X_Position, originalTile.Y_Position], utils.addStartToPathArray(direction, distance, utils.inputPathToArray(interaction.options.getString('path'))));
+      interaction.options.getString('path') == null ? 
+      iceChecklist = utils.getTileCordinatesOfLine([originalTile.X_Position, originalTile.Y_Position], [newX, newY]) 
+      : iceChecklist = this.getTileCordinatesOfPath([originalTile.X_Position, originalTile.Y_Position], this.verifyinputPath(direction, distance, this.inputPathToArray(interaction.options.getString('path'))));
       for (cord in iceChecklist) {
         var tile = await models.Tiles.findOne({
           where: {
@@ -556,5 +548,149 @@ getTileCordinatesOfPath(startingTile, path) {
     returnedTiles.push(utils.getTileCordinatesOfLine(tiles[tile], tiles[tile + 1]));
   }
   return returnedTiles
+},
+//turns the string into a proper path array
+//[[direction, distance]]
+//direction: left, right, up, down, nw, ne, sw, se
+//distance: number
+//TODO write test for this
+inputPathToArray(inputPath){
+  return inputPath.split(';').map(row => row.split(','));
+},
+
+//TODO write test for this
+async verifyinputPath(inputPath, layer, startingTileX, startingTileY){
+  regex =  /^((?:left|right|up|down|ne|nw|se|sw),\d+;)+$/;
+  result = regex.test(inputPath);
+
+  if(result){
+    path = this.inputPathToArray(inputPath);
+    var destination = [startingTileX, startingTileY];
+    for (run in path){
+      switch(path[run][0]){
+        case "left":
+        case "w":
+          var tileCheck =
+          destination = [startingTileX - parseInt(path[run][1]), startingTileY];
+          break;
+        case "right":
+        case "e":
+          destination = [startingTileX + parseInt(path[run][1]), startingTileY];
+          break;
+        case "up":
+        case "n":
+          destination = [startingTileX, startingTileY - parseInt(path[run][1])];
+          break;
+        case "down":
+        case "s":
+          destination = [startingTileX, startingTileY + parseInt(path[run][1])];
+          break;
+        case "nw":
+          destination = [startingTileX - parseInt(path[run][1]), startingTileY - parseInt(path[run][1])];
+          break;
+        case "ne":
+          destination = [startingTileX + parseInt(path[run][1]), startingTileY - parseInt(path[run][1])];
+          break;
+        case "sw":
+          destination = [startingTileX - parseInt(path[run][1]), startingTileY + parseInt(path[run][1])];
+          break;
+        case "se":
+          //TODO double check that south is positive everywhere
+          destination = [startingTileX + parseInt(path[run][1]), startingTileY + parseInt(path[run][1])];
+          break;
+        default:
+          throw "Invalid input path, your are using a direction that isnt: left,right,up,down,nw,ne,sw, or se";
+      }
+    }
+  await models.Layers.findByPk(layer).then((curLayer) => {
+    if(curLayer.X_Bound < destination[0] || curLayer.Y_Bound < destination[1]) result = false;
+   })
+  }
+  if(!result){
+    throw "Invalid input path, make sure your path uses a direction(left,right,up,down,nw,ne,sw,se) then a comma(,) and a number separated & ended by a semicolon(;). Also make sure it doesnt take you off the layer you are currently on. For example: \'sw,2;n,1;\' and \'up,2;e,1;\' are valid as long as they do not move to a tile that doesn't exist";
+  }
+  return true;
+},
+//adds an inital move to the path array
+//initialMoveDirection = left, right, up, down, nw, ne, sw, se
+//initialMoveDistance = number
+//pathArray = return of inputPathToArray
+//returns an array of directions and distances
+addStartToPathArray(initalMoveDirection, initalMoveDistance, pathArray){
+  switch (initalMoveDirection) {
+    case "ne":
+      initalMoveDirection = "northeast";
+      break;
+    case "nw":
+      initalMoveDirection = "northwest";
+      break;
+    case "se":
+      initalMoveDirection = "southeast";
+      break;
+    case "sw":
+      initalMoveDirection = "southwest";
+      break;
+    case "left":
+      initalMoveDirection = "west";
+      break;
+    case "right":
+      initalMoveDirection = "east";
+      break;
+    case "up":
+      initalMoveDirection = "north";
+      break;
+    case "down":
+      initalMoveDirection = "south";
+      break;
+    default:
+      throw "Invalid inital movement direction cannot parse into complete path array";
+  }
+  pathArray.unshift([initalMoveDirection, initalMoveDistance]);
+  return pathArray;
+},
+//Claude Provided Move Command Function Refactors
+async  validateAndParseMoveCommandInput(interaction) {
+  // Gather all inputs with clear defaults
+  const gameId = interaction.options.getInteger('game') || await utils.getOldestActiveGameId(interaction.user.id);
+  const direction = interaction.options.getString('direction');
+  const distance = interaction.options.getInteger('distance');
+  const bodyToMove = interaction.options.getInteger('body') || 1; // Default to body 1
+  const inputtedPath = interaction.options.getString('path');
+  
+  // Find the player in the database
+  const player = await models.Players.findOne({
+    where: {
+      Game_ID: gameId,
+      Discord_ID: interaction.user.id,
+    }
+  });
+  
+  if (!player) {
+    throw new Error("Player not found in game! Please register for the game you wish to move in.");
+  }
+  
+  // Determine which tile to move (handles Twin class properly)
+  const currentTileId = bodyToMove === 2 ? player.Tile_ID_2 : player.Tile_ID;
+  const currentTile = await models.Tiles.findByPk(currentTileId);
+  
+  if (!currentTile) {
+    throw new Error("Current tile not found! Please register, or ask a Dev about why you're not on the board");
+  }
+  
+  // Validate path format if provided
+  if (inputtedPath) {
+    await this.verifyinputPath(inputtedPath, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
+  }
+
+  
+  
+  return {
+    player,
+    currentTile,
+    direction,
+    distance,
+    customPath: inputtedPath,
+    gameId
+  };
 },
 };
