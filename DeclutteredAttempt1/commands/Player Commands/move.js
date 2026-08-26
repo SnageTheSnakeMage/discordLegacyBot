@@ -465,6 +465,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
   }
   }
 },
+//TODO Should be called whenever we change a players Tile_ID or a Tiles Player1,Player2,Player3, or Player4 will move this to utils
 async setPlayerToTile(playerId, layer, x, y) {
   var currentPlayer = await models.Players.findByPk(playerId)
   var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
@@ -570,32 +571,87 @@ async verifyinputPath(inputPath, layer, startingTileX, startingTileY){
       switch(path[run][0]){
         case "left":
         case "w":
-          var tileCheck =
+          var tileCheck = await models.Tiles.findOne({where: 
+            {
+              Layer_ID: layer,
+              X_Position: startingTileX - parseInt(path[run][1]),
+              Y_Position: startingTileY
+            }}) == null
+            if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
           destination = [startingTileX - parseInt(path[run][1]), startingTileY];
           break;
         case "right":
         case "e":
+          var tileCheck = await models.Tiles.findOne({where: 
+            {
+              Layer_ID: layer,
+              X_Position: startingTileX + parseInt(path[run][1]),
+              Y_Position: startingTileY
+            }}) == null
+            if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
           destination = [startingTileX + parseInt(path[run][1]), startingTileY];
           break;
         case "up":
         case "n":
+          var tileCheck = await models.Tiles.findOne({where: 
+            {
+              Layer_ID: layer,
+              X_Position: startingTileX,
+              Y_Position: startingTileY - parseInt(path[run][1])
+            }}) == null
+            if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
           destination = [startingTileX, startingTileY - parseInt(path[run][1])];
           break;
         case "down":
         case "s":
+          var tileCheck = await models.Tiles.findOne({where: 
+            {
+              Layer_ID: layer,
+              X_Position: startingTileX,
+              Y_Position: startingTileY + parseInt(path[run][1])
+            }}) == null
+          if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
           destination = [startingTileX, startingTileY + parseInt(path[run][1])];
           break;
         case "nw":
+          var tileCheck = await models.Tiles.findOne({where: 
+            {
+              Layer_ID: layer,
+              X_Position: startingTileX - parseInt(path[run][1]),
+              Y_Position: startingTileY - parseInt(path[run][1])
+            }}) == null
+          if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
           destination = [startingTileX - parseInt(path[run][1]), startingTileY - parseInt(path[run][1])];
           break;
-        case "ne":
+        case "ne":          
+        var tileCheck = await models.Tiles.findOne({where: 
+          {
+            Layer_ID: layer,
+            X_Position: startingTileX + parseInt(path[run][1]),
+            Y_Position: startingTileY - parseInt(path[run][1])
+          }}) == null
+        if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
           destination = [startingTileX + parseInt(path[run][1]), startingTileY - parseInt(path[run][1])];
           break;
         case "sw":
+          var tileCheck = await models.Tiles.findOne({where: 
+            {
+              Layer_ID: layer,
+              X_Position: startingTileX - parseInt(path[run][1]),
+              Y_Position: startingTileY + parseInt(path[run][1])
+            }}) == null
+          if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
           destination = [startingTileX - parseInt(path[run][1]), startingTileY + parseInt(path[run][1])];
           break;
         case "se":
           //TODO double check that south is positive everywhere
+          var tileCheck = await models.Tiles.findOne({where: 
+            {
+              Layer_ID: layer,
+              X_Position: startingTileX + parseInt(path[run][1]),
+              Y_Position: startingTileY + parseInt(path[run][1])
+            }}) == null
+          if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
           destination = [startingTileX + parseInt(path[run][1]), startingTileY + parseInt(path[run][1])];
           break;
         default:
