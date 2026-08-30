@@ -1,14 +1,11 @@
 const { Events, MessageFlags } = require('discord.js');
-const { logger } = require('sequelize/lib/utils/logger');
 const pino = require('pino')
 const commandExecutionLogger = pino({
-	transport: {
-		target: 'pino-pretty',
-		options: {
-		  colorize: true
-		}
-	  },
-	level: 'trace',
+		transport: {
+		targets: [
+			{ target: 'pino-pretty', options: { colorize: true }, level: 'trace' },
+			{ target: 'G:\LegacyBotDiscord\DeclutteredAttempt1\Logs', level: 'trace' }
+		]}
 	}
 )
 module.exports = {

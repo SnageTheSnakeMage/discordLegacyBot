@@ -8,7 +8,6 @@ const board = require('../../../commands/Player Commands/board');
 const blankBoard10 = require('../../testFiles/10x10Blank1Board.json')
 
 describe('[board 1]: use cases', () => {
-  const verifiedInputs = 
   
   beforeEach(()=> {
     //Board.js inputValidation DB mock calls

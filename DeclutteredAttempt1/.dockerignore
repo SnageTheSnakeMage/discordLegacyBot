@@ -14,3 +14,5 @@ jest.config.js
 combined.log
 G:\LegacyBotDiscord\package-lock.json
 G:\LegacyBotDiscord\package.json
+__mocks__
+Logs
