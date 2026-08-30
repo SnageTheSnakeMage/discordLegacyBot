@@ -232,8 +232,8 @@ async distributeAP(game, times, client){
   //first get all the lava divers
   await models.Players.findAll({where: {Game_ID: game.Game_ID, Class_ID: lavaDiverClass.Class_ID}}).then(async (allLavaDivers) => {
     //then get all the players on the same tile as a lava diver
-    for(diver in allLavaDivers){
-      await models.Tiles.findAll({where: {Game_ID: game.Game_ID, Layer_ID: allLavaDivers[diver].Layer_ID, X: allLavaDivers[diver].X, Y: allLavaDivers[diver].Y}}).then((tiles) => {
+    for(var diver in allLavaDivers){
+      await models.Tiles.findAll({where: {Tile_ID: diver.Tile_ID}}).then((tiles) => {
         tiles.forEach(async (tile) => {
           //then damage all the non lava diver players on the same tile
           await models.Players.findAll({where: {Game_ID: game.Game_ID, Tile_ID: tile.Tile_ID, Class_ID: { [Op.ne]: lavaDiverClass.Class_ID }}}).then(async (players) => {
