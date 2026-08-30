@@ -73,7 +73,7 @@ module.exports = {
      if(layer == null){
        commonOrDB = false
        if (interaction.options.getInteger('body') == 2) {
-         const playerTile2 = await models.Tiles.findByPk(player.Tile_ID_2)
+         const playerTile2 = await models.Tiles.findByPk(player.Tile_ID2)
          layer = playerTile2.Layer_ID
          logger200.debug({function: "execute"}, `layer not provided setting layer variable to ${playerTile.Layer_ID}`)
        }

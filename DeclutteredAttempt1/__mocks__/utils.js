@@ -249,7 +249,7 @@ async distributeAP(game, times, client){
 
 
 
-  // const chaosCouncilChannel = client.channel.cache.get(game.deadChatChannelID);
+  // const chaosCouncilChannel = client.channel.cache.get(game.deadChatChannelId);
   // chaosCouncilChannel.send(this.buildChaosCouncilPoll(game.CURR_CC_EVENT, game) )
   // .then(msg => {game.currentChaosPollMsgId = msg.id}).catch(console.error);
   game.save();
@@ -437,8 +437,8 @@ async classRemoval(victim, excorist){
       break;
     //if the player is a pharaoh take away of their revive HP and if any and give a kill to exorcist
     case "Pharaoh":
-      await models.Players.update({Class_ID: avgClass.Class_ID, PharaohHP: 0}, {where: {Player_ID: victim.Player_ID}});
-      if(victim.PharaohHP > 0){
+      await models.Players.update({Class_ID: avgClass.Class_ID, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
+      if(victim.Pharoh_HP > 0){
         await models.Players.update({Kills: excorist.Kills + 1}, {where: {Player_ID: excorist.Player_ID}});
       }
       break;
@@ -448,30 +448,30 @@ async classRemoval(victim, excorist){
       break;
     //if the player is a minesweeper remove all of their mines
     case "Minesweeper":
-      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: victim.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: victim.Player_ID}});
       await models.Tiles.update({trapped: false, trapper: null}, {where: {trapper: victim.Player_ID}});
       break;
     //if the player is a medium and they haven't used their overrides take away their extra one
     case "Medium":
-      if(victim.ccOverrides >= 2){
-        await models.Players.update({Class_ID: avgClass.Class_ID, ccOverrides: victim.ccOverrides - 1}, {where: {Player_ID: victim.Player_Id}});
+      if(victim.cCOverides >= 2){
+        await models.Players.update({Class_ID: avgClass.Class_ID, cCOverides: victim.cCOverides - 1}, {where: {Player_ID: victim.Player_ID}});
       }
       break;
     //if the player is a glutton give them their lost 2 starting AP back
     case "Glutton":
-      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points + 2}, {where: {Player_ID: victim.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points + 2}, {where: {Player_ID: victim.Player_ID}});
       break;
     //if the player is a hoarder take away their extra starting AP and give them back their lost range
     case "Hoarder":
-      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points - 6, Range_: victim.Range_ + 1}, {where: {Player_ID: victim.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points - 6, Range_: victim.Range_ + 1}, {where: {Player_ID: victim.Player_ID}});
       break;
     //if the player is a protagonist remove their extra starting AP and their extra potential/max stats and give them back their lost starting HP
     case "Protagonist":
-      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points - 4, Health_Points: victim.Health_Points + 2, MAX_AP: victim.MAX_AP - 4, MAX_HP: victim.MAX_HP - 4, MAX_RANGE: victim.MAX_RANGE - 4, MAX_DAMAGE: victim.MAX_DAMAGE - 2}, {where: {Player_ID: victim.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points - 4, Health_Points: victim.Health_Points + 2, MAX_AP: victim.MAX_AP - 4, MAX_HP: victim.MAX_HP - 4, MAX_RANGE: victim.MAX_RANGE - 4, MAX_DAMAGE: victim.MAX_DAMAGE - 2}, {where: {Player_ID: victim.Player_ID}});
       break;
     //elsewise just remove their class
     default:
-      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: victim.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: victim.Player_ID}});
       break;
   }
 },
@@ -630,7 +630,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
         Damage: SelectedClass.Start_Damage,
         MAX_DAMAGE: SelectedClass.Start_MAX_Damage,
         Range_: SelectedClass.Start_Range_,
-        MAX_RANGE: SelectedClass.Start_MAX_Range,
+        MAX_RANGE: SelectedClass.Start_MAX_Range_,
         Tile_ID: spawn1.Tile_ID,
         Discord_ID: playerId,
         Tile_ID2: spawn2.Tile_ID,
@@ -677,7 +677,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
       Health_Points: SelectedClass.Start_HP,
       MAX_HP: SelectedClass.Start_MAX_HP,
       Range_: SelectedClass.Start_Range_,
-      MAX_RANGE: SelectedClass.Start_MAX_Range,
+      MAX_RANGE: SelectedClass.Start_MAX_Range_,
       Damage: SelectedClass.Start_Damage,
       MAX_DAMAGE: SelectedClass.Start_MAX_Damage,
       Tile_ID: spawn.Tile_ID,
@@ -937,7 +937,7 @@ async getOldestGameId(playerDiscordID){
   for (var i = 0; i < games.length; i++) {
     //if a game id is lower its older so we swap it out
     if (games[i].Game_ID < oldestGameId) {
-      oldestGameId = games[i].GAME_ID;
+      oldestGameId = games[i].Game_ID;
     }
   }
   logger150.debug({function:"getOldestGameId"}, "found game id: "+ oldestGameId.toString())
@@ -965,7 +965,7 @@ async  getOldestActiveGameId(playerDiscordID) {
   for (var i = 0; i < games.length; i++) {
     //if a game id is lower its older so we swap it out
     if (games[i].Game_ID < oldestGameId) {
-      oldestGameId = games[i].GAME_ID;
+      oldestGameId = games[i].Game_ID;
     }
   }
   return oldestGameId;
@@ -1080,7 +1080,7 @@ async playerDeathLogic(killer, victim) {
   victimClass = await models.Classes.findByPk(victim.Class_ID);
   //check if the victim is dead and there isnt a class with weird death logic involved
   if (victim.Health_Points <= 0 
-    && victim.PharohHP <= 0 
+    && victim.Pharoh_HP <= 0 
     && victimClass.Class_Name != "Twin" 
     && killerClass.Class_Name != "Hitman"
     && killerClass.Class_Name != "Cannibal"
@@ -1099,9 +1099,9 @@ async playerDeathLogic(killer, victim) {
 
   //Weird death case #0 if the victim goes to 0 hp but has some revive hp revive them on a random tile with their pharaoh hp as their health and reset their pharaoh hp
   //this still counts as a kill
-  if(victim.Health_Points <= 0 && victim.PharohHP > 0)
+  if(victim.Health_Points <= 0 && victim.Pharoh_HP > 0)
   {
-    await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.PharohHP, PharaohHP: 0}, {where: {Player_ID: victim.Player_ID}});
+    await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
     await models.Players.update({Kills: killer.Kills + 1}, {where: {Player_ID: killer.Player_ID}});
     this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
     return
@@ -1114,7 +1114,7 @@ async playerDeathLogic(killer, victim) {
     //Both twins are at 0 hp and the player doesnt have any pharoh hp so run the normal death logic and remove both twins tiles
     if(victim.Health_Points <= 0 
       && victim.Health_Points2 <= 0 
-      && victim.PharohHP <= 0 )
+      && victim.Pharoh_HP <= 0 )
     {
       await models.Players.update({Dead: true}, {where: {Player_ID: victim.Player_ID}});
       await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID}});
@@ -1123,25 +1123,25 @@ async playerDeathLogic(killer, victim) {
     //Both twins are at 0 hp but the player has some pharaoh hp so revive them on a random tile with their pharaoh hp as their health and reset their pharaoh hp
     if(victim.Health_Points <= 0 
       && victim.Health_Points2 <= 0 
-      && victim.PharohHP > 0 )
+      && victim.Pharoh_HP > 0 )
     {
-      await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.PharohHP, PharaohHP: 0}, {where: {Player_ID: victim.Player_ID}});
+      await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
     }
     //One twin is at 0 hp but the player has some pharaoh hp so revive the dead clone on a random tile with their pharaoh hp as their health and reset their pharaoh hp
-    if(victim.Health_Points <= 0 && victim.Health_Points2 > 0 && victim.PharohHP > 0)
+    if(victim.Health_Points <= 0 && victim.Health_Points2 > 0 && victim.Pharoh_HP > 0)
     {
-      await models.Players.update({Tile_ID2: this.getSpawnpointTile(victim.Game_ID), Health_Points2: victim.PharaohHP, PharaohHP: 0}, {where: {Player_ID: victim.Player_ID}});
+      await models.Players.update({Tile_ID2: this.getSpawnpointTile(victim.Game_ID), Health_Points2: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
     }
-    if(victim.Health_Points > 0 && victim.Health_Points2 <= 0 && victim.PharohHP > 0)
+    if(victim.Health_Points > 0 && victim.Health_Points2 <= 0 && victim.Pharoh_HP > 0)
     {
-      await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.PharaohHP, PharaohHP: 0}, {where: {Player_ID: victim.Player_ID2}});
+      await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
     }
     //One twin is at 0 hp so kill it but dont mark the player as dead
     if(victim.Health_Points <= 0 && victim.Health_Points2 > 0){
       await models.Players.update({Tile_ID2: null}, {where: {Player_ID: victim.Player_ID}});
     }
     if(victim.Health_Points > 0 && victim.Health_Points2 <= 0){
-      await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID2}});
+      await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID}});
     }
   }
   //kill the victim if they have 0 hp arent a twin and dont have pharaoh hp
@@ -1291,17 +1291,17 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
 
 async  removePlayerFromTile(playerId, layer, x, y) {
   await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}}).then((tile) => {
-      if(tile.Player_1 == playerId) {
-        tile.Player_1 = null;
+      if(tile.Player1 == playerId) {
+        tile.Player1 = null;
       }
-      if(tile.Player_2 == playerId) {
-        tile.Player_2 = null;
+      if(tile.Player2 == playerId) {
+        tile.Player2 = null;
       }
-      if(tile.Player_3 == playerId) {
-        tile.Player_3 = null;
+      if(tile.Player3 == playerId) {
+        tile.Player3 = null;
       }
-      if(tile.Player_4 == playerId) {
-        tile.Player_4 = null;
+      if(tile.Player4 == playerId) {
+        tile.Player4 = null;
       }
       tile.save();
   });
@@ -1333,7 +1333,7 @@ async  validateAndParseMoveCommandInput(interaction) {
   }
   
   // Determine which tile to move (handles Twin class properly)
-  const currentTileId = bodyToMove === 2 ? player.Tile_ID_2 : player.Tile_ID;
+  const currentTileId = bodyToMove === 2 ? player.Tile_ID2 : player.Tile_ID;
   const currentTile = await models.Tiles.findByPk(currentTileId);
   
   if (!currentTile) {
@@ -1364,8 +1364,8 @@ async hotPotatoSwap(player1, player2, player1Username, player2Username) {
   
   switch(newClass.Class_Name) {
     case "Twin":
-      await models.Players.update({Tile_ID_2: player2.Tile_ID, Health_Points2: player2.Health_Points2, Damage2: player2.Damage2, Range_2: player2.Range_2}, {where: {Player_ID: player1.Player_ID}});
-      await models.Players.update({Tile_ID_2: null, Health_Points2: null, Damage2: null, Range_2: null}, {where: {Player_ID: player2.Player_ID}});
+      await models.Players.update({Tile_ID2: player2.Tile_ID, Health_Points2: player2.Health_Points2, Damage2: player2.Damage2, Range2: player2.Range2}, {where: {Player_ID: player1.Player_ID}});
+      await models.Players.update({Tile_ID2: null, Health_Points2: null, Damage2: null, Range2: null}, {where: {Player_ID: player2.Player_ID}});
       return "" + player1Username + " took " + player2Username + "'s twin body!";
     case "Hitman":
       await models.Players.update({Hitman_Target: player2.Hitman_Target}, {where: {Player_ID: player1.Player_ID}});

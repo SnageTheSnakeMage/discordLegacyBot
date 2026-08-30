@@ -31,8 +31,8 @@ module.exports = {
             await models.Players.update({Action_Points: Math.max(inputs.givingPlayer.Action_Points - inputs.amount, 0)}, {where: {Game_ID: inputs.gameId, Discord_ID: inputs.playerDiscordID}});
             logger200.debug(`took ${inputs.amount} AP from player: ${inputs.givingPlayer} setting their current AP to: ${Math.max(inputs.givingPlayer.Action_Points - inputs.amount, 0)}`)
             if(inputs.remainder > 0) {
-                await models.Players.update({Action_Points: inputs.givingPlayer.Missed_AP + inputs.remainder}, {where: {Game_ID: inputs.gameId, Discord_ID: inputs.recievingPlayerDiscord}});
-                logger200.debug(`recieving player couldn't hold all the AP increasing their missed ap to: ${inputs.givingPlayer.Missed_AP + inputs.remainder}`)
+                await models.Players.update({Action_Points: inputs.givingPlayer.MISSED_AP + inputs.remainder}, {where: {Game_ID: inputs.gameId, Discord_ID: inputs.recievingPlayerDiscord}});
+                logger200.debug(`recieving player couldn't hold all the AP increasing their missed ap to: ${inputs.givingPlayer.MISSED_AP + inputs.remainder}`)
             }
             return interaction.editReply({ content: `${interaction.user.username} gave ${inputs.amount} AP to <@${inputs.recievingPlayer.Discord_ID}>`});
         }

@@ -31,7 +31,8 @@ module.exports = {
         var gameId = interaction.options.getInteger('game') ?? await utils.getOldestGameId();
         var player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
         var victim = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.options.getUser('victim').id}});
-        var victimTile = await models.Tiles.findOne({where: {Game_ID: gameId, X_Position: x, Y_Position: y}});
+        var playersTile = await models.Tiles.findByPk(player.Tile_ID);
+        var victimTile = await models.Tiles.findOne({where: {Layer_ID: playersTile.Layer_ID, X_Position: x, Y_Position: y}});
         var game = await models.Games.findOne({where: {Game_ID: gameId}});
 
         //Check Gamestate
@@ -55,7 +56,7 @@ module.exports = {
         }
 
         //Check if player is in range of their victim
-        const tileInRange = utils.getTileCordinatesOfLine([player.X_Position, player.Y_Position], [victim.X_Position, victim.Y_Position]).length <= player.Range_;
+        const tileInRange = utils.getTileCordinatesOfLine([playersTile.X_Position, playersTile.Y_Position], [victimTile.X_Position, victimTile.Y_Position]).length <= player.Range_;
         if (!tileInRange) {
             return interaction.editReply({ content: "Your victim is not in range!" });
         }
@@ -66,7 +67,7 @@ module.exports = {
         }
 
         //Swap classes
-        var extraResponse = await utils.HotPotatoSwap(player, victim, interaction.user.username, interaction.options.getUser('victim').username);
+        var extraResponse = await utils.hotPotatoSwap(player, victim, interaction.user.username, interaction.options.getUser('victim').username);
         await models.Players.update({Class_ID: victim.Class_ID}, {where: {Player_ID: player.Player_ID}}); 
         await models.Players.update({Class_ID: player.Class_ID}, {where: {Player_ID: victim.Player_ID}}); 
         

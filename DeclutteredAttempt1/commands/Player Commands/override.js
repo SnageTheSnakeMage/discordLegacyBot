@@ -35,13 +35,13 @@ module.exports = {
         }
 
         //check if the player has an overide
-        if(player.cCOverrides <= 0) {
+        if(player.cCOverides <= 0) {
             await interaction.reply({ content: "You don't have any overrides left!"});
             return;
         }
 
         //use the override
-        await models.Players.update({cCOverrides: player.cCOverrides - 1}, {where: {Player_ID: player.Player_ID}});
+        await models.Players.update({cCOverides: player.cCOverides - 1}, {where: {Player_ID: player.Player_ID}});
         await models.Games.update({overrider: player.Discord_ID}, {where: {Game_ID: game.Game_ID}});
         
         //poll.answers.keyAt(pollOption)

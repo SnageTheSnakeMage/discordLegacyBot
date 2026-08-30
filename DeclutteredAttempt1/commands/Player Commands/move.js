@@ -74,7 +74,7 @@ module.exports = {
       const bodyToMove = interaction.options.getInteger('body');
 
       if (bodyToMove === 2) {
-        originalTile = await models.Tiles.findByPk(player.Tile_ID_2);
+        originalTile = await models.Tiles.findByPk(player.Tile_ID2);
       } else {
         originalTile = await models.Tiles.findByPk(player.Tile_ID);
       }
@@ -388,7 +388,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
           break;
     }
     
-    if(endTile.Trapped) {
+    if(endTile.trapped) {
       //Get trapper
       const trapper = await models.Players.findByPk(endTile.trapper);
       if(!trapper) {
@@ -399,7 +399,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
       await models.Players.update({Health_Points: player.Health_Points - mineDmg}, {where: {Player_ID: player.Player_ID}});
       this.playerDeathLogic(trapper, player);
       //Remove trap
-      await models.Tiles.update({Trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
+      await models.Tiles.update({trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
     }
   }
   else{
@@ -450,7 +450,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
         break;
   }
   
-  if(endTile.Trapped) {
+  if(endTile.trapped) {
     //Get trapper
     const trapper = await models.Players.findByPk(endTile.trapper);
     if(!trapper) {
@@ -461,7 +461,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
     await models.Players.update({Health_Points2: player.Health_Points2 - mineDmg}, {where: {Player_ID: player.Player_ID}});
     this.playerDeathLogic(trapper, player);
     //Remove trap
-    await models.Tiles.update({Trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
+    await models.Tiles.update({trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
   }
   }
 },
@@ -471,17 +471,17 @@ async setPlayerToTile(playerId, layer, x, y) {
   var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
   this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
   await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}}).then((tile) => {
-    if(tile.Player_1 == null) {
-      tile.Player_1 = playerId;
+    if(tile.Player1 == null) {
+      tile.Player1 = playerId;
     }
-    else if(tile.Player_2 == null) {
-      tile.Player_2 = playerId;
+    else if(tile.Player2 == null) {
+      tile.Player2 = playerId;
     }
-    else if(tile.Player_3 == null) {
-      tile.Player_3 = playerId;
+    else if(tile.Player3 == null) {
+      tile.Player3 = playerId;
     }
-    else if(tile.Player_4 == null) {
-      tile.Player_4 = playerId;
+    else if(tile.Player4 == null) {
+      tile.Player4 = playerId;
     }
     else {
       throw "tile is full";
@@ -726,7 +726,7 @@ async  validateAndParseMoveCommandInput(interaction) {
   }
   
   // Determine which tile to move (handles Twin class properly)
-  const currentTileId = bodyToMove === 2 ? player.Tile_ID_2 : player.Tile_ID;
+  const currentTileId = bodyToMove === 2 ? player.Tile_ID2 : player.Tile_ID;
   const currentTile = await models.Tiles.findByPk(currentTileId);
   
   if (!currentTile) {

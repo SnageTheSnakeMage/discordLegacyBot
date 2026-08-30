@@ -73,13 +73,13 @@ module.exports = {
             return interaction.editReply({ content: "You cannot resurrect to that tile!" });
         }
 
-        if(inputtedTile.Player1_ID != null || inputtedTile.Player2_ID != null || inputtedTile.Player3_ID != null || inputtedTile.Player4_ID != null) {
+        if(inputtedTile.Player1 != null || inputtedTile.Player2 != null || inputtedTile.Player3 != null || inputtedTile.Player4 != null) {
             return interaction.editReply({ content: "You cannot resurrect to that tile!" });
         }
 
         //Resurrect the player
         await models.Players.update({Dead: 0}, {where: {Player_ID: resurectee.Player_ID}}); 
-        await models.Tiles.update({Player_ID: resurectee.Player_ID}, {where: {Tile_ID: resurectee.Tile_ID}}); 
+        await models.Tiles.update({Player1: resurectee.Player_ID}, {where: {Tile_ID: resurectee.Tile_ID}}); 
         await models.Players.update({Action_Points: player.Action_Points - 12}, {where: {Player_ID: player.Player_ID}}); 
 
         return interaction.editReply({ content: "You have resurrected " + interaction.options.getUser('player').username + " to the tile provided!" });

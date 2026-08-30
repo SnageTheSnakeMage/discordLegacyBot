@@ -31,7 +31,7 @@ module.exports = {
         }
 
         //Stop the game
-        await models.Games.update({ GAMESTATES: GAMESTATES.TIMESTOPPED, timestopTurns: 4 }, { where: { Game_ID: game.Game_ID } });
+        await models.Games.update({ GAME_STATE: GAMESTATES.TIMESTOPPED, timestopTurns: 4 }, { where: { Game_ID: game.Game_ID } });
         await interaction.editReply({ content: "Time has been stopped! You have " + game.AP_INTERVAL_MIN * 4 + " minutes all to yourself!\n and any other clockwatchers..." });
     },
 };

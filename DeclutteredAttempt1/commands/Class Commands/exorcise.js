@@ -84,7 +84,6 @@ module.exports = {
         }
 
         if (targetPlayer) {
-            await models.Players.update({Class_Name: "Average"}, {where: {Player_ID: targetPlayer.Player_ID}}); 
             await models.Players.update({Action_Points: targetPlayer.Action_Points - 16}, {where: {Player_ID: targetPlayer.Player_ID}}); 
             await utils.classRemoval(targetPlayer);
             return interaction.editReply({ content: "You have exorcised " + interaction.options.getUser('player').username + " and removed their class!" });
