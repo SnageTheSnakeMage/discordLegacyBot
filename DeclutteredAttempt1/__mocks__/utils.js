@@ -887,11 +887,11 @@ async getRandomClass(game) {
     switch (direction) {
       case "north":
         iteratorX = tileCord1[0];
-        iteratorY++;
+        iteratorY--
         break;
       case "south":
         iteratorX = tileCord1[0];
-        iteratorY--;
+        iteratorY++
         break;
       case "east": 
         iteratorX++;
@@ -908,7 +908,6 @@ async getRandomClass(game) {
         if(Math.abs(deltaY) < Math.abs(deltaX)) {
           incrementX = Math.round(deltaX / Math.abs(deltaX));
           incrementY = Math.round(deltaY / Math.abs(deltaX));
-
           iteratorX += incrementX;
           iteratorY += incrementY; 
         }
@@ -1252,7 +1251,7 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
       break;
     //y1 > y2
     case (yDiff > 0):
-      returnedDirection += "south";
+      returnedDirection += "north";
       switch (true) {
         // x1 = x2
         case xDiff === 0:
@@ -1270,7 +1269,7 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
       break;
     //y1 < y2
     case (yDiff < 0):
-      returnedDirection += "north";
+      returnedDirection += "south";
       switch (true) {
         // x1 = x2
         case xDiff === 0:

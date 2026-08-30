@@ -6,13 +6,12 @@ const Canvas = require('canvas');
 const path = require('path');
 const verbose = true;
 const initModels = require("./database/init-models.js");
-const { Sequelize, where, Op } = require('sequelize');
+const { Sequelize, Op } = require('sequelize');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: './database/database.db'
 });
 const fs = require('fs');
-const Players = require('./database/Models/Players');
 const { logger } = require('sequelize/lib/utils/logger');
 var models = initModels(sequelize);
 var GAMESTATES = require('./enums.js').GAMESTATES;
@@ -824,12 +823,12 @@ getTileCordinatesOfLine(tileCord1, tileCord2) {
     switch (direction) {
       case "north":
         iteratorX = tileCord1[0];
-        iteratorY++;
+        iteratorY--;
         logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with direction: ${direction} and iterators: [${iteratorX},${iteratorY}]`)
         break;
       case "south":
         iteratorX = tileCord1[0];
-        iteratorY--;
+        iteratorY++;
         logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with direction: ${direction} and iterators: [${iteratorX},${iteratorY}]`)
         break;
       case "east": 
@@ -851,17 +850,17 @@ getTileCordinatesOfLine(tileCord1, tileCord2) {
           incrementY = Math.round(deltaY / Math.abs(deltaX));
           logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with increments [${deltaX / Math.abs(deltaX)},${deltaY / Math.abs(deltaX)}]`)
           iteratorX += incrementX;
-          iteratorY += incrementY; 
+          iteratorY -= incrementY; 
         }
         else {
           incrementX = Math.round(deltaX / Math.abs(deltaY));
           incrementY = Math.round(deltaY / Math.abs(deltaY));
           logger150.debug({function: `getTileCordinatesOfLine`},`ran loop with increments [${deltaX / Math.abs(deltaY)},${deltaY / Math.abs(deltaY)}]`)
           iteratorX += incrementX;
-          iteratorY += incrementY;
+          iteratorY -= incrementY;
         }
         deltaX = tileCord2[0] - iteratorX
-        deltaY = tileCord2[1] - iteratorY
+        deltaY = tileCord2[1] + iteratorY
         logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with direction: ${direction} and iterators: [${iteratorX},${iteratorY}]`)
         break;
       default:
@@ -925,25 +924,32 @@ async checkGameState(gamestate, isClockwatcher, interaction) {
         switch(gamestate) {
         case GAMESTATES.FINISHED:
           await interaction.editReply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
+          logger150.debug({function:"checkGameState"}, 'returned true due to gamestate bieng finished meaning player should no longer have access to this command for this game' );
           return true
         case GAMESTATES.DEV_PAUSED:
           await interaction.editReply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
+          logger150.debug({function:"checkGameState"}, 'returned true due to gamestate bieng paused for development purposes meaning player should no longer have access to this command for this game' );
           return true
         case GAMESTATES.TIMESTOPPED:
           if(!isClockwatcher){
             await interaction.editReply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
+            logger150.debug({function:"checkGameState"}, 'returned true due to gamestate bieng timestopped meaning this non clockwatcher class player should no longer have access to this command for this game at this time' );
             return true
           }
           else{
-            break;
+            logger150.debug({function:"checkGameState"}, 'returned false due to gamestate bieng timestopped meaning this clockwatcher class player should be one of the few who can use commands for this game at this time' );
+            return false;
           }
         case GAMESTATES.REGISTRATION:
         case GAMESTATES.ACTIVE:
         case GAMESTATES.INACTIVE:
+        case GAMESTATES.SANDBOX:
+          logger150.debug({function:"checkGameState"}, 'returned false due to gamestate bieng irrelevant.' );
           return false
         default:
-          await interaction.editReply({ content: "Gamestate out of enum gamestate: " + gamestate + "."});
-          throw "[ERROR][utils.js][checkGameState] Gamestate out of enum gamestate: " + gamestate + "."
+          logger150.debug({function:"checkGameState"}, 'threw an error because gamestate was: ' + gamestate );
+          await interaction.editReply({ content: "Gamestate out of enum, gamestate: " + gamestate + "."});
+          throw "Gamestate out of enum, gamestate: " + gamestate + "."
       }
 },
 
@@ -1023,6 +1029,31 @@ async getAllPlayersOnTile(tileID, tile) {
     return []
   }
   return await models.Players.findAll({where: {Player_ID: {[Op.in]: playerIdsOnTile}}})
+},
+
+//TODO Should be called whenever we change a players Tile_ID or a Tiles Player1,Player2,Player3, or Player4 will keep this in utils as chaos events will use it
+async setPlayerToTile(playerId, layer, x, y) {
+  var currentPlayer = await models.Players.findByPk(playerId)
+  var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
+  await this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
+  const tile = await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
+  if(tile.Player1 == null) {
+    tile.Player1 = playerId;
+  }
+  else if(tile.Player2 == null) {
+    tile.Player2 = playerId;
+  }
+  else if(tile.Player3 == null) {
+    tile.Player3 = playerId;
+  }
+  else if(tile.Player4 == null) {
+    tile.Player4 = playerId;
+  }
+  else {
+    throw "tile is full";
+  }
+  await tile.save();
+  await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
 },
 
 //takes in two players and checks if the second one is dead
@@ -1184,9 +1215,9 @@ async getSurroundingOrthoginalTiles(playerId, tileId) {
 
 //gets the direction one would go in if they started at point1 facing point 2 and walked forwards
 getDirection(point1, point2) {
-  xDiff = point1[0] - point2[0];
-  yDiff = point1[1] - point2[1];
-  returnedDirection = "";
+  var xDiff = point1[0] - point2[0];
+  var yDiff = point1[1] - point2[1];
+  var returnedDirection = "";
   switch (true) {
     //y1 = y2
     case yDiff === 0:
@@ -1208,7 +1239,7 @@ getDirection(point1, point2) {
       break;
     //y1 > y2
     case (yDiff > 0):
-      returnedDirection += "south";
+      returnedDirection += "north";
       switch (true) {
         // x1 = x2
         case xDiff === 0:
@@ -1226,7 +1257,7 @@ getDirection(point1, point2) {
       break;
     //y1 < y2
     case (yDiff < 0):
-      returnedDirection += "north";
+      returnedDirection += "south";
       switch (true) {
         // x1 = x2
         case xDiff === 0:

@@ -67,7 +67,7 @@ module.exports = {
 
       const originalTile = await models.Tiles.findByPk(player.Tile_ID)
       if(interaction.options.getString('path') != null) {
-        await this.verifyinputPath(interaction.options.getString('path'), originalTile.Layer_ID, originalTile.X_Position, originalTile.Y_Position);
+        var verifiedPath = await this.verifyInputPath(interaction.options.getString('path'), originalTile.Layer_ID, originalTile.X_Position, originalTile.Y_Position);
       }
 
       // Determine which body to move (for Twin class)
@@ -96,25 +96,26 @@ module.exports = {
 
       let newX = originalTile.X_Position;
       let newY = originalTile.Y_Position;
-      const direction = interaction.options.getString('direction').toLowerCase();
+      const direction = interaction.options.getString('direction');
 
       //Check if player is moving onto an ice tile at any time in their path or run
       //Also used to count the amount of tiles the player is moving for the movement cost calculation
       //Also used to find which tiles should be checked when doing the tile to tile movement updating
-      var iceChecklist
+      var iceChecklistAndTileList
 
       var response = "";
       var lastStringAddedToResponse = "";
       var amountOfRepeats = 0;
       //#endregion Variables
       //Check Gamestate
-      if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
+      //TODO make sure all utils.checkGameState actually pass wether or not the player is a clockwatcher.
+      if(await utils.checkGameState(game.GAME_STATE, playerClass.Class_Name == "Clockwatcher", interaction)){
         return
       }
 
       //#region Calculation of New Position
       if(interaction.options.getString('path') != null){
-         for (run in this.verifyinputPath(direction, distance, this.inputPathToArray(interaction.options.getString('path')))) {
+         for (run in this.verifyInputPath(direction, distance, this.inputPathToArray(interaction.options.getString('path')))) {
           this.calculateMovement(direction,distance,originalTile,player)
         }
       }
@@ -123,7 +124,7 @@ module.exports = {
       }
       
       // Ensure coordinates don't go above max
-      currentLayer = await models.Layers.findOne({where: {Layer_ID: originalTile.Layer_ID}});
+      var currentLayer = await models.Layers.findByPk(originalTile.Layer_ID);
       newX = Math.min(currentLayer.X_Bound, newX);
       newY = Math.min(currentLayer.Y_Bound, newY);
 //#endregion Calculation of New Position
@@ -131,28 +132,28 @@ module.exports = {
 
       //iceChecklist represents all the cordinates of the tiles a player is moving onto
       interaction.options.getString('path') == null ? 
-      iceChecklist = utils.getTileCordinatesOfLine([originalTile.X_Position, originalTile.Y_Position], [newX, newY]) 
-      : iceChecklist = this.getTileCordinatesOfPath([originalTile.X_Position, originalTile.Y_Position], this.verifyinputPath(direction, distance, this.inputPathToArray(interaction.options.getString('path'))));
-      for (cord in iceChecklist) {
+      iceChecklistAndTileList = utils.getTileCordinatesOfLine([originalTile.X_Position, originalTile.Y_Position], [newX, newY]) 
+      : iceChecklistAndTileList = this.getTileCordinatesOfPath([originalTile.X_Position, originalTile.Y_Position], this.verifyInputPath(direction, distance, this.inputPathToArray(interaction.options.getString('path'))));
+      for (cord in iceChecklistAndTileList) {
         var tile = await models.Tiles.findOne({
           where: {
-            X_Position: iceChecklist[cord][0],
-            Y_Position: iceChecklist[cord][1]
+            X_Position: iceChecklistAndTileList[cord][0],
+            Y_Position: iceChecklistAndTileList[cord][1]
           }
         });
         if(tile.Tile_Type == "Ice") {
           iceTileDeduction++;
         }
-        if(cord == iceChecklist.length && tile.Tile_Type == "Ice" && playerClass.Class_Name != "Snowman") {
+        if(cord == iceChecklistAndTileList.length && tile.Tile_Type == "Ice" && playerClass.Class_Name != "Snowman") {
           throw "Cannot end a movement on an ice tile, please either provide a path that moves off the ice, or move onto a non-ice tile.";
         }
       }
       var spentAP
       if(playerClass.Class_Name == "Glutton") {
-        spentAP = (2 * game.moveCost) * (iceChecklist.length - (iceTileDeduction + player.Free_Move));
+        spentAP = (2 * game.moveCost) * (iceChecklistAndTileList.length - (iceTileDeduction + player.Free_Move));
       }
       else {
-        spentAP = game.moveCost * (iceChecklist.length - (iceTileDeduction + player.Free_Move));
+        spentAP = game.moveCost * (iceChecklistAndTileList.length - (iceTileDeduction + player.Free_Move));
       }
 
       // Check if player has enough action points
@@ -162,9 +163,9 @@ module.exports = {
 
 
       try {
-        for (cord in iceChecklist) {
-          var cur_Tile = await models.Tiles.findOne({where: {X_Position: iceChecklist[cord][0], Y_Position: iceChecklist[cord][1], Layer_ID: originalTile.Layer_ID}});
-          var nxt_Tile = await models.Tiles.findOne({where: {X_Position: iceChecklist[cord + 1][0], Y_Position: iceChecklist[cord + 1][1], Layer_ID: originalTile.Layer_ID}});
+        for (cord in iceChecklistAndTileList) {
+          var cur_Tile = await models.Tiles.findOne({where: {X_Position: iceChecklistAndTileList[cord][0], Y_Position: iceChecklistAndTileList[cord][1], Layer_ID: originalTile.Layer_ID}});
+          var nxt_Tile = await models.Tiles.findOne({where: {X_Position: iceChecklistAndTileList[cord + 1][0], Y_Position: iceChecklistAndTileList[cord + 1][1], Layer_ID: originalTile.Layer_ID}});
           if(lastStringAddedToResponse != `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`){
             if(nxt_Tile.trapped){
               response += `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile IT WAS TRAPPED took ${game.mineDmg}! \n`
@@ -179,7 +180,7 @@ module.exports = {
             response += `x${amountOfRepeats + 1} \n`;
           }
           // for some reason holds the trapped tile damage logic
-          this.moveFromTiletoTile(cur_Tile, nxt_Tile, player);
+          this.moveFromTiletoTile(cur_Tile, nxt_Tile, player, bodyToMove == 2, game);
         }
 
         // Add player to new tile
@@ -192,7 +193,7 @@ module.exports = {
 
         // Deduct action points & update free movement
         await models.Players.update(
-          { Action_Points: player.Action_Points - spentAP, Free_Move: Math.min(player.Free_Move - (iceChecklist.length - (iceTileDeduction + player.Free_Move)), 0) } , 
+          { Action_Points: player.Action_Points - spentAP, Free_Move: Math.min(player.Free_Move - (iceChecklistAndTileList.length - (iceTileDeduction + player.Free_Move)), 0) } , 
           {where: {
            Discord_ID: interaction.user.id,
             Player_ID: player.Player_ID,
@@ -206,7 +207,7 @@ module.exports = {
         });
 
         //if player is a spy delete their action logs after 3 seconds
-        if(player.Class_ID == await models.Classes.findOne({where: {Class_Name: "Spy"}}).Class_ID) {
+        if(playerClass.Class_Name == "Spy") {
           await utils.delay(3000);
           await interaction.deleteReply();
         }
@@ -227,54 +228,57 @@ module.exports = {
   }},
 
   async calculateMovement(direction, distance, originalTile, player){
+    var newX = originalTile.X_Position
+    var newY = originalTile.Y_Position
     switch (direction) {
       case 'west':
         newX -= distance;
         var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: originalTile.Y_Position, Layer_ID: originalTile.Layer_ID}})
-        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        
         break;
       case 'east':
         newX += distance;
         var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: originalTile.Y_Position, Layer_ID: originalTile.Layer_ID}})
-        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        
         break;
       case 'north':
         newY += distance;
         var endTile = await models.Tiles.findOne({where: {X_Position: originalTile.X_Position, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
-        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        
         break;
       case 'south':
         newY -= distance;
         var endTile = await models.Tiles.findOne({where: {X_Position: originalTile.X_Position, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
-        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        
         break;
       case 'northeast':
         newX += distance;
         newY += distance;
         var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
-        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        
         break;
       case 'northwest':
         newX -= distance;
         newY += distance;
         var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
-        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        
         break;
       case 'southeast':
         newX += distance;
         newY -= distance;
         var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
-        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        
         break;
       case 'southwest':
         newX -= distance;
         newY -= distance;
         var endTile = await models.Tiles.findOne({where: {X_Position: newX, Y_Position: newY, Layer_ID: originalTile.Layer_ID}})
-        this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
+        
         break;
       default:
-        throw "Invalid direction";
+        throw "Invalid direction, contact snage as this should not be possible.";
     }
+    this.moveFromTiletoTile(originalTile,endTile,player.Player_ID, bodyToMove == 2)
   },
 
   async movePlayerToRandomSurroundingTile(playerId, layer, x, y) {
@@ -292,37 +296,37 @@ module.exports = {
       case 1:
         // Southwest
         newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x - 1, Y_Position: y + 1}});
-        moveFromTiletoTile(tile, layer, x - 1, y + 1);
+       this.moveFromTiletoTile(tile, layer, x - 1, y + 1);
         break;
       case 2:
         // South
         newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y + 1}});
-        moveFromTiletoTile(tile, layer, x, y + 1);
+       this.moveFromTiletoTile(tile, layer, x, y + 1);
         break;
       case 3:
         // Southeast
         newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x + 1, Y_Position: y + 1}});
-        moveFromTiletoTile(tile, layer, x + 1, y + 1);
+       this.moveFromTiletoTile(tile, layer, x + 1, y + 1);
         break;
       case 4:
         // East
         newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x + 1, Y_Position: y}});
-        moveFromTiletoTile(tile, layer, x + 1, y);
+       this.moveFromTiletoTile(tile, layer, x + 1, y);
         break;
       case 5:
         // Northeast
         newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x + 1, Y_Position: y - 1}});
-        moveFromTiletoTile(tile, layer, x + 1, y - 1);
+       this.moveFromTiletoTile(tile, layer, x + 1, y - 1);
         break;
       case 6:
         // North
         newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x, Y_Position: y - 1}});
-        moveFromTiletoTile(tile, layer, x, y - 1);
+       this.moveFromTiletoTile(tile, layer, x, y - 1);
         break;
       case 7:
         // Northwest
         newTile = await models.Tiles.findAll({where: {Layer_ID: layer, X_Position: x - 1, Y_Position: y - 1}});
-        moveFromTiletoTile(tile, layer, x - 1, y - 1);
+       this.moveFromTiletoTile(tile, layer, x - 1, y - 1);
         break;
       default:
         logger200.error({function: "movePlayerToRandomSurroundingTile"}, "Invalid random direction from derived random number: " + randomDirection);
@@ -338,18 +342,21 @@ module.exports = {
   //for checking all the things that happen when a player moves onto an off of a tile,
 //  returns wether they player moved or not
 // secondBody is nullable boolean
-async moveFromTiletoTile(startTile, endTile, player, secondBody) {
-  logger.debug("[VERBOSE] Player: " + player.Player_ID + " moved from tile: " + startTile + " to tile: " + endTile);
+async moveFromTiletoTile(startTile, endTile, player, secondBody, game) {
+  const logger200 = globalThis.CommandExecutionLogger.child({file: 'move.js', function: "moveFromTiletoTile"})
+  if(game == null){
+    game = await models.Games.findByPk(player.Game_ID)
+  }
   if(secondBody == null || !secondBody){
       switch(startTile.Tile_Type) {
         //Player takes damage from leaving fire tile
         case "Fire":
-          await models.Players.update({Health_Points: player.Health_Points - fireDmg},{ where: {Player_ID: player.Player_ID}})
-          await this.playerDeathLogic(null, player);
+          await models.Players.update({Health_Points: player.Health_Points - game.fireDmg},{ where: {Player_ID: player.Player_ID}})
+          await utils.playerDeathLogic(null, player);
           break;
         //Player destroys smoke tile by moving off of it
         case "Smoke":
-          await this.revertTileToBlank(startTile);
+          await utils.revertTileToBlank(startTile);
           break;
         default:
           break;
@@ -357,8 +364,8 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
     switch(endTile.Tile_Type) {
       //Player takes damage from entering fire tile
         case "Fire":
-          await models.Players.update({Health_Points: player.Health_Points - fireDmg},{ where: {Player_ID: player.Player_ID}})
-          await this.playerDeathLogic(null, player);
+          await models.Players.update({Health_Points: player.Health_Points - game.fireDmg},{ where: {Player_ID: player.Player_ID}})
+          await utils.playerDeathLogic(null, player);
           break;
       //Player must be moved randomly from entering storm tile
       //Every time a Stormchaser moves onto a storm tile they...
@@ -370,7 +377,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
           }
           //Stormchaser gains 1d4-2 AP
           if(player.Class_ID == 15) {
-            await models.Players.update({Action_Points: player.Action_Points + (this.getRandomInt(3) - 1)},{ where: {Player_ID: player.Player_ID}})
+            await models.Players.update({Action_Points: player.Action_Points + (utils.getRandomInt(3) - 1)},{ where: {Player_ID: player.Player_ID}})
           }
           //Player is moved in a random direction once
           await this.movePlayerToRandomSurroundingTile(player.Player_ID, startTile.Layer_ID, startTile.X_Position, startTile.Y_Position);
@@ -380,7 +387,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
         case "Wall_Damaged":
         //Check if player can move on these tiles(Currently they MUST be a clowdborn in order to) 
           if(!player.Class_ID == 6) {
-              logger200.error({function: "moveFromTiletoTile"},"Player " + player.Discord_ID + " cannot move onto void, wall or wall damaged tiles");
+              logger200.error("Player " + player.Discord_ID + " cannot move onto void, wall or wall damaged tiles");
               throw "[ERROR] Player " + player.Discord_ID + " cannot move onto void wall or wall damaged tiles";
           }
           break;
@@ -392,13 +399,17 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
       //Get trapper
       const trapper = await models.Players.findByPk(endTile.trapper);
       if(!trapper) {
-        //TODO fix logging and make proper logs and errors
+        logger200.error(`Player: ${player} stepped on Tile: ${endTile} which was trapped but did not have a trapper`)
         throw new Error("Mine without trapper found. Please contact snage.");
       }
+      var mineDmg = game.mineDmg
+      logger200.debug(`getting amount of damage to deal from stepping on a mine, got: ${mineDmg}`)
       //Damage player
+      logger200.debug(`damaging player: ${player} and setting their HP to ${player.Health_Points - mineDmg}`)
       await models.Players.update({Health_Points: player.Health_Points - mineDmg}, {where: {Player_ID: player.Player_ID}});
-      await this.playerDeathLogic(trapper, player);
+      await utils.playerDeathLogic(trapper, player);
       //Remove trap
+      logger200.debug(`removing trapped status and trapper player foriegn key from tile ${endTile.Tile_ID}`)
       await models.Tiles.update({trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
     }
   }
@@ -407,11 +418,11 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
       //Player takes damage from leaving fire tile
       case "Fire":
         await models.Players.update({Health_Points2: player.Health_Points2 - fireDmg},{ where: {Player_ID: player.Player_ID}})
-        await this.playerDeathLogic(null, player);
+        await utils.playerDeathLogic(null, player);
         break;
       //Player destroys smoke tile by moving off of it
       case "Smoke":
-        await this.revertTileToBlank(startTile);
+        await utils.revertTileToBlank(startTile);
         break;
       default:
         break;
@@ -420,7 +431,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
     //Player takes damage from entering fire tile
       case "Fire":
         await models.Players.update({Health_Points2: player.Health_Points2 - fireDmg},{ where: {Player_ID: player.Player_ID}})
-        await this.playerDeathLogic(null, player);
+        await utils.playerDeathLogic(null, player);
         break;
     //Player must be moved randomly from entering storm tile
     //Every time a Stormchaser moves onto a storm tile they...
@@ -459,47 +470,23 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody) {
     }
     //Damage player
     await models.Players.update({Health_Points2: player.Health_Points2 - mineDmg}, {where: {Player_ID: player.Player_ID}});
-    await this.playerDeathLogic(trapper, player);
+    await utils.playerDeathLogic(trapper, player);
     //Remove trap
     await models.Tiles.update({trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
   }
   }
 },
-//TODO Should be called whenever we change a players Tile_ID or a Tiles Player1,Player2,Player3, or Player4 will move this to utils
-async setPlayerToTile(playerId, layer, x, y) {
-  var currentPlayer = await models.Players.findByPk(playerId)
-  var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
-  await this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
-  const tile = await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
-  if(tile.Player1 == null) {
-    tile.Player1 = playerId;
-  }
-  else if(tile.Player2 == null) {
-    tile.Player2 = playerId;
-  }
-  else if(tile.Player3 == null) {
-    tile.Player3 = playerId;
-  }
-  else if(tile.Player4 == null) {
-    tile.Player4 = playerId;
-  }
-  else {
-    throw "tile is full";
-  }
-  await tile.save();
-  await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
-},
+
 
 //turns a path([[direction, distance]]) into an array of [[x, y]] of each tile where the direction changes
 // mainly used for generating a cordinate array for getTileCordinatesOfPath
 //path takes in a result of inputPathToArray
 //startingTile takes in an array of [x, y] of where the path starts
  pathToTiles(startingTile, path) {
-
   var tiles = [];
   //add the starting tile
   tiles.push([startingTile.X_Position, startingTile.Y_Position]);
-  for (run in path){
+  for (var run in path){
     //find where the next tile is and add its cordinates to the array
     //case "direction":
     //  destination = [x +/- distance, y +/- distance];
@@ -507,31 +494,35 @@ async setPlayerToTile(playerId, layer, x, y) {
     //tiles.push(destination);
       switch(path[run][0]){
         case "left":
-          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position];
+        case "w":
+          var destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position];
           break;
         case "right":
-          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position];
+        case "e":
+          var destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position];
           break;
         case "up":
-          destination = [startingTile.X_Position, startingTile.Y_Position - parseInt(path[run][1])];
+        case "n":
+          var destination = [startingTile.X_Position, startingTile.Y_Position - parseInt(path[run][1])];
           break;
         case "down":
-          destination = [startingTile.X_Position, startingTile.Y_Position + parseInt(path[run][1])];
+        case "s":
+          var destination = [startingTile.X_Position, startingTile.Y_Position + parseInt(path[run][1])];
           break;
         case "nw":
-          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position - parseInt(path[run][1])];
+          var destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position - parseInt(path[run][1])];
           break;
         case "ne":
-          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position - parseInt(path[run][1])];
+          var destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position - parseInt(path[run][1])];
           break;
         case "sw":
-          destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position + parseInt(path[run][1])];
+          var destination = [startingTile.X_Position - parseInt(path[run][1]), startingTile.Y_Position + parseInt(path[run][1])];
           break;
         case "se":
-          destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position + parseInt(path[run][1])];
+          var destination = [startingTile.X_Position + parseInt(path[run][1]), startingTile.Y_Position + parseInt(path[run][1])];
           break;
         default:
-          throw "[ERROR][pathToTiles][SITUATIONAL] Invalid input path, your are using a direction that isnt: left,right,up,down,nw,ne,sw, or se";
+          throw "Invalid input path, your are using a direction that isnt: left,w,right,e,up,n,down,s,nw,ne,sw, or se contact snage as this should not be possible.";
       }
       tiles.push(destination);
     }
@@ -543,8 +534,8 @@ async setPlayerToTile(playerId, layer, x, y) {
 //returns an array of arrays of [x, y] cordinates that the path goes through
 getTileCordinatesOfPath(startingTile, path) {
   var tiles = this.pathToTiles(startingTile, path);
-  var returnedTiles
-  for (tile in tiles) {
+  var returnedTiles = []
+  for (var tile in tiles) {
     returnedTiles.push(utils.getTileCordinatesOfLine(tiles[tile], tiles[tile + 1]));
   }
   return returnedTiles
@@ -555,109 +546,140 @@ getTileCordinatesOfPath(startingTile, path) {
 //distance: number
 //TODO write test for this
 inputPathToArray(inputPath){
+  const logger200 = globalThis.CommandExecutionLogger.child({file: 'move.js', function: "inputPathToArray"})
+  logger200.debug(`turned string ${inputPath} into the array: ${inputPath.split(';').map(row => row.split(',')).toString()}`)
   return inputPath.split(';').map(row => row.split(','));
 },
 
 //TODO write test for this
-async verifyinputPath(inputPath, layer, startingTileX, startingTileY){
-  regex =  /^((?:left|right|up|down|ne|nw|se|sw),\d+;)+$/;
-  result = regex.test(inputPath);
-
+async verifyInputPath(inputPath, layerId, startingTileXPosition, startingTileYPosition){
+  const logger200 = globalThis.CommandExecutionLogger.child({file: 'move.js', function: "verifyInputPath"})
+  var regex =  /^((?:left|right|up|down|ne|nw|se|sw),\d+;)+$/;
+  var result = regex.test(inputPath);
+  logger200.debug(`regular expression test came back: ${result}`)
   if(result){
-    path = this.inputPathToArray(inputPath);
-    var destination = [startingTileX, startingTileY];
-    for (run in path){
+    var path = this.inputPathToArray(inputPath);
+    var destination = [startingTileXPosition, startingTileYPosition];
+    logger200.debug(`set path to: ${path.toString()} and destination to: ${destination.toString()}`)
+    for (var run in path){
+      logger200.debug(`ran loop with run: ${run} in path: ${path}`)
       switch(path[run][0]){
         case "left":
         case "w":
           var tileCheck = await models.Tiles.findOne({where: 
             {
-              Layer_ID: layer,
-              X_Position: startingTileX - parseInt(path[run][1]),
-              Y_Position: startingTileY
+              Layer_ID: layerId,
+              X_Position: startingTileXPosition - parseInt(path[run][1]),
+              Y_Position: startingTileYPosition
             }}) == null
-            if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
-          destination = [startingTileX - parseInt(path[run][1]), startingTileY];
+          if(tileCheck) {
+            logger200.error(`Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage.`)
+            throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
+          }
+          destination = [startingTileXPosition - parseInt(path[run][1]), startingTileYPosition];
           break;
         case "right":
         case "e":
           var tileCheck = await models.Tiles.findOne({where: 
             {
-              Layer_ID: layer,
-              X_Position: startingTileX + parseInt(path[run][1]),
-              Y_Position: startingTileY
+              Layer_ID: layerId,
+              X_Position: startingTileXPosition + parseInt(path[run][1]),
+              Y_Position: startingTileYPosition
             }}) == null
-            if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
-          destination = [startingTileX + parseInt(path[run][1]), startingTileY];
+          if(tileCheck) {
+            logger200.error(`Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage.`)
+            throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
+          }
+          destination = [startingTileXPosition + parseInt(path[run][1]), startingTileYPosition];
           break;
         case "up":
         case "n":
           var tileCheck = await models.Tiles.findOne({where: 
             {
-              Layer_ID: layer,
-              X_Position: startingTileX,
-              Y_Position: startingTileY - parseInt(path[run][1])
+              Layer_ID: layerId,
+              X_Position: startingTileXPosition,
+              Y_Position: startingTileYPosition - parseInt(path[run][1])
             }}) == null
-            if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
-          destination = [startingTileX, startingTileY - parseInt(path[run][1])];
+          if(tileCheck) {
+            logger200.error(`Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage.`)
+            throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
+          }
+          destination = [startingTileXPosition, startingTileYPosition - parseInt(path[run][1])];
           break;
         case "down":
         case "s":
           var tileCheck = await models.Tiles.findOne({where: 
             {
-              Layer_ID: layer,
-              X_Position: startingTileX,
-              Y_Position: startingTileY + parseInt(path[run][1])
+              Layer_ID: layerId,
+              X_Position: startingTileXPosition,
+              Y_Position: startingTileYPosition + parseInt(path[run][1])
             }}) == null
-          if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
-          destination = [startingTileX, startingTileY + parseInt(path[run][1])];
+          if(tileCheck) {
+            logger200.error(`Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage.`)
+            throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
+          }
+          destination = [startingTileXPosition, startingTileYPosition + parseInt(path[run][1])];
           break;
         case "nw":
           var tileCheck = await models.Tiles.findOne({where: 
             {
-              Layer_ID: layer,
-              X_Position: startingTileX - parseInt(path[run][1]),
-              Y_Position: startingTileY - parseInt(path[run][1])
+              Layer_ID: layerId,
+              X_Position: startingTileXPosition - parseInt(path[run][1]),
+              Y_Position: startingTileYPosition - parseInt(path[run][1])
             }}) == null
-          if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
-          destination = [startingTileX - parseInt(path[run][1]), startingTileY - parseInt(path[run][1])];
+          if(tileCheck) {
+            logger200.error(`Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage.`)
+            throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
+          }
+          destination = [startingTileXPosition - parseInt(path[run][1]), startingTileYPosition - parseInt(path[run][1])];
           break;
         case "ne":          
-        var tileCheck = await models.Tiles.findOne({where: 
-          {
-            Layer_ID: layer,
-            X_Position: startingTileX + parseInt(path[run][1]),
-            Y_Position: startingTileY - parseInt(path[run][1])
-          }}) == null
-        if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
-          destination = [startingTileX + parseInt(path[run][1]), startingTileY - parseInt(path[run][1])];
+          var tileCheck = await models.Tiles.findOne({where: 
+            {
+              Layer_ID: layerId,
+              X_Position: startingTileXPosition + parseInt(path[run][1]),
+              Y_Position: startingTileYPosition - parseInt(path[run][1])
+            }}) == null
+          if(tileCheck) {
+            logger200.error(`Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage.`)
+            throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
+          }
+          destination = [startingTileXPosition + parseInt(path[run][1]), startingTileYPosition - parseInt(path[run][1])];
           break;
         case "sw":
           var tileCheck = await models.Tiles.findOne({where: 
             {
-              Layer_ID: layer,
-              X_Position: startingTileX - parseInt(path[run][1]),
-              Y_Position: startingTileY + parseInt(path[run][1])
+              Layer_ID: layerId,
+              X_Position: startingTileXPosition - parseInt(path[run][1]),
+              Y_Position: startingTileYPosition + parseInt(path[run][1])
             }}) == null
-          if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
-          destination = [startingTileX - parseInt(path[run][1]), startingTileY + parseInt(path[run][1])];
+          if(tileCheck) {
+            logger200.error(`Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage.`)
+            throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
+          }
+          destination = [startingTileXPosition - parseInt(path[run][1]), startingTileYPosition + parseInt(path[run][1])];
           break;
         case "se":
           //TODO double check that south is positive everywhere
           var tileCheck = await models.Tiles.findOne({where: 
             {
-              Layer_ID: layer,
-              X_Position: startingTileX + parseInt(path[run][1]),
-              Y_Position: startingTileY + parseInt(path[run][1])
+              Layer_ID: layerId,
+              X_Position: startingTileXPosition + parseInt(path[run][1]),
+              Y_Position: startingTileYPosition + parseInt(path[run][1])
             }}) == null
-          if(tileCheck) throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
-          destination = [startingTileX + parseInt(path[run][1]), startingTileY + parseInt(path[run][1])];
+          if(tileCheck) {
+            logger200.error(`Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage.`)
+            throw "Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage."
+          }
+          destination = [startingTileXPosition + parseInt(path[run][1]), startingTileYPosition + parseInt(path[run][1])];
           break;
         default:
+          logger200.error(`direction was out of bounds of the direction enum, throwing error`)
           throw "Invalid input path, your are using a direction that isnt: left,right,up,down,nw,ne,sw, or se";
       }
+      logger200.debug(`set destination to: ${destination.toString()}`)
     }
-  await models.Layers.findByPk(layer).then((curLayer) => {
+  await models.Layers.findByPk(layerId).then((curLayer) => {
     if(curLayer.X_Bound < destination[0] || curLayer.Y_Bound < destination[1]) result = false;
    })
   }
@@ -711,7 +733,7 @@ async  validateAndParseMoveCommandInput(interaction) {
   const distance = interaction.options.getInteger('distance');
   const bodyToMove = interaction.options.getInteger('body') || 1; // Default to body 1
   const inputtedPath = interaction.options.getString('path');
-  
+    
   // Find the player in the database
   const player = await models.Players.findOne({
     where: {
@@ -734,7 +756,7 @@ async  validateAndParseMoveCommandInput(interaction) {
   
   // Validate path format if provided
   if (inputtedPath) {
-    await this.verifyinputPath(inputtedPath, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
+    await this.verifyInputPath(inputtedPath, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
   }
 
   
