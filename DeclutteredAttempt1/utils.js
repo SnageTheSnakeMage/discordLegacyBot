@@ -25,13 +25,12 @@ module.exports = {
 // Function to load a tile texture
 
 
-timeCheck(client){ 
+async timeCheck(client){ 
   //start apcheckinterval for each active game
-  models.Games.findAll({where: {GAME_STATE: {[Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE ]}}}).then((games) => {
-    games.forEach((game) => {
-      this.startAPCheckInterval(game, client);
-    })
-  })
+  const games = await models.Games.findAll({where: {GAME_STATE: {[Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE ]}}});
+  for (const game of games) {
+    this.startAPCheckInterval(game, client);
+  }
 },
 
 getRandomItemInCollection(collection) {
@@ -227,25 +226,19 @@ async distributeAP(game, times, client){
       //   break;
       // }
   }
-  //TODO REWRITE THIS
   //also damage any players that are on the same tile as a lava diver and arent lava divers themselves
   //first get all the lava divers
-  await models.Players.findAll({where: {Game_ID: game.Game_ID, Class_ID: lavaDiverClass.Class_ID}}).then(async (allLavaDivers) => {
+  const allLavaDivers = await models.Players.findAll({where: {Game_ID: game.Game_ID, Class_ID: lavaDiverClass.Class_ID}});
+  for (const diver of allLavaDivers) {
+    if (diver.Tile_ID == null) continue;
     //then get all the players on the same tile as a lava diver
-    for(var diver in allLavaDivers){
-      await models.Tiles.findAll({where: {Tile_ID: diver.Tile_ID}}).then((tiles) => {
-        tiles.forEach(async (tile) => {
-          //then damage all the non lava diver players on the same tile
-          await models.Players.findAll({where: {Game_ID: game.Game_ID, Tile_ID: tile.Tile_ID, Class_ID: { [Op.ne]: lavaDiverClass.Class_ID }}}).then(async (players) => {
-            players.forEach(async (player) => {
-                await models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
-                this.playerDeathLogic(allLavaDivers[diver], player);
-            });
-          });
-        });
-      });
+    const playersSharingTile = await models.Players.findAll({where: {Game_ID: game.Game_ID, Tile_ID: diver.Tile_ID, Class_ID: { [Op.ne]: lavaDiverClass.Class_ID }}});
+    //then damage all the non lava diver players on the same tile
+    for (const player of playersSharingTile) {
+      await models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+      await this.playerDeathLogic(diver, player);
     }
-  })
+  }
   //tick down doomsday for immutables
   game.immutableDoomsday--;
 
@@ -259,10 +252,10 @@ async distributeAP(game, times, client){
 
 
 
-  // const chaosCouncilChannel = client.channel.cache.get(game.deadChatChannelID);
+  // const chaosCouncilChannel = client.channel.cache.get(game.deadChatChannelId);
   // chaosCouncilChannel.send(this.buildChaosCouncilPoll(game.CURR_CC_EVENT, game) )
   // .then(msg => {game.currentChaosPollMsgId = msg.id}).catch(console.error);
-  game.save();
+  await game.save();
 },
 
 //Returns the text of a discord polls most voted option
@@ -353,8 +346,8 @@ async classRemoval(victim, excorist){
       break;
     //if the player is a pharaoh take away of their revive HP and if any and give a kill to exorcist
     case "Pharaoh":
-      await models.Players.update({Class_ID: avgClass.Class_ID, PharaohHP: 0}, {where: {Player_ID: victim.Player_ID}});
-      if(victim.PharaohHP > 0){
+      await models.Players.update({Class_ID: avgClass.Class_ID, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
+      if(victim.Pharoh_HP > 0){
         await models.Players.update({Kills: excorist.Kills + 1}, {where: {Player_ID: excorist.Player_ID}});
       }
       break;
@@ -364,30 +357,30 @@ async classRemoval(victim, excorist){
       break;
     //if the player is a minesweeper remove all of their mines
     case "Minesweeper":
-      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: victim.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: victim.Player_ID}});
       await models.Tiles.update({trapped: false, trapper: null}, {where: {trapper: victim.Player_ID}});
       break;
     //if the player is a medium and they haven't used their overrides take away their extra one
     case "Medium":
-      if(victim.ccOverrides >= 2){
-        await models.Players.update({Class_ID: avgClass.Class_ID, ccOverrides: victim.ccOverrides - 1}, {where: {Player_ID: victim.Player_Id}});
+      if(victim.cCOverides >= 2){
+        await models.Players.update({Class_ID: avgClass.Class_ID, cCOverides: victim.cCOverides - 1}, {where: {Player_ID: victim.Player_ID}});
       }
       break;
     //if the player is a glutton give them their lost 2 starting AP back
     case "Glutton":
-      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points + 2}, {where: {Player_ID: victim.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points + 2}, {where: {Player_ID: victim.Player_ID}});
       break;
     //if the player is a hoarder take away their extra starting AP and give them back their lost range
     case "Hoarder":
-      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points - 6, Range_: victim.Range_ + 1}, {where: {Player_ID: victim.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points - 6, Range_: victim.Range_ + 1}, {where: {Player_ID: victim.Player_ID}});
       break;
     //if the player is a protagonist remove their extra starting AP and their extra potential/max stats and give them back their lost starting HP
     case "Protagonist":
-      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points - 4, Health_Points: victim.Health_Points + 2, MAX_AP: victim.MAX_AP - 4, MAX_HP: victim.MAX_HP - 4, MAX_RANGE: victim.MAX_RANGE - 4, MAX_DAMAGE: victim.MAX_DAMAGE - 2}, {where: {Player_ID: victim.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID, Action_Points: victim.Action_Points - 4, Health_Points: victim.Health_Points + 2, MAX_AP: victim.MAX_AP - 4, MAX_HP: victim.MAX_HP - 4, MAX_RANGE: victim.MAX_RANGE - 4, MAX_DAMAGE: victim.MAX_DAMAGE - 2}, {where: {Player_ID: victim.Player_ID}});
       break;
     //elsewise just remove their class
     default:
-      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: victim.Player_Id}});
+      await models.Players.update({Class_ID: avgClass.Class_ID}, {where: {Player_ID: victim.Player_ID}});
       break;
   }
 },
@@ -486,7 +479,7 @@ async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
     for ( playerIndex in tilePlayers ) {
       const tilePlayer = tilePlayers[playerIndex];
       if (tilePlayer === null) continue;
-      if(tilePlayer.Class_ID == await models.Classes.findOne({where: {Class_Name: "Spy"}}).Class_ID && !allLayerSight) continue;
+      if(tilePlayer.Class_ID == (await models.Classes.findOne({where: {Class_Name: "Spy"}})).Class_ID && !allLayerSight) continue;
       const playerImage = await this.loadTileTexture("players", tilePlayer.Discord_ID + "_" + gameId);
       let playerTilePositionX = canvasX;
       let playerTilePositionY = canvasY;
@@ -551,7 +544,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
         Damage: SelectedClass.Start_Damage,
         MAX_DAMAGE: SelectedClass.Start_MAX_Damage,
         Range_: SelectedClass.Start_Range_,
-        MAX_RANGE: SelectedClass.Start_MAX_Range,
+        MAX_RANGE: SelectedClass.Start_MAX_Range_,
         Tile_ID: spawn1.Tile_ID,
         Discord_ID: playerId,
         Tile_ID2: spawn2.Tile_ID,
@@ -584,7 +577,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
       else if(spawn2.Player4 == null) {
         await models.Tiles.update({Player4: createdPlayer.Player_ID}, {where: {Tile_ID: spawn2.Tile_ID}});
       }
-      this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + "_" + gameId + ".png");
+      await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + "_" + gameId + ".png");
       logger150({function: "registerPlayer"}, "registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
       return;
     }
@@ -598,7 +591,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
       Health_Points: SelectedClass.Start_HP,
       MAX_HP: SelectedClass.Start_MAX_HP,
       Range_: SelectedClass.Start_Range_,
-      MAX_RANGE: SelectedClass.Start_MAX_Range,
+      MAX_RANGE: SelectedClass.Start_MAX_Range_,
       Damage: SelectedClass.Start_Damage,
       MAX_DAMAGE: SelectedClass.Start_MAX_Damage,
       Tile_ID: spawn.Tile_ID,
@@ -621,7 +614,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
       throw "selected spawn tile is full somehow???";
     }
     
-    this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + ".png");
+    await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + ".png");
     logger150({function: "registerPlayer"}, "registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + JSON.stringify(spawn) +  " for spawn");
     return;
 },
@@ -783,10 +776,10 @@ async getRandomClass(game) {
   logger150.debug({function: "getSpawnpointTile"}, "possibleTiles: " + JSON.stringify(possibleTiles));
   var randomTile = possibleTiles[this.getRandomInt(possibleTiles.length - 1)];
   logger150.debug({function:"getSpawnpointTile"}, "rolled tile: " + JSON.stringify(randomTile) + " for a spawnpoint");
-  playersInTile = [randomTile.Player1, randomTile.Player2, randomTile.Player3, randomTile.Player4];
+  var playersInTile = [randomTile.Player1, randomTile.Player2, randomTile.Player3, randomTile.Player4];
   if ( !playersInTile.includes(null) ) {
     logger150.debug({function: "getSpawnpointTile"}, "spawnpoint full, rerolling spawnpoint...");
-    this.getSpawnpointTile(gameId);
+    return await this.getSpawnpointTile(gameId);
   }
   else {
     return randomTile;
@@ -886,7 +879,7 @@ async getOldestGameId(playerDiscordID){
   for (var i = 0; i < games.length; i++) {
     //if a game id is lower its older so we swap it out
     if (games[i].Game_ID < oldestGameId) {
-      oldestGameId = games[i].GAME_ID;
+      oldestGameId = games[i].Game_ID;
     }
   }
   logger150.debug({function:"getOldestGameId"}, "found game id: "+ oldestGameId.toString())
@@ -919,7 +912,7 @@ async  getOldestActiveGameId(playerDiscordID) {
     //if a game id is lower its older so we swap it out
     if (games[i].Game_ID < oldestGameId) {
       logger150.debug({function: `getOldestActiveGameId`}, `Game_ID: ${games[i].Game_ID} is lower than ${oldestGameId} making it the newest oldest game id`)
-      oldestGameId = games[i].GAME_ID;
+      oldestGameId = games[i].Game_ID;
     }
   }
   logger150.debug({function: `getOldestActiveGameId`}, `oldest game was decided to have the id: ${oldestGameId}`)
@@ -1008,57 +1001,58 @@ async ChaosEventDeathCheck(gameId, killer, victim) {
     case "Corpse Explosion":
       var playersToHurt = [] 
       var surroundingSquares = await this.getSurroundingTiles(victim.Player_ID, victim.Tile_ID)
-      surroundingSquares.forEach((tile) => {
-        playersToHurt.push(this.getAllPlayersOnTile)
-      })
-      await playersToHurt.forEach(async (player) => {
-        //TODO make sure there are no PlayerID in db calls
-        //TODO check each function that is async is bieng called with await
+      for (const tile of surroundingSquares) {
+        if (tile == null) continue;
+        playersToHurt.push(...await this.getAllPlayersOnTile(null, tile))
+      }
+      for (const player of playersToHurt) {
         if(player.Player_ID != victim.Player_ID){
-          models.Players.update({Health_Points: player.Health_Points - 1}, {where:{Player_ID: player.Player_ID}})
+          await models.Players.update({Health_Points: player.Health_Points - 1}, {where:{Player_ID: player.Player_ID}})
           await this.playerDeathLogic(killer,player)
         }
-      })
+      }
   }
 },
 
-//returns an array of players on the given tile, takes in either a tileID or a tile object
-//array is formatted as [player1, player2, player3, player4]
+//returns the Players rows standing on the given tile, takes in either a tileID or a tile object
+//returns an empty array when the tile cannot be found or is empty
 async getAllPlayersOnTile(tileID, tile) {
-  var playersOnTile = []
   if(tileID != null) {
     tile = await models.Tiles.findByPk(tileID)
   }
   if(tile == null) {
     logger150.error({function: "getAllPlayersOnTile"}, "could not find tile")
+    return []
   }
-  playersOnTile.push([tile.Player1, tile.Player2, tile.Player3, tile.Player4])
-
+  var playerIdsOnTile = [tile.Player1, tile.Player2, tile.Player3, tile.Player4].filter((playerId) => playerId != null)
+  if(playerIdsOnTile.length == 0) {
+    return []
+  }
+  return await models.Players.findAll({where: {Player_ID: {[Op.in]: playerIdsOnTile}}})
 },
 
 //TODO Should be called whenever we change a players Tile_ID or a Tiles Player1,Player2,Player3, or Player4 will keep this in utils as chaos events will use it
 async setPlayerToTile(playerId, layer, x, y) {
   var currentPlayer = await models.Players.findByPk(playerId)
   var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
-  this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
-  await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}}).then((tile) => {
-    if(tile.Player_1 == null) {
-      tile.Player_1 = playerId;
-    }
-    else if(tile.Player_2 == null) {
-      tile.Player_2 = playerId;
-    }
-    else if(tile.Player_3 == null) {
-      tile.Player_3 = playerId;
-    }
-    else if(tile.Player_4 == null) {
-      tile.Player_4 = playerId;
-    }
-    else {
-      throw "tile is full";
-    }
-    tile.save();
-  });
+  await this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
+  const tile = await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
+  if(tile.Player1 == null) {
+    tile.Player1 = playerId;
+  }
+  else if(tile.Player2 == null) {
+    tile.Player2 = playerId;
+  }
+  else if(tile.Player3 == null) {
+    tile.Player3 = playerId;
+  }
+  else if(tile.Player4 == null) {
+    tile.Player4 = playerId;
+  }
+  else {
+    throw "tile is full";
+  }
+  await tile.save();
   await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
 },
 
@@ -1069,11 +1063,11 @@ async setPlayerToTile(playerId, layer, x, y) {
 //killer is nullable for cases where the environment killed the player, like a fire tile
 async playerDeathLogic(killer, victim) {
   //get classes
-  killer ? killerClass = await models.Classes.findByPk(killer.Class_ID) : killerClass = null;
-  victimClass = await models.Classes.findByPk(victim.Class_ID);
+  const killerClass = killer ? await models.Classes.findByPk(killer.Class_ID) : null;
+  const victimClass = await models.Classes.findByPk(victim.Class_ID);
   //check if the victim is dead and there isnt a class with weird death logic involved
   if (victim.Health_Points <= 0 
-    && victim.PharohHP <= 0 
+    && victim.Pharoh_HP <= 0 
     && victimClass.Class_Name != "Twin" 
     && killerClass.Class_Name != "Hitman"
     && killerClass.Class_Name != "Cannibal"
@@ -1083,20 +1077,20 @@ async playerDeathLogic(killer, victim) {
     // a Tiles db call 
     // or a utils removePlayerFromTile call
     var victimTile = await models.Tiles.findByPk(victim.Tile_ID)
-    this.removePlayerFromTile(victim.Player_ID, victimTile.Layer_ID, victimTile.X_Position, victimTile.Y_Position)
+    await this.removePlayerFromTile(victim.Player_ID, victimTile.Layer_ID, victimTile.X_Position, victimTile.Y_Position)
     await models.Players.update({Tile_ID: null, Dead: true}, {where: {Player_ID: victim.Player_ID}});
-    this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
+    await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
     await models.Players.update({Kills: killer.Kills + 1}, {where: {Player_ID: killer.Player_ID}});
     return
   }
 
   //Weird death case #0 if the victim goes to 0 hp but has some revive hp revive them on a random tile with their pharaoh hp as their health and reset their pharaoh hp
   //this still counts as a kill
-  if(victim.Health_Points <= 0 && victim.PharohHP > 0)
+  if(victim.Health_Points <= 0 && victim.Pharoh_HP > 0)
   {
-    await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.PharohHP, PharaohHP: 0}, {where: {Player_ID: victim.Player_ID}});
+    await models.Players.update({Tile_ID: (await this.getSpawnpointTile(victim.Game_ID)).Tile_ID, Health_Points: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
     await models.Players.update({Kills: killer.Kills + 1}, {where: {Player_ID: killer.Player_ID}});
-    this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
+    await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
     return
   }
 
@@ -1107,7 +1101,7 @@ async playerDeathLogic(killer, victim) {
     //Both twins are at 0 hp and the player doesnt have any pharoh hp so run the normal death logic and remove both twins tiles
     if(victim.Health_Points <= 0 
       && victim.Health_Points2 <= 0 
-      && victim.PharohHP <= 0 )
+      && victim.Pharoh_HP <= 0 )
     {
       await models.Players.update({Dead: true}, {where: {Player_ID: victim.Player_ID}});
       await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID}});
@@ -1116,25 +1110,25 @@ async playerDeathLogic(killer, victim) {
     //Both twins are at 0 hp but the player has some pharaoh hp so revive them on a random tile with their pharaoh hp as their health and reset their pharaoh hp
     if(victim.Health_Points <= 0 
       && victim.Health_Points2 <= 0 
-      && victim.PharohHP > 0 )
+      && victim.Pharoh_HP > 0 )
     {
-      await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.PharohHP, PharaohHP: 0}, {where: {Player_ID: victim.Player_ID}});
+      await models.Players.update({Tile_ID: (await this.getSpawnpointTile(victim.Game_ID)).Tile_ID, Health_Points: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
     }
     //One twin is at 0 hp but the player has some pharaoh hp so revive the dead clone on a random tile with their pharaoh hp as their health and reset their pharaoh hp
-    if(victim.Health_Points <= 0 && victim.Health_Points2 > 0 && victim.PharohHP > 0)
+    if(victim.Health_Points <= 0 && victim.Health_Points2 > 0 && victim.Pharoh_HP > 0)
     {
-      await models.Players.update({Tile_ID2: this.getSpawnpointTile(victim.Game_ID), Health_Points2: victim.PharaohHP, PharaohHP: 0}, {where: {Player_ID: victim.Player_ID}});
+      await models.Players.update({Tile_ID2: (await this.getSpawnpointTile(victim.Game_ID)).Tile_ID, Health_Points2: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
     }
-    if(victim.Health_Points > 0 && victim.Health_Points2 <= 0 && victim.PharohHP > 0)
+    if(victim.Health_Points > 0 && victim.Health_Points2 <= 0 && victim.Pharoh_HP > 0)
     {
-      await models.Players.update({Tile_ID: this.getSpawnpointTile(victim.Game_ID), Health_Points: victim.PharaohHP, PharaohHP: 0}, {where: {Player_ID: victim.Player_ID2}});
+      await models.Players.update({Tile_ID: (await this.getSpawnpointTile(victim.Game_ID)).Tile_ID, Health_Points: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
     }
     //One twin is at 0 hp so kill it but dont mark the player as dead
     if(victim.Health_Points <= 0 && victim.Health_Points2 > 0){
       await models.Players.update({Tile_ID2: null}, {where: {Player_ID: victim.Player_ID}});
     }
     if(victim.Health_Points > 0 && victim.Health_Points2 <= 0){
-      await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID2}});
+      await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID}});
     }
   }
   //kill the victim if they have 0 hp arent a twin and dont have pharaoh hp
@@ -1149,12 +1143,12 @@ async playerDeathLogic(killer, victim) {
       case "Hitman":
         if(killer.Hitman_Target == victim.Player_ID ){
           await models.Players.update({Kills: killer.Kills + 1, Action_Points: killer.Action_Points + 4}, {where: {Player_ID: killer.Player_ID}});
-          this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
+          await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return
         }
         else if(victim.Health_Points <= 0){
           await models.Players.update({Kills: killer.Kills + 1}, {where: {Player_ID: killer.Player_ID}});
-          this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
+          await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return
         }
         break;
@@ -1162,18 +1156,18 @@ async playerDeathLogic(killer, victim) {
       case "Cannibal":
         if(victim.Action_Points == victim.MAX_AP){
           await models.Players.update({Kills: killer.Kills + 1, Action_Points: killer.Action_Points + 6}, {where: {Player_ID: killer.Player_ID}});
-          this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
+          await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return
         }else {
           await models.Players.update({Kills: killer.Kills + 1, Action_Points: killer.Action_Points + 1}, {where: {Player_ID: killer.Player_ID}});
-          this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
+          await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return
         }
       //Weird death case #4 minesweeper needs their mines destroyed, do normal death logic but also destroy their mines
         case "Minesweeper":
           await models.Players.update({Kills: killer.Kills + 1}, {where: {Player_ID: killer.Player_ID}});
           await models.Tiles.update({trapped: false, trapper: null}, {where: {trapper: victim.Player_ID}});
-          this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
+          await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return;
       default:
         //Should only run if there is no killer
@@ -1189,17 +1183,17 @@ async playerDeathLogic(killer, victim) {
 //includes diagonals
 async getSurroundingTiles(playerId, tileId) {
   var player = await models.Players.findByPk(playerId);
-  var tile = tileId ? await models.Tiles.findByPk(tileId): player.Tile_ID
+  var tile = tileId ? await models.Tiles.findByPk(tileId) : await models.Tiles.findByPk(player.Tile_ID)
   var surroundingTiles = [];
   surroundingTiles.push(tile);
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position, Y_Position: tile.Y_Position + 1}}));
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position - 1, Y_Position: tile.Y_Position + 1}}));
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position - 1, Y_Position: tile.Y_Position}}));
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position - 1, Y_Position: tile.Y_Position - 1}}));
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position, Y_Position: tile.Y_Position - 1}}));
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position + 1, Y_Position: tile.Y_Position - 1}}));
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position + 1, Y_Position: tile.Y_Position}}));
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position + 1, Y_Position: tile.Y_Position + 1}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position, Y_Position: tile.Y_Position + 1}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position - 1, Y_Position: tile.Y_Position + 1}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position - 1, Y_Position: tile.Y_Position}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position - 1, Y_Position: tile.Y_Position - 1}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position, Y_Position: tile.Y_Position - 1}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position + 1, Y_Position: tile.Y_Position - 1}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position + 1, Y_Position: tile.Y_Position}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position + 1, Y_Position: tile.Y_Position + 1}}));
   return surroundingTiles
 },
 
@@ -1209,13 +1203,13 @@ async getSurroundingTiles(playerId, tileId) {
 // then going clockwise with 4 bieng the tile to the right
 async getSurroundingOrthoginalTiles(playerId, tileId) {
   var player = await models.Players.findByPk(playerId);
-  var tile = tileId ? await models.Tiles.findByPk(tileId): player.Tile_ID
+  var tile = tileId ? await models.Tiles.findByPk(tileId) : await models.Tiles.findByPk(player.Tile_ID)
   var surroundingTiles = [];
   surroundingTiles.push(tile);
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position, Y_Position: tile.Y_Position + 1}}));
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position + 1, Y_Position: tile.Y_Position}}));
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position, Y_Position: tile.Y_Position - 1}}));
-  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: player.Layer_ID, X_Position: tile.X_Position - 1, Y_Position: tile.Y_Position}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position, Y_Position: tile.Y_Position + 1}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position + 1, Y_Position: tile.Y_Position}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position, Y_Position: tile.Y_Position - 1}}));
+  surroundingTiles.push(await models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: tile.X_Position - 1, Y_Position: tile.Y_Position}}));
   return surroundingTiles
 },
 
@@ -1283,21 +1277,20 @@ getDirection(point1, point2) {
 },
 
 async  removePlayerFromTile(playerId, layer, x, y) {
-  await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}}).then((tile) => {
-      if(tile.Player_1 == playerId) {
-        tile.Player_1 = null;
-      }
-      if(tile.Player_2 == playerId) {
-        tile.Player_2 = null;
-      }
-      if(tile.Player_3 == playerId) {
-        tile.Player_3 = null;
-      }
-      if(tile.Player_4 == playerId) {
-        tile.Player_4 = null;
-      }
-      tile.save();
-  });
+  const tile = await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
+  if(tile.Player1 == playerId) {
+    tile.Player1 = null;
+  }
+  if(tile.Player2 == playerId) {
+    tile.Player2 = null;
+  }
+  if(tile.Player3 == playerId) {
+    tile.Player3 = null;
+  }
+  if(tile.Player4 == playerId) {
+    tile.Player4 = null;
+  }
+  await tile.save();
 },
 
  getRandomInt(max) {
@@ -1311,8 +1304,8 @@ async hotPotatoSwap(player1, player2, player1Username, player2Username) {
   
   switch(newClass.Class_Name) {
     case "Twin":
-      await models.Players.update({Tile_ID_2: player2.Tile_ID, Health_Points2: player2.Health_Points2, Damage2: player2.Damage2, Range_2: player2.Range_2}, {where: {Player_ID: player1.Player_ID}});
-      await models.Players.update({Tile_ID_2: null, Health_Points2: null, Damage2: null, Range_2: null}, {where: {Player_ID: player2.Player_ID}});
+      await models.Players.update({Tile_ID2: player2.Tile_ID, Health_Points2: player2.Health_Points2, Damage2: player2.Damage2, Range2: player2.Range2}, {where: {Player_ID: player1.Player_ID}});
+      await models.Players.update({Tile_ID2: null, Health_Points2: null, Damage2: null, Range2: null}, {where: {Player_ID: player2.Player_ID}});
       return "" + player1Username + " took " + player2Username + "'s twin body!";
     case "Hitman":
       await models.Players.update({Hitman_Target: player2.Hitman_Target}, {where: {Player_ID: player1.Player_ID}});

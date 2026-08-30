@@ -46,7 +46,7 @@ module.exports = {
         const playerClass = await models.Classes.findOne({where: {Class_ID: player.Class_ID}});
         var shootersTile;
         if(interaction.options.getInteger('body') === 2) {
-            shootersTile = await models.Tiles.findByPk(player.Tile_ID_2);
+            shootersTile = await models.Tiles.findByPk(player.Tile_ID2);
         } else {
             shootersTile = await models.Tiles.findByPk(player.Tile_ID);
         }

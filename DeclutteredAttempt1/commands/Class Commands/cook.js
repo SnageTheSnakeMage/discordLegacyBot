@@ -29,7 +29,8 @@ module.exports = {
         const gameId = interaction.options.getInteger('game') ?? await utils.getOldestGameId();
         const player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
         const customer = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.options.getUser('customer').id}});
-        const customersTile = await models.Tiles.findOne({where: {Game_ID: gameId, X_Position: interaction.options.getInteger('x'), Y_Position: interaction.options.getInteger('y')}});  
+        const playersTile = await models.Tiles.findByPk(player.Tile_ID);
+        const customersTile = await models.Tiles.findOne({where: {Layer_ID: playersTile.Layer_ID, X_Position: interaction.options.getInteger('x'), Y_Position: interaction.options.getInteger('y')}});  
 
         //Check Gamestate
         if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
@@ -47,7 +48,7 @@ module.exports = {
         }
 
         //Check if player is in range of their customer
-        const tileInRange = utils.getTileCordinatesOfLine([player.X_Position, player.Y_Position], [customersTile.X_Position, customersTile.Y_Position]).length <= player.Range_;
+        const tileInRange = utils.getTileCordinatesOfLine([playersTile.X_Position, playersTile.Y_Position], [customersTile.X_Position, customersTile.Y_Position]).length <= player.Range_;
         if (!tileInRange) {
             return interaction.editReply({ content: "Your customer is not in range!" });
         }
@@ -69,7 +70,7 @@ module.exports = {
 
         //Give reciever the AP & HP
         await models.Players.update({Action_Points: customer.Action_Points + 2}, {where: {Player_ID: customer.Player_ID}}); 
-        await models.Players.update({Health: player.Health + 1}, {where: {Player_ID: customer.Player_ID}});
+        await models.Players.update({Health_Points: customer.Health_Points + 1}, {where: {Player_ID: customer.Player_ID}});
 
         //Give player the AP
         await models.Players.update({Action_Points: player.Action_Points + 1, Meals: player.Meals - 1}, {where: {Player_ID: player.Player_ID}}); 

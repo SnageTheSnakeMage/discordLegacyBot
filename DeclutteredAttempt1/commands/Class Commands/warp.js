@@ -50,7 +50,7 @@ module.exports = {
             if(currentTile.Tile_Type == "Gateway_Open"){
                 const possibleTiles = await models.Tiles.findAll({ where: { Layer_ID: newLayer.Layer_ID, Tile_Type: "Gateway_Open"} });
                 for (tile in possibleTiles){
-                    if(possibleTiles[tile].Player_1 != null && possibleTiles[tile].Player_2 != null && possibleTiles[tile].Player_3 != null && possibleTiles[tile].Player_4 != null){
+                    if(possibleTiles[tile].Player1 != null && possibleTiles[tile].Player2 != null && possibleTiles[tile].Player3 != null && possibleTiles[tile].Player4 != null){
                         possibleTiles.splice(tile, 1);
                     }
                 }
@@ -64,7 +64,7 @@ module.exports = {
                 const possibleTiles = await models.Tiles.findAll({ where: { Layer_ID: newLayer.Layer_ID } });
                 for (tile in possibleTiles){
                    for (const tile in possibleTiles){
-                     if(possibleTiles[tile].Player_1 != null && possibleTiles[tile].Player_2 != null && possibleTiles[tile].Player_3 != null && possibleTiles[tile].Player_4 != null || possibleTiles[tile].Tile_Type == "Void" || possibleTiles[tile].Tile_Type == "Wall" || possibleTiles[tile].Tile_Type == "Wall_Damaged" || possibleTiles[tile].Tile_Type == "Gateway_Locked"){
+                     if(possibleTiles[tile].Player1 != null && possibleTiles[tile].Player2 != null && possibleTiles[tile].Player3 != null && possibleTiles[tile].Player4 != null || possibleTiles[tile].Tile_Type == "Void" || possibleTiles[tile].Tile_Type == "Wall" || possibleTiles[tile].Tile_Type == "Wall_Damaged" || possibleTiles[tile].Tile_Type == "Gateway_Locked"){
                         possibleTiles.splice(tile, 1);
                     }
                 }

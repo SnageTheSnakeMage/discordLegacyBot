@@ -23,8 +23,8 @@ module.exports = {
         await interaction.deferReply();
         //Variables
         const gameId = interaction.options.getInteger('game') ?? await utils.getOldestGameId();
-        const player = await models.Player.findOne({where: {Discord_ID: interaction.user.id, Game_ID: gameId}});
-        const receiver = await models.Player.findOne({where: {Discord_ID: interaction.options.getUser('receiver').id, Game_ID: gameId}});
+        const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id, Game_ID: gameId}});
+        const receiver = await models.Players.findOne({where: {Discord_ID: interaction.options.getUser('receiver').id, Game_ID: gameId}});
 
         //Check Gamestate
         if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
@@ -47,8 +47,8 @@ module.exports = {
         }
 
         //Give reciever the AP
-        await models.Player.update({Action_Points: receiver.Action_Points + interaction.options.getInteger('amount')}, {where: {Player_ID: receiver.Player_ID}}); 
-        await models.Player.update({Action_Points: player.Action_Points - interaction.options.getInteger('amount')}, {where: {Player_ID: player.Player_ID}});
+        await models.Players.update({Action_Points: receiver.Action_Points + interaction.options.getInteger('amount')}, {where: {Player_ID: receiver.Player_ID}}); 
+        await models.Players.update({Action_Points: player.Action_Points - interaction.options.getInteger('amount')}, {where: {Player_ID: player.Player_ID}});
 
         return interaction.editReply({ content: "You have delivered " + interaction.options.getInteger('amount') + "AP to " + interaction.options.getUser('receiver').username + "!" });
     }

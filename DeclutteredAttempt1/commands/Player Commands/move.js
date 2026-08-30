@@ -74,7 +74,7 @@ module.exports = {
       const bodyToMove = interaction.options.getInteger('body');
 
       if (bodyToMove === 2) {
-        originalTile = await models.Tiles.findByPk(player.Tile_ID_2);
+        originalTile = await models.Tiles.findByPk(player.Tile_ID2);
       } else {
         originalTile = await models.Tiles.findByPk(player.Tile_ID);
       }
@@ -395,7 +395,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody, game) {
           break;
     }
     
-    if(endTile.Trapped) {
+    if(endTile.trapped) {
       //Get trapper
       const trapper = await models.Players.findByPk(endTile.trapper);
       if(!trapper) {
@@ -407,10 +407,10 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody, game) {
       //Damage player
       logger200.debug(`damaging player: ${player} and setting their HP to ${player.Health_Points - mineDmg}`)
       await models.Players.update({Health_Points: player.Health_Points - mineDmg}, {where: {Player_ID: player.Player_ID}});
-      utils.playerDeathLogic(trapper, player);
+      await utils.playerDeathLogic(trapper, player);
       //Remove trap
       logger200.debug(`removing trapped status and trapper player foriegn key from tile ${endTile.Tile_ID}`)
-      await models.Tiles.update({Trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
+      await models.Tiles.update({trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
     }
   }
   else{
@@ -461,7 +461,7 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody, game) {
         break;
   }
   
-  if(endTile.Trapped) {
+  if(endTile.trapped) {
     //Get trapper
     const trapper = await models.Players.findByPk(endTile.trapper);
     if(!trapper) {
@@ -470,9 +470,9 @@ async moveFromTiletoTile(startTile, endTile, player, secondBody, game) {
     }
     //Damage player
     await models.Players.update({Health_Points2: player.Health_Points2 - mineDmg}, {where: {Player_ID: player.Player_ID}});
-    utils.playerDeathLogic(trapper, player);
+    await utils.playerDeathLogic(trapper, player);
     //Remove trap
-    await models.Tiles.update({Trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
+    await models.Tiles.update({trapped: false, trapper: null}, {where: {Tile_ID: endTile.Tile_ID}});
   }
   }
 },
@@ -747,7 +747,7 @@ async  validateAndParseMoveCommandInput(interaction) {
   }
   
   // Determine which tile to move (handles Twin class properly)
-  const currentTileId = bodyToMove === 2 ? player.Tile_ID_2 : player.Tile_ID;
+  const currentTileId = bodyToMove === 2 ? player.Tile_ID2 : player.Tile_ID;
   const currentTile = await models.Tiles.findByPk(currentTileId);
   
   if (!currentTile) {

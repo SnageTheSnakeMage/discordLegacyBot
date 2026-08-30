@@ -31,8 +31,8 @@ module.exports = {
             await models.Players.update({Action_Points: Math.max(inputs.givingPlayer.Action_Points - inputs.amount, 0)}, {where: {Game_ID: inputs.gameId, Discord_ID: inputs.playerDiscordID}});
             logger200.debug(`took ${inputs.amount} AP from player: ${inputs.givingPlayer} setting their current AP to: ${Math.max(inputs.givingPlayer.Action_Points - inputs.amount, 0)}`)
             if(inputs.remainder > 0) {
-                await models.Players.update({Action_Points: inputs.givingPlayer.Missed_AP + inputs.remainder}, {where: {Game_ID: inputs.gameId, Discord_ID: inputs.recievingPlayerDiscord}});
-                logger200.debug(`recieving player couldn't hold all the AP increasing their missed ap to: ${inputs.givingPlayer.Missed_AP + inputs.remainder}`)
+                await models.Players.update({Action_Points: inputs.givingPlayer.MISSED_AP + inputs.remainder}, {where: {Game_ID: inputs.gameId, Discord_ID: inputs.recievingPlayerDiscord}});
+                logger200.debug(`recieving player couldn't hold all the AP increasing their missed ap to: ${inputs.givingPlayer.MISSED_AP + inputs.remainder}`)
             }
             return interaction.editReply({ content: `${interaction.user.username} gave ${inputs.amount} AP to <@${inputs.recievingPlayer.Discord_ID}>`});
         }
@@ -51,7 +51,7 @@ module.exports = {
         logger200.debug(`incoming inputs are: { amount: ${amount}, gameId: ${gameId}, recievingPlayerDiscordId: ${recievingPlayerDiscordId} }`)
         var remainder = 0;
         //Verification of mentionable
-        if (!models.Players.findOne({where: {Game_ID: gameId, Discord_ID: recievingPlayerDiscordId}})){
+        if (!await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: recievingPlayerDiscordId}})){
             logger200.error(`Could not find a player with Discord_ID: ${recievingPlayerDiscordId} in game: ${gameId} rejecting input`)
             return interaction.editReply({ content: "Something went wrong! Player not found in game! Please mention another player in the game inputted." });
         }

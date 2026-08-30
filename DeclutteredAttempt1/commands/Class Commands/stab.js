@@ -79,7 +79,7 @@ module.exports = {
         }
         //damage the target with whatever stabs are left
         await models.Players.update({Health_Points: targetPlayer.Health_Points - Math.min(amount * player.Damage * (player.DMG_BUFF + 1) * 2, player.MAX_DAMAGE)}, {where: {Player_ID: targetPlayer.Player_ID, Game_ID: gameId}});
-        utils.playerDeathLogic(player, targetPlayer);
+        await utils.playerDeathLogic(player, targetPlayer);
         response += `You hit <@${targetPlayer.Discord_ID}> for ${amount * player.Damage * (player.DMG_BUFF + 1)}$ damage at ${attackPath[attackTile][0]},${attackPath[attackTile][1]}!\n`;
         //set the amount of stabs left to 0 and exit the loop
         amount = 0;
