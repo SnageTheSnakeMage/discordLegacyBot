@@ -26,7 +26,7 @@ module.exports = {
         const playerClass = await models.Classes.findByPk(player.Class_ID);
         const pollOption = interaction.options.getInteger('pollOption');
          const channel = await client.channels.fetch(game.deadChatChannelId);
-        const poll = await channel.messages.fetch(game.currentChaosPollMsgId).poll;
+        const poll = (await channel.messages.fetch(game.currentChaosPollMsgId)).poll;
 
         //Check if the player is a Dead or Medium
         if(!player.Dead || playerClass.Class_Name != "Medium") {

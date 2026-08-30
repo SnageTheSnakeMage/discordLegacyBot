@@ -11,14 +11,13 @@ module.exports = {
         const logger200 = globalThis.CommandExecutionLogger.child({file: 'listGames.js'})
         await interaction.deferReply();
         
-        await models.Games.findAll().then((games) => {
-            var gameList = "";
-            for (var i = 0; i < games.length; i++) {
-                gameList += "Game ID:" + games[i].Game_ID + " - Game State: " + games[i].GAME_STATE +
-                 "\n Current Chaos Council Event: " + games[i].CURR_CC_EVENT + " - " + ChaosEvents[games[i].CURR_CC_EVENT] + 
-                 ",\n Winner: " + games[i].winner + "\n--------\n";
-            }
-            interaction.editReply(gameList);
-        });
+        const games = await models.Games.findAll();
+        var gameList = "";
+        for (var i = 0; i < games.length; i++) {
+            gameList += "Game ID:" + games[i].Game_ID + " - Game State: " + games[i].GAME_STATE +
+             "\n Current Chaos Council Event: " + games[i].CURR_CC_EVENT + " - " + ChaosEvents[games[i].CURR_CC_EVENT] + 
+             ",\n Winner: " + games[i].winner + "\n--------\n";
+        }
+        await interaction.editReply(gameList);
     },
 };

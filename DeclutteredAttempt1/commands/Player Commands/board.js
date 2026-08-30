@@ -46,7 +46,7 @@ module.exports = {
    try {
      const logger200 = globalThis.CommandExecutionLogger.child({file: `board.js`, function: "inputValidation"})
  
-     var gameId = interaction.options.getInteger('game') ?? utils.getOldestGameId(interaction.user.id)
+     var gameId = interaction.options.getInteger('game') ?? await utils.getOldestGameId(interaction.user.id)
      logger200.debug( `set gameId to ${gameId}`)
  
      var player = await models.Players.findOne({

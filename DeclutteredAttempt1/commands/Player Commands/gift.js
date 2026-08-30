@@ -51,7 +51,7 @@ module.exports = {
         logger200.debug(`incoming inputs are: { amount: ${amount}, gameId: ${gameId}, recievingPlayerDiscordId: ${recievingPlayerDiscordId} }`)
         var remainder = 0;
         //Verification of mentionable
-        if (!models.Players.findOne({where: {Game_ID: gameId, Discord_ID: recievingPlayerDiscordId}})){
+        if (!await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: recievingPlayerDiscordId}})){
             logger200.error(`Could not find a player with Discord_ID: ${recievingPlayerDiscordId} in game: ${gameId} rejecting input`)
             return interaction.editReply({ content: "Something went wrong! Player not found in game! Please mention another player in the game inputted." });
         }
