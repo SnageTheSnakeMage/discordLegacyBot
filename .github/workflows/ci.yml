@@ -1,0 +1,124 @@
+# CI for Legacy Bot. Secure-by-default: the workflow token is read-only,
+# every third-party action is pinned to a commit SHA (the tag in the
+# comment is what that SHA was verified as), and no job reachable from
+# pull_request touches a secret - fork PRs run everything below with no
+# access to DISCORD_TOKEN, which lives only in the production environment.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, cursord]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: DeclutteredAttempt1
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: DeclutteredAttempt1/.nvmrc
+          cache: npm
+          cache-dependency-path: DeclutteredAttempt1/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: DeclutteredAttempt1/.nvmrc
+          cache: npm
+          cache-dependency-path: DeclutteredAttempt1/package-lock.json
+      - run: npm ci
+      - run: npm run test:coverage -- --maxWorkers=2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: coverage
+          path: DeclutteredAttempt1/tests/coverage
+          retention-days: 14
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: DeclutteredAttempt1/.nvmrc
+          cache: npm
+          cache-dependency-path: DeclutteredAttempt1/package-lock.json
+      - run: npm ci
+      - run: npm run test:integration
+
+  audit:
+    # advisory until the existing backlog is triaged; flip to blocking by
+    # removing continue-on-error once `npm audit --audit-level=high` is clean
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: DeclutteredAttempt1/.nvmrc
+      - run: npm audit --audit-level=high
+
+  docker:
+    # proves the image actually works: the test stage runs the full suite
+    # inside the image, and the smoke step asserts the runtime stage gets
+    # all the way to a Discord login attempt (native modules loaded, no
+    # ABI mismatch) rather than merely exiting non-zero.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build test stage (runs lint + unit + integration in-image)
+        run: docker build --target test -t legacybot:test .
+      - name: Build runtime stage
+        run: docker build --target runtime -t legacybot:runtime .
+      - name: Smoke - reaches a Discord login attempt with a dummy token
+        run: |
+          set +e
+          OUT=$(docker run --rm -e DISCORD_TOKEN=dummy-token-for-smoke -e CLIENT_ID=0 legacybot:runtime 2>&1)
+          STATUS=$?
+          echo "$OUT" | tail -20
+          if echo "$OUT" | grep -qiE "TokenInvalid|invalid token|401"; then
+            echo "smoke OK: bot booted to the login attempt and Discord rejected the dummy token"
+            exit 0
+          fi
+          echo "smoke FAILED: expected a token rejection, got exit=$STATUS without one"
+          exit 1
+
+  scan:
+    # image CVE scan; SARIF goes to the Security tab on pushes (fork PRs
+    # cannot get security-events: write, so the upload is push-only)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build --target runtime -t legacybot:scan .
+        working-directory: DeclutteredAttempt1
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: legacybot:scan
+          format: sarif
+          output: trivy.sarif
+          severity: HIGH,CRITICAL
+      - uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        if: github.event_name == 'push'
+        with:
+          sarif_file: trivy.sarif
