@@ -926,7 +926,7 @@ async  getOldestActiveGameId(playerDiscordID) {
 checkGameState(gamestate, isClockwatcher) {
   logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate );
   switch(gamestate) {
-    case GAMESTATES.FINISHED:
+    case GAMESTATES.OVER:
       return { blocked: true, reason: REJECTIONS.GAME_OVER };
     case GAMESTATES.DEV_PAUSED:
       return { blocked: true, reason: REJECTIONS.GAME_PAUSED };
@@ -939,6 +939,7 @@ checkGameState(gamestate, isClockwatcher) {
     case GAMESTATES.ACTIVE:
     case GAMESTATES.INACTIVE:
     case GAMESTATES.SANDBOX:
+    case GAMESTATES.FINALE:
       return { blocked: false };
     default:
       logger150.debug({function:"checkGameState"}, 'threw an error because gamestate was: ' + gamestate );
