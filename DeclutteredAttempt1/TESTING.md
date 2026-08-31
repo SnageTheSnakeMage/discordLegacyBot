@@ -135,6 +135,13 @@ module.exports = {
   data: new SlashCommandBuilder() /* ... unchanged ... */,
 
   async execute(interaction) {
+    // KEEP THIS COMMAND'S CURRENT DEFER STYLE. board defers ephemeral;
+    // ~32 of 34 game commands defer publicly. Copying one defer line into
+    // every adapter silently flips public replies to private - the single
+    // worst way this refactor can go wrong. The defer line is per-command,
+    // never shared. (A command that called an undefined helper like
+    // deferredReply(interaction) gets plain deferReply() - that is a crash
+    // fix, list it.)
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const input = logic.parse(readOptions(interaction), readActor(interaction));
     const result = await logic.run(input);
@@ -143,7 +150,7 @@ module.exports = {
 };
 ```
 
-`readOptions`, `readActor` and `toDiscord` are three shared helpers in `commands/_adapter.js`. `toDiscord` is the only place `AttachmentBuilder` and `EmbedBuilder` are ever constructed. Error handling lives in `events/interactionCreate.js`, which already has a try/catch — delete the duplicated try/catch from each command rather than copying it 40 times.
+`readOptions`, `readActor` and `toDiscord` are three shared helpers in `commands/_adapter.js`. `toDiscord` is the only place `AttachmentBuilder` is ever constructed; embeds travel as plain API objects (discord.js v14 accepts them), so `present()` never builds library types. Error handling lives in `events/interactionCreate.js`, which already has a try/catch — delete the per-command try/catch rather than copying it 40 times. **Note this is a (small, accepted) behavior change, not deduplication**: a few commands catch locally with a more detailed message ("contact snage ... Error: X"); after conversion those paths get the central handler's generic message. Say so in the conversion commit.
 
 ### Prerequisite refactors (shared; do these before any command)
 
