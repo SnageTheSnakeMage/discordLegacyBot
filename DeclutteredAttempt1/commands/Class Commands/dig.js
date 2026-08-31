@@ -37,7 +37,7 @@ module.exports = {
                 const tileToChange = await models.Tiles.findOne({where: {X_Position: x, Y_Position: y, Layer_ID: playerTile.Layer_ID}});
 
                 //Check Gamestate
-                if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
+                if(await utils.checkGameStateAndReply(game.GAME_STATE, false, interaction)){
                     return
                 }
 

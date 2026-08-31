@@ -32,7 +32,7 @@ module.exports = {
                 const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: playerDiscordID}});
 
                 //Check Gamestate
-                if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
+                if(await utils.checkGameStateAndReply(game.GAME_STATE, false, interaction)){
                     return
                 }
 

@@ -45,7 +45,7 @@ module.exports = {
         const targetTile = await models.Tiles.findOne({where: {Layer_ID: shootersTile.Layer_ID, X_Position: x, Y_Position: y}});
 
         //Check Gamestate
-        if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
+        if(await utils.checkGameStateAndReply(game.GAME_STATE, false, interaction)){
             return
         }
 

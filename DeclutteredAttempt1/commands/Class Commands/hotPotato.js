@@ -36,7 +36,7 @@ module.exports = {
         var game = await models.Games.findOne({where: {Game_ID: gameId}});
 
         //Check Gamestate
-        if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
+        if(await utils.checkGameStateAndReply(game.GAME_STATE, false, interaction)){
             return
         }
 

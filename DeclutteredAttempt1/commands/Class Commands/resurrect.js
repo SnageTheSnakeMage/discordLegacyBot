@@ -39,7 +39,7 @@ module.exports = {
         const resurectee = await models.Players.findOne({where: {Game_ID: game, Discord_ID: interaction.options.getUser('player').id}});
 
         //Check Gamestate
-        if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
+        if(await utils.checkGameStateAndReply(game.GAME_STATE, false, interaction)){
             return
         }
 

@@ -15,6 +15,7 @@ const fs = require('fs');
 const { logger } = require('sequelize/lib/utils/logger');
 var models = initModels(sequelize);
 var GAMESTATES = require('./enums.js').GAMESTATES;
+var REJECTIONS = require('./enums.js').REJECTIONS;
 const ChaosEvents = require('./enums.js').ChaosEvents;
 const APCHECKINTERVAL_SECONDS = 30;
 var logger150 = globalThis.topLogger.child({file: 'utils.js'})
@@ -919,38 +920,52 @@ async  getOldestActiveGameId(playerDiscordID) {
   return oldestGameId;
 },
 
-async checkGameState(gamestate, isClockwatcher, interaction) {
-        logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate );
-        switch(gamestate) {
-        case GAMESTATES.FINISHED:
-          await interaction.editReply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          logger150.debug({function:"checkGameState"}, 'returned true due to gamestate bieng finished meaning player should no longer have access to this command for this game' );
-          return true
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.editReply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          logger150.debug({function:"checkGameState"}, 'returned true due to gamestate bieng paused for development purposes meaning player should no longer have access to this command for this game' );
-          return true
-        case GAMESTATES.TIMESTOPPED:
-          if(!isClockwatcher){
-            await interaction.editReply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-            logger150.debug({function:"checkGameState"}, 'returned true due to gamestate bieng timestopped meaning this non clockwatcher class player should no longer have access to this command for this game at this time' );
-            return true
-          }
-          else{
-            logger150.debug({function:"checkGameState"}, 'returned false due to gamestate bieng timestopped meaning this clockwatcher class player should be one of the few who can use commands for this game at this time' );
-            return false;
-          }
-        case GAMESTATES.REGISTRATION:
-        case GAMESTATES.ACTIVE:
-        case GAMESTATES.INACTIVE:
-        case GAMESTATES.SANDBOX:
-          logger150.debug({function:"checkGameState"}, 'returned false due to gamestate bieng irrelevant.' );
-          return false
-        default:
-          logger150.debug({function:"checkGameState"}, 'threw an error because gamestate was: ' + gamestate );
-          await interaction.editReply({ content: "Gamestate out of enum, gamestate: " + gamestate + "."});
-          throw "Gamestate out of enum, gamestate: " + gamestate + "."
+//Pure gamestate gate. Decides whether the current gamestate blocks a normal
+//command; never touches Discord. Player-facing wording for each reason lives
+//in commands/_messages.js.
+checkGameState(gamestate, isClockwatcher) {
+  logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate );
+  switch(gamestate) {
+    case GAMESTATES.FINISHED:
+      return { blocked: true, reason: REJECTIONS.GAME_OVER };
+    case GAMESTATES.DEV_PAUSED:
+      return { blocked: true, reason: REJECTIONS.GAME_PAUSED };
+    case GAMESTATES.TIMESTOPPED:
+      if(!isClockwatcher){
+        return { blocked: true, reason: REJECTIONS.TIME_STOPPED };
       }
+      return { blocked: false };
+    case GAMESTATES.REGISTRATION:
+    case GAMESTATES.ACTIVE:
+    case GAMESTATES.INACTIVE:
+    case GAMESTATES.SANDBOX:
+      return { blocked: false };
+    default:
+      logger150.debug({function:"checkGameState"}, 'threw an error because gamestate was: ' + gamestate );
+      throw "Gamestate out of enum, gamestate: " + gamestate + "."
+  }
+},
+
+//Transitional bridge with the old checkGameState behaviour: decide, reply,
+//return a boolean. Commands not yet converted to the parse/run/present shape
+//call this; each conversion replaces it with the pure checkGameState above,
+//and the bridge is deleted once no callers remain.
+async checkGameStateAndReply(gamestate, isClockwatcher, interaction) {
+  let verdict;
+  try {
+    verdict = this.checkGameState(gamestate, isClockwatcher);
+  } catch (err) {
+    await interaction.editReply({ content: "Gamestate out of enum, gamestate: " + gamestate + "."});
+    throw err;
+  }
+  if (!verdict.blocked) return false;
+  const messages = {
+    [REJECTIONS.GAME_OVER]: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.",
+    [REJECTIONS.GAME_PAUSED]: "Game is paused! only the dev can use commands for this game at this time.",
+    [REJECTIONS.TIME_STOPPED]: "Time is stopped! only Clockwatchers can use commands at this time.",
+  };
+  await interaction.editReply({ content: messages[verdict.reason], ephemeral: true });
+  return true;
 },
 
 async getOldestGameId(playerDiscordID) {

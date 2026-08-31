@@ -60,7 +60,7 @@ module.exports = {
         const attackPath = utils.getTileCordinatesOfLine([shootersTile.X_Position, shootersTile.Y_Position], [targetTile.X_Position, targetTile.Y_Position]);
 
         //Check Gamestate
-        if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
+        if(await utils.checkGameStateAndReply(game.GAME_STATE, false, interaction)){
             return
         }
 

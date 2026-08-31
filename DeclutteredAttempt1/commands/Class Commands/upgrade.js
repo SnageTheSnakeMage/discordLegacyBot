@@ -60,7 +60,7 @@ module.exports = {
             return
         }
         //Check Gamestate
-        if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
+        if(await utils.checkGameStateAndReply(game.GAME_STATE, false, interaction)){
           return
         }
         

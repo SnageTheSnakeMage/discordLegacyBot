@@ -109,7 +109,7 @@ module.exports = {
       //#endregion Variables
       //Check Gamestate
       //TODO make sure all utils.checkGameState actually pass wether or not the player is a clockwatcher.
-      if(await utils.checkGameState(game.GAME_STATE, playerClass.Class_Name == "Clockwatcher", interaction)){
+      if(await utils.checkGameStateAndReply(game.GAME_STATE, playerClass.Class_Name == "Clockwatcher", interaction)){
         return
       }
 

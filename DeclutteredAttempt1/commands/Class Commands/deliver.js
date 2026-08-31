@@ -27,7 +27,7 @@ module.exports = {
         const receiver = await models.Players.findOne({where: {Discord_ID: interaction.options.getUser('receiver').id, Game_ID: gameId}});
 
         //Check Gamestate
-        if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
+        if(await utils.checkGameStateAndReply(game.GAME_STATE, false, interaction)){
             return
         }
 

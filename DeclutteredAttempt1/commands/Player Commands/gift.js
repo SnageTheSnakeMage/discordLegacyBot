@@ -71,7 +71,7 @@ module.exports = {
         }
         //Check Gamestate
         logger200.debug(`checking Gamestate of game #${gameId}`)
-        if(await utils.checkGameState(game.GAME_STATE, isClockwatcher, interaction)){
+        if(await utils.checkGameStateAndReply(game.GAME_STATE, isClockwatcher, interaction)){
             return
         }
 

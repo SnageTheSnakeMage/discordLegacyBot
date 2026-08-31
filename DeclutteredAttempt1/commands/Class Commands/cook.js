@@ -33,7 +33,7 @@ module.exports = {
         const customersTile = await models.Tiles.findOne({where: {Layer_ID: playersTile.Layer_ID, X_Position: interaction.options.getInteger('x'), Y_Position: interaction.options.getInteger('y')}});  
 
         //Check Gamestate
-        if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
+        if(await utils.checkGameStateAndReply(game.GAME_STATE, false, interaction)){
             return
         }
 
