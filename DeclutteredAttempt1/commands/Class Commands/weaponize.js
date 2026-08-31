@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../../utils.js');
-var models = require("../../utils.js").models;
+const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const logic = require('./weaponize.logic.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -23,62 +23,14 @@ module.exports = {
                 .setDescription('which game, defaults to oldest active game')
                 .setRequired(false)),
     async execute(interaction) {
-        await deferReply(interaction);
-
-        //Variables
-        var targetId = interaction.options.getUser('player').id ?? interaction.user.id;
-        var gameId = interaction.options.getInteger('game');
-        var player = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
-        var playersTile = await models.Tiles.findOne({where: {Tile_ID: player.Tile_ID}});
-        var x = interaction.options.getInteger('x') ?? playersTile.X_Position;
-        var y = interaction.options.getInteger('y') ?? playersTile.Y_Position;
-        var targetTile = await models.Tiles.findOne({where: {Layer_ID: playersTile.Layer_ID, X_Position: x, Y_Position: y}});
-        var targetPlayer = await models.Players.findOne({where: {Game_ID: gameId, Discord_ID: targetId}});
-        var game = await models.Games.findByPk(gameId);
-
-        //Check Gamestate
-        if(await utils.checkGameStateAndReply(game.GAME_STATE, false, interaction)){
-            return
-        }
-
-        //Check if the tile provided is in the game
-        if (!targetTile) {
-            return interaction.editReply({ content: "The tile provided is not in the game!" });
-        }
-
-        //Check the target is on the tile provided
-        if (targetTile.Tile_ID != targetPlayer.Tile_ID) {
-            return interaction.editReply({ content: "Your target is not on the tile provided!" });
-        }
-
-        //Check the target is in range
-        const tileInRange = utils.getTileCordinatesOfLine([player.X_Position, player.Y_Position], [targetTile.X_Position, targetTile.Y_Position]).length <= player.Range_;
-        if (!tileInRange) {
-            return interaction.editReply({ content: "Your target is not in range!" });
-        }
-
-        //Check the player is a Blacksmith
-        if (player.Class != "Blacksmith") {
-            return interaction.editReply({ content: "You are not a Blacksmith!" });
-        }
-
-        //Check the target is in the game
-        if (!targetId) {
-            return interaction.editReply({ content: "Could not find target player!" });
-        }
-
-        //Check if the player has enough AP
-        if (player.Action_Points < 6) {
-            return interaction.editReply({ content: "You dont have enough AP to weaponize!" });
-        }
-
-        //Give the target the buff
-        await models.Players.update({DMG_BUFF: targetPlayer.DMG_BUFF + 1}, {where: {Game_ID: gameId, Discord_ID: targetId}});
-
-        //Take the AP
-        await models.Players.update({Action_Points: player.Action_Points - 6}, {where: {Game_ID: gameId, Discord_ID: interaction.user.id}});
-
-        //Send message
-        return interaction.editReply({ content: "You have given " + interaction.options.getUser('player').username + " a double damage buff! Their next attack(shoot, punish, or snipe) will do x2 damage!" });
+        // the old code called an undefined deferReply(interaction) helper; a
+        // plain public defer is what it meant to do
+        await interaction.deferReply();
+        const input = logic.parse(
+            readOptions(interaction, { player: 'user', x: 'integer', y: 'integer', game: 'integer' }),
+            readActor(interaction),
+        );
+        const result = await logic.run(input);
+        await interaction.editReply(toDiscord(logic.present(result)));
     },
 };
