@@ -1,7 +1,6 @@
-const { SlashCommandBuilder } = require('discord.js');
-const { InteractionContextType, PermissionFlagsBits } = require('discord.js');
-const path = require(`path`);
-const fs = require(`fs`)
+const { SlashCommandBuilder, InteractionContextType, PermissionFlagsBits } = require('discord.js');
+const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const logic = require('./reloadCommands.logic.js');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -9,34 +8,33 @@ module.exports = {
 		.setDescription('Reloads all commands.')
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
 	    .setContexts(InteractionContextType.Guild),
+
+	// The dev gate stays here and travels into run() as input.isDev (TESTING.md
+	// Part 1, order-of-work item 6). It is still an early, silent return: the
+	// old code returned before replying, so a non-dev got no reply at all.
+	// Defer style is the command's own: it never deferred, it replied - so the
+	// adapter replies directly too. It replies ONCE, where the old loop replied
+	// per command file and threw InteractionAlreadyReplied on the second.
+	//
+	// Writing the fresh modules into the client collection is the one piece of
+	// genuine Discord state here, so it lives in the adapter; reloadCommands.logic
+	// decided which modules those are and already re-required them.
 	async execute(interaction) {
-		const logger200 = globalThis.CommandExecutionLogger.child({file: 'reloadCommands.js'})
-	    if(interaction.user.id != process.env.DEV_ID) return;
-		
-		// Read command files
-		const foldersPath = path.join(__dirname, 'commands');
-		const commandFolders = fs.readdirSync(foldersPath);
+		const isDev = interaction.user.id === process.env.DEV_ID;
+		if (!isDev) return;
 
-		// Register each command
-		for (const folder of commandFolders) {
-			const commandsPath = path.join(foldersPath, folder);
-			const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
-  
-			for (const file of commandFiles) {
-				const filePath = path.join(commandsPath, file);
-				const command = require(filePath);
+		const input = logic.parse(
+			readOptions(interaction, {}),
+			{ ...readActor(interaction), isDev },
+		);
+		const result = await logic.run(input);
 
-        		delete require.cache[require.resolve(`./${command.data.name}.js`)];
-
-        		try {
-	        		const newCommand = require(`./${command.data.name}.js`);
-	        		interaction.client.commands.set(newCommand.data.name, newCommand);
-	        		await interaction.reply(`Command \`${newCommand.data.name}\` was reloaded!`);
-        		} catch (error) {
-	       			logger200.error({function: "execute"}, error);
-	        		await interaction.reply(`There was an error while reloading a command \`${command.data.name}\`:\n\`${error.message}\``);
-       			}
+		if (result.ok) {
+			for (const entry of result.data.reloaded) {
+				interaction.client.commands.set(entry.name, entry.command);
 			}
 		}
+
+		await interaction.reply(toDiscord(logic.present(result)));
 	},
 };
