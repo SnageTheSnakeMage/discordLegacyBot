@@ -6,3 +6,5 @@ DeclutteredAttempt1/database/database.db-journal
 node_modules/
 DeclutteredAttempt1/database/database.db
 Logs/
+DeclutteredAttempt1/tests/coverage/
+DeclutteredAttempt1/Logs/
