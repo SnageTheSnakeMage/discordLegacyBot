@@ -43,7 +43,7 @@ const commandFolders = fs.readdirSync(foldersPath);
 // Register each command
 for (const folder of commandFolders) {
 	const commandsPath = path.join(foldersPath, folder);
-	const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
+	const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js') && !file.endsWith('.logic.js') && !file.startsWith('_'));
   
 	for (const file of commandFiles) {
 		const filePath = path.join(commandsPath, file);

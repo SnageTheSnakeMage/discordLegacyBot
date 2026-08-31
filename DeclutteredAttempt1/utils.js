@@ -9,7 +9,8 @@ const initModels = require("./database/init-models.js");
 const { Sequelize, Op } = require('sequelize');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
-  storage: './database/database.db'
+  storage: process.env.LEGACY_DB_STORAGE || './database/database.db',
+  logging: process.env.LEGACY_DB_LOGGING === '1' ? console.log : false,
 });
 const fs = require('fs');
 const { logger } = require('sequelize/lib/utils/logger');
@@ -22,6 +23,7 @@ var logger150 = globalThis.topLogger.child({file: 'utils.js'})
 //#endregion BOILERPLATE
 module.exports = {
   models,
+  sequelize,
   GAMESTATES,
 // Function to load a tile texture
 
