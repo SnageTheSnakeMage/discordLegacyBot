@@ -46,6 +46,9 @@ const MESSAGES = {
 };
 
 function messageFor(reason, data) {
+  // a command may carry its exact legacy wording in data.message; codes stay
+  // stable while the prose stays byte-identical to what players saw before
+  if (data && data.message) return data.message;
   const fmt = MESSAGES[reason];
   if (!fmt) return `Something went wrong! (unrecognised rejection: ${reason})`;
   return fmt(data);
