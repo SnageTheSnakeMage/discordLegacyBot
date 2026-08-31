@@ -46,7 +46,6 @@ async function seedLayer(gameId, { width = 5, height = 5 } = {}) {
   return layer;
 }
 
-const seededClasses = new Map();
 
 /** Classes row by name, created once per db (call after freshDb resets the cache via resetSeedCaches). */
 async function seedClass(className, overrides = {}) {

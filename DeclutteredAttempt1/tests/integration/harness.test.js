@@ -15,7 +15,7 @@ describe('integration harness', () => {
   it('creates the full schema from the models', async () => {
     const game = await seedGame();
     expect(game.Game_ID).toBe(1);
-    const layer = await seedLayer(game.Game_ID, { width: 5, height: 5 });
+    await seedLayer(game.Game_ID, { width: 5, height: 5 });
     expect(await models.Tiles.count()).toBe(25);
   });
 
