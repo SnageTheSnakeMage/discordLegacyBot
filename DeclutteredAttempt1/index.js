@@ -38,7 +38,7 @@ logger100.debug({file: 'index.js', function: 'null(Top Level)'}, "Created tile i
 
 // Read command files
 const foldersPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(foldersPath);
+const commandFolders = fs.readdirSync(foldersPath).filter((entry) => fs.statSync(path.join(foldersPath, entry)).isDirectory());
 
 // Register each command
 for (const folder of commandFolders) {
