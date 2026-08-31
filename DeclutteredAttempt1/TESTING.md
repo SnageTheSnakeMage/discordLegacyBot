@@ -32,7 +32,7 @@ ls tests/helpers/
 grep -rho "helpers/[a-zA-Z]*" tests/ | sort | uniq -c
 ```
 
-**Blocker 3 — environment, not repo.** On a checkout whose `node_modules` was installed on another platform, `require('canvas')` fails with `invalid ELF header` and `node_modules/.bin/jest` is not executable. Jest then fails during config validation with a misleading complaint about `tests/setup.js`, which is **not** a `jest.config.js` problem — the same failure reproduces in a throwaway project outside this repo. Fix with `rm -rf node_modules && npm ci`.
+**Blocker 3 — the repo shipped its own broken environment.** Execution established the real causes, worse than first thought: `node_modules` was **committed to git** (11,615 files, installed on Windows), so every non-Windows checkout inherited wrong-ABI native binaries; `package-lock.json` was out of sync with `package.json` (missing `@emnapi/*`), so `npm ci` failed with EUSAGE even after deleting `node_modules`; and the `"uuid": "latest"` npm override forced an ESM-only uuid into sequelize that plain node tolerates but Jest's CJS runtime cannot parse. All three are fixed on this branch (untracked + ignored, lockfile regenerated, override dropped); `rm -rf node_modules && npm ci` now yields a working install.
 
 ### `discord.js` never needed mocking
 
@@ -354,11 +354,11 @@ Plus one smoke test per command asserting `data.toJSON().name` is right and `exe
 
 ### Step 5 — Order of work, and retiring the old tests
 
-1. **Pure functions in `utils.js` first — no mocks, no deps, no refactor needed.** `getTileCordinatesOfLine`, `getDirection`, `inputPathToArray`, `verifyinputPath`, `addStartToPathArray`, the price-scaling helpers, and the newly-pure `checkGameState`. Table-driven with `it.each`. Highest value per line in the suite, and it needs none of the infrastructure above — **start here, today, before Part 1 is finished.** Issue #88 is exactly this.
+1. **Pure functions first — no mocks, no deps, no refactor needed.** In `utils.js`: `getTileCordinatesOfLine`, `getDirection`, `getUpgradePrice`'s pure pricing math, and the newly-pure `checkGameState`. Table-driven with `it.each`. Highest value per line in the suite — **start here, today, before Part 1 is finished.** Note that `inputPathToArray`, `verifyinputPath` and `addStartToPathArray` (issue #88) live in `move.js`, not `utils.js`, and `verifyinputPath` reads the database — test the first and last as pure functions during the move conversion, and `verifyinputPath` with fake models.
 2. **DB-touching utils with fake models**: `getAllPlayersOnTile`, `removePlayerFromTile`, `getSurroundingTiles`, `getSpawnpointTile`, `classRemoval`, `playerDeathLogic`. `playerDeathLogic` is the highest-risk function in the codebase — twin bodies, pharaoh revive HP, five killer-class branches. Its own file, every branch.
 3. **Command logic**, in the same order Part 1 converts them.
 
-**Delete the old test file in the same commit that converts its command.** Do not migrate them; they assert `deferReply` was called and carry the mocking pattern being removed. The per-command case registry in `tests/COMMAND_TEST_REFACTOR_PROMPT.md` §"Command test case registry" is still a good inventory of *what to cover* — mine it for cases, ignore its mocking guidance, which this document supersedes.
+**Delete the old test file in the same commit that converts its command.** Do not migrate them; they assert `deferReply` was called and carry the mocking pattern being removed. The per-command case registry that used to live in `tests/COMMAND_TEST_REFACTOR_PROMPT.md` was deleted at `a1c675a5`; recover it from history when converting a command — `git show a1c675a5^:"DeclutteredAttempt1/tests/COMMAND_TEST_REFACTOR_PROMPT.md"` — and mine its §"Command test case registry" for cases, ignoring its mocking guidance, which this document supersedes.
 
 ### Definition of done for Part 2
 
@@ -467,7 +467,7 @@ it('a mine damages whoever steps on it and is consumed', async () => {
 });
 ```
 
-**Acceptance for Step 4:** check out `fb7e453c` (the commit immediately before #92 merged) and confirm this test **fails** there, then confirm it passes on `main`. If it passes on both, your harness is not hitting the real database.
+**Acceptance for Step 4** (mutation form — the original "check out `fb7e453c`" gate became unsatisfiable once Part 1 restructured the files the test imports): with the suite green, reintroduce the pre-#92 bug in the refactored code — change `trapped` back to `Trapped` in the mine branch of the move logic — and confirm this test goes red, then restore it and confirm green. If the mutation stays green, your harness is not hitting the real database.
 
 ### Step 5 — Cover the state transitions, in this order
 
@@ -523,8 +523,8 @@ module.exports = {
 
 ### Definition of done for Part 3
 
-- `npm run test:integration` passes on a clean checkout with no `.env`, no network, and no `database/database.db` present.
-- The Step 4 mine test fails at `fb7e453c` and passes on `main`.
+- `npm run test:integration` passes on a clean checkout with no `.env` and no network, and with `database/database.db` deleted from the working tree (the file stays git-tracked until the CI/CD branch untracks it, so delete it locally to prove nothing reaches it).
+- The Step 4 mine test fails under the `trapped`→`Trapped` mutation and passes unmutated.
 - `assertBoardConsistent()` is called at the end of every integration test and passes.
 - Total integration runtime under 60 seconds.
 - The `testDb.js` guard makes it impossible to run integration tests against a real database file.
