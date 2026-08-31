@@ -41,7 +41,7 @@ Also in that file:
 
 `docker-compose.yml` mounts `./data:/app/data`, but the SQLite file lives at `./database/database.db` — `utils.js` hard-codes `storage: './database/database.db'`. Nothing in `/app/database` is on a volume, so **every image rebuild resets every game**. This is the most damaging problem in the current setup and it is silent: the bot starts fine, with an empty board.
 
-The fix pairs with `TESTING.md` Part 2 Step 1 — make the path configurable via `LEGACY_DB_STORAGE`, point it at a mounted volume in compose, and stop shipping `database.db` in the image.
+The fix pairs with `TESTING.md` Part 3 Step 1 — make the path configurable via `LEGACY_DB_STORAGE`, point it at a mounted volume in compose, and stop shipping `database.db` in the image.
 
 ### Other blockers to resolve before wiring a pipeline
 
@@ -85,7 +85,7 @@ Optimise for those. A five-minute pipeline that cannot leak the token beats a ni
 2. **Pin the Node version** in one place and reference it everywhere: `"engines": { "node": ">=20 <21" }` in `DeclutteredAttempt1/package.json`, plus a `.nvmrc`. The same version goes in both Docker stages and in `setup-node`. Pick the version currently in the runtime image's LTS line and stay on it.
 3. **Decide what the repo root is.** Either make `DeclutteredAttempt1/` the only Node project (delete the root `package.json`) or declare an npm workspace. Do not leave two unrelated dependency graphs; every dependency tool will pick the wrong one.
 4. **Rewrite `.dockerignore`.** Remove the Windows absolute paths. Keep excluding `node_modules`, `.git`, `.env`, `*.log`, `database/database.db`. **Stop excluding `tests` and `jest.config.js`** — a test stage needs them, and the final stage will not copy them anyway.
-5. **Make the DB path configurable** — `process.env.LEGACY_DB_STORAGE` as described in `TESTING.md` Part 2 Step 1. Everything else in this document assumes it.
+5. **Make the DB path configurable** — `process.env.LEGACY_DB_STORAGE` as described in `TESTING.md` Part 3 Step 1. Everything else in this document assumes it.
 
 ### Phase 2 — Rebuild the Dockerfile
 
