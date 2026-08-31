@@ -15,6 +15,9 @@ module.exports = {
     {
       displayName: 'unit',
       testEnvironment: 'node',
+      clearMocks: true,
+      restoreMocks: true,
+      testTimeout: 10000,
       testMatch: ['<rootDir>/tests/**/*.test.js'],
       testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/tests/integration/'],
       setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
@@ -22,6 +25,9 @@ module.exports = {
     {
       displayName: 'integration',
       testEnvironment: 'node',
+      clearMocks: true,
+      restoreMocks: true,
+      testTimeout: 10000,
       testMatch: ['<rootDir>/tests/integration/**/*.test.js'],
       testPathIgnorePatterns: ['<rootDir>/node_modules/'],
       setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],

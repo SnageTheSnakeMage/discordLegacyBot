@@ -37,15 +37,16 @@ async timeCheck(client){
 },
 
 getRandomItemInCollection(collection) {
-  return collection[this.getRandomInt(collection.length)];
+  // getRandomInt(max) is inclusive of max (Math.round), so index by length-1
+  return collection[this.getRandomInt(collection.length - 1)];
 },
 
 buildChaosCouncilPoll(lastEventKey, game){
   var chaosEventNames = Object.keys(ChaosEvents);
-  var randomEvent1 = getRandomItemInCollection(chaosEventNames);
-  var randomEvent2 = getRandomItemInCollection(chaosEventNames);
+  var randomEvent1 = this.getRandomItemInCollection(chaosEventNames);
+  var randomEvent2 = this.getRandomItemInCollection(chaosEventNames);
   while(randomEvent1 == randomEvent2){
-    randomEvent2 = getRandomItemInCollection(chaosEventNames);
+    randomEvent2 = this.getRandomItemInCollection(chaosEventNames);
   }
   return {
     question: {text: "Chaos Council Poll, Choose A Chaos Event"},
@@ -581,7 +582,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
         await models.Tiles.update({Player4: createdPlayer.Player_ID}, {where: {Tile_ID: spawn2.Tile_ID}});
       }
       await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + "_" + gameId + ".png");
-      logger150({function: "registerPlayer"}, "registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
+      logger150.debug({function: "registerPlayer"}, "registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
       return;
     }
     var spawn = await this.getSpawnpointTile(gameId)
@@ -618,7 +619,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
     }
     
     await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + ".png");
-    logger150({function: "registerPlayer"}, "registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + JSON.stringify(spawn) +  " for spawn");
+    logger150.debug({function: "registerPlayer"}, "registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + JSON.stringify(spawn) +  " for spawn");
     return;
 },
 
@@ -853,17 +854,17 @@ getTileCordinatesOfLine(tileCord1, tileCord2) {
           incrementY = Math.round(deltaY / Math.abs(deltaX));
           logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with increments [${deltaX / Math.abs(deltaX)},${deltaY / Math.abs(deltaX)}]`)
           iteratorX += incrementX;
-          iteratorY -= incrementY; 
+          iteratorY += incrementY; 
         }
         else {
           incrementX = Math.round(deltaX / Math.abs(deltaY));
           incrementY = Math.round(deltaY / Math.abs(deltaY));
           logger150.debug({function: `getTileCordinatesOfLine`},`ran loop with increments [${deltaX / Math.abs(deltaY)},${deltaY / Math.abs(deltaY)}]`)
           iteratorX += incrementX;
-          iteratorY -= incrementY;
+          iteratorY += incrementY;
         }
         deltaX = tileCord2[0] - iteratorX
-        deltaY = tileCord2[1] + iteratorY
+        deltaY = tileCord2[1] - iteratorY
         logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with direction: ${direction} and iterators: [${iteratorX},${iteratorY}]`)
         break;
       default:
