@@ -34,9 +34,12 @@ RUN npm prune --omit=dev
 FROM node:${NODE_VERSION} AS runtime
 WORKDIR /app
 
-# runtime shared libraries for canvas (not the -dev headers), plus a font -
-# canvas renders no text without one
-RUN apk add --no-cache cairo jpeg pango giflib pixman freetype fontconfig ttf-dejavu
+# runtime shared libraries for canvas (not the -dev headers). No font
+# package: the renderer only ever calls drawImage/fillRect/fillStyle, so
+# nothing draws text. pango/freetype/harfbuzz still have to be here - they
+# are NEEDED entries in canvas.node itself, so require('canvas') fails
+# without them whether or not text is ever rendered.
+RUN apk add --no-cache cairo jpeg pango giflib pixman freetype fontconfig
 
 # non-root user owning only what the bot must write
 RUN addgroup -S bot && adduser -S bot -G bot
