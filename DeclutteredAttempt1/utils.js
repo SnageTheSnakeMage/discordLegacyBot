@@ -9,18 +9,22 @@ const initModels = require("./database/init-models.js");
 const { Sequelize, Op } = require('sequelize');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
-  storage: './database/database.db'
+  storage: process.env.LEGACY_DB_STORAGE || './database/database.db',
+  // sequelize logs SQL to console.log by default; keep that unless muted
+  logging: process.env.LEGACY_DB_LOGGING === '0' ? false : console.log,
 });
 const fs = require('fs');
 const { logger } = require('sequelize/lib/utils/logger');
 var models = initModels(sequelize);
 var GAMESTATES = require('./enums.js').GAMESTATES;
+var REJECTIONS = require('./enums.js').REJECTIONS;
 const ChaosEvents = require('./enums.js').ChaosEvents;
 const APCHECKINTERVAL_SECONDS = 30;
 var logger150 = globalThis.topLogger.child({file: 'utils.js'})
 //#endregion BOILERPLATE
 module.exports = {
   models,
+  sequelize,
   GAMESTATES,
 // Function to load a tile texture
 
@@ -34,15 +38,16 @@ async timeCheck(client){
 },
 
 getRandomItemInCollection(collection) {
-  return collection[this.getRandomInt(collection.length)];
+  // getRandomInt(max) is inclusive of max (Math.round), so index by length-1
+  return collection[this.getRandomInt(collection.length - 1)];
 },
 
 buildChaosCouncilPoll(lastEventKey, game){
   var chaosEventNames = Object.keys(ChaosEvents);
-  var randomEvent1 = getRandomItemInCollection(chaosEventNames);
-  var randomEvent2 = getRandomItemInCollection(chaosEventNames);
+  var randomEvent1 = this.getRandomItemInCollection(chaosEventNames);
+  var randomEvent2 = this.getRandomItemInCollection(chaosEventNames);
   while(randomEvent1 == randomEvent2){
-    randomEvent2 = getRandomItemInCollection(chaosEventNames);
+    randomEvent2 = this.getRandomItemInCollection(chaosEventNames);
   }
   return {
     question: {text: "Chaos Council Poll, Choose A Chaos Event"},
@@ -125,7 +130,7 @@ async distributeAP(game, times, client){
       }
       //give hitmen another target if they dont have one or if their target is dead
       if(player.Class_ID == hitmanClass.Class_ID && player.Hitman_Target == null || player.Hitman_Target != null && livingPlayers.find((p) => p.Player_ID == player.Hitman_Target).Dead == true){
-        var randomPlayer = livingPlayers[this.getRandomInt(livingPlayers.length)];
+        var randomPlayer = this.getRandomItemInCollection(livingPlayers);
         await models.Players.update({Hitman_Target: randomPlayer.Player_ID}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
       }
       // // Chaos Council Event Logic That Triggers Every AP Distribution
@@ -578,7 +583,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
         await models.Tiles.update({Player4: createdPlayer.Player_ID}, {where: {Tile_ID: spawn2.Tile_ID}});
       }
       await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + "_" + gameId + ".png");
-      logger150({function: "registerPlayer"}, "registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
+      logger150.debug({function: "registerPlayer"}, "registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
       return;
     }
     var spawn = await this.getSpawnpointTile(gameId)
@@ -615,7 +620,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
     }
     
     await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + ".png");
-    logger150({function: "registerPlayer"}, "registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + JSON.stringify(spawn) +  " for spawn");
+    logger150.debug({function: "registerPlayer"}, "registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + JSON.stringify(spawn) +  " for spawn");
     return;
 },
 
@@ -730,9 +735,12 @@ async  revertTileToBlank(startTile){
 },
 
 async getRandomClass(game) {
-  // Get a random class ID
-  var randomClassID = this.getRandomInt(await models.Classes.count());
-  var randomClass = await models.Classes.findByPk(randomClassID);
+  // Pick from the ids that actually exist. getRandomInt is inclusive of its
+  // max, so the old getRandomInt(count) could roll 0 - and on a 1-based table
+  // findByPk(0) is null, so the next line threw. It also assumed the ids were
+  // contiguous, which nothing guarantees once a class row is deleted.
+  var classIds = (await models.Classes.findAll({attributes: ["Class_ID"]})).map((c) => c.Class_ID);
+  var randomClass = await models.Classes.findByPk(this.getRandomItemInCollection(classIds));
   logger150.debug({function: "getRandomClass"}, "rolled random class: " + randomClass.Class_Name);
   
   if (!game.classBlacklist) {
@@ -850,17 +858,17 @@ getTileCordinatesOfLine(tileCord1, tileCord2) {
           incrementY = Math.round(deltaY / Math.abs(deltaX));
           logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with increments [${deltaX / Math.abs(deltaX)},${deltaY / Math.abs(deltaX)}]`)
           iteratorX += incrementX;
-          iteratorY -= incrementY; 
+          iteratorY += incrementY; 
         }
         else {
           incrementX = Math.round(deltaX / Math.abs(deltaY));
           incrementY = Math.round(deltaY / Math.abs(deltaY));
           logger150.debug({function: `getTileCordinatesOfLine`},`ran loop with increments [${deltaX / Math.abs(deltaY)},${deltaY / Math.abs(deltaY)}]`)
           iteratorX += incrementX;
-          iteratorY -= incrementY;
+          iteratorY += incrementY;
         }
         deltaX = tileCord2[0] - iteratorX
-        deltaY = tileCord2[1] + iteratorY
+        deltaY = tileCord2[1] - iteratorY
         logger150.debug({function:`getTileCordinatesOfLine`},`ran loop with direction: ${direction} and iterators: [${iteratorX},${iteratorY}]`)
         break;
       default:
@@ -919,38 +927,53 @@ async  getOldestActiveGameId(playerDiscordID) {
   return oldestGameId;
 },
 
-async checkGameState(gamestate, isClockwatcher, interaction) {
-        logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate );
-        switch(gamestate) {
-        case GAMESTATES.FINISHED:
-          await interaction.editReply({ content: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.", ephemeral: true });
-          logger150.debug({function:"checkGameState"}, 'returned true due to gamestate bieng finished meaning player should no longer have access to this command for this game' );
-          return true
-        case GAMESTATES.DEV_PAUSED:
-          await interaction.editReply({ content: "Game is paused! only the dev can use commands for this game at this time.", ephemeral: true });
-          logger150.debug({function:"checkGameState"}, 'returned true due to gamestate bieng paused for development purposes meaning player should no longer have access to this command for this game' );
-          return true
-        case GAMESTATES.TIMESTOPPED:
-          if(!isClockwatcher){
-            await interaction.editReply({ content: "Time is stopped! only Clockwatchers can use commands at this time.", ephemeral: true });
-            logger150.debug({function:"checkGameState"}, 'returned true due to gamestate bieng timestopped meaning this non clockwatcher class player should no longer have access to this command for this game at this time' );
-            return true
-          }
-          else{
-            logger150.debug({function:"checkGameState"}, 'returned false due to gamestate bieng timestopped meaning this clockwatcher class player should be one of the few who can use commands for this game at this time' );
-            return false;
-          }
-        case GAMESTATES.REGISTRATION:
-        case GAMESTATES.ACTIVE:
-        case GAMESTATES.INACTIVE:
-        case GAMESTATES.SANDBOX:
-          logger150.debug({function:"checkGameState"}, 'returned false due to gamestate bieng irrelevant.' );
-          return false
-        default:
-          logger150.debug({function:"checkGameState"}, 'threw an error because gamestate was: ' + gamestate );
-          await interaction.editReply({ content: "Gamestate out of enum, gamestate: " + gamestate + "."});
-          throw "Gamestate out of enum, gamestate: " + gamestate + "."
+//Pure gamestate gate. Decides whether the current gamestate blocks a normal
+//command; never touches Discord. Player-facing wording for each reason lives
+//in commands/_messages.js.
+checkGameState(gamestate, isClockwatcher) {
+  logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate );
+  switch(gamestate) {
+    case GAMESTATES.OVER:
+      return { blocked: true, reason: REJECTIONS.GAME_OVER };
+    case GAMESTATES.DEV_PAUSED:
+      return { blocked: true, reason: REJECTIONS.GAME_PAUSED };
+    case GAMESTATES.TIMESTOPPED:
+      if(!isClockwatcher){
+        return { blocked: true, reason: REJECTIONS.TIME_STOPPED };
       }
+      return { blocked: false };
+    case GAMESTATES.REGISTRATION:
+    case GAMESTATES.ACTIVE:
+    case GAMESTATES.INACTIVE:
+    case GAMESTATES.SANDBOX:
+    case GAMESTATES.FINALE:
+      return { blocked: false };
+    default:
+      logger150.debug({function:"checkGameState"}, 'threw an error because gamestate was: ' + gamestate );
+      throw "Gamestate out of enum, gamestate: " + gamestate + "."
+  }
+},
+
+//Transitional bridge with the old checkGameState behaviour: decide, reply,
+//return a boolean. Commands not yet converted to the parse/run/present shape
+//call this; each conversion replaces it with the pure checkGameState above,
+//and the bridge is deleted once no callers remain.
+async checkGameStateAndReply(gamestate, isClockwatcher, interaction) {
+  let verdict;
+  try {
+    verdict = this.checkGameState(gamestate, isClockwatcher);
+  } catch (err) {
+    await interaction.editReply({ content: "Gamestate out of enum, gamestate: " + gamestate + "."});
+    throw err;
+  }
+  if (!verdict.blocked) return false;
+  const messages = {
+    [REJECTIONS.GAME_OVER]: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.",
+    [REJECTIONS.GAME_PAUSED]: "Game is paused! only the dev can use commands for this game at this time.",
+    [REJECTIONS.TIME_STOPPED]: "Time is stopped! only Clockwatchers can use commands at this time.",
+  };
+  await interaction.editReply({ content: messages[verdict.reason], ephemeral: true });
+  return true;
 },
 
 async getOldestGameId(playerDiscordID) {

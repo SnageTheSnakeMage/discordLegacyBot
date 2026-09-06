@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { GAMESTATES } = require('../../utils.js');
-var models = require("../../utils.js").models;
+const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const logic = require('./changeGamestate.logic.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -21,20 +21,19 @@ module.exports = {
                 { name: 'TimeStopped', value: 'TIMESTOPPED' },
                 { name: 'DevPaused', value: 'DEV_PAUSED' },
                 { name: 'Finale', value: 'FINALE' },
-                { name: 'Finished', value: 'Inactive' },
+                { name: 'Finished', value: 'INACTIVE' },
             )),
-            
 
+    // this command never deferred: both of its old branches replied directly,
+    // so the adapter replies directly too (TESTING.md Part 1: the defer style
+    // is per-command and is preserved). The dev gate stays here and travels
+    // into run() as input.isDev.
     async execute(interaction) {
-        if(interaction.user.id != process.env.DEV_ID) {
-            await interaction.reply('You must be a dev to use this command!'); 
-            return;
-        }
-        var gamestateNonEnum = interaction.options.getString('gamestate')
-        GAMESTATES.gamestateNonEnum
-        await models.Games.update({GAME_STATE: GAMESTATES.gamestateNonEnum}, {where: {Game_ID: interaction.options.getInteger('game')}}).then((result) => {
-            interaction.reply(`Game ${interaction.options.getInteger('game')} has been changed to ${interaction.options.getString('gamestate')}!`);
-        });
-
-    }
-}
+        const input = logic.parse(
+            readOptions(interaction, { game: 'integer', gamestate: 'string' }),
+            { ...readActor(interaction), isDev: interaction.user.id === process.env.DEV_ID },
+        );
+        const result = await logic.run(input);
+        await interaction.reply(toDiscord(logic.present(result)));
+    },
+};

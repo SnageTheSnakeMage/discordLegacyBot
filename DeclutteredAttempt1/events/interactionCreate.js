@@ -1,10 +1,14 @@
 const { Events, MessageFlags } = require('discord.js');
 const pino = require('pino')
+const path = require('path')
+const fs = require('fs')
+const logDir = path.join(__dirname, '..', 'Logs')
+fs.mkdirSync(logDir, { recursive: true })
 const commandExecutionLogger = pino({
 		transport: {
 		targets: [
 			{ target: 'pino-pretty', options: { colorize: true }, level: 'trace' },
-			{ target: 'G:\LegacyBotDiscord\DeclutteredAttempt1\Logs', level: 'trace' }
+			{ target: 'pino/file', options: { destination: path.join(logDir, 'commands.log') }, level: 'trace' }
 		]}
 	}
 )

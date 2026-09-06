@@ -1,53 +1,118 @@
 /**
- * Unit tests for the board command.
+ * /board - logic tests. GenerateGameGridImage is the canvas seam and is the
+ * one util faked here (via deps.utils); everything else runs real.
  */
-jest.mock('../../../utils')
-const { createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakePopulatedPlaystate, createFakeLayer, createMockModels, createFakeEmptyPlaystate } = require('../../helpers/mockModels');
-const utils = require('../../../utils');
-const board = require('../../../commands/Player Commands/board');
-const blankBoard10 = require('../../testFiles/10x10Blank1Board.json')
+const logic = require('../../../commands/Player Commands/board.logic.js');
+const board = require('../../../commands/Player Commands/board.js');
+const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
+const {
+  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
+} = require('../../helpers/mockModels.js');
 
-describe('[board 1]: use cases', () => {
-  
-  beforeEach(()=> {
-    //Board.js inputValidation DB mock calls
-    jest.spyOn(utils.models.Players, "findOne").mockResolvedValue(createFakePlayer());
-    jest.spyOn(utils.models.Classes,"findByPk").mockResolvedValue(createFakeClass());
-    jest.spyOn(utils.models.Tiles,"findByPk").mockResolvedValue(createFakeTile());
-    //Board.js logic DB mock calls
-    jest.spyOn(utils.models.Layers, "findAll").mockResolvedValue([{Layer_ID: 1},{Layer_ID: 2},{Layer_ID: 3},{Layer_ID: 4}])
-    //utils.GenerateGameGridImage() DB mock calls
-    jest.spyOn(utils.models.Tiles,"findAll").mockResolvedValue(createFakeEmptyPlaystate().tiles);
-    jest.spyOn(utils.models.Layers, "findByPk").mockResolvedValue(createFakeLayer())
-    jest.spyOn(utils.models.Players, "findByPk").mockResolvedValue(createFakePlayer());
-    jest.spyOn(utils.models.Classes,"findOne").mockResolvedValue(createFakeClass());
+const FAKE_PNG = Buffer.from('not-a-real-png');
 
-  })
+function happyDeps(over = {}) {
+  const player = over.player || createFakePlayer({ Discord_ID: '123', Tile_ID: 1, Tile_ID2: 2 });
+  const game = over.game || createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE });
+  const playerClass = over.playerClass || createFakeClass({ Class_Name: 'Average' });
+  const deps = createDeps({
+    models: {
+      Games: { findByPk: async () => game },
+      Players: { findOne: async () => player },
+      Classes: { findByPk: async () => playerClass },
+      Tiles: { findByPk: async (id) => (id === 1
+        ? createFakeTile({ Tile_ID: 1, Layer_ID: 11 })
+        : createFakeTile({ Tile_ID: 2, Layer_ID: 22 })) },
+      Layers: { findAll: async () => [createFakeLayer({ Layer_ID: 11 }), createFakeLayer({ Layer_ID: 22 })] },
+    },
+  });
+  deps.utils = { ...deps.utils, GenerateGameGridImage: jest.fn(async () => FAKE_PNG) };
+  return deps;
+}
 
-  it('[board 1-1]: creates image buffer properly', async () => {
+const INPUT = { gameId: 1, layer: null, body: 1, discordId: '123' };
 
-    var result = await board.logic({commonOrDB: false, gameId: 1, layer: 1, player: createFakePlayer({ Game_ID: 1 })})
-    expect(result.toJSON()).toEqual(blankBoard10)
-  })
-  // it(`[board 1-2]: throws properly when encountering an error`, () => {})
-  // it.each([
-  //   //test #, commonOrDB, gamestate, implicit Or (not) allowed Explicit Layer_ID, initalizing class, implicit Or Explicit Game_ID, 
-  //   [3, false, utils.GAMESTATES.REGISTRATION, 1, createFakeClass({Class_Name: 'Oracle'}), 1],
-  //   [4, false, utils.GAMESTATES.REGISTRATION, 1, createFakeClass({Class_Name: 'Oracle'}), null],
-  //   [5, false, utils.GAMESTATES.REGISTRATION, 1, createFakeClass({Class_Name: 'Minesweeper'}), 1],
-  //   [6, false, utils.GAMESTATES.REGISTRATION, 1, createFakeClass({Class_Name: 'Minesweeper'}), null],
-  //   [7, false, utils.GAMESTATES.REGISTRATION, 1, createFakeClass(), 1],
-  //   [8, false, utils.GAMESTATES.REGISTRATION, 1, createFakeClass(), null],
-  //   [9, false, utils.GAMESTATES.REGISTRATION, null, createFakeClass({Class_Name: `Oracle`}), 1],
-  //   [10, false, utils.GAMESTATES.REGISTRATION, null, createFakeClass({Class_Name: 'Minesweeper'}), 1],
-  //   [11, false, utils.GAMESTATES.REGISTRATION, null, createFakeClass({Class_Name: 'Minesweeper'}), null],
-  //   [12, false, utils.GAMESTATES.REGISTRATION, null, createFakeClass(), null],
-  // ])(`[board 1-%i]: `, () => {
+describe('board.parse', () => {
+  it('defaults body to 1 and coerces only 2 to 2', () => {
+    expect(logic.parse({ game: null, layer: null, body: null }, { discordId: '1' }).body).toBe(1);
+    expect(logic.parse({ game: null, layer: null, body: 2 }, { discordId: '1' }).body).toBe(2);
+    expect(logic.parse({ game: null, layer: null, body: 7 }, { discordId: '1' }).body).toBe(1);
+  });
+});
 
-  // })
-  // describe('board edge cases', () => {
+describe('board.run', () => {
+  it('rejects an unknown game', async () => {
+    const deps = happyDeps();
+    deps.models.Games.findByPk = jest.fn(async () => null);
+    expect(await logic.run(INPUT, deps)).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_GAME });
+  });
 
-  // })
-})
+  it('rejects a player who is not in the game (the old code crashed here)', async () => {
+    const deps = happyDeps();
+    deps.models.Players.findOne = jest.fn(async () => null);
+    expect(await logic.run(INPUT, deps)).toMatchObject({ ok: false, reason: REJECTIONS.NOT_IN_GAME });
+  });
 
+  it.each([
+    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
+    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
+    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
+  ])('gamestate %s blocks with %s', async (state, reason) => {
+    const deps = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
+    expect(await logic.run(INPUT, deps)).toMatchObject({ ok: false, reason });
+    expect(deps.utils.GenerateGameGridImage).not.toHaveBeenCalled();
+  });
 
+  it('renders the layer of body 1 by default', async () => {
+    const deps = happyDeps();
+    const result = await logic.run(INPUT, deps);
+    expect(result.ok).toBe(true);
+    expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, 11, 1);
+    expect(result.data.buffer).toBe(FAKE_PNG);
+  });
+
+  it('renders the layer of body 2 for a twin asking for body 2', async () => {
+    const deps = happyDeps();
+    const result = await logic.run({ ...INPUT, body: 2 }, deps);
+    expect(result.ok).toBe(true);
+    expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, 22, 1);
+  });
+
+  it('maps an explicit common layer number to the game Layer_ID (this path used to throw ReferenceError)', async () => {
+    const deps = happyDeps();
+    const result = await logic.run({ ...INPUT, layer: 2 }, deps);
+    expect(result.ok).toBe(true);
+    expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, 22, 1);
+  });
+
+  it('rejects a common layer number beyond the game layers', async () => {
+    const deps = happyDeps();
+    expect(await logic.run({ ...INPUT, layer: 3 }, deps)).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_LAYER });
+  });
+
+  it('preserves the old Oracle default: no layer input renders with a null layer id', async () => {
+    const deps = happyDeps({ playerClass: createFakeClass({ Class_Name: 'Oracle' }) });
+    const result = await logic.run(INPUT, deps);
+    expect(result.ok).toBe(true);
+    expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, null, 1);
+  });
+});
+
+describe('board.present', () => {
+  it('returns the image as a plain file descriptor, never an AttachmentBuilder', () => {
+    const out = logic.present({ ok: true, kind: 'board', data: { buffer: FAKE_PNG } });
+    expect(out).toEqual({ files: [{ buffer: FAKE_PNG, name: 'grid.png' }] });
+    expect(out.files[0].constructor).toBe(Object);
+  });
+
+  it('renders rejections as text', () => {
+    expect(logic.present({ ok: false, reason: REJECTIONS.NOT_IN_GAME }).content).toMatch(/register/);
+  });
+});
+
+describe('board adapter (smoke)', () => {
+  it('exports the command contract', () => {
+    expect(board.data.toJSON().name).toBe('board');
+    expect(typeof board.execute).toBe('function');
+  });
+});

@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../../utils.js');
-var models = require("../../utils.js").models;
+const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const logic = require('./resurrect.logic.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -28,61 +28,11 @@ module.exports = {
                 .setRequired(false)),
     async execute(interaction) {
         await interaction.deferReply();
-
-        //Variables
- 
-        const game = await models.Games.findByPk(interaction.options.getInteger('game')) ?? await utils.getOldestGameId();
-        const player = await models.Players.findOne({where: {Game_ID: game, Discord_ID: interaction.user.id}});
-        const playersTile = await models.Tiles.findOne({where: {Tile_ID: player.Tile_ID}});
-        const layer = await utils.commonLayerIDtoDbLayerID(game,interaction.options.getInteger('layer')) ?? playersTile.Layer_ID;
-        const inputtedTile = await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: interaction.options.getInteger('x'), Y_Position: interaction.options.getInteger('y')}});
-        const resurectee = await models.Players.findOne({where: {Game_ID: game, Discord_ID: interaction.options.getUser('player').id}});
-
-        //Check Gamestate
-        if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
-            return
-        }
-
-        //Check if player is a Necromancer
-        if (player.Class != "Necromancer") {
-            return interaction.editReply({ content: "You are not a Necromancer!" });
-        }
-
-        //Check if the tile provided is in the game
-        if (!inputtedTile) {
-            return interaction.editReply({ content: "The tile provided is not in the game!" });
-        }
-
-        //Check if resurrectee is in the game
-        if (!resurectee) {
-            return interaction.editReply({ content: "The resurrectee is not in this game!" });
-        }
-
-        //Check if resurrectee is dead
-        if (resurectee.Dead === 0) {
-            return interaction.editReply({ content: "The resurrectee is not dead!" });
-        }
-
-        //Check if player has enough AP
-        if (player.Action_Points < 12) {
-            return interaction.editReply({ content: "You dont have enough AP to resurrect!" });
-        }
-
-        //Check if the inputted tile has room and is not Void, Wall, or Ice
-        if (inputtedTile.Tile_Type === "Void" || inputtedTile.Tile_Type === "Wall" || inputtedTile.Tile_Type === "Ice") {
-            return interaction.editReply({ content: "You cannot resurrect to that tile!" });
-        }
-
-        if(inputtedTile.Player1 != null || inputtedTile.Player2 != null || inputtedTile.Player3 != null || inputtedTile.Player4 != null) {
-            return interaction.editReply({ content: "You cannot resurrect to that tile!" });
-        }
-
-        //Resurrect the player
-        await models.Players.update({Dead: 0}, {where: {Player_ID: resurectee.Player_ID}}); 
-        await models.Tiles.update({Player1: resurectee.Player_ID}, {where: {Tile_ID: resurectee.Tile_ID}}); 
-        await models.Players.update({Action_Points: player.Action_Points - 12}, {where: {Player_ID: player.Player_ID}}); 
-
-        return interaction.editReply({ content: "You have resurrected " + interaction.options.getUser('player').username + " to the tile provided!" });
-
-    }
+        const input = logic.parse(
+            readOptions(interaction, { player: 'user', x: 'integer', y: 'integer', layer: 'integer', game: 'integer' }),
+            readActor(interaction),
+        );
+        const result = await logic.run(input);
+        await interaction.editReply(toDiscord(logic.present(result)));
+    },
 };

@@ -38,12 +38,12 @@ logger100.debug({file: 'index.js', function: 'null(Top Level)'}, "Created tile i
 
 // Read command files
 const foldersPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(foldersPath);
+const commandFolders = fs.readdirSync(foldersPath).filter((entry) => fs.statSync(path.join(foldersPath, entry)).isDirectory());
 
 // Register each command
 for (const folder of commandFolders) {
 	const commandsPath = path.join(foldersPath, folder);
-	const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
+	const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js') && !file.endsWith('.logic.js') && !file.startsWith('_'));
   
 	for (const file of commandFiles) {
 		const filePath = path.join(commandsPath, file);

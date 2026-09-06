@@ -1,6 +1,23 @@
- const { SlashCommandBuilder } = require('discord.js');
-var models = require("../../utils.js").models;
-var GAMESTATES = require('../../enums.js').GAMESTATES;
+const { SlashCommandBuilder } = require('discord.js');
+const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const logic = require('./createGame.logic.js');
+
+const OPTION_SPEC = {
+    'ap-distribution-interval': 'integer',
+    'chest-amount': 'integer',
+    'current-chaos-council-event': 'string',
+    'movement-cost': 'integer',
+    'shoot-cost': 'integer',
+    'fire-damage': 'integer',
+    'mine-damage': 'integer',
+    'class-blacklist': 'string',
+    'chaos-council-boolean': 'integer',
+    'class-dupe-limit': 'integer',
+    'max-stat-increase': 'integer',
+    'finale-player-threshold': 'integer',
+    'ap-amount': 'integer',
+    'immutable-doomsday': 'integer',
+};
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -63,47 +80,14 @@ module.exports = {
             .setDescription('how many AP distributions until immutables are killed, defaults to 32')
             .setRequired(false)),
     async execute(interaction) {
-        if(interaction.user.id != process.env.DEV_ID) return;
+        // dev gate stays here and stays silent for non-devs, exactly as before
+        if (interaction.user.id != process.env.DEV_ID) return;
         await interaction.deferReply();
-        //TODO update this
-        //Variables
-        var AP_Distribution_Interval = interaction.options.getInteger('ap-distribution-interval') ?? 720;
-        var Chest_Amount = interaction.options.getInteger('chest-amount') ?? 0;
-        var Current_Chaos_Council_Event = interaction.options.getString('current-chaos-council-event') ?? "BOOOORRRINNNG";
-        var Movement_Cost = interaction.options.getInteger('movement-cost') ?? 1;
-        var Shoot_Cost = interaction.options.getInteger('shoot-cost') ?? 2;
-        var Fire_Damage = interaction.options.getInteger('fire-damage') ?? 1;
-        var Mine_Damage = interaction.options.getInteger('mine-damage') ?? 1;
-        var Class_Blacklist = interaction.options.getString('class-blacklist') ?? "";
-        var Chaos_Council_Boolean = interaction.options.getInteger('chaos-council-boolean') ?? true;
-        var Class_Dupe_Limit = interaction.options.getInteger('class-dupe-limit') ?? 2;
-        var Finale_Player_Threshold = interaction.options.getInteger('finale-player-threshold') ?? 4;
-        var Max_Stat_Increase = interaction.options.getInteger('max-stat-increase') ?? 1;
-        var APAmount = interaction.options.getInteger('ap-amount') ?? 2;
-        var immutableDoomsday = interaction.options.getInteger('immutable-doomsday') ?? 32;
-        //Create Game in Database
-        await models.Games.create({ 
-            GAME_STATE: GAMESTATES.REGISTRATION,
-            AP_INTERVAL_MIN: AP_Distribution_Interval, 
-            CHEST_AMOUNT: Chest_Amount, 
-            LAST_CHEST_GIVER: null,
-            CURR_CC_EVENT: Current_Chaos_Council_Event, 
-            moveCost: Movement_Cost, 
-            shootCost: Shoot_Cost, 
-            fireDmg: Fire_Damage, 
-            mineDmg: Mine_Damage, 
-            classBlacklist: Class_Blacklist, 
-            classDupelicateMax: Class_Dupe_Limit, 
-            maxIncreaseOnKill: Max_Stat_Increase,
-            chaosCouncilBool: Chaos_Council_Boolean, 
-            winner: null,
-            finaleThreshold: Finale_Player_Threshold, 
-            APAmount: APAmount,
-            immutableDoomsday: immutableDoomsday
-        });
-
-        await interaction.editReply({ content: "Game "+ await models.Games.count() + " created!" });
-    }
-
-
-}
+        const input = logic.parse(
+            { ...readOptions(interaction, OPTION_SPEC), isDev: true },
+            readActor(interaction),
+        );
+        const result = await logic.run(input);
+        await interaction.editReply(toDiscord(logic.present(result)));
+    },
+};

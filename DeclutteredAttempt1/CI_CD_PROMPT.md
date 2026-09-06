@@ -47,6 +47,7 @@ The fix pairs with `TESTING.md` Part 3 Step 1 — make the path configurable via
 
 | Issue | Why it matters for CI/CD |
 |---|---|
+| `node_modules` was committed (11,615 Windows-built files) and the lockfile was out of sync with `package.json` | `npm ci` failed on every clean checkout; both fixed on the `test-suite` branch — CI inherits that, but verify before trusting |
 | `database/database.db` is committed | Real game data in git history; gets baked into every image by `COPY . .` |
 | Two `package.json` files (repo root and `DeclutteredAttempt1/`) with different dependency sets — root has `mysql2` + `@sequelize/mysql`, the app has `sqlite3` | Ambiguous build context and dependency graph; Dependabot and `npm audit` will report against the wrong one |
 | `.dockerignore` excludes `tests` and `jest.config.js` | Tests cannot run inside the image; CI needs a dedicated stage |
@@ -199,6 +200,10 @@ The pipeline is done when all of these hold:
 - [ ] `deploy-commands.js` is not invoked on container start
 - [ ] Healthcheck reflects Discord connectivity, not process liveness
 - [ ] Rollback path documented in `README.md` and rehearsed once
+
+### Sandbox limits — report, don't skip
+
+Several acceptance criteria cannot run where this prompt is executed (no Docker daemon, no Discord token, no live guild): the image build and double-rebuild persistence test (criteria 2–4), the fork-PR secrets probe (criterion 1), and the rollback rehearsal (criterion 8). The executor must list each one as an open manual item in the PR description — a criterion silently dropped is a criterion failed.
 
 ### What to report back rather than guess
 

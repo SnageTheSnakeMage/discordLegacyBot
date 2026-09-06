@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../../utils.js');
-var models = require("../../utils.js").models;
+const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const logic = require('./deliver.logic.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -21,35 +21,11 @@ module.exports = {
                 .setRequired(false)),
     async execute(interaction) {
         await interaction.deferReply();
-        //Variables
-        const gameId = interaction.options.getInteger('game') ?? await utils.getOldestGameId();
-        const player = await models.Players.findOne({where: {Discord_ID: interaction.user.id, Game_ID: gameId}});
-        const receiver = await models.Players.findOne({where: {Discord_ID: interaction.options.getUser('receiver').id, Game_ID: gameId}});
-
-        //Check Gamestate
-        if(await utils.checkGameState(game.GAME_STATE, false, interaction)){
-            return
-        }
-
-        //Check if player is a Mailman
-        if (player.Class != "Mailman") {
-            return interaction.editReply({ content: "You are not a Mailman!" });
-        }
-
-        //Check if the receiver is in the game
-        if (!receiver) {
-            return interaction.editReply({ content: "The receiver is not in the game!" });
-        }
-
-        //Check if the player has enough AP
-        if (player.Action_Points < interaction.options.getInteger('amount')) {
-            return interaction.editReply({ content: "You dont have enough AP to deliver!" });
-        }
-
-        //Give reciever the AP
-        await models.Players.update({Action_Points: receiver.Action_Points + interaction.options.getInteger('amount')}, {where: {Player_ID: receiver.Player_ID}}); 
-        await models.Players.update({Action_Points: player.Action_Points - interaction.options.getInteger('amount')}, {where: {Player_ID: player.Player_ID}});
-
-        return interaction.editReply({ content: "You have delivered " + interaction.options.getInteger('amount') + "AP to " + interaction.options.getUser('receiver').username + "!" });
-    }
+        const input = logic.parse(
+            readOptions(interaction, { receiver: 'user', amount: 'integer', game: 'integer' }),
+            readActor(interaction),
+        );
+        const result = await logic.run(input);
+        await interaction.editReply(toDiscord(logic.present(result)));
+    },
 };

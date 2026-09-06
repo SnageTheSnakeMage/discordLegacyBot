@@ -1,66 +1,46 @@
-// commands/layered-grid.js - Layered Grid Command
-const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const utils = require('../../utils');
+const { SlashCommandBuilder } = require('discord.js');
+const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const logic = require('./grid_dev.logic.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('grid_dev')
     .setDescription('shows that games grid and layer, dev command')
-    .addStringOption(option => 
+    .addStringOption(option =>
       option.setName('layer')
         .setDescription('which layer to show')
         .setRequired(true))
-    .addStringOption(option => 
+    .addStringOption(option =>
       option.setName('game')
         .setDescription('which grid to show from which game')
         .setRequired(true)),
   // Aliases for text-based commands
   aliases: ['gridDev'],
-  
-  // Function for slash command execution
-  async execute(interaction) {
-  const logger200 = globalThis.CommandExecutionLogger.child({file: 'grid_dev.js'})
-   if(interaction.user.id != process.env.DEV_ID) return;
-    try {
-      await interaction.deferReply();
 
-        // Generate layered grid image from data
-        const imageBuffer = await utils.GenerateGameGridImage(interaction.options.getString('game'), interaction.options.getString('layer'));
-        
-        // Create attachment
-        const attachment = new AttachmentBuilder(imageBuffer, { name: 'grid.png' });
-        
-        // Send the image
-        await interaction.user.send({ files: [attachment] });
-        await interaction.deleteReply();
-    } catch (error) {
-      logger200.error({function:"execute"}, "Error executing grid_dev command:', error");
-      if (interaction.replied || interaction.deferred) {
-        await interaction.editReply(`Error: ${error.message}`);
-      } else {
-        await interaction.reply({ content: `Error: ${error.message}`, ephemeral: true });
-      }
+  // The dev gate stays here and travels into run() as input.isDev (TESTING.md
+  // Part 1, order-of-work item 6). It is still an early, silent return: the
+  // old code returned before deferring, so a non-dev got no reply at all.
+  // Defer style is the command's own: a plain, public deferReply().
+  // Delivery is also this command's own: the image is DMed and the deferred
+  // reply is deleted, exactly as before.
+  async execute(interaction) {
+    const isDev = interaction.user.id === process.env.DEV_ID;
+    if (!isDev) return;
+
+    await interaction.deferReply();
+
+    const input = logic.parse(
+      readOptions(interaction, { layer: 'string', game: 'string' }),
+      { ...readActor(interaction), isDev },
+    );
+    const result = await logic.run(input);
+    const reply = toDiscord(logic.present(result));
+
+    if (!result.ok) {
+      await interaction.editReply(reply);
+      return;
     }
+    await interaction.user.send(reply);
+    await interaction.deleteReply();
   },
-}
-  
-  // Function for traditional message command execution
-//   async onMessage(message, args) {
-//     try {
-//       // Send a "processing" message
-//       await interaction.deferReply({flags: MessageFlags.Ephemeral});
-      
-//       // Generate layered grid image from data
-//       const imageBuffer = await utils.GenerateGameGridImage(args[0], args[1]);
-      
-//       // Create attachment
-//       const attachment = new AttachmentBuilder(imageBuffer, { name: 'layered_grid.png' });
-      
-//       // Send the image and delete the processing message
-//       await interaction.editReply({ files: [attachment] });
-//     } catch (error) {
-//       console.error('[ERROR][COMMAND] layered-grid.onMessage: Error generating layered grid:', error);
-//       message.reply(`Error: ${error.message}`);
-//     }
-//   }
-// };
+};

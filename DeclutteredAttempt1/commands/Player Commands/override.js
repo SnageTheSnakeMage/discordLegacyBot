@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
-const utils = require('../../utils');
-var models = utils.models;
-//TODO make poll handler in utils
+const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const logic = require('./override.logic.js');
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('override')
@@ -17,34 +17,12 @@ module.exports = {
                 .setDescription('which game, defaults to oldest active game')
                 .setRequired(false)),
     async execute(interaction) {
-        const logger200 = globalThis.CommandExecutionLogger.child({file: 'override.js'})
         await interaction.deferReply();
-
-        //Variables
-        var game = await models.Games.findByPk(interaction.options.getInteger('game')) ?? await utils.getOldestActiveGame(interaction.user.id);
-        const player = await models.Players.findOne({where: {Game_ID: game.Game_ID, Discord_ID: interaction.user.id}});
-        const playerClass = await models.Classes.findByPk(player.Class_ID);
-        const pollOption = interaction.options.getInteger('pollOption');
-         const channel = await client.channels.fetch(game.deadChatChannelId);
-        const poll = (await channel.messages.fetch(game.currentChaosPollMsgId)).poll;
-
-        //Check if the player is a Dead or Medium
-        if(!player.Dead || playerClass.Class_Name != "Medium") {
-            await interaction.reply({ content: "Only Dead or Medium can override a chaos council poll!"});
-            return;
-        }
-
-        //check if the player has an overide
-        if(player.cCOverides <= 0) {
-            await interaction.reply({ content: "You don't have any overrides left!"});
-            return;
-        }
-
-        //use the override
-        await models.Players.update({cCOverides: player.cCOverides - 1}, {where: {Player_ID: player.Player_ID}});
-        await models.Games.update({overrider: player.Discord_ID}, {where: {Game_ID: game.Game_ID}});
-        
-        //poll.answers.keyAt(pollOption)
-
-    }
-}
+        const input = logic.parse(
+            readOptions(interaction, { option: 'integer', game: 'integer' }),
+            readActor(interaction),
+        );
+        const result = await logic.run(input);
+        await interaction.editReply(toDiscord(logic.present(result)));
+    },
+};
