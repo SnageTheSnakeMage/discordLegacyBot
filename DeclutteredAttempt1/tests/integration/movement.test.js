@@ -93,6 +93,43 @@ describe('movement', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
+  // A LETHAL mine cannot kill. Every damage path in the codebase writes the
+  // new HP with models.Players.update(...) and then hands playerDeathLogic
+  // the SAME in-memory row, whose Health_Points is still the pre-damage
+  // value - so the death check sees a healthy player and no mine, fire tile,
+  // shot or stab ever registers a kill. The victim is left at or below zero
+  // HP, alive, still occupying a tile.
+  //
+  // Pre-existing, not introduced by the refactor: cursord's move.js had the
+  // identical update-then-stale-row pair. Making it kill is a game rule
+  // (players would start dying to mines and fire in a live game), so it is
+  // documented here rather than changed silently. Fixing it means re-reading
+  // the row, or passing post-damage HP, at every damage site.
+  test.failing('a lethal mine actually kills the player who steps on it', async () => {
+    const { game, layer } = await board();
+    const walker = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Health_Points: 1, Action_Points: 8,
+    });
+    const trapper = await seedPlayer(game.Game_ID, {
+      discordId: '2', x: 5, y: 5, layerId: layer.Layer_ID, className: 'Minesweeper',
+    });
+    const mined = await models.Tiles.findOne({
+      where: { Layer_ID: layer.Layer_ID, X_Position: 2, Y_Position: 1 },
+    });
+    await mined.update({ trapped: true, trapper: trapper.Player_ID });
+
+    await moveLogic.run(
+      { gameId: game.Game_ID, direction: 'east', distance: 1, path: null, body: 1, discordId: '1' },
+      DEPS(),
+    );
+
+    const dead = await models.Players.findByPk(walker.Player_ID);
+    expect(dead.Health_Points).toBeLessThanOrEqual(0);
+    expect(dead.Dead).toBe(true);            // currently false - the bug
+    expect(dead.Tile_ID).toBeNull();         // currently still on the board
+    expect((await models.Players.findByPk(trapper.Player_ID)).Kills).toBe(1);
+  });
+
   it('a rejected move leaves the board byte-identical', async () => {
     const { game, layer } = await board();
     await seedPlayer(game.Game_ID, {
