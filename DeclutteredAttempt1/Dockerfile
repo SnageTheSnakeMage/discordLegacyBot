@@ -61,4 +61,8 @@ USER bot
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
   CMD node scripts/healthcheck.js
 
-CMD ["node", "index.js"]
+# bootstrap-db.js creates the schema and seeds Classes when the volume is
+# empty, then no-ops forever after. Without it a fresh volume gives the bot
+# a database with no tables. `exec` keeps node as PID 1 so it still gets
+# SIGTERM on `docker stop`.
+CMD ["sh", "-c", "node scripts/bootstrap-db.js && exec node index.js"]
