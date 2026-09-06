@@ -5,4 +5,7 @@
  */
 module.exports = async () => {
   process.env.LEGACY_DB_STORAGE = ':memory:';
+  // sequelize logs every statement to console.log by default (production
+  // behaviour, restored deliberately); mute it for the test run only
+  process.env.LEGACY_DB_LOGGING = '0';
 };

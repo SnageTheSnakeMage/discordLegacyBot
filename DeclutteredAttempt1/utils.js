@@ -10,7 +10,8 @@ const { Sequelize, Op } = require('sequelize');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: process.env.LEGACY_DB_STORAGE || './database/database.db',
-  logging: process.env.LEGACY_DB_LOGGING === '1' ? console.log : false,
+  // sequelize logs SQL to console.log by default; keep that unless muted
+  logging: process.env.LEGACY_DB_LOGGING === '0' ? false : console.log,
 });
 const fs = require('fs');
 const { logger } = require('sequelize/lib/utils/logger');
@@ -129,7 +130,7 @@ async distributeAP(game, times, client){
       }
       //give hitmen another target if they dont have one or if their target is dead
       if(player.Class_ID == hitmanClass.Class_ID && player.Hitman_Target == null || player.Hitman_Target != null && livingPlayers.find((p) => p.Player_ID == player.Hitman_Target).Dead == true){
-        var randomPlayer = livingPlayers[this.getRandomInt(livingPlayers.length)];
+        var randomPlayer = this.getRandomItemInCollection(livingPlayers);
         await models.Players.update({Hitman_Target: randomPlayer.Player_ID}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
       }
       // // Chaos Council Event Logic That Triggers Every AP Distribution
@@ -734,9 +735,12 @@ async  revertTileToBlank(startTile){
 },
 
 async getRandomClass(game) {
-  // Get a random class ID
-  var randomClassID = this.getRandomInt(await models.Classes.count());
-  var randomClass = await models.Classes.findByPk(randomClassID);
+  // Pick from the ids that actually exist. getRandomInt is inclusive of its
+  // max, so the old getRandomInt(count) could roll 0 - and on a 1-based table
+  // findByPk(0) is null, so the next line threw. It also assumed the ids were
+  // contiguous, which nothing guarantees once a class row is deleted.
+  var classIds = (await models.Classes.findAll({attributes: ["Class_ID"]})).map((c) => c.Class_ID);
+  var randomClass = await models.Classes.findByPk(this.getRandomItemInCollection(classIds));
   logger150.debug({function: "getRandomClass"}, "rolled random class: " + randomClass.Class_Name);
   
   if (!game.classBlacklist) {

@@ -10,11 +10,11 @@
   },
   "scripts": {
     "start": "node index.js",
-    "test": "jest --selectProjects unit",
+    "test": "jest",
     "test:integration": "jest --selectProjects integration",
-    "test:all": "jest",
-    "test:coverage": "jest --selectProjects unit --coverage",
-    "lint": "eslint ."
+    "test:coverage": "jest --coverage",
+    "lint": "eslint .",
+    "test:unit": "jest --selectProjects unit"
   },
   "devDependencies": {
     "eslint": "^10.9.1",

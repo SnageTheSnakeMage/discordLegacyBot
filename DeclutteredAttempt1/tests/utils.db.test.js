@@ -127,3 +127,26 @@ describe('classRemoval', () => {
     expect(update).toHaveBeenCalledWith({ Kills: 2 }, { where: { Player_ID: 10 } });
   });
 });
+
+describe('getRandomClass', () => {
+  // getRandomInt is inclusive of max, so the old getRandomInt(count) could
+  // roll 0; on a 1-based Classes table findByPk(0) is null and the next line
+  // threw - a crash on roughly 1 registration in (count+1). It also assumed
+  // contiguous ids. Now it picks from the ids that exist.
+  it('never rolls an id that is not in the table, over many rolls', async () => {
+    const ids = [3, 7, 11]; // deliberately non-contiguous, not 1-based
+    jest.spyOn(utils.models.Classes, 'findAll').mockResolvedValue(ids.map((id) => ({ Class_ID: id })));
+    const asked = [];
+    jest.spyOn(utils.models.Classes, 'findByPk').mockImplementation(async (id) => {
+      asked.push(id);
+      return createFakeClass({ Class_ID: id, Class_Name: `C${id}` });
+    });
+    jest.spyOn(utils.models.Players, 'findAll').mockResolvedValue([]);
+
+    for (let i = 0; i < 100; i++) {
+      const rolled = await utils.getRandomClass({ Game_ID: 1, classDupelicateMax: 2, classBlacklist: '' });
+      expect(ids).toContain(rolled.Class_ID);
+    }
+    expect(asked.every((id) => ids.includes(id))).toBe(true);
+  });
+});

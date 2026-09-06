@@ -21,7 +21,7 @@ module.exports = {
                 { name: 'TimeStopped', value: 'TIMESTOPPED' },
                 { name: 'DevPaused', value: 'DEV_PAUSED' },
                 { name: 'Finale', value: 'FINALE' },
-                { name: 'Finished', value: 'Inactive' },
+                { name: 'Finished', value: 'INACTIVE' },
             )),
 
     // this command never deferred: both of its old branches replied directly,
