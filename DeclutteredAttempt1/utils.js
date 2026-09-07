@@ -37,6 +37,30 @@ async timeCheck(client){
   }
 },
 
+/**
+ * Adds AP without letting it exceed MAX_AP. The overflow is NOT discarded:
+ * it accumulates in MISSED_AP, which the kill bonus and the "Leftovers"
+ * chaos event both pay out. Capping silently deleted that currency.
+ */
+apGain(player, amount) {
+  const total = player.Action_Points + amount;
+  const capped = Math.min(total, player.MAX_AP);
+  return {
+    Action_Points: capped,
+    MISSED_AP: (player.MISSED_AP || 0) + Math.max(0, total - capped),
+  };
+},
+
+/** Same contract for health: overflow past MAX_HP accumulates in MISSED_HP. */
+hpGain(player, amount) {
+  const total = player.Health_Points + amount;
+  const capped = Math.min(total, player.MAX_HP);
+  return {
+    Health_Points: capped,
+    MISSED_HP: (player.MISSED_HP || 0) + Math.max(0, total - capped),
+  };
+},
+
 getRandomItemInCollection(collection) {
   // getRandomInt(max) is inclusive of max (Math.round), so index by length-1
   return collection[this.getRandomInt(collection.length - 1)];
@@ -114,12 +138,13 @@ async distributeAP(game, times, client){
   //get all alive players in the game and give them as much AP as the game gives per interval multiplied by times
   const livingPlayers = await models.Players.findAll({where: {Game_ID: game.Game_ID, Dead: false}});
   for (const player of livingPlayers) {
-      //give AP to everyone
-      await models.Players.update({Action_Points: player.Action_Points + game.APAmount * times}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
-      //give AP to gluttons again
-      if(player.Class_ID == gluttonClass.Class_ID){
-        await models.Players.update({Action_Points: player.Action_Points + game.APAmount * times}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});        
-      }
+      //give AP to everyone, gluttons twice over. This used to be two
+      //writes, both computed from the same pre-update row, so the second
+      //wrote the same value as the first and the glutton's double did
+      //nothing at all. Overflow past MAX_AP now lands in MISSED_AP.
+      const isGlutton = player.Class_ID == gluttonClass.Class_ID;
+      const apGained = game.APAmount * times * (isGlutton ? 2 : 1);
+      await models.Players.update(this.apGain(player, apGained), {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
       //kill immutables if their doomsday is 0
       if(game.immutableDoomsday <= 0 && player.Class_ID == immutableClass.Class_ID){
         await models.Players.update({Dead: true, Tile_ID: null}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});

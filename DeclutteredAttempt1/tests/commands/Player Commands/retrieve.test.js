@@ -138,7 +138,7 @@ describe('retrieve.run success', () => {
       { where: { Game_ID: 1 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 8 }, // player: 5 + 3
+      { Action_Points: 8, MISSED_AP: 0 }, // player: 5 + 3, none wasted
       { where: { Player_ID: 1 } },
     );
     expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
@@ -161,7 +161,7 @@ describe('retrieve.run success', () => {
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 10 }, // 9 + 3 clamped to MAX_AP 10
+      { Action_Points: 10, MISSED_AP: 2 }, // 9 + 3 capped at 10, the 2 kept as missed
       { where: { Player_ID: 1 } },
     );
   });
@@ -174,7 +174,7 @@ describe('retrieve.run success', () => {
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 8 },
+      { Action_Points: 8, MISSED_AP: 0 },
       { where: { Player_ID: 1 } },
     );
   });
@@ -190,7 +190,7 @@ describe('retrieve.run success', () => {
       { where: { Game_ID: 1 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 5 }, // 5 + null
+      { Action_Points: 5, MISSED_AP: 0 }, // 5 + null
       { where: { Player_ID: 1 } },
     );
   });
@@ -206,7 +206,7 @@ describe('retrieve.run success', () => {
       { where: { Game_ID: 1 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 2 }, // 5 + (-3)
+      { Action_Points: 2, MISSED_AP: 0 }, // 5 + (-3)
       { where: { Player_ID: 1 } },
     );
   });

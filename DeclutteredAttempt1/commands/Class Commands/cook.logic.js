@@ -100,17 +100,17 @@ async function run(input, deps = defaultDeps) {
 
   // give the customer the AP & HP (unclamped, as before)
   await models.Players.update(
-    { Action_Points: Math.min(customer.Action_Points + 2, customer.MAX_AP) },
+    deps.utils.apGain(customer, 2),
     { where: { Player_ID: customer.Player_ID } },
   );
   await models.Players.update(
-    { Health_Points: Math.min(customer.Health_Points + 1, customer.MAX_HP) },
+    deps.utils.hpGain(customer, 1),
     { where: { Player_ID: customer.Player_ID } },
   );
 
   // give the chef the AP and consume the meal
   await models.Players.update(
-    { Action_Points: Math.min(player.Action_Points + 1, player.MAX_AP), Meals: player.Meals - 1 },
+    { ...deps.utils.apGain(player, 1), Meals: player.Meals - 1 },
     { where: { Player_ID: player.Player_ID } },
   );
 

@@ -187,15 +187,15 @@ describe('cook.run success', () => {
     const result = await logic.run(INPUT, deps);
     expect(result).toEqual({ ok: true, kind: 'cooked', data: { customerUsername: 'hungrybob' } });
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 4 }, // customer: 2 + 2
+      { Action_Points: 4, MISSED_AP: 0 }, // customer: 2 + 2, none wasted
       { where: { Player_ID: 2 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 6 }, // customer: 5 + 1
+      { Health_Points: 6, MISSED_HP: 0 }, // customer: 5 + 1, none wasted
       { where: { Player_ID: 2 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 6, Meals: 0 }, // chef: 5 + 1 AP, 1 - 1 meals
+      { Action_Points: 6, MISSED_AP: 0, Meals: 0 }, // chef: 5 + 1 AP, 1 - 1 meals
       { where: { Player_ID: 1 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledTimes(3);
@@ -218,11 +218,11 @@ describe('cook.run success', () => {
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 10 }, // 9 + 2 clamped to MAX_AP 10
+      { Action_Points: 10, MISSED_AP: 1 }, // 9 + 2 capped at 10, the 1 kept as missed
       { where: { Player_ID: 2 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 10 }, // 10 + 1 clamped to MAX_HP 10
+      { Health_Points: 10, MISSED_HP: 1 }, // 10 + 1 capped at 10, the 1 kept as missed
       { where: { Player_ID: 2 } },
     );
   });
