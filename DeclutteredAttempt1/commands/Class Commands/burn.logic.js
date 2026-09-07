@@ -1,5 +1,5 @@
 /**
- * /burn - Pyromaniac class command: turn any non-gateway tile in range into
+ * /burn - Pyromainiac class command: turn any non-gateway tile in range into
  * a Fire tile for 4 AP.
  *
  * parse/run/present per TESTING.md Part 1. run() takes plain data and a
@@ -65,8 +65,8 @@ async function run(input, deps = defaultDeps) {
   const verdict = utils.checkGameState(game.GAME_STATE, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
-  if (playerClass.Class_Name !== 'Pyromaniac') {
-    return { ok: false, reason: REJECTIONS.WRONG_CLASS, data: { className: 'Pyromaniac' } };
+  if (playerClass.Class_Name !== 'Pyromainiac') {
+    return { ok: false, reason: REJECTIONS.WRONG_CLASS, data: { className: 'Pyromainiac' } };
   }
 
   if (tileToChange.Tile_Type === 'Gateway_Open' || tileToChange.Tile_Type === 'Gateway_Locked') {

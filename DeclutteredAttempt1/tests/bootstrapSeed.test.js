@@ -40,7 +40,7 @@ describe('classes.csv', () => {
   it('carries the classes utils looks up by name', () => {
     // distributeAP and the integration fixtures resolve these by Class_Name
     const names = classes.map((c) => c.Class_Name);
-    for (const n of ['Average', 'Lava Diver', 'Glutton', 'Immutable', 'Chef', 'Hitman', 'Pyromaniac', 'Snowman']) {
+    for (const n of ['Average', 'Lava Diver', 'Glutton', 'Immutable', 'Chef', 'Hitman', 'Pyromainiac', 'Snowman']) {
       expect(names).toContain(n);
     }
   });

@@ -11,10 +11,10 @@ id,class,ap,max_ap,hp,max_hp,range,max_range,damage,max_damage,color,description
 10,Hitman,0,12,6,12,1,6,1,2,AD2424,"Gains 4AP for killing a target, recieves a new target upon the death of the current one"
 11,Smoker,0,12,6,12,1,6,1,2,797772,"Can turn a blank tile in range into a smoke tile for 1AP with the >smoke layer, x, y command "
 12,Construction Worker,0,12,6,12,1,6,1,2,FF9F0F,"Can turn any non-gateway tile in range into a wall or chest tile in range for 3AP with the >build wall/chest layer, x, y command"
-13,Pharaoh,0,12,6,12,1,6,1,2,D3C461,"If the Pharaoh attempts to get more than 12HP they instead gain an extra life that starts at that overflow HP to a maximum of 12HP on revival, upon death they instead are put on a random tile"
+13,Pharoh,0,12,6,12,1,6,1,2,D3C461,"If the Pharoh attempts to get more than 12HP they instead gain an extra life that starts at that overflow HP to a maximum of 12HP on revival, upon death they instead are put on a random tile"
 14,Gravedigger,0,12,6,12,1,6,1,2,83716B,"Can turn any empty non-gateway tile  in range into a void tile for 4AP with the >dig layer, x, y command, can move on void tiles"
 15,Stormchaser,0,12,6,12,1,6,1,2,6821C0,Every time you enter a storm tile gain 1d4-2 AP
-16,Pyromaniac,0,12,6,12,1,6,1,2,EE3271,"Can turn any non-gateway tile in range into a fire tile for 5AP with the >burn layer, x, y command"
+16,Pyromainiac,0,12,6,12,1,6,1,2,EE3271,"Can turn any non-gateway tile in range into a fire tile for 5AP with the >burn layer, x, y command"
 17,Doctor,0,12,6,12,1,6,1,2,C6FF6C,"Can turn any non-gateway tile in range into a heal tile for 5AP with the >heal layer, x, y command"
 18,Guardian,0,12,6,12,1,6,1,2,473B86,"Can lock or unlock a gateway tile in range for 2AP with the >lock layer, x, y command. Can lock all gates on a layer unless they are one of the last 3 players then they must leave one open at all times"
 19,Robot,0,12,6,14,1,6,1,2,899DA3,"Every time you enter a storm tile gain 1HP, increased max HP "
@@ -23,7 +23,7 @@ id,class,ap,max_ap,hp,max_hp,range,max_range,damage,max_damage,color,description
 22,Minesweeper,0,12,6,12,1,6,1,2,4E4E4E,"Can plant an invisible mine on tiles in range for 1AP with the >arm layer, x, y command, immune to mine damage"
 23,Clockwatcher,0,12,6,12,1,6,1,2,FFFFFF,Can make everyone except Clockwatchers unable to do anything for 12AP with the >timestop command. This lasts for 4 AP distributions
 24,Blacksmith,0,12,6,12,1,6,1,2,D38E9F,"Can give a double damage buff to anyone's next attack in range (including themselves) for 6AP with the >weaponize layer, x, y command, this buff can stack. But one's damage cannot go over their max"
-25,Medium,0,12,6,12,0,6,1,2,D53EFF,Can speak with the dead and influence the chaos council votes. They get an extra override and can use them while alive.
+25,Medium,0,12,6,12,1,6,1,2,D53EFF,Can speak with the dead and influence the chaos council votes. They get an extra override and can use them while alive.
 26,Snowman,0,12,6,12,1,6,1,2,0181E6,"Can turn any non-gateway tile in range into ice tiles for 2AP with the >freeze x, y command, unnaffected by ice tiles"
 27,Fencer,0,12,6,12,1,6,1,2,9fc2cd,"Can deal double damage(up to maximum damage) for 1 AP to anyone on the same tile as them with the >stab layer, x, y command"
 28,Twin,0,12,3,12,1,6,1,2,8FE2C6,Controls 2 separate bodies each start with half hp

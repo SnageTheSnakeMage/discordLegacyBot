@@ -18,7 +18,7 @@
  * - a missing player now returns NOT_IN_GAME instead of crashing on
  *   player.Class_ID
  * - classRemoval(victim, excorist) was called with only the victim, so a
- *   Twin or revive-holding Pharaoh target crashed on excorist.Kills; the
+ *   Twin or revive-holding Pharoh target crashed on excorist.Kills; the
  *   exorcist is now passed as the second argument
  *
  * Preserved as-is (see the pinning tests):

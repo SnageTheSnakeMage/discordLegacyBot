@@ -5,7 +5,7 @@ const logic = require('./burn.logic.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('burn')
-        .setDescription('class command for Pyromaniacs, turn any non-gateway tile in range into a fire tile for 4AP')
+        .setDescription('class command for Pyromainiacs, turn any non-gateway tile in range into a fire tile for 4AP')
         .addIntegerOption(option =>
             option.setName('x')
                 .setDescription('X coordinate of which tile to burn')
