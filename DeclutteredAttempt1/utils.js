@@ -1085,6 +1085,17 @@ async setPlayerToTile(playerId, layer, x, y) {
   await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
 },
 
+//Takes one body off the board: vacates the tile's PlayerN slot AND clears
+//the player's own Tile_ID/Tile_ID2. Every death branch used to null only
+//the player side, leaving the tile still naming a corpse (#78).
+async clearPlayerFromBoard(playerId, tileId, column) {
+  if (tileId != null) {
+    const tile = await models.Tiles.findByPk(tileId);
+    if (tile) await this.removePlayerFromTile(playerId, tile.Layer_ID, tile.X_Position, tile.Y_Position);
+  }
+  await models.Players.update({[column]: null}, {where: {Player_ID: playerId}});
+},
+
 //puts a player into the first free PlayerN slot on a tile row. Callers are
 //responsible for vacating the player's old tile first - this only writes
 //the tile side of the invariant.
@@ -1161,13 +1172,17 @@ async playerDeathLogic(killer, victim) {
   const killerClass = killer ? await models.Classes.findByPk(killer.Class_ID) : null;
   const victimClass = await models.Classes.findByPk(victim.Class_ID);
   //check if the victim is dead and there isnt a class with weird death logic involved
+  //the killer null-check has to come BEFORE killerClass is read: it used to
+  //be the last clause of this chain, so an environmental death (a fire tile,
+  //which passes no killer) threw on killerClass.Class_Name. Nothing could
+  //die before damagePlayer, so the branch never ran and the crash never showed.
   if (victim.Health_Points <= 0 
     && victim.Pharoh_HP <= 0 
     && victimClass.Class_Name != "Twin" 
+    && killer != null
     && killerClass.Class_Name != "Hitman"
     && killerClass.Class_Name != "Cannibal"
-    && killerClass.Class_Name != "Minesweeper"
-    && killer != null) {
+    && killerClass.Class_Name != "Minesweeper") {
     //TODO ensure any changes to Tile_ID cascade to the tile itself aswell with either
     // a Tiles db call 
     // or a utils removePlayerFromTile call
@@ -1199,8 +1214,8 @@ async playerDeathLogic(killer, victim) {
       && victim.Pharoh_HP <= 0 )
     {
       await models.Players.update({Dead: true}, {where: {Player_ID: victim.Player_ID}});
-      await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID}});
-      await models.Players.update({Tile_ID2: null}, {where: {Player_ID: victim.Player_ID}});
+      await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID, 'Tile_ID');
+      await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID2, 'Tile_ID2');
     }
     //Both twins are at 0 hp but the player has some pharaoh hp so revive them on a random tile with their pharaoh hp as their health and reset their pharaoh hp
     if(victim.Health_Points <= 0 
@@ -1220,19 +1235,21 @@ async playerDeathLogic(killer, victim) {
     }
     //One twin is at 0 hp so kill it but dont mark the player as dead
     if(victim.Health_Points <= 0 && victim.Health_Points2 > 0){
-      await models.Players.update({Tile_ID2: null}, {where: {Player_ID: victim.Player_ID}});
+      await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID2, 'Tile_ID2');
     }
     if(victim.Health_Points > 0 && victim.Health_Points2 <= 0){
-      await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID}});
+      await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID, 'Tile_ID');
     }
   }
   //kill the victim if they have 0 hp arent a twin and dont have pharaoh hp
   else if(victim.Health_Points <= 0){
       await models.Players.update({Dead: true}, {where: {Player_ID: victim.Player_ID}});
-      await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID}});
+      await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID, 'Tile_ID');
   }
 
-  if(victim.Health_Points <= 0){
+  //same nullable-killer problem: an environmental death has no killer, so
+  //there is no class to switch on and no kill bonus to pay out
+  if(victim.Health_Points <= 0 && killerClass != null){
     switch(killerClass.Class_Name){
       //Weird death case #2 hitman gets 4AP for every killed target, do normal death logic but also update the hitman's AP
       case "Hitman":
