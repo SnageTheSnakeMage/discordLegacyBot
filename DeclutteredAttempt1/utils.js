@@ -244,6 +244,7 @@ async distributeAP(game, times, client){
   //commented gust code without ever being declared
   var cloudbornClass = await models.Classes.findOne({where: {Class_Name: "Cloudborn"}});
   var doctorClass = await models.Classes.findOne({where: {Class_Name: "Doctor"}});
+  var speedsterClass = await models.Classes.findOne({where: {Class_Name: "Speedster"}});
   const chaosClasses = {
     lavaDiver: lavaDiverClass, glutton: gluttonClass, immutable: immutableClass,
     chef: chefClass, hitman: hitmanClass, pyromainiac: pyromainiacClass,
@@ -306,6 +307,12 @@ async distributeAP(game, times, client){
         var randomPlayer = this.getRandomItemInCollection(livingPlayers);
         await models.Players.update({Hitman_Target: randomPlayer.Player_ID}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
       }
+      //Speedster: 2 free movements per distribution, "use it or lose it" -
+      //SET rather than accumulated, so they cannot be banked up
+      if (speedsterClass && player.Class_ID == speedsterClass.Class_ID) {
+        await models.Players.update({Free_Move: 2}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+      }
+
       // Chaos Council event effects that fire at every AP distribution
       await this.applyChaosEventToPlayer(game, player, chaosClasses, chaosTimes);
   }

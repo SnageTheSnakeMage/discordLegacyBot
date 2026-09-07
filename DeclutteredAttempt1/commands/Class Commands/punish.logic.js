@@ -117,9 +117,10 @@ async function run(input, deps = defaultDeps) {
   }
 
   // either of a Twin's bodies counts as being on the tile
-  const onTile = targetPlayer.Tile_ID == targetTile.Tile_ID
-    || (targetPlayer.Tile_ID2 != null && targetPlayer.Tile_ID2 == targetTile.Tile_ID);
-  if (!onTile) {
+  const targetBody = targetPlayer.Tile_ID == targetTile.Tile_ID ? 1
+    : (targetPlayer.Tile_ID2 != null && targetPlayer.Tile_ID2 == targetTile.Tile_ID) ? 2
+      : null;
+  if (targetBody === null) {
     return { ok: false, reason: REJECTIONS.TARGET_NOT_ON_TILE, data: { message: "That player isnt on that tile!" } };
   }
 
@@ -132,16 +133,51 @@ async function run(input, deps = defaultDeps) {
     };
   }
 
-  // Everything past this point was the copied /shoot attack loop, which could
-  // only throw (see the header). The class is unimplemented and no player can
-  // be a Punisher, so the command stops here and charges nothing.
-  return { ok: false, reason: REJECTIONS.WRONG_CLASS, data: { className: 'Punisher' } };
+  // The Punisher's own gate. The class now exists, so this is a real check
+  // rather than the placeholder rejection every caller used to get.
+  const playerClass = await models.Classes.findByPk(player.Class_ID);
+  if (!playerClass || playerClass.Class_Name !== 'Punisher') {
+    return { ok: false, reason: REJECTIONS.WRONG_CLASS, data: { className: 'Punisher' } };
+  }
+
+  // The ability, straight from the command's own description: damage equal
+  // to what the target has wasted. MISSED_AP and MISSED_HP accumulate when
+  // a gain would have taken them past their maximum, so this punishes
+  // sitting on a full bar.
+  const damage = (targetPlayer.MISSED_AP || 0) + (targetPlayer.MISSED_HP || 0);
+
+  if (damage > 0) {
+    await utils.damagePlayer(player, targetPlayer, damage, targetBody);
+  }
+  await models.Players.update(
+    { Action_Points: player.Action_Points - REQUIRED_AP },
+    { where: { Player_ID: player.Player_ID, Game_ID: gameId } },
+  );
+
+  return {
+    ok: true,
+    kind: 'punished',
+    data: {
+      targetDiscordId: targetPlayer.Discord_ID,
+      damage,
+      missedAp: targetPlayer.MISSED_AP || 0,
+      missedHp: targetPlayer.MISSED_HP || 0,
+      x: input.x,
+      y: input.y,
+    },
+  };
 }
 
 function present(result) {
-  // punish has no implemented success path: every run() outcome is a
-  // rejection, so there is no success branch to render.
-  return { content: messageFor(result.reason, result.data) };
+  if (!result.ok) return { content: messageFor(result.reason, result.data) };
+  const { targetDiscordId, damage, missedAp, missedHp, x, y } = result.data;
+  if (damage === 0) {
+    return { content: `<@${targetDiscordId}> has wasted nothing at ${x},${y} - your punishment lands for 0 damage.` };
+  }
+  return {
+    content: `You punished <@${targetDiscordId}> at ${x},${y} for ${damage} damage `
+      + `(${missedAp} missed AP + ${missedHp} missed HP)!`,
+  };
 }
 
 module.exports = { parse, run, present };

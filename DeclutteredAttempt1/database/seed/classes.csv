@@ -37,3 +37,6 @@ id,class,ap,max_ap,hp,max_hp,range,max_range,damage,max_damage,color,description
 36,Immutable,0,12,6,12,4,6,1,2,B0B0B0,"You cannot take damage from the >shoot command, but will die after 4 * Total Player Count AP has been distributed, cannot be revived once this threshold is hit"
 37,Average,0,12,6,12,1,6,1,2,ffe2c5,(ONLY ACCESSIBLE VIA EXORCIST) You are a normal person with no class ability
 38,Spy,0,12,6,12,1,6,1,2,2b2b2b,Only visible to Oracle class
+39,Speedster,0,12,6,8,1,6,1,2,ff3a3a,"You get 2 free movements every AP distribution, use it or lose it"
+40,Bully,0,12,6,12,1,6,1,2,ffa7a7,"Can force another player one tile away from you for 1AP with the >shove @mention up/back/down command"
+41,Punisher,0,12,6,12,1,6,1,2,7a5c3a,"Can spend 4AP to deal damage equal to a target's missed AP + missed HP with the >punish x, y @mention command"

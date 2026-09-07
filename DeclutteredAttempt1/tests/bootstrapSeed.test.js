@@ -27,9 +27,9 @@ describe('classes.csv', () => {
   const classes = readSeed();
 
   it('seeds every class with a unique id and name', () => {
-    expect(classes).toHaveLength(38);
-    expect(new Set(classes.map((c) => c.Class_ID)).size).toBe(38);
-    expect(new Set(classes.map((c) => c.Class_Name)).size).toBe(38);
+    expect(classes).toHaveLength(41);
+    expect(new Set(classes.map((c) => c.Class_ID)).size).toBe(41);
+    expect(new Set(classes.map((c) => c.Class_Name)).size).toBe(41);
   });
 
   it('keeps the ids commands hard-code', () => {
@@ -59,9 +59,9 @@ describe('classes.csv', () => {
 
   it('rejects a row with the wrong number of fields', () => {
     const good = fs.readFileSync(SEED, 'utf8');
-    const broken = `${good.trimEnd()}\n39,Broken,0,12\n`;
+    const broken = `${good.trimEnd()}\n42,Broken,0,12\n`;
     const spy = jest.spyOn(fs, 'readFileSync').mockReturnValue(broken);
-    expect(() => readSeed()).toThrow(/line 40: got 4 fields, expected 12/);
+    expect(() => readSeed()).toThrow(/line 43: got 4 fields, expected 12/);
     spy.mockRestore();
   });
 
