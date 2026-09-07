@@ -337,9 +337,9 @@ describe('stats.present', () => {
     ]);
   });
 
-  it('adds Pharaoh HP for a Pharaoh', () => {
-    const out = logic.present(ok({ className: 'Pharaoh', pharohHp: 4 }));
-    expect(out.embeds[0].fields).toContainEqual({ name: 'Pharaoh HP', value: '4', inline: true });
+  it('adds Pharoh HP for a Pharoh', () => {
+    const out = logic.present(ok({ className: 'Pharoh', pharohHp: 4 }));
+    expect(out.embeds[0].fields).toContainEqual({ name: 'Pharoh HP', value: '4', inline: true });
   });
 
   it('adds Meals for a Chef', () => {
@@ -347,22 +347,22 @@ describe('stats.present', () => {
     expect(out.embeds[0].fields).toContainEqual({ name: 'Meals', value: '2', inline: true });
   });
 
-  it('shows overflow Pharaoh HP for a default class as a string (legacy passed a crashing number)', () => {
+  it('shows overflow Pharoh HP for a default class as a string (legacy passed a crashing number)', () => {
     const out = logic.present(ok({ pharohHp: 3 }));
     expect(out.embeds[0].fields.slice(-2)).toEqual([
       { name: '\u200B', value: '\u200B' },
-      { name: 'Pharaoh HP', value: '3' },
+      { name: 'Pharoh HP', value: '3' },
     ]);
   });
 
-  it('shows overflow Pharaoh HP for a Spy too (legacy default switch branch)', () => {
+  it('shows overflow Pharoh HP for a Spy too (legacy default switch branch)', () => {
     const out = logic.present(ok({ className: 'Spy', pharohHp: 3 }));
-    expect(fieldNames(out)).toContain('Pharaoh HP');
+    expect(fieldNames(out)).toContain('Pharoh HP');
   });
 
-  it('hides overflow Pharaoh HP at zero', () => {
+  it('hides overflow Pharoh HP at zero', () => {
     const out = logic.present(ok({ pharohHp: 0 }));
-    expect(fieldNames(out)).not.toContain('Pharaoh HP');
+    expect(fieldNames(out)).not.toContain('Pharoh HP');
   });
 });
 

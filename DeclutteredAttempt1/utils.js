@@ -84,7 +84,7 @@ async distributeAP(game, times, client){
   var immutableClass = await models.Classes.findOne({where: {Class_Name: "Immutable"}});
   var chefClass = await models.Classes.findOne({where: {Class_Name: "Chef"}});
   var hitmanClass = await models.Classes.findOne({where: {Class_Name: "Hitman"}});
-  var pyromainiacClass = await models.Classes.findOne({where: {Class_Name: "Pyromaniac"}});
+  var pyromainiacClass = await models.Classes.findOne({where: {Class_Name: "Pyromainiac"}});
   var snowmanClass = await models.Classes.findOne({where: {Class_Name: "Snowman"}});
 
   // var channel = await client.guild.channels.fetch(game.deadChatChannelId);
@@ -350,7 +350,7 @@ async classRemoval(victim, excorist){
       await models.Players.update({Class_ID: avgClass.Class_ID, Hitman_Target: null}, {where: {Player_ID: victim.Player_ID}});
       break;
     //if the player is a pharaoh take away of their revive HP and if any and give a kill to exorcist
-    case "Pharaoh":
+    case "Pharoh":
       await models.Players.update({Class_ID: avgClass.Class_ID, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
       if(victim.Pharoh_HP > 0){
         await models.Players.update({Kills: excorist.Kills + 1}, {where: {Player_ID: excorist.Player_ID}});

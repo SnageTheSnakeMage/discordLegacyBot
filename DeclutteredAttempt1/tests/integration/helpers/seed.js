@@ -6,7 +6,7 @@ const { models } = require('./testDb.js');
 const { GAMESTATES } = require('../../../enums.js');
 
 /** Classes distributeAP looks up by name at its top; production DBs always have them. */
-const CORE_CLASSES = ['Average', 'Lava Diver', 'Glutton', 'Immutable', 'Chef', 'Hitman', 'Pyromaniac', 'Snowman'];
+const CORE_CLASSES = ['Average', 'Lava Diver', 'Glutton', 'Immutable', 'Chef', 'Hitman', 'Pyromainiac', 'Snowman'];
 
 /** One game row with known costs. Also seeds the class rows utils assumes exist. */
 async function seedGame(overrides = {}) {

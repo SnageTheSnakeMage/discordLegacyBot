@@ -60,7 +60,7 @@ describe('timestop.run rejections', () => {
   });
 
   it('rejects a player who is not a Clockwatcher and writes nothing', async () => {
-    const { deps } = happyDeps({ playerClass: createFakeClass({ Class_Name: 'Pyromaniac' }) });
+    const { deps } = happyDeps({ playerClass: createFakeClass({ Class_Name: 'Pyromainiac' }) });
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.WRONG_CLASS);
     expect(deps.models.Games.update).not.toHaveBeenCalled();

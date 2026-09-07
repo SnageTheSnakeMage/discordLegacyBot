@@ -14,7 +14,7 @@ const PYRO = '123';
 
 /**
  * deps for the happy path; override per test.
- * Player: Pyromaniac at (1,1), Range_ 3, 5 AP. Target tile: Blank1 at (2,1),
+ * Player: Pyromainiac at (1,1), Range_ 3, 5 AP. Target tile: Blank1 at (2,1),
  * Tile_ID 42, same layer. Range semantics: getTileCordinatesOfLine includes
  * the start tile, so (1,1)->(3,1) is length 3 (in range at Range_ 3) and
  * (1,1)->(4,1) is length 4 (one beyond).
@@ -24,7 +24,7 @@ function happyDeps(over = {}) {
   const player = over.player || createFakePlayer({
     Player_ID: 1, Discord_ID: PYRO, Action_Points: 5, Range_: 3, Tile_ID: 1, Class_ID: 7,
   });
-  const playerClass = over.playerClass || createFakeClass({ Class_ID: 7, Class_Name: 'Pyromaniac' });
+  const playerClass = over.playerClass || createFakeClass({ Class_ID: 7, Class_Name: 'Pyromainiac' });
   const playerTile = over.playerTile || createFakeTile({ Tile_ID: 1, X_Position: 1, Y_Position: 1, Layer_ID: 1 });
   const tileToChange = 'tileToChange' in over ? over.tileToChange : createFakeTile({
     Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1',
@@ -109,7 +109,7 @@ describe('burn.run rejections', () => {
   // the gamestate table: every state has a defined outcome; adding a state
   // without deciding its gate breaks this test. The old code passed
   // isClockwatcher=false unconditionally, so TIMESTOPPED always blocks
-  // (a Pyromaniac is never a Clockwatcher) - preserved.
+  // (a Pyromainiac is never a Clockwatcher) - preserved.
   it.each([
     [GAMESTATES.ACTIVE, null],
     [GAMESTATES.REGISTRATION, null],
@@ -130,10 +130,10 @@ describe('burn.run rejections', () => {
     }
   });
 
-  it('rejects a non-Pyromaniac', async () => {
+  it('rejects a non-Pyromainiac', async () => {
     const { deps } = happyDeps({ playerClass: createFakeClass({ Class_Name: 'Average' }) });
     const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_CLASS, data: { className: 'Pyromaniac' } });
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_CLASS, data: { className: 'Pyromainiac' } });
     expectNoWrites(deps);
   });
 
@@ -260,7 +260,7 @@ describe('burn.present', () => {
     [REJECTIONS.GAME_OVER, undefined, 'Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.'],
     [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! only the dev can use commands for this game at this time.'],
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
-    [REJECTIONS.WRONG_CLASS, { className: 'Pyromaniac' }, 'You are not a Pyromaniac!'],
+    [REJECTIONS.WRONG_CLASS, { className: 'Pyromainiac' }, 'You are not a Pyromainiac!'],
     [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot burn a gateway tile!' }, 'You cannot burn a gateway tile!'],
     [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to burn!' }, 'You are not in range of the tile you want to burn!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'burn a tile' }, 'You dont have enough AP to burn a tile!'],

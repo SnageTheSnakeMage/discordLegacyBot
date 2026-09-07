@@ -81,3 +81,54 @@ Last one standing wins
 
 ## Setup 
 Each player is given a random layer, position, and class and then once all players are in them the game starts at the next AP drop interval.
+
+## CI/CD
+
+CI (`.github/workflows/ci.yml`) runs on every PR and on pushes to `main`/`cursord`:
+lint, unit tests, integration tests (in-memory SQLite), an `npm audit` advisory,
+a Docker build whose `test` stage runs the whole suite inside the image, a smoke
+test that proves the runtime image boots to a Discord login attempt, and a Trivy
+CVE scan. Fork PRs get no secrets; the workflow token is read-only; every action
+is pinned to a commit SHA.
+
+### Releasing
+
+1. Tag: `git tag v0.x.y && git push origin v0.x.y`
+2. The Deploy workflow builds and publishes `ghcr.io/<owner>/<repo>:<tag>` and
+   prints the immutable **digest**. Deploys go by digest, never by tag.
+3. The `deploy` job waits on the `production` environment (add yourself as a
+   required reviewer under Settings → Environments → production).
+
+### Deploying / rolling back (manual until a deploy target is configured)
+
+On the host:
+
+```bash
+# 1. BACK UP FIRST - abort if this fails
+docker run --rm -v legacy-db:/data -v "$PWD":/backup alpine \
+  cp /data/database.db /backup/database.$(date +%Y%m%d%H%M%S).db
+
+# 2. deploy by digest
+docker pull ghcr.io/<owner>/<repo>@sha256:<digest>
+docker compose up -d
+
+# 3. verify - the healthcheck reflects the Discord connection, not the process
+watch docker inspect --format '{{.State.Health.Status}}' discord-bot
+
+# 4. roll back if unhealthy after ~2 minutes
+docker compose down
+docker pull ghcr.io/<owner>/<repo>@sha256:<previous-digest>
+docker compose up -d   # then restore the backup into the volume if needed
+```
+
+Game state lives in the `legacy-db` named volume and survives image rebuilds.
+Slash-command registration is rate-limited by Discord and does NOT run on boot;
+run the Deploy workflow manually with "register commands" checked when a
+command's definition changes (or `REGISTER_COMMANDS_ON_BOOT=1` for a one-off).
+
+### Secrets
+
+`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, `DEV_ID` live in the `production`
+environment, not repository secrets. If the token ever appears in a log,
+regenerate it in the Discord developer portal, update the environment secret,
+redeploy - masking is not containment.

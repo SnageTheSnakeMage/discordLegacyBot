@@ -16,15 +16,15 @@
  *   saw the central handler's generic "There was an error..." text; it is now
  *   returned as NOT_IN_GAME carrying the exact legacy string, so the intended
  *   message finally reaches the player
- * - the default-class Pharaoh-HP overflow field passed a raw number as the
+ * - the default-class Pharoh-HP overflow field passed a raw number as the
  *   embed field value, which discord.js v14 builders reject (crash); it is
  *   now stringified
  *
  * Preserved as-is: isClockwatcher is hardcoded false (a Clockwatcher cannot
  * see stats during a timestop), the odd "current/ max/missed" AP spacing,
  * the default-game fallback via getOldestGameId (any gamestate, not just
- * active), and the default switch branch showing overflow Pharaoh HP for any
- * non-Pharaoh/Chef/Twin class.
+ * active), and the default switch branch showing overflow Pharoh HP for any
+ * non-Pharoh/Chef/Twin class.
  */
 const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
@@ -156,8 +156,8 @@ function present(result) {
         { name: "Second Body's Y Position", value: d.secondBody.yPosition.toString(), inline: true },
       );
       break;
-    case 'Pharaoh':
-      fields.push({ name: 'Pharaoh HP', value: d.pharohHp.toString(), inline: true });
+    case 'Pharoh':
+      fields.push({ name: 'Pharoh HP', value: d.pharohHp.toString(), inline: true });
       break;
     case 'Chef':
       fields.push({ name: 'Meals', value: d.meals.toString(), inline: true });
@@ -168,7 +168,7 @@ function present(result) {
           { name: '\u200B', value: '\u200B' },
           // legacy passed the bare number here, which crashed the builder;
           // the value is now a string, no inline flag, as before
-          { name: 'Pharaoh HP', value: d.pharohHp.toString() },
+          { name: 'Pharoh HP', value: d.pharohHp.toString() },
         );
       }
   }

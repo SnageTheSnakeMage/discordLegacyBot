@@ -3,8 +3,20 @@ services:
     build: .
     container_name: discord-bot
     env_file: .env
-    volumes:
-      - ./data:/app/data
-    restart: unless-stopped
     environment:
       NODE_ENV: production
+      LEGACY_DB_STORAGE: /data/database.db
+    volumes:
+      # named volume: game state survives image rebuilds. The old bind mount
+      # (./data) pointed at a path the bot never wrote; the database lived
+      # inside the image layer and every rebuild silently reset every game.
+      - legacy-db:/data
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  legacy-db:
