@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { runLogged } = require('../_logging.js');
 const logic = require('./setDeadChat.logic.js');
 
 module.exports = {
@@ -26,7 +27,7 @@ module.exports = {
       readOptions(interaction, { game: 'integer', channel: 'channel' }),
       { ...readActor(interaction), isDev: interaction.user.id === process.env.DEV_ID },
     );
-    const result = await logic.run(input);
+    const result = await runLogged('setDeadChat', logic, input);
     await interaction.reply(toDiscord(logic.present(result)));
   },
 };

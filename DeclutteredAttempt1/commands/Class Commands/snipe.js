@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { runLogged } = require('../_logging.js');
 const logic = require('./snipe.logic.js');
 
 module.exports = {
@@ -34,7 +35,7 @@ module.exports = {
             }),
             readActor(interaction),
         );
-        const result = await logic.run(input);
+        const result = await runLogged('snipe', logic, input);
         await interaction.editReply(toDiscord(logic.present(result)));
     },
 };

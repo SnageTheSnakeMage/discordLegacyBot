@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { runLogged } = require('../_logging.js');
 const logic = require('./register.logic.js');
 
 module.exports = {
@@ -25,7 +26,7 @@ module.exports = {
       ? { contentType: attachment.contentType, width: attachment.width, height: attachment.height, url: attachment.url }
       : null;
     const input = logic.parse(raw, readActor(interaction));
-    const result = await logic.run(input);
+    const result = await runLogged('register', logic, input);
     await interaction.editReply(toDiscord(logic.present(result)));
   },
 };

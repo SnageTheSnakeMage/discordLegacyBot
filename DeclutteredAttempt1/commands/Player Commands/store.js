@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { runLogged } = require('../_logging.js');
 const logic = require('./store.logic.js');
 
 module.exports = {
@@ -22,7 +23,7 @@ module.exports = {
             readOptions(interaction, { amount: 'integer', game: 'integer' }),
             readActor(interaction),
         );
-        const result = await logic.run(input);
+        const result = await runLogged('store', logic, input);
         await interaction.editReply(toDiscord(logic.present(result)));
     },
 };

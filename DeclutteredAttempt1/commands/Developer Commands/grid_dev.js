@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { runLogged } = require('../_logging.js');
 const logic = require('./grid_dev.logic.js');
 
 module.exports = {
@@ -33,7 +34,7 @@ module.exports = {
       readOptions(interaction, { layer: 'string', game: 'string' }),
       { ...readActor(interaction), isDev },
     );
-    const result = await logic.run(input);
+    const result = await runLogged('grid_dev', logic, input);
     const reply = toDiscord(logic.present(result));
 
     if (!result.ok) {
