@@ -59,7 +59,11 @@ async function run(input, deps = defaultDeps) {
   if (!player) return { ok: false, reason: REJECTIONS.NOT_IN_GAME };
 
   // the old code passed isClockwatcher = false unconditionally
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   const playerClass = await models.Classes.findByPk(player.Class_ID);

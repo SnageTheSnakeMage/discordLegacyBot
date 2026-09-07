@@ -40,10 +40,17 @@ async function run(input, deps = defaultDeps) {
   const game = await models.Games.findByPk(gameId);
   if (!game) return { ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId } };
 
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // the lookup is hoisted above the gate so a Clockwatcher can act through a
+  // timestop; the NOT_IN_GAME rejection stays below it, so rejection ORDER
+  // is unchanged
+  const player = await models.Players.findOne({ where: { Game_ID: gameId, Discord_ID: input.discordId } });
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
-  const player = await models.Players.findOne({ where: { Game_ID: gameId, Discord_ID: input.discordId } });
   if (!player) return { ok: false, reason: REJECTIONS.NOT_IN_GAME };
 
   if (player.Class_ID != 10) {

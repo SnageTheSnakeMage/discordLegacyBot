@@ -8,6 +8,7 @@ const store = require('../../../commands/Player Commands/store.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeTile,
+  createFakeClass
 } = require('../../helpers/mockModels.js');
 
 const ACTOR = '123';
@@ -92,12 +93,18 @@ describe('store.run rejections', () => {
 
   // quirk pin: the old code passed a hard false for isClockwatcher and never
   // looked the class up, so even a Clockwatcher is blocked during a timestop
-  it('blocks everyone during a timestop - the player class is never consulted', async () => {
+  it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED, CHEST_AMOUNT: 10 }) });
+    // the actor really is a Clockwatcher: this fixture had no Classes
+    // mock, so the gate saw no class and blocked them
+    deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Clockwatcher' }));
     const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TIME_STOPPED });
-    expect(deps.models.Classes.findByPk).not.toHaveBeenCalled();
-    expectNoWrites(deps);
+    // the gate now consults the actor's class, so a timestop does not
+    // stop a Clockwatcher
+    expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
+    // the class IS consulted now - that is the whole fix
+    expect(deps.models.Classes.findByPk).toHaveBeenCalled();
+    // the Clockwatcher goes through, so the chest IS written now
   });
 
   it('rejects a player who is not on a chest tile and writes nothing', async () => {

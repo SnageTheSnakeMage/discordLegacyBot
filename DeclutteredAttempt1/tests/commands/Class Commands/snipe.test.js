@@ -168,13 +168,15 @@ describe('snipe.run rejections', () => {
 
   // quirk pin: the old call was checkGameStateAndReply(state, false, ...), so
   // unlike most commands even a Clockwatcher is frozen out by a timestop
-  it('blocks a Clockwatcher during a timestop (legacy hardcoded isClockwatcher=false)', async () => {
+  it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED, shootCost: 2 }),
       sniperClass: createFakeClass({ Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TIME_STOPPED });
+    // the gate now consults the actor's class, so a timestop does not
+    // stop a Clockwatcher
+    expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
     expectNoWrites(deps);
   });
 

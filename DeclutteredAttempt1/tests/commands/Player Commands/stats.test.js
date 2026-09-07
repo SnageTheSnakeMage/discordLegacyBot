@@ -126,13 +126,15 @@ describe('stats.run rejections', () => {
     }
   });
 
-  it('blocks even a Clockwatcher during a timestop (legacy passed isClockwatcher=false)', async () => {
+  it('does not block a Clockwatcher during a timestop', async () => {
     const deps = happyDeps({
       game: createFakeGame({ GAME_STATE: GAMESTATES.TIMESTOPPED }),
       playerClass: createFakeClass({ Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TIME_STOPPED });
+    // the gate now consults the actor's class, so a timestop does not
+    // stop a Clockwatcher
+    expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
   });
 });
 

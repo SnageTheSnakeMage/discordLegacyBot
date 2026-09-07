@@ -116,13 +116,15 @@ describe('trap.run rejections', () => {
     }
   });
 
-  it('blocks a Clockwatcher during a timestop too (no exemption - preserved quirk)', async () => {
+  it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED }),
       playerClass: createFakeClass({ Class_ID: 7, Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TIME_STOPPED });
+    // the gate now consults the actor's class, so a timestop does not
+    // stop a Clockwatcher
+    expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
     expectNoWrites(deps);
   });
 

@@ -59,7 +59,11 @@ async function run(input, deps = defaultDeps) {
   if (player.Dead) return { ok: false, reason: REJECTIONS.PLAYER_DEAD };
 
   // the old code hard-coded isClockwatcher=false here; keep that
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!tileToChange) {

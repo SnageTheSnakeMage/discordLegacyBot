@@ -56,7 +56,11 @@ async function run(input, deps = defaultDeps) {
 
   // hard false: the old code never consulted the player's class here, so a
   // Clockwatcher is blocked during a timestop like everyone else
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (playerTile.Tile_Type != 'Chest') {

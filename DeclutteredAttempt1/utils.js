@@ -940,6 +940,17 @@ async  getOldestActiveGameId(playerDiscordID) {
 //Pure gamestate gate. Decides whether the current gamestate blocks a normal
 //command; never touches Discord. Player-facing wording for each reason lives
 //in commands/_messages.js.
+//Does this player act through a timestop? checkGameState takes the answer
+//as its second argument, and all 27 call sites hard-coded false - so the
+//Clockwatcher's entire ability did nothing for anyone.
+//models is passed in because the callers are command logic, which owns its
+//own (injected) models rather than reaching for the module-level one.
+async isClockwatcher(models, player) {
+  if (!player) return false;
+  const playerClass = await models.Classes.findByPk(player.Class_ID);
+  return !!playerClass && playerClass.Class_Name === 'Clockwatcher';
+},
+
 checkGameState(gamestate, isClockwatcher) {
   logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate );
   switch(gamestate) {
