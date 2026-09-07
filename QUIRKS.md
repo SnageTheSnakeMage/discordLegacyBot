@@ -12,8 +12,45 @@ Two kinds of entry:
   probably intentional. None of them were changed on the test branch; they were
   written down and pinned by a test so they can't drift silently.
 
-The `test-suite` branch (PR #93) fixes the **Broken** entries and pins the
-**Quirks** exactly as they are. Nothing here has been changed on `cursord`.
+---
+
+## Status, re-verified against `cursord` after #92, #93 and #94 merged
+
+This document was written before those three merged. Much of it is now
+history. Every line below was re-checked against the tree, not assumed.
+
+| Section | Status |
+|---|---|
+| 1.1 `player.Class` is not a column | **Fixed** (#93) — remaining hits are comments describing the fix |
+| 1.2 `getOldestGameId()` with no argument | **Mostly fixed** (#93). `/cook` still calls it with no id, deliberately. See the correction below. |
+| 1.3 `isClockwatcher` hard-coded `false` | **Live** — 27 call sites still pass a literal `false` |
+| 1.4 Messages name the tile's previous type | **Live** — deliberately preserved and pinned |
+| 1.5 **Nothing can die** | **Live** — pinned by `test.failing` in `tests/integration/movement.test.js:108` |
+| 1.6 No dead-player checks | **Live** — e.g. `heal.logic.js` has no `Dead` reference at all |
+| 1.7 Twin's second body invisible | **Live** |
+| 1.8 No MAX_AP / MAX_HP clamping | **Live** |
+| 1.9 Targets found without a `Game_ID` filter | **Live** |
+| 1.10 Occupancy written on one side only | **Live** — `swap.logic.js` makes zero `Tiles.update` calls |
+| 1.11 Inconsistent rejection ordering | **Live** — deliberately preserved and pinned |
+| 1.12 `try/catch` swallowing crashes | **Fixed** (#93) — one central handler |
+| 2. Commands that could never run | **Fixed** (#93) — all of them |
+| 4.1 Diagonal lines hang the process | **Fixed** (#92) — `iteratorY += incrementY` |
+| 4.2 `getRandomInt` off-by-one | **Fixed** (#92) — indexes `length - 1` |
+| 5. All infrastructure items | **Fixed** (#94) — `node_modules` untracked, Docker builds, logging portable |
+
+**Correction to §1.2.** This document said `getOldestGameId()` *throws*
+`missing playerDiscordID` when called without an id. It does not. It is
+defined **twice** in `utils.js` — lines 882 and 979 — so the second
+silently wins, and both guard on `if (playerDiscordID)` and fall through
+returning `undefined`. The caller then does `findByPk(undefined)`, gets
+`null`, and reports "no such game". Wrong mechanism, similar symptom. The
+duplicate definition is itself worth removing.
+
+What remains is almost entirely **§1 systemic patterns** and **§3
+per-command oddities** — the deliberately preserved behaviours. Most need
+a game-design decision rather than a bug fix.
+
+---
 
 ---
 
