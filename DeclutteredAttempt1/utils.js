@@ -66,6 +66,104 @@ getRandomItemInCollection(collection) {
   return collection[this.getRandomInt(collection.length - 1)];
 },
 
+//What a chaos event does to one player at each AP distribution.
+//
+//Split out of distributeAP and rewritten: the commented original could not
+//have run. It wrote Free_Movement (the column is Free_Move), read
+//findByPk(...).Tile_Type off an un-awaited promise, looked tiles up by
+//X/Y/Game_ID (Tiles has X_Position/Y_Position and no Game_ID), called
+//this.moveFromTiletoTile which lives in move.logic.js, referenced an
+//undefined cloudbornClass, and gated its class exemptions on
+//`id != a || id != b` - true for every id, so no one was ever exempt.
+//
+//classes is the lookup bundle distributeAP already builds.
+async applyChaosEventToPlayer(game, player, classes, times) {
+  const event = game.CURR_CC_EVENT;
+  if (!event || event === "BOOOORRRINNNG") return;
+
+  const isNot = (name) => !classes[name] || player.Class_ID != classes[name].Class_ID;
+
+  switch (event) {
+    case "Free Movement":
+      await models.Players.update({Free_Move: player.Free_Move + 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+      break;
+
+    case "Winters Hollow":
+      if (isNot("snowman")) {
+        await models.Players.update({Free_Move: player.Free_Move - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+      }
+      break;
+
+    case "Scorchers Joy":
+      await this.chaosBurnOnBlankTile(game, player, classes);
+      break;
+
+    case "Double Trouble: Icy-Hot":
+      await this.chaosBurnOnBlankTile(game, player, classes);
+      if (isNot("snowman")) {
+        await models.Players.update({Free_Move: player.Free_Move - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+      }
+      break;
+
+    case "Medkit Airdrop": {
+      //the event text gives doctors and chefs 2 HP instead of 1
+      const bonus = (!isNot("doctor") || !isNot("chef")) ? 2 : 1;
+      await models.Players.update(this.hpGain(player, bonus), {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+      break;
+    }
+
+    case "Northern Gust": await this.chaosGust(game, player, classes, 0, -2); break;
+    case "Southern Gust": await this.chaosGust(game, player, classes, 0, 2); break;
+    case "Western Gust": await this.chaosGust(game, player, classes, -2, 0); break;
+    case "Eastern Gust": await this.chaosGust(game, player, classes, 2, 0); break;
+
+    //Time Acceleration is applied by distributeAP multiplying `times`, not
+    //here: a second additive write off the same stale row is what made the
+    //Glutton's double helping a no-op.
+    //Blockade, Leftovers and Corpse Explosion fire at their own moments
+    //(shooting a wall, and playerDeathLogic) rather than on distribution.
+    default: break;
+  }
+},
+
+//1 damage to anyone standing on a blank tile, unless fire is their element.
+async chaosBurnOnBlankTile(game, player, classes) {
+  const tile = await models.Tiles.findByPk(player.Tile_ID);
+  if (!tile) return;
+  if (tile.Tile_Type != "Blank1" && tile.Tile_Type != "Blank2") return;
+  //&&, not ||: the original asked whether the id differed from EITHER class,
+  //which is true of every id including those two
+  const exempt = (classes.lavaDiver && player.Class_ID == classes.lavaDiver.Class_ID)
+    || (classes.pyromainiac && player.Class_ID == classes.pyromainiac.Class_ID);
+  if (exempt) return;
+  await this.damagePlayer(null, player, 1);
+},
+
+//Blows a player dx,dy tiles across their own layer. Falls back to half the
+//distance when the full step is blocked, and gives up rather than dropping
+//anyone onto terrain they cannot stand on.
+async chaosGust(game, player, classes, dx, dy) {
+  const tile = await models.Tiles.findByPk(player.Tile_ID);
+  if (!tile) return;
+  const canStand = (candidate) => {
+    if (!candidate) return false;
+    const blocked = ["Wall", "Wall_Damaged", "Ice", "Void"].includes(candidate.Tile_Type);
+    const cloudborn = classes.cloudborn && player.Class_ID == classes.cloudborn.Class_ID;
+    return !blocked || cloudborn;
+  };
+  const at = (x, y) => models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: x, Y_Position: y}});
+
+  let target = await at(tile.X_Position + dx, tile.Y_Position + dy);
+  if (!canStand(target)) {
+    target = await at(tile.X_Position + Math.trunc(dx / 2), tile.Y_Position + Math.trunc(dy / 2));
+  }
+  if (!canStand(target)) return;
+  await this.setPlayerToTile(player.Player_ID, target.Layer_ID, target.X_Position, target.Y_Position);
+},
+
+//Builds the poll the chaos council votes on. The question names the game:
+//several can run at once in one server, and a poll that does not say which
+//one it belongs to is unvotable (gripe 7).
 buildChaosCouncilPoll(lastEventKey, game){
   var chaosEventNames = Object.keys(ChaosEvents);
   var randomEvent1 = this.getRandomItemInCollection(chaosEventNames);
@@ -74,14 +172,46 @@ buildChaosCouncilPoll(lastEventKey, game){
     randomEvent2 = this.getRandomItemInCollection(chaosEventNames);
   }
   return {
-    question: {text: "Chaos Council Poll, Choose A Chaos Event"},
+    question: {text: `Chaos Council Poll - Game ${game.Game_ID} - Choose A Chaos Event`},
     answers: [
       {text: "previous event: "+ lastEventKey},
       {text: randomEvent1},
       {text: randomEvent2}
     ],
-    duration: Math.round(game.AP_INTERVAL_MIN / 60)
+    //discord poll durations are in HOURS and must be at least 1. The game
+    //stores its interval in minutes, and Math.round of anything under 30
+    //minutes used to produce 0, which discord rejects outright.
+    duration: Math.max(1, Math.round(game.AP_INTERVAL_MIN / 60))
   }
+},
+
+//Picks the winning answer from already-fetched votes. Pure on purpose: the
+//fetching is discord's business, the counting is the game's, and only the
+//counting needs testing.
+//
+//votes: [{ text, voterDiscordIds: [...] }]
+//eligible: Set of discord ids allowed to vote - the DEAD players of THIS
+//game, so a living player, a spectator, or someone in another game running
+//in the same channel cannot swing it (gripe 7).
+//overriderDiscordId: a Medium who spent an override. If they voted, their
+//answer wins outright regardless of the count.
+tallyChaosVotes(votes, eligible, overriderDiscordId) {
+  if (!votes || votes.length === 0) return null;
+  const counted = votes.map((answer) => ({
+    text: answer.text,
+    voters: (answer.voterDiscordIds || []).filter((id) => eligible.has(String(id))),
+  }));
+  if (overriderDiscordId != null) {
+    const overridden = counted.find((a) => a.voters.includes(String(overriderDiscordId)));
+    if (overridden) return overridden.text;
+  }
+  let winner = null;
+  for (const answer of counted) {
+    //strictly greater, so the first listed answer wins a tie - the previous
+    //event is listed first, which makes "no change" the tiebreak
+    if (winner === null || answer.voters.length > winner.voters.length) winner = answer;
+  }
+  return winner && winner.voters.length > 0 ? winner.text : null;
 },
 
 startAPCheckInterval(game, client){
@@ -110,11 +240,29 @@ async distributeAP(game, times, client){
   var hitmanClass = await models.Classes.findOne({where: {Class_Name: "Hitman"}});
   var pyromainiacClass = await models.Classes.findOne({where: {Class_Name: "Pyromainiac"}});
   var snowmanClass = await models.Classes.findOne({where: {Class_Name: "Snowman"}});
+  //needed by the chaos events; cloudbornClass was referenced by the old
+  //commented gust code without ever being declared
+  var cloudbornClass = await models.Classes.findOne({where: {Class_Name: "Cloudborn"}});
+  var doctorClass = await models.Classes.findOne({where: {Class_Name: "Doctor"}});
+  const chaosClasses = {
+    lavaDiver: lavaDiverClass, glutton: gluttonClass, immutable: immutableClass,
+    chef: chefClass, hitman: hitmanClass, pyromainiac: pyromainiacClass,
+    snowman: snowmanClass, cloudborn: cloudbornClass, doctor: doctorClass,
+  };
+  //"Time Acceleration!" runs the whole distribution three times over, which
+  //is one multiplier rather than an extra additive write off a stale row
+  const chaosTimes = game.CURR_CC_EVENT === "Time Acceleration!" ? times * 3 : times;
 
-  // var channel = await client.guild.channels.fetch(game.deadChatChannelId);
-  // var poll = await channel.messages.fetch(game.currentChaosPollMsgId).poll;
-  // game.currentChaosPollMsgId = null;
-  // await models.Games.update({CURR_CC_EVENT: this.pollToResults(poll, game)}, {where: {Game_ID: game.Game_ID}});
+  //Close out the chaos council poll from the last interval, if there is one.
+  //The old commented version could not have run: client.guild does not exist
+  //(it is client.guilds), .messages.fetch(...) returns a promise so .poll on
+  //it was undefined, and pollToResults was never awaited so CURR_CC_EVENT
+  //would have been written a Promise.
+  if (game.chaosCouncilBool && game.currentChaosPollMsgId && game.deadChatChannelId) {
+    const winner = await this.readChaosCouncilPoll(game, client);
+    if (winner) await models.Games.update({CURR_CC_EVENT: winner}, {where: {Game_ID: game.Game_ID}});
+    await models.Games.update({currentChaosPollMsgId: null}, {where: {Game_ID: game.Game_ID}});
+  }
 
   //   //find the player(s) with the most missed AP
   // if(playersWithMostMissedAP.length > 0 && game.CURR_CC_EVENT == "Inactives Punishment"){
@@ -143,7 +291,7 @@ async distributeAP(game, times, client){
       //wrote the same value as the first and the glutton's double did
       //nothing at all. Overflow past MAX_AP now lands in MISSED_AP.
       const isGlutton = player.Class_ID == gluttonClass.Class_ID;
-      const apGained = game.APAmount * times * (isGlutton ? 2 : 1);
+      const apGained = game.APAmount * chaosTimes * (isGlutton ? 2 : 1);
       await models.Players.update(this.apGain(player, apGained), {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
       //kill immutables if their doomsday is 0
       if(game.immutableDoomsday <= 0 && player.Class_ID == immutableClass.Class_ID){
@@ -158,103 +306,8 @@ async distributeAP(game, times, client){
         var randomPlayer = this.getRandomItemInCollection(livingPlayers);
         await models.Players.update({Hitman_Target: randomPlayer.Player_ID}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
       }
-      // // Chaos Council Event Logic That Triggers Every AP Distribution
-      // switch(game.CURR_CC_EVENT) {
-      // case "Free Movement":
-      //   //give everyone 1 free movement
-      //   await models.Players.update({Free_Movement: player.Free_Movement + 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
-      //   break;
-      // case "Scorchers Joy":
-      //   //everyone on a blank tile that isnt a lava diver or pyromainiac takes 1 Damage every AP distribution
-      //   var tileType = await models.Tiles.findByPk(player.Tile_ID).Tile_Type;
-      //   if(tileType == "Blank1" || tileType == "Blank2"){
-      //     if(player.Class_ID != lavaDiverClass.Class_ID || player.Class_ID != pyromainiacClass.Class_ID){
-      //         await models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
-      //     }
-      //   }
-      //   break;
-      // case "Winters Hollow":
-      //   //give everyone -1 free movement unless they are a snowman
-      //   if(player.Class_ID != snowmanClass.Class_ID){
-      //     await models.Players.update({Free_Movement: player.Free_Movement - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
-      //   }
-      //   break;
-      // case "Time Acceleration!":
-      //   //give every AP two more times
-      //   await models.Players.update({Action_Points: player.Action_Points + game.APAmount * times * 2}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
-      //   break;
-      // case "Medkit Airdrop":
-      //   //give everyone 1 HP
-      //   await models.Players.update({Health_Points: player.Health_Points + 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
-      //   break;
-      // case "Northern Gust":
-      //   //move everyone two spaces up if possible
-      //   //get tile
-      //   currentTile = await models.Tiles.findByPk(player.Tile_ID);
-      //   newTile = await models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X, Y: currentTile.Y - 2}});
-      //   if(newTile != null){
-      //     this.moveFromTiletoTile(currentTile, newTile, player);
-      //   }
-      //   break;
-      // case "Western Gust":
-      //   //move everyone two spaces left if possible
-      //   //get tile
-      //   currentTile = await models.Tiles.findByPk(player.Tile_ID);
-      //   newTile = await models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X - 2, Y: currentTile.Y}});
-      //   if(newTile != null){
-      //     this.moveFromTiletoTile(currentTile, newTile, player);
-      //   }
-      //   break;
-      // case "Eastern Gust":
-      //   //move everyone two spaces right if possible
-      //   //get tile
-      //   currentTile = await models.Tiles.findByPk(player.Tile_ID);
-      //   newTile = await models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X + 2, Y: currentTile.Y}});
-      //   if(newTile != null){
-      //     this.moveFromTiletoTile(currentTile, newTile, player);
-      //   }
-      //   break;
-      // case "Southern Gust":
-      //   //move everyone two spaces right if possible
-      //   //get tile
-      //   currentTile = await models.Tiles.findByPk(player.Tile_ID);
-      //   //see where the player would move to
-      //   var newTile = await models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X, Y: currentTile.Y + 2}});
-      //   //if the player would move to a valid tile move them
-      //   //check if the tile exists
-      //   //check if the tile is a wall, ice, void, or wall damaged or if the player is a cloudborn
-      //   if(newTile != null && (newTile.Tile_Type != "Wall" && newTile.Tile_Type != "Wall_Damaged" && newTile.Tile_Type != "Ice" && newTile.Tile_Type != "Void" || player.Class_ID == cloudbornClass.Class_ID)){
-      //       //move the player to the new tile
-      //       this.moveFromTiletoTile(currentTile, newTile, player);
-      //   }
-      //   //if the player would move to an invalid tile move them to the next valid tile
-      //   else{
-      //     newTile = await models.Tiles.findOne({where: {Game_ID: game.Game_ID, Layer_ID: currentTile.Layer_ID, X: currentTile.X, Y: currentTile.Y + 1}});
-      //     if(newTile != null && (newTile.Tile_Type != "Wall" && newTile.Tile_Type != "Wall_Damaged" && newTile.Tile_Type != "Ice" && newTile.Tile_Type != "Void" || player.Class_ID == cloudbornClass.Class_ID)){
-      //       this.moveFromTiletoTile(currentTile, newTile, player);
-      //     }
-      //   }
-      //   break;
-      // case "Double Trouble: Icy-Hot":
-      //   //everyone on a blank tile that isnt a lava diver or pyromainiac takes 1 Damage every AP distribution
-      //   var tileType = await models.Tiles.findByPk(player.Tile_ID).Tile_Type;
-      //   if(tileType == "Blank1" || tileType == "Blank2"){
-      //     if(player.Class_ID != lavaDiverClass.Class_ID || player.Class_ID != pyromainiacClass.Class_ID){
-      //         await models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
-      //     }
-      //   }
-      //   //give everyone -1 free movement unless they are a snowman
-      //   if(player.Class_ID != snowmanClass.Class_ID){
-      //     await models.Players.update({Free_Movement: player.Free_Movement - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
-      //   }
-      //   break;
-      // case "Inactives Punishment":
-      //   //damage the player if they are one of the players with the most missed AP
-      //   if(playerIDsWithMostMissedAP.includes(player.Player_ID)){
-      //     await models.Players.update({Health_Points: player.Health_Points - 1}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
-      //   }
-      //   break;
-      // }
+      // Chaos Council event effects that fire at every AP distribution
+      await this.applyChaosEventToPlayer(game, player, chaosClasses, chaosTimes);
   }
   //also damage any players that are on the same tile as a lava diver and arent lava divers themselves
   //first get all the lava divers
@@ -282,28 +335,87 @@ async distributeAP(game, times, client){
 
 
 
-  // const chaosCouncilChannel = client.channel.cache.get(game.deadChatChannelId);
-  // chaosCouncilChannel.send(this.buildChaosCouncilPoll(game.CURR_CC_EVENT, game) )
-  // .then(msg => {game.currentChaosPollMsgId = msg.id}).catch(console.error);
+  //Open the next council poll. Same story: client.channel.cache does not
+  //exist (it is client.channels.cache), and the id was assigned to the
+  //in-memory row inside a .then, after the save below had already run.
+  if (game.chaosCouncilBool && game.deadChatChannelId) {
+    await this.postChaosCouncilPoll(game, client);
+  }
   await game.save();
 },
 
-//Returns the text of a discord polls most voted option
+//Fetches the open council poll and returns the winning event, or null.
+//Every discord call here can fail (channel deleted, message gone, no
+//permission) and none of that should take the AP distribution down with it.
+async readChaosCouncilPoll(game, client) {
+  try {
+    const channel = await client.channels.fetch(String(game.deadChatChannelId));
+    if (!channel) return null;
+    const message = await channel.messages.fetch(String(game.currentChaosPollMsgId));
+    if (!message || !message.poll) return null;
+    return await this.pollToResults(message.poll, game);
+  } catch (error) {
+    logger150.error({function: "readChaosCouncilPoll", game: game.Game_ID}, String(error));
+    return null;
+  }
+},
+
+//Posts the next council poll and records its message id so the next
+//interval can read it back.
+async postChaosCouncilPoll(game, client) {
+  try {
+    const channel = await client.channels.fetch(String(game.deadChatChannelId));
+    if (!channel) return null;
+    const message = await channel.send({poll: this.buildChaosCouncilPoll(game.CURR_CC_EVENT, game)});
+    //written through the model, not onto the in-memory row: the old code
+    //assigned it inside a .then that resolved after game.save() had run
+    await models.Games.update({currentChaosPollMsgId: String(message.id)}, {where: {Game_ID: game.Game_ID}});
+    return String(message.id);
+  } catch (error) {
+    logger150.error({function: "postChaosCouncilPoll", game: game.Game_ID}, String(error));
+    return null;
+  }
+},
+
+//Reads a discord poll and returns the winning answer's text, or null when
+//nobody eligible voted.
+//
+//The old version could not work: `for (answer in poll.answers)` iterates
+//KEYS, not values, and `answer` was never declared - so `answer.voteCount`
+//was undefined on an implicit global, MostVotedAnswer stayed the number 0,
+//and `.text` on it was undefined. It also counted every vote from anyone,
+//including living players and people not in the game at all.
 async pollToResults(poll, game) {
-  var MostVotedAnswer = 0;
-  if(game.overrider == null)
-    for (answer in poll.answers) {
-    if (answer.voteCount > MostVotedAnswer) {
-      MostVotedAnswer = answer;
-    }
-    
+  //who is allowed to swing this game's council: its dead players
+  const deadPlayers = await models.Players.findAll({
+    where: {Game_ID: game.Game_ID, Dead: true},
+    attributes: ["Discord_ID"],
+  });
+  const eligible = new Set(deadPlayers.map((p) => String(p.Discord_ID)));
+
+  //the overrider is stored as a Player_ID; the poll knows discord ids
+  let overriderDiscordId = null;
+  if (game.overrider != null) {
+    const overrider = await models.Players.findByPk(game.overrider);
+    if (overrider) overriderDiscordId = String(overrider.Discord_ID);
   }
-  if(game.overrider != null){
-    for (answer in poll.answers) {
-      if(await answer.fetchVoters({after: game.overrider, limit: 1})) MostVotedAnswer = answer;
+
+  //poll.answers is a Collection; fetchVoters is per answer and paginated
+  const answers = poll && poll.answers ? Array.from(poll.answers.values()) : [];
+  const votes = [];
+  for (const answer of answers) {
+    let voters = [];
+    try {
+      const fetched = await answer.fetchVoters();
+      voters = Array.from(fetched.values()).map((user) => String(user.id));
+    } catch (error) {
+      //one unreadable answer must not lose the whole council
+      logger150.error({function: "pollToResults", answer: answer.text}, String(error));
     }
+    votes.push({text: answer.text, voterDiscordIds: voters});
   }
-  return MostVotedAnswer.text;;
+
+  return this.tallyChaosVotes(votes, eligible, overriderDiscordId);
 },
 
 async loadTileTexture(layer, textureName) {
