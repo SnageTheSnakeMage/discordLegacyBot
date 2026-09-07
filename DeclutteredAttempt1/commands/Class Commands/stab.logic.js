@@ -85,7 +85,9 @@ async function run(input, deps = defaultDeps) {
   const shootersTile = await models.Tiles.findByPk(player.Tile_ID);
   const playerClass = await models.Classes.findOne({ where: { Class_ID: player.Class_ID } });
   // looked up by Discord_ID alone, exactly as before - no Game_ID filter
-  const targetPlayer = await models.Players.findOne({ where: { Discord_ID: input.targetDiscordId } });
+  const targetPlayer = await models.Players.findOne({
+    where: { Discord_ID: input.targetDiscordId, Game_ID: game.Game_ID },
+  });
 
   // 1 AP a stab
   const requiredAP = input.amount;

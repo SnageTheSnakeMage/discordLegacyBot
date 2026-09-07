@@ -154,14 +154,14 @@ describe('retrieve.run success', () => {
   });
 
   // quirk pin: no MAX_AP clamp - the player can be pushed past their cap
-  it('does not clamp the player at MAX_AP', async () => {
+  it('clamps the player at MAX_AP instead of overfilling them', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: ACTOR, Action_Points: 9, MAX_AP: 10, Tile_ID: 1 }),
     });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 12 }, // 9 + 3, past MAX_AP 10
+      { Action_Points: 10 }, // 9 + 3 clamped to MAX_AP 10
       { where: { Player_ID: 1 } },
     );
   });

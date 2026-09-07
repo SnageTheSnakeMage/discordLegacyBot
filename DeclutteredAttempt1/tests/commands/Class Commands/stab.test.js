@@ -349,10 +349,14 @@ describe('stab.run success', () => {
   });
 
   // quirk pin: the target row is fetched by Discord_ID alone - no Game_ID
-  it('looks the target up without a Game_ID filter', async () => {
+  // was: looked up by Discord_ID alone, so a row from another game could
+  // satisfy it
+  it('scopes the target lookup to this game', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);
-    expect(deps.models.Players.findOne).toHaveBeenCalledWith({ where: { Discord_ID: TARGET } });
+    expect(deps.models.Players.findOne).toHaveBeenCalledWith({
+      where: { Discord_ID: TARGET, Game_ID: 1 },
+    });
   });
 
   it('resolves the default game via getOldestActiveGameId when no game is given', async () => {

@@ -84,7 +84,9 @@ async function run(input, deps = defaultDeps) {
   }
 
   // looked up by Discord_ID alone, exactly as before - no Game_ID filter
-  const targetPlayer = await models.Players.findOne({ where: { Discord_ID: input.targetDiscordId } });
+  const targetPlayer = await models.Players.findOne({
+    where: { Discord_ID: input.targetDiscordId, Game_ID: game.Game_ID },
+  });
 
   const targetTile = await models.Tiles.findOne({ where: { Layer_ID: attackersTile.Layer_ID, X_Position: input.x, Y_Position: input.y } });
   // the old code dereferenced a null target tile building the attack path

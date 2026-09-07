@@ -67,7 +67,7 @@ async function run(input, deps = defaultDeps) {
   }
 
   await models.Players.update(
-    { Action_Points: receiver.Action_Points + input.amount },
+    { Action_Points: Math.min(receiver.Action_Points + input.amount, receiver.MAX_AP) },
     { where: { Player_ID: receiver.Player_ID } },
   );
   await models.Players.update(

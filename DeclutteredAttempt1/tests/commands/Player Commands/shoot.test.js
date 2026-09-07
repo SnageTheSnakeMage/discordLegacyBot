@@ -264,10 +264,14 @@ describe('shoot.run success', () => {
 
   // quirk pin: the target row is fetched by Discord_ID alone - no Game_ID
   // filter, so a row from another game can be found
-  it('looks the target up by Discord_ID only (no Game_ID in the where)', async () => {
+  // was: looked up by Discord_ID alone, so a row from another game could
+  // satisfy it and be shot from outside that game entirely
+  it('scopes the target lookup to this game', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);
-    expect(deps.models.Players.findOne).toHaveBeenCalledWith({ where: { Discord_ID: TARGET } });
+    expect(deps.models.Players.findOne).toHaveBeenCalledWith({
+      where: { Discord_ID: TARGET, Game_ID: 1 },
+    });
   });
 
   it('multiplies damage by shots and applies then resets a DMG buff', async () => {

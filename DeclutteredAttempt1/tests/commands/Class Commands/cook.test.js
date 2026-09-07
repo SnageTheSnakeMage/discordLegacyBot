@@ -211,18 +211,18 @@ describe('cook.run success', () => {
   });
 
   // preserved quirk: the customer's AP/HP gains are not clamped to MAX_AP/MAX_HP
-  it('pushes the customer past MAX_AP and MAX_HP unclamped', async () => {
+  it('clamps the customer at MAX_AP and MAX_HP', async () => {
     const { deps } = happyDeps({
       customer: createFakePlayer({ Player_ID: 2, Discord_ID: CUSTOMER, Action_Points: 9, MAX_AP: 10, Health_Points: 10, MAX_HP: 10, Tile_ID: 2 }),
     });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 11 }, // 9 + 2, over MAX_AP 10
+      { Action_Points: 10 }, // 9 + 2 clamped to MAX_AP 10
       { where: { Player_ID: 2 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 11 }, // 10 + 1, over MAX_HP 10
+      { Health_Points: 10 }, // 10 + 1 clamped to MAX_HP 10
       { where: { Player_ID: 2 } },
     );
   });

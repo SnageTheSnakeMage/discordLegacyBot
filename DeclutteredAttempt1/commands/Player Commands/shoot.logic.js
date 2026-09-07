@@ -70,7 +70,9 @@ async function run(input, deps = defaultDeps) {
 
   let amount = input.amount;
   const requiredAP = game.shootCost * amount;
-  const targetPlayer = await models.Players.findOne({ where: { Discord_ID: input.targetDiscordId } });
+  const targetPlayer = await models.Players.findOne({
+    where: { Discord_ID: input.targetDiscordId, Game_ID: game.Game_ID },
+  });
 
   // the old code dereferenced a null shooter tile here (crash fix; the
   // legacy guard message is kept byte-identical)

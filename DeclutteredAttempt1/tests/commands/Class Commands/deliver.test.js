@@ -162,14 +162,14 @@ describe('deliver.run success', () => {
   });
 
   // quirk: no MAX_AP clamp - the receiver can be pushed over their cap
-  it('overfills the receiver past MAX_AP', async () => {
+  it('clamps the receiver at MAX_AP instead of overfilling them', async () => {
     const { deps } = happyDeps({
       receiver: createFakePlayer({ Player_ID: 2, Discord_ID: RECEIVER, Action_Points: 9, MAX_AP: 10 }),
     });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 12 }, // 9 + 3, over the MAX_AP of 10
+      { Action_Points: 10 }, // 9 + 3 clamped to MAX_AP 10
       { where: { Player_ID: 2 } },
     );
   });

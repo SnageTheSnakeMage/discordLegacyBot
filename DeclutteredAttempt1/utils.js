@@ -879,21 +879,6 @@ getTileCordinatesOfLine(tileCord1, tileCord2) {
   return returnedTiles;
 },
 
-async getOldestGameId(playerDiscordID){
-  if (playerDiscordID) {
-    var playerGameID = await models.Players.findAll({where: {Discord_ID: playerDiscordID}, attributes: ["Game_ID"]});
-    var games = await models.Games.findAll({where: {Game_ID: player}})
-    var oldestGameId = games.length;
-  for (var i = 0; i < games.length; i++) {
-    //if a game id is lower its older so we swap it out
-    if (games[i].Game_ID < oldestGameId) {
-      oldestGameId = games[i].Game_ID;
-    }
-  }
-  logger150.debug({function:"getOldestGameId"}, "found game id: "+ oldestGameId.toString())
-  return oldestGameId;
-  }
-},
 
 async  getOldestActiveGameId(playerDiscordID) {
   if (playerDiscordID) {
