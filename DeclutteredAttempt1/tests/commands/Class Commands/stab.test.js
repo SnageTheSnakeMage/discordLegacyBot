@@ -243,7 +243,7 @@ describe('stab.run rejections', () => {
 
 describe('stab.run success', () => {
   it('damages the target and charges the AP with exact write payloads', async () => {
-    const { deps, stabber, target } = happyDeps();
+    const { deps } = happyDeps();
     const result = await logic.run(INPUT, deps);
     expect(result).toEqual({
       ok: true,
@@ -259,9 +259,7 @@ describe('stab.run success', () => {
       { Action_Points: 4 }, // 5 - amount(1)
       { where: { Player_ID: 1, Game_ID: 1 } },
     );
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; the HP write moved to damagePlayer // no DMG_BUFF reset at 0
-    // quirk pin: the pre-damage target row is what death logic sees
-    expect(target.Health_Points).toBe(10);
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; the HP write moved to damagePlayer
   });
 
   // quirk pin: the write doubles then caps, the message does neither

@@ -299,7 +299,7 @@ describe('snipe.run rejections', () => {
 
 describe('snipe.run success', () => {
   it('hits the target with exact write payloads and the legacy death-check argument order', async () => {
-    const { deps, sniper, target } = happyDeps();
+    const { deps } = happyDeps();
     const result = await logic.run(INPUT, deps);
     expect(result).toEqual({
       ok: true,
@@ -383,7 +383,7 @@ describe('snipe.run success', () => {
   // quirk pin: collateral damage WRITTEN is one shot's worth, but the damage
   // ANNOUNCED is amount shots' worth - the two disagree
   it('damages a bystander in the path for one shot while announcing the full amount', async () => {
-    const { deps, sniper, bystander } = happyDeps({ midTileOccupant: 3 });
+    const { deps } = happyDeps({ midTileOccupant: 3 });
     const result = await logic.run({ ...INPUT, amount: 3 }, deps);
     expect(result.data.events).toEqual([
       { type: 'zipped', x: 1, y: 1 },

@@ -279,7 +279,6 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
 async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, deps) {
   const { models, utils, random } = deps;
   const body = secondBody ? 2 : 1;
-  const hpColumn = secondBody ? 'Health_Points2' : 'Health_Points';
   const currentHp = secondBody ? player.Health_Points2 : player.Health_Points;
 
   switch (startTile.Tile_Type) {

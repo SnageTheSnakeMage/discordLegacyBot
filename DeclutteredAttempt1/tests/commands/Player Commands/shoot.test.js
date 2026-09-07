@@ -264,7 +264,7 @@ describe('shoot.run rejections', () => {
 
 describe('shoot.run success', () => {
   it('hits the target once with exact write payloads and death check', async () => {
-    const { deps, shooter, target } = happyDeps();
+    const { deps } = happyDeps();
     const result = await logic.run(INPUT, deps);
     expect(result).toEqual({
       ok: true,
