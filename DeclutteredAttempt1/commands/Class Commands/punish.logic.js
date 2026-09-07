@@ -112,7 +112,10 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.TARGET_NOT_IN_GAME, data: { message: 'That mention does not correspond to a player registered in that game!' } };
   }
 
-  if (targetPlayer.Tile_ID != targetTile.Tile_ID) {
+  // either of a Twin's bodies counts as being on the tile
+  const onTile = targetPlayer.Tile_ID == targetTile.Tile_ID
+    || (targetPlayer.Tile_ID2 != null && targetPlayer.Tile_ID2 == targetTile.Tile_ID);
+  if (!onTile) {
     return { ok: false, reason: REJECTIONS.TARGET_NOT_ON_TILE, data: { message: "That player isnt on that tile!" } };
   }
 

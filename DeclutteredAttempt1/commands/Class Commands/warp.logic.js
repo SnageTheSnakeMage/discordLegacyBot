@@ -163,9 +163,11 @@ async function run(input, deps = defaultDeps) {
     if (!newTile) return noneLeft;
   }
 
-  await models.Players.update(
-    { Tile_ID: newTile.Tile_ID },
-    { where: { Game_ID: gameId, Discord_ID: input.discordId } },
+  // both sides of the position invariant: this used to write
+  // Players.Tile_ID only, leaving the destination tile's PlayerN slots
+  // unclaimed and the old tile still naming the hopper (#78)
+  await deps.utils.setPlayerToTile(
+    player.Player_ID, newTile.Layer_ID, newTile.X_Position, newTile.Y_Position,
   );
 
   return {

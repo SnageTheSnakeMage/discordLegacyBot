@@ -50,6 +50,7 @@ function happyDeps(over = {}) {
       Classes: { findByPk: async () => playerClass },
       Tiles: { findByPk: async (id) => (id === 1 ? playerTile : id === 2 ? victimTile : null) },
     },
+    utils: { swapPlayerTiles: jest.fn(async () => undefined) },
   });
   return { deps, player, victim, game, playerTile, victimTile };
 }
@@ -213,13 +214,10 @@ describe('swap.run success', () => {
       kind: 'swapped',
       data: { victimUsername: 'victim', victimDiscordId: VICTIM, gameId: 1 },
     });
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Tile_ID: 2 }, { where: { Game_ID: 1, Player_ID: 1 } },
-    );
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Tile_ID: 1 }, { where: { Game_ID: 1, Player_ID: 2 } },
-    );
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(2);
+    // the two Tile_ID writes moved into utils.swapPlayerTiles, which also
+    // rewrites the tiles' own PlayerN slots
+    expect(deps.utils.swapPlayerTiles).toHaveBeenCalledWith(1, 2);
+    expect(deps.utils.swapPlayerTiles).toHaveBeenCalledTimes(1);
   });
 
   // PRESERVED QUIRK: the command advertises 4 AP and charges nothing
@@ -235,15 +233,16 @@ describe('swap.run success', () => {
   });
 
   // PRESERVED QUIRK: only Players.Tile_ID moves - the tiles' own PlayerN
-  // occupancy slots are never rewritten
-  it('leaves the tiles themselves untouched', async () => {
-    const { deps, playerTile, victimTile } = happyDeps();
+  // was: only Players.Tile_ID moved, so the Tiles.PlayerN slots kept
+  // pointing at whoever was there before and the board's two sides
+  // disagreed (#78). Both sides are now written, through one helper that
+  // vacates before it places.
+  it('moves both sides of the position invariant, not just Players.Tile_ID', async () => {
+    const { deps } = happyDeps();
     await logic.run(INPUT, deps);
-    expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-    expect(playerTile.update).not.toHaveBeenCalled();
-    expect(victimTile.update).not.toHaveBeenCalled();
-    expect(playerTile.save).not.toHaveBeenCalled();
-    expect(victimTile.save).not.toHaveBeenCalled();
+    expect(deps.utils.swapPlayerTiles).toHaveBeenCalledWith(1, 2);
+    // the raw Tile_ID writes are gone - the helper owns both sides now
+    expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
   // PRESERVED QUIRK: there is no Dead gate on this command

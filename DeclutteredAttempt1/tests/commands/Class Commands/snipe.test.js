@@ -70,6 +70,7 @@ function happyDeps(over = {}) {
     },
     utils: {
       playerDeathLogic: jest.fn(async () => {}),
+      damagePlayer: jest.fn(async () => ({})),
       revertTileToBlank: jest.fn(async () => {}),
     },
   });
@@ -234,15 +235,21 @@ describe('snipe.run rejections', () => {
 
   // quirk pin: only the target's Tile_ID is ever compared - a Twin's second
   // body (Tile_ID2) cannot be sniped
-  it("never checks the target's Tile_ID2, so a Twin's second body is unhittable", async () => {
+  // was: only Tile_ID was compared, so a Twin's second body could not be
+  // sniped at all
+  it("hits a Twin's second body when that is the one on the tile", async () => {
     const { deps } = happyDeps({
       target: createFakePlayer({
-        Player_ID: 2, Discord_ID: TARGET, Game_ID: 1, Health_Points: 10, Tile_ID: 2, Tile_ID2: 3,
+        Player_ID: 2, Discord_ID: TARGET, Game_ID: 1, Health_Points: 10, Health_Points2: 5, Tile_ID: 9, Tile_ID2: 3,
       }),
     });
     const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TARGET_NOT_ON_TILE });
-    expectNoWrites(deps);
+    expect(result.ok).toBe(true);
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }),
+      expect.objectContaining({ Player_ID: 2 }),
+      1, 2,
+    );
   });
 
   it('rejects one tile beyond range with the computed legacy wording', async () => {
@@ -305,17 +312,16 @@ describe('snipe.run success', () => {
         ],
       },
     });
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 9 }, // 10 - amount(1) * Damage(1) * (DMG_BUFF 0 + 1)
-      { where: { Player_ID: 2, Game_ID: 1 } },
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }),
+      expect.objectContaining({ Player_ID: 2 }),
+      1, 1,
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 4 }, // 6 - shootCost(2) * amount(1)
       { where: { Player_ID: 1, Game_ID: 1 } },
     );
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(2);
-    // quirk pin: (victim, sniper) - the opposite order from /shoot
-    expect(deps.utils.playerDeathLogic).toHaveBeenCalledWith(target, sniper);
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; the HP write moved to damagePlayer
   });
 
   it('resolves the default game via getOldestGameId with the sniper id (the old code passed nothing and threw)', async () => {
@@ -342,7 +348,9 @@ describe('snipe.run success', () => {
       { where: { X_Position: 2, Y_Position: 1, Layer_ID: 1 } },
     );
     expect(deps.utils.revertTileToBlank).not.toHaveBeenCalled();
-    expect(deps.models.Players.update).toHaveBeenCalledWith({ Health_Points: 8 }, { where: { Player_ID: 2, Game_ID: 1 } });
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }), expect.objectContaining({ Player_ID: 2 }), 2, 1,
+    );
     expect(deps.models.Players.update).toHaveBeenCalledWith({ Action_Points: 2 }, { where: { Player_ID: 1, Game_ID: 1 } });
   });
 
@@ -382,13 +390,15 @@ describe('snipe.run success', () => {
       { type: 'hitCollateral', targetDiscordId: BYSTANDER, damage: 3, x: 2, y: 1 },
       { type: 'hitTarget', username: 'victim', damage: 3, x: 3, y: 1 },
     ]);
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 7 }, // 8 - 1 * Damage(1) * (DMG_BUFF 0 + 1), NOT 8 - 3
-      { where: { Player_ID: 3, Game_ID: 1 } },
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }),
+      expect.objectContaining({ Player_ID: 3 }),
+      1,
     );
-    // quirk pin: (bystander, sniper) - the sniper is passed as the victim
-    expect(deps.utils.playerDeathLogic).toHaveBeenCalledWith(bystander, sniper);
-    expect(deps.utils.playerDeathLogic).toHaveBeenCalledTimes(2);
+    // was (bystander, sniper): the arguments reversed, so the SNIPER was
+    // checked for death and the victim never was. damagePlayer takes
+    // (attacker, victim), so both the bystander and the target are checked.
+    expect(deps.utils.damagePlayer).toHaveBeenCalledTimes(2);
     // the bystander's tile is occupied, so no "zipped by" line for it
     expect(result.data.events).not.toContainEqual({ type: 'zipped', x: 2, y: 1 });
   });
@@ -399,9 +409,10 @@ describe('snipe.run success', () => {
     const { deps } = happyDeps({ shooterTileOccupant: 1 });
     const result = await logic.run(INPUT, deps);
     expect(result.data.events[0]).toEqual({ type: 'hitCollateral', targetDiscordId: SNIPER, damage: 1, x: 1, y: 1 });
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 9 },
-      { where: { Player_ID: 1, Game_ID: 1 } },
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }),
+      expect.objectContaining({ Player_ID: 1 }),
+      1,
     );
   });
 
@@ -418,10 +429,12 @@ describe('snipe.run success', () => {
     // damage = amount(1) * Damage(2) * (DMG_BUFF 2 + 1) = 6
     expect(result.data.events).toContainEqual({ type: 'hitTarget', username: 'victim', damage: 6, x: 3, y: 1 });
     expect(deps.models.Players.update).toHaveBeenCalledWith({ DMG_BUFF: 0 }, { where: { Player_ID: 1, Game_ID: 1 } });
-    expect(deps.models.Players.update).toHaveBeenCalledWith({ Health_Points: 4 }, { where: { Player_ID: 2, Game_ID: 1 } });
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }), expect.objectContaining({ Player_ID: 2 }), 6, 1,
+    );
     expect(deps.models.Players.update).toHaveBeenCalledWith({ Action_Points: 4 }, { where: { Player_ID: 1, Game_ID: 1 } });
-    // two crossed tiles -> two buff resets, plus the target damage and the AP
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(4);
+    // two crossed tiles -> two buff resets, plus the AP; the damage write moved
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(3);
   });
 });
 

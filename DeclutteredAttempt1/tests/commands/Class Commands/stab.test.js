@@ -45,7 +45,10 @@ function happyDeps(over = {}) {
       Tiles: { findByPk: async () => tile },
     },
     random: over.random,
-    utils: { playerDeathLogic: jest.fn(async () => {}) },
+    utils: {
+      playerDeathLogic: jest.fn(async () => {}),
+      damagePlayer: jest.fn(async () => ({})),
+    },
   });
   return { deps, stabber, target, game, tile };
 }
@@ -247,17 +250,17 @@ describe('stab.run success', () => {
       kind: 'stabbed',
       data: { missed: false, targetDiscordId: TARGET, damage: 1, x: 4, y: 7 },
     });
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 8 }, // 10 - min(1 * Damage(1) * (DMG_BUFF 0 + 1) * 2, MAX_DAMAGE 3) = 10 - 2
-      { where: { Player_ID: 2, Game_ID: 1 } },
-    );
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }),
+      expect.objectContaining({ Player_ID: 2 }),
+      2,
+    ); // 10 - min(1 * Damage(1) * (DMG_BUFF 0 + 1) * 2, MAX_DAMAGE 3) = 10 - 2
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 4 }, // 5 - amount(1)
       { where: { Player_ID: 1, Game_ID: 1 } },
     );
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(2); // no DMG_BUFF reset at 0
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; the HP write moved to damagePlayer // no DMG_BUFF reset at 0
     // quirk pin: the pre-damage target row is what death logic sees
-    expect(deps.utils.playerDeathLogic).toHaveBeenCalledWith(stabber, target);
     expect(target.Health_Points).toBe(10);
   });
 
@@ -266,10 +269,11 @@ describe('stab.run success', () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, amount: 2 }, deps);
     expect(result.data.damage).toBe(2); // announced: 2 * 1 * 1
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 7 }, // applied: min(2 * 1 * 1 * 2 = 4, MAX_DAMAGE 3) = 3
-      { where: { Player_ID: 2, Game_ID: 1 } },
-    );
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }),
+      expect.objectContaining({ Player_ID: 2 }),
+      3,
+    ); // applied: min(2 * 1 * 1 * 2 = 4, MAX_DAMAGE 3) = 3
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 3 }, // 5 - amount(2)
       { where: { Player_ID: 1, Game_ID: 1 } },
@@ -285,15 +289,16 @@ describe('stab.run success', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result.data.damage).toBe(3); // 1 * 1 * (2 + 1)
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 4 }, // 10 - min(1 * 1 * 3 * 2 = 6, MAX_DAMAGE 9)
-      { where: { Player_ID: 2, Game_ID: 1 } },
-    );
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }),
+      expect.objectContaining({ Player_ID: 2 }),
+      6,
+    ); // 10 - min(1 * 1 * 3 * 2 = 6, MAX_DAMAGE 9)
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { DMG_BUFF: 0 },
       { where: { Player_ID: 1, Game_ID: 1 } },
     );
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(3);
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(2); // DMG_BUFF reset + AP; the HP write moved to damagePlayer
   });
 
   // quirk pin: the bush swallows the stab but the AP was already committed
@@ -307,10 +312,11 @@ describe('stab.run success', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result.data).toMatchObject({ missed: true, damage: 0 });
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 10 }, // 10 - min(0, MAX_DAMAGE)
-      { where: { Player_ID: 2, Game_ID: 1 } },
-    );
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }),
+      expect.objectContaining({ Player_ID: 2 }),
+      0,
+    ); // 10 - min(0, MAX_DAMAGE)
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 4 }, // paid for the stab that missed
       { where: { Player_ID: 1, Game_ID: 1 } },
@@ -327,10 +333,11 @@ describe('stab.run success', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result.data).toMatchObject({ missed: false, damage: 1 });
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 8 },
-      { where: { Player_ID: 2, Game_ID: 1 } },
-    );
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }),
+      expect.objectContaining({ Player_ID: 2 }),
+      2,
+    ); //
   });
 
   // quirk pin: amount is never validated
@@ -338,10 +345,11 @@ describe('stab.run success', () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, amount: -1 }, deps);
     expect(result.ok).toBe(true);
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 12 }, // 10 - min(-2, 3)
-      { where: { Player_ID: 2, Game_ID: 1 } },
-    );
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }),
+      expect.objectContaining({ Player_ID: 2 }),
+      -2,
+    ); // 10 - min(-2, 3)
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 6 }, // 5 - (-1)
       { where: { Player_ID: 1, Game_ID: 1 } },

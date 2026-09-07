@@ -60,6 +60,7 @@ function happyDeps(over = {}) {
     utils: {
       playerDeathLogic: jest.fn(async () => {}),
       revertTileToBlank: jest.fn(async () => {}),
+      damagePlayer: jest.fn(async () => ({})),
     },
   });
   return { deps, game, shooter, target, tiles };
@@ -70,7 +71,7 @@ const INPUT = { x: 3, y: 1, targetDiscordId: TARGET, amount: 1, gameId: 1, body:
 function expectNoWrites(deps) {
   expect(deps.models.Players.update).not.toHaveBeenCalled();
   expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-  expect(deps.utils.playerDeathLogic).not.toHaveBeenCalled();
+  expect(deps.utils.damagePlayer).not.toHaveBeenCalled();
   expect(deps.utils.revertTileToBlank).not.toHaveBeenCalled();
 }
 
@@ -209,9 +210,29 @@ describe('shoot.run rejections', () => {
 
   // quirk pin: only the target's Tile_ID is ever compared - a Twin's second
   // body (Tile_ID2) cannot be shot at
-  it("never checks the target's Tile_ID2, so a Twin's second body is unhittable", async () => {
+  // was: only Tile_ID was compared, so a Twin's second body could not be
+  // shot at all. Either body standing on the tile is now a legal target,
+  // and the hit lands on that body's own HP column.
+  it("hits a Twin's second body when that is the one on the tile", async () => {
     const { deps } = happyDeps({
-      target: createFakePlayer({ Player_ID: 2, Discord_ID: TARGET, Game_ID: 1, Health_Points: 10, Tile_ID: 2, Tile_ID2: 3 }),
+      // body 1 is elsewhere (tile 9); body 2 is on the targeted tile, which
+      // is (3,1) = Tile_ID 3 in this fixture
+      target: createFakePlayer({
+        Player_ID: 2, Discord_ID: TARGET, Game_ID: 1, Health_Points: 10, Health_Points2: 5, Tile_ID: 9, Tile_ID2: 3,
+      }),
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result.ok).toBe(true);
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ Player_ID: 2 }), 1, 2,
+    );
+  });
+
+  it('still rejects when neither of a Twin\'s bodies is on the tile', async () => {
+    const { deps } = happyDeps({
+      target: createFakePlayer({
+        Player_ID: 2, Discord_ID: TARGET, Game_ID: 1, Health_Points: 10, Tile_ID: 9, Tile_ID2: 8,
+      }),
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TARGET_NOT_ON_TILE });
@@ -250,16 +271,16 @@ describe('shoot.run success', () => {
       kind: 'shot',
       data: { events: [{ type: 'hitTarget', targetDiscordId: TARGET, damage: 1, x: 3, y: 1 }] },
     });
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 9 }, // 10 - 1 * Damage(1) * (DMG_BUFF 0 + 1)
-      { where: { Player_ID: 2, Game_ID: 1 } },
+    // the HP write and the death check moved into utils.damagePlayer, which
+    // re-reads the row so a lethal shot actually kills
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ Player_ID: 2 }), 1, 1,
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 4 }, // 6 - shootCost(2) * amount(1)
       { where: { Player_ID: 1, Game_ID: 1 } },
     );
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(2); // no DMG_BUFF reset at 0
-    expect(deps.utils.playerDeathLogic).toHaveBeenCalledWith(shooter, target);
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; no DMG_BUFF reset at 0
   });
 
   // quirk pin: the target row is fetched by Discord_ID alone - no Game_ID
@@ -281,10 +302,12 @@ describe('shoot.run success', () => {
     const result = await logic.run(INPUT, deps);
     // damage = amount(1) * Damage(2) * (DMG_BUFF 2 + 1) = 6
     expect(result.data.events).toEqual([{ type: 'hitTarget', targetDiscordId: TARGET, damage: 6, x: 3, y: 1 }]);
-    expect(deps.models.Players.update).toHaveBeenCalledWith({ Health_Points: 4 }, { where: { Player_ID: 2, Game_ID: 1 } });
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ Player_ID: 2 }), 6, 1,
+    );
     expect(deps.models.Players.update).toHaveBeenCalledWith({ DMG_BUFF: 0 }, { where: { Player_ID: 1, Game_ID: 1 } });
     expect(deps.models.Players.update).toHaveBeenCalledWith({ Action_Points: 4 }, { where: { Player_ID: 1, Game_ID: 1 } });
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(3);
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(2); // DMG_BUFF reset + AP; the HP write moved to damagePlayer
   });
 
   it('damages an intact wall in the path and hits the target with the remaining shots', async () => {
@@ -298,7 +321,9 @@ describe('shoot.run success', () => {
       { Tile_Type: 'Wall_Damaged' },
       { where: { X_Position: 2, Y_Position: 1, Layer_ID: 1 } },
     );
-    expect(deps.models.Players.update).toHaveBeenCalledWith({ Health_Points: 9 }, { where: { Player_ID: 2, Game_ID: 1 } });
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ Player_ID: 2 }), 1, 1,
+    );
   });
 
   it('destroys a damaged wall via revertTileToBlank and continues', async () => {
@@ -353,7 +378,9 @@ describe('shoot.run success', () => {
       { Tile_Type: 'Wall_Damaged' },
       { where: { X_Position: 2, Y_Position: 1, Layer_ID: 1 } },
     );
-    expect(deps.models.Players.update).toHaveBeenCalledWith({ Health_Points: 9 }, { where: { Player_ID: 2, Game_ID: 1 } });
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ Player_ID: 2 }), 1, 1,
+    );
     expect(deps.models.Players.update).toHaveBeenCalledWith({ Action_Points: 0 }, { where: { Player_ID: 1, Game_ID: 1 } });
   });
 
@@ -383,7 +410,9 @@ describe('shoot.run success', () => {
       { type: 'missTarget' },
       { type: 'hitTarget', targetDiscordId: TARGET, damage: 1, x: 3, y: 1 },
     ]);
-    expect(deps.models.Players.update).toHaveBeenCalledWith({ Health_Points: 9 }, { where: { Player_ID: 2, Game_ID: 1 } });
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ Player_ID: 2 }), 1, 1,
+    );
   });
 
   it("uses the shooter's second body tile when body is 2", async () => {

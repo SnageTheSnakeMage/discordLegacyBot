@@ -104,7 +104,11 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.TARGET_NOT_IN_GAME, data: { message: 'That mention does not correspond to a player registered in that game!' } };
   }
 
-  if (targetPlayer.Tile_ID != targetTile.Tile_ID) {
+  // a Twin has two bodies; either can be the one standing on the tile
+  const targetBody = targetPlayer.Tile_ID == targetTile.Tile_ID ? 1
+    : (targetPlayer.Tile_ID2 != null && targetPlayer.Tile_ID2 == targetTile.Tile_ID) ? 2
+      : null;
+  if (targetBody === null) {
     return { ok: false, reason: REJECTIONS.TARGET_NOT_ON_TILE, data: { message: "That player isnt on that tile!" } };
   }
 
@@ -158,11 +162,9 @@ async function run(input, deps = defaultDeps) {
         if (amount == 0) break;
       }
       const damage = amount * player.Damage * (player.DMG_BUFF + 1);
-      await models.Players.update(
-        { Health_Points: targetPlayer.Health_Points - damage },
-        { where: { Player_ID: targetPlayer.Player_ID, Game_ID: gameId } },
-      );
-      await utils.playerDeathLogic(player, targetPlayer);
+      // damagePlayer writes the hit body's HP and runs the death check
+      // against the re-read row, so a lethal shot actually kills
+      await utils.damagePlayer(player, targetPlayer, damage, targetBody);
       events.push({ type: 'hitTarget', targetDiscordId: targetPlayer.Discord_ID, damage, x: px, y: py });
       amount = 0;
 

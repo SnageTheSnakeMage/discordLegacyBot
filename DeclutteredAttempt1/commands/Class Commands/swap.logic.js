@@ -89,15 +89,10 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.SAME_TILE };
   }
 
-  // no AP is spent, and the tiles' own player slots are left alone
-  await models.Players.update(
-    { Tile_ID: victimsTile.Tile_ID },
-    { where: { Game_ID: gameId, Player_ID: player.Player_ID } },
-  );
-  await models.Players.update(
-    { Tile_ID: playersTile.Tile_ID },
-    { where: { Game_ID: gameId, Player_ID: victim.Player_ID } },
-  );
+  // no AP is spent. Both sides of the position invariant are written: this
+  // used to move Players.Tile_ID only, leaving the Tiles.PlayerN slots
+  // pointing at whoever was there before (#78).
+  await deps.utils.swapPlayerTiles(player.Player_ID, victim.Player_ID);
 
   return {
     ok: true,

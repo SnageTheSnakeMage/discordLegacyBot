@@ -1070,6 +1070,14 @@ async setPlayerToTile(playerId, layer, x, y) {
   var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
   await this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
   const tile = await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
+  await this.claimTileSlot(tile, playerId);
+  await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
+},
+
+//puts a player into the first free PlayerN slot on a tile row. Callers are
+//responsible for vacating the player's old tile first - this only writes
+//the tile side of the invariant.
+async claimTileSlot(tile, playerId) {
   if(tile.Player1 == null) {
     tile.Player1 = playerId;
   }
@@ -1086,7 +1094,50 @@ async setPlayerToTile(playerId, layer, x, y) {
     throw "tile is full";
   }
   await tile.save();
-  await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
+},
+
+//Exchanges two players' positions, keeping BOTH sides of the position
+//invariant true. Not two setPlayerToTile calls: the first would place
+//before the second vacates, so swapping onto a full tile would throw
+//"tile is full" even though the swap frees the slot it needs.
+async swapPlayerTiles(playerId1, playerId2) {
+  const player1 = await models.Players.findByPk(playerId1);
+  const player2 = await models.Players.findByPk(playerId2);
+  const tile1 = await models.Tiles.findByPk(player1.Tile_ID);
+  const tile2 = await models.Tiles.findByPk(player2.Tile_ID);
+  //vacate both before placing either
+  await this.removePlayerFromTile(playerId1, tile1.Layer_ID, tile1.X_Position, tile1.Y_Position);
+  await this.removePlayerFromTile(playerId2, tile2.Layer_ID, tile2.X_Position, tile2.Y_Position);
+  //re-read: removePlayerFromTile saved through its own row objects
+  const freshTile1 = await models.Tiles.findByPk(tile1.Tile_ID);
+  const freshTile2 = await models.Tiles.findByPk(tile2.Tile_ID);
+  await this.claimTileSlot(freshTile2, playerId1);
+  await this.claimTileSlot(freshTile1, playerId2);
+  await models.Players.update({Tile_ID: tile2.Tile_ID}, {where: {Player_ID: playerId1}});
+  await models.Players.update({Tile_ID: tile1.Tile_ID}, {where: {Player_ID: playerId2}});
+},
+
+//Applies damage to one of a player's bodies, then runs the death check
+//against the row AS IT NOW IS.
+//
+//Every damage site used to write the new HP and then hand playerDeathLogic
+//the SAME in-memory row, whose Health_Points was still the pre-damage
+//value. The death check therefore always saw a healthy player, and no
+//mine, fire tile, shot, stab or snipe ever registered a kill - victims sat
+//at or below zero HP, alive, still occupying a tile.
+//
+//body 2 is a Twin's second body, which has its own Health_Points2.
+//playerDeathLogic already requires BOTH bodies at zero before a Twin dies.
+async damagePlayer(attacker, victim, damage, body = 1) {
+  const column = body === 2 ? 'Health_Points2' : 'Health_Points';
+  const current = body === 2 ? victim.Health_Points2 : victim.Health_Points;
+  await models.Players.update({[column]: current - damage}, {where: {Player_ID: victim.Player_ID}});
+  //re-read: the death check must see the damage it is checking for
+  const damaged = await models.Players.findByPk(victim.Player_ID);
+  await this.playerDeathLogic(attacker, damaged);
+  //and re-read again, because playerDeathLogic writes Dead/Tile_ID straight
+  //to the database - callers need to know whether the victim survived
+  return await models.Players.findByPk(victim.Player_ID);
 },
 
 //takes in two players and checks if the second one is dead
