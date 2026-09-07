@@ -13,6 +13,22 @@
  * can be read and edited without wading through JSON. Games, Players,
  * Layers and Tiles are deliberately NOT seeded: those are live state and
  * belong only on the volume.
+ *
+ * Modes:
+ *   node scripts/bootstrap-db.js
+ *       Seed Classes only when the table is empty. This is what the
+ *       container runs on every start; on an existing volume it no-ops.
+ *
+ *   node scripts/bootstrap-db.js --sync-classes [--dry-run]
+ *       Apply classes.csv to a database that ALREADY has classes - the
+ *       manual step a live game needs, because seeding never touches a
+ *       populated table. Updates changed fields, inserts ids that are
+ *       missing, and NEVER deletes: Players.Class_ID is a foreign key, so
+ *       a row this file has dropped is reported and left alone rather than
+ *       orphaning every player who has it.
+ *
+ *       Renaming a class here is only half the job - production code
+ *       matches class names by string. See docs/CHANGING_CLASSES.md.
  */
 const path = require('path');
 const fs = require('fs');
@@ -117,10 +133,69 @@ async function bootstrap() {
   }
 }
 
-module.exports = { parseCsv, readSeed };
+/**
+ * Reconcile an existing Classes table against classes.csv. Reports every
+ * field it changes, so the operator can see exactly what a seed edit does
+ * to a live game before and after it happens.
+ */
+async function syncClasses({ dryRun = false, models: injected = null } = {}) {
+  const storage = process.env.LEGACY_DB_STORAGE || './database/database.db';
+  // tests hand in their own already-open models; a real run owns its
+  // connection. Opening a second one would be a different database.
+  const sequelize = injected ? null : new Sequelize({
+    dialect: 'sqlite',
+    storage,
+    logging: process.env.LEGACY_DB_LOGGING === '0' ? false : console.log,
+  });
+  const models = injected || initModels(sequelize);
+  const tag = dryRun ? '[sync:dry-run]' : '[sync]';
+
+  try {
+    if (sequelize) await sequelize.sync();
+    const seed = readSeed();
+    const live = new Map((await models.Classes.findAll()).map((r) => [r.Class_ID, r]));
+
+    let updated = 0, inserted = 0, unchanged = 0;
+    for (const row of seed) {
+      const current = live.get(row.Class_ID);
+      if (!current) {
+        console.log(`${tag} INSERT id=${row.Class_ID} ${row.Class_Name}`);
+        if (!dryRun) await models.Classes.create(row);
+        inserted++;
+        continue;
+      }
+      const changes = Object.keys(row).filter((k) => current[k] !== row[k]);
+      if (!changes.length) { unchanged++; continue; }
+      for (const k of changes) {
+        console.log(`${tag} UPDATE id=${row.Class_ID} ${current.Class_Name}: ${k}: ${JSON.stringify(current[k])} -> ${JSON.stringify(row[k])}`);
+      }
+      if (!dryRun) await models.Classes.update(row, { where: { Class_ID: row.Class_ID } });
+      updated++;
+    }
+
+    // never delete: Players.Class_ID points at these rows
+    const seedIds = new Set(seed.map((r) => r.Class_ID));
+    for (const [id, row] of live) {
+      if (seedIds.has(id)) continue;
+      const holders = await models.Players.count({ where: { Class_ID: id } });
+      console.log(`${tag} KEPT id=${id} ${row.Class_Name} - not in classes.csv, ${holders} player(s) still have it. Not deleted; remove it by hand if that is really intended.`);
+    }
+
+    console.log(`${tag} ${updated} updated, ${inserted} inserted, ${unchanged} unchanged, in ${storage}`);
+    if (dryRun) console.log('[sync:dry-run] nothing was written. Re-run without --dry-run to apply.');
+  } finally {
+    if (sequelize) await sequelize.close();
+  }
+}
+
+module.exports = { parseCsv, readSeed, syncClasses };
 
 if (require.main === module) {
-  bootstrap().catch((err) => {
+  const argv = process.argv.slice(2);
+  const run = argv.includes('--sync-classes')
+    ? syncClasses({ dryRun: argv.includes('--dry-run') })
+    : bootstrap();
+  run.catch((err) => {
     console.error('[bootstrap] failed:', err.message);
     process.exit(1);
   });

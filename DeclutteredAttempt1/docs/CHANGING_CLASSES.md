@@ -29,7 +29,23 @@ the same change to (2) and (3). Say so explicitly in the PR description.
 
 The seed is not authoritative over the live database. `bootstrap-db.js`
 seeds `Classes` **only when the table is empty**, so on an existing volume
-a seed edit changes nothing. An existing game needs a manual `UPDATE`.
+a seed edit changes nothing on its own. Applying it to a live game is a
+deliberate, separate step:
+
+```bash
+# on the host, in DeclutteredAttempt1/, with the bot stopped:
+node scripts/bootstrap-db.js --sync-classes --dry-run   # show every field it would change
+node scripts/bootstrap-db.js --sync-classes             # apply
+```
+
+`--sync-classes` updates changed fields, inserts ids the database is
+missing, and **never deletes**: `Players.Class_ID` is a foreign key, so a
+class dropped from the CSV is reported and left in place rather than
+orphaning every player holding it. Re-running it is a no-op. Back the
+database up first anyway — it is the live game.
+
+Nothing runs this automatically. The container start path is still
+seed-if-empty, so a deploy cannot silently rewrite class data.
 
 ---
 
@@ -145,8 +161,8 @@ The safe case. No code changes needed.
    sqlite3 /tmp/seedchk/d.db "select * from Classes where Class_Name='<ClassName>'"
    ```
 4. `npx jest && npx eslint .`
-5. In the PR, give the maintainer the exact `UPDATE` for the live database
-   and the matching sheet edit.
+5. In the PR, tell the maintainer to run `--sync-classes` (dry-run first)
+   on the host, and give them the matching sheet edit.
 
 **Watch for:** a stat change that contradicts the class's own description
 (`Robot` says "increased max HP" — its `max_hp` must stay above 12), and a
@@ -174,9 +190,8 @@ The dangerous case. **This is a code change.**
 7. `npx jest && npx eslint .`
 8. Seed a scratch database and confirm the new name is present and the old
    one is gone.
-9. Give the maintainer the `UPDATE Classes SET Class_Name=...` for the live
-   database. **A live game is broken between the code deploying and that
-   UPDATE running** — the code will look for a name the database does not
+9. Tell the maintainer to run `--sync-classes` on the host. **A live game is
+   broken between the code deploying and that sync running** — the code will look for a name the database does not
    have yet. Deploy and update together, or during a quiet period.
 
 > The tests will not always save you. A test that fakes
@@ -210,8 +225,8 @@ The dangerous case. **This is a code change.**
 7. Update the count assertion in `tests/bootstrapSeed.test.js` (it pins 38).
 8. `npx jest && npx eslint .`, then seed a scratch database and confirm the
    new row.
-9. Tell the maintainer: the `INSERT` for the live database, any migration,
-   and the new sheet row.
+9. Tell the maintainer: run `--sync-classes` (it inserts the new row), plus
+   any column migration, plus the new sheet row.
 
 **Note on the player cap.** The README says two of each class, so the cap
 is `2 × class count`. Adding a class raises it. `game.playerMax` is checked

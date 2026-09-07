@@ -31,7 +31,7 @@ id,class,ap,max_ap,hp,max_hp,range,max_range,damage,max_damage,color,description
 30,Sniper,0,12,4,12,3,6,1,2,FFFF00,"Can use the >snipe command to pierce and hit anyone in the path of attack, pierces wall tiles. Starts with 3 range but 4HP"
 31,Cannibal,0,10,4,12,1,6,1,2,D38E9F,"Gains 1 AP on ALL kills, if you kill someone with max AP gain an extra 5AP on top of that, starts with reduced HP and reduced max AP"
 32,Hoarder,6,12,6,12,0,6,1,2,7B8D69,Starts with 6AP but starts with 0Range
-33,Protagonist,4,16,4,16,1,10,1,4,FFA7A7,"Starts with less hp but has high starting maximum stats, and 4 AP"
+33,Protagonist,4,16,4,16,1,10,1,4,efc266,"Starts with less hp but has high starting maximum stats, and 4 AP"
 34,Exorcist,0,12,6,12,1,6,1,2,00efff,"Can turn any non-gateway tile in range into a blank tile for 3AP with the >exorcize layer, x, y command, and can remove a players class for 16 AP with the >exorcise @mention, layer, x, y command"
 35,Hunter,0,12,6,12,4,6,1,2,274e13,"Can turn any non-gateway tile in range into a bush tile for 5AP with the >hide layer, x, y command. Attacks made from inside and on people inside a bush tile do not have a 50% chance to miss"
 36,Immutable,0,12,6,12,4,6,1,2,B0B0B0,"You cannot take damage from the >shoot command, but will die after 4 * Total Player Count AP has been distributed, cannot be revived once this threshold is hit"
