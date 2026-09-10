@@ -92,7 +92,11 @@ async function run(input, deps = defaultDeps) {
   const resurrectee = await models.Players.findOne({ where: { Game_ID: game.Game_ID, Discord_ID: input.targetDiscordId } });
   const playerClass = await models.Classes.findByPk(player.Class_ID);
 
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!playerClass || playerClass.Class_Name !== 'Necromancer') {

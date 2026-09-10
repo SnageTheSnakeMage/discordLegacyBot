@@ -60,7 +60,11 @@ async function run(input, deps = defaultDeps) {
   const victim = await models.Players.findOne({ where: { Game_ID: gameId, Discord_ID: input.victimDiscordId } });
 
   // the old code passed isClockwatcher = false unconditionally
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   // moved ahead of the class check, which used to dereference a null player
@@ -89,15 +93,10 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.SAME_TILE };
   }
 
-  // no AP is spent, and the tiles' own player slots are left alone
-  await models.Players.update(
-    { Tile_ID: victimsTile.Tile_ID },
-    { where: { Game_ID: gameId, Player_ID: player.Player_ID } },
-  );
-  await models.Players.update(
-    { Tile_ID: playersTile.Tile_ID },
-    { where: { Game_ID: gameId, Player_ID: victim.Player_ID } },
-  );
+  // no AP is spent. Both sides of the position invariant are written: this
+  // used to move Players.Tile_ID only, leaving the Tiles.PlayerN slots
+  // pointing at whoever was there before (#78).
+  await deps.utils.swapPlayerTiles(player.Player_ID, victim.Player_ID);
 
   return {
     ok: true,

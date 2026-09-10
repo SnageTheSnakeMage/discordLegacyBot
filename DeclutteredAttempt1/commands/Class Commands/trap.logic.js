@@ -67,7 +67,11 @@ async function run(input, deps = defaultDeps) {
   });
 
   // the old call hard-coded no Clockwatcher exemption; keep that
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!tileToChange) {

@@ -7,6 +7,7 @@ const retrieve = require('../../../commands/Player Commands/retrieve.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeTile,
+  createFakeClass
 } = require('../../helpers/mockModels.js');
 
 const ACTOR = '123';
@@ -91,12 +92,18 @@ describe('retrieve.run rejections', () => {
 
   // quirk pin: the old code passed a hard false for isClockwatcher and never
   // looked the class up, so even a Clockwatcher is blocked during a timestop
-  it('blocks everyone during a timestop - the player class is never consulted', async () => {
+  it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED, CHEST_AMOUNT: 10 }) });
+    // the actor really is a Clockwatcher: this fixture had no Classes
+    // mock, so the gate saw no class and blocked them
+    deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Clockwatcher' }));
     const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TIME_STOPPED });
-    expect(deps.models.Classes.findByPk).not.toHaveBeenCalled();
-    expectNoWrites(deps);
+    // the gate now consults the actor's class, so a timestop does not
+    // stop a Clockwatcher
+    expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
+    // the class IS consulted now - that is the whole fix
+    expect(deps.models.Classes.findByPk).toHaveBeenCalled();
+    // the Clockwatcher goes through, so the chest IS written now
   });
 
   it('rejects a player who is not on a chest tile and writes nothing', async () => {
@@ -138,7 +145,7 @@ describe('retrieve.run success', () => {
       { where: { Game_ID: 1 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 8 }, // player: 5 + 3
+      { Action_Points: 8, MISSED_AP: 0 }, // player: 5 + 3, none wasted
       { where: { Player_ID: 1 } },
     );
     expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
@@ -154,14 +161,14 @@ describe('retrieve.run success', () => {
   });
 
   // quirk pin: no MAX_AP clamp - the player can be pushed past their cap
-  it('does not clamp the player at MAX_AP', async () => {
+  it('clamps the player at MAX_AP instead of overfilling them', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: ACTOR, Action_Points: 9, MAX_AP: 10, Tile_ID: 1 }),
     });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 12 }, // 9 + 3, past MAX_AP 10
+      { Action_Points: 10, MISSED_AP: 2 }, // 9 + 3 capped at 10, the 2 kept as missed
       { where: { Player_ID: 1 } },
     );
   });
@@ -174,7 +181,7 @@ describe('retrieve.run success', () => {
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 8 },
+      { Action_Points: 8, MISSED_AP: 0 },
       { where: { Player_ID: 1 } },
     );
   });
@@ -190,7 +197,7 @@ describe('retrieve.run success', () => {
       { where: { Game_ID: 1 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 5 }, // 5 + null
+      { Action_Points: 5, MISSED_AP: 0 }, // 5 + null
       { where: { Player_ID: 1 } },
     );
   });
@@ -206,7 +213,7 @@ describe('retrieve.run success', () => {
       { where: { Game_ID: 1 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 2 }, // 5 + (-3)
+      { Action_Points: 2, MISSED_AP: 0 }, // 5 + (-3)
       { where: { Player_ID: 1 } },
     );
   });

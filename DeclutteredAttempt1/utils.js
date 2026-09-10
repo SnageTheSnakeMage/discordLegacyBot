@@ -37,6 +37,30 @@ async timeCheck(client){
   }
 },
 
+/**
+ * Adds AP without letting it exceed MAX_AP. The overflow is NOT discarded:
+ * it accumulates in MISSED_AP, which the kill bonus and the "Leftovers"
+ * chaos event both pay out. Capping silently deleted that currency.
+ */
+apGain(player, amount) {
+  const total = player.Action_Points + amount;
+  const capped = Math.min(total, player.MAX_AP);
+  return {
+    Action_Points: capped,
+    MISSED_AP: (player.MISSED_AP || 0) + Math.max(0, total - capped),
+  };
+},
+
+/** Same contract for health: overflow past MAX_HP accumulates in MISSED_HP. */
+hpGain(player, amount) {
+  const total = player.Health_Points + amount;
+  const capped = Math.min(total, player.MAX_HP);
+  return {
+    Health_Points: capped,
+    MISSED_HP: (player.MISSED_HP || 0) + Math.max(0, total - capped),
+  };
+},
+
 getRandomItemInCollection(collection) {
   // getRandomInt(max) is inclusive of max (Math.round), so index by length-1
   return collection[this.getRandomInt(collection.length - 1)];
@@ -114,12 +138,13 @@ async distributeAP(game, times, client){
   //get all alive players in the game and give them as much AP as the game gives per interval multiplied by times
   const livingPlayers = await models.Players.findAll({where: {Game_ID: game.Game_ID, Dead: false}});
   for (const player of livingPlayers) {
-      //give AP to everyone
-      await models.Players.update({Action_Points: player.Action_Points + game.APAmount * times}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
-      //give AP to gluttons again
-      if(player.Class_ID == gluttonClass.Class_ID){
-        await models.Players.update({Action_Points: player.Action_Points + game.APAmount * times}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});        
-      }
+      //give AP to everyone, gluttons twice over. This used to be two
+      //writes, both computed from the same pre-update row, so the second
+      //wrote the same value as the first and the glutton's double did
+      //nothing at all. Overflow past MAX_AP now lands in MISSED_AP.
+      const isGlutton = player.Class_ID == gluttonClass.Class_ID;
+      const apGained = game.APAmount * times * (isGlutton ? 2 : 1);
+      await models.Players.update(this.apGain(player, apGained), {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
       //kill immutables if their doomsday is 0
       if(game.immutableDoomsday <= 0 && player.Class_ID == immutableClass.Class_ID){
         await models.Players.update({Dead: true, Tile_ID: null}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
@@ -879,21 +904,6 @@ getTileCordinatesOfLine(tileCord1, tileCord2) {
   return returnedTiles;
 },
 
-async getOldestGameId(playerDiscordID){
-  if (playerDiscordID) {
-    var playerGameID = await models.Players.findAll({where: {Discord_ID: playerDiscordID}, attributes: ["Game_ID"]});
-    var games = await models.Games.findAll({where: {Game_ID: player}})
-    var oldestGameId = games.length;
-  for (var i = 0; i < games.length; i++) {
-    //if a game id is lower its older so we swap it out
-    if (games[i].Game_ID < oldestGameId) {
-      oldestGameId = games[i].Game_ID;
-    }
-  }
-  logger150.debug({function:"getOldestGameId"}, "found game id: "+ oldestGameId.toString())
-  return oldestGameId;
-  }
-},
 
 async  getOldestActiveGameId(playerDiscordID) {
   if (playerDiscordID) {
@@ -930,6 +940,17 @@ async  getOldestActiveGameId(playerDiscordID) {
 //Pure gamestate gate. Decides whether the current gamestate blocks a normal
 //command; never touches Discord. Player-facing wording for each reason lives
 //in commands/_messages.js.
+//Does this player act through a timestop? checkGameState takes the answer
+//as its second argument, and all 27 call sites hard-coded false - so the
+//Clockwatcher's entire ability did nothing for anyone.
+//models is passed in because the callers are command logic, which owns its
+//own (injected) models rather than reaching for the module-level one.
+async isClockwatcher(models, player) {
+  if (!player) return false;
+  const playerClass = await models.Classes.findByPk(player.Class_ID);
+  return !!playerClass && playerClass.Class_Name === 'Clockwatcher';
+},
+
 checkGameState(gamestate, isClockwatcher) {
   logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate );
   switch(gamestate) {
@@ -1060,6 +1081,25 @@ async setPlayerToTile(playerId, layer, x, y) {
   var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
   await this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
   const tile = await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
+  await this.claimTileSlot(tile, playerId);
+  await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
+},
+
+//Takes one body off the board: vacates the tile's PlayerN slot AND clears
+//the player's own Tile_ID/Tile_ID2. Every death branch used to null only
+//the player side, leaving the tile still naming a corpse (#78).
+async clearPlayerFromBoard(playerId, tileId, column) {
+  if (tileId != null) {
+    const tile = await models.Tiles.findByPk(tileId);
+    if (tile) await this.removePlayerFromTile(playerId, tile.Layer_ID, tile.X_Position, tile.Y_Position);
+  }
+  await models.Players.update({[column]: null}, {where: {Player_ID: playerId}});
+},
+
+//puts a player into the first free PlayerN slot on a tile row. Callers are
+//responsible for vacating the player's old tile first - this only writes
+//the tile side of the invariant.
+async claimTileSlot(tile, playerId) {
   if(tile.Player1 == null) {
     tile.Player1 = playerId;
   }
@@ -1076,7 +1116,50 @@ async setPlayerToTile(playerId, layer, x, y) {
     throw "tile is full";
   }
   await tile.save();
-  await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
+},
+
+//Exchanges two players' positions, keeping BOTH sides of the position
+//invariant true. Not two setPlayerToTile calls: the first would place
+//before the second vacates, so swapping onto a full tile would throw
+//"tile is full" even though the swap frees the slot it needs.
+async swapPlayerTiles(playerId1, playerId2) {
+  const player1 = await models.Players.findByPk(playerId1);
+  const player2 = await models.Players.findByPk(playerId2);
+  const tile1 = await models.Tiles.findByPk(player1.Tile_ID);
+  const tile2 = await models.Tiles.findByPk(player2.Tile_ID);
+  //vacate both before placing either
+  await this.removePlayerFromTile(playerId1, tile1.Layer_ID, tile1.X_Position, tile1.Y_Position);
+  await this.removePlayerFromTile(playerId2, tile2.Layer_ID, tile2.X_Position, tile2.Y_Position);
+  //re-read: removePlayerFromTile saved through its own row objects
+  const freshTile1 = await models.Tiles.findByPk(tile1.Tile_ID);
+  const freshTile2 = await models.Tiles.findByPk(tile2.Tile_ID);
+  await this.claimTileSlot(freshTile2, playerId1);
+  await this.claimTileSlot(freshTile1, playerId2);
+  await models.Players.update({Tile_ID: tile2.Tile_ID}, {where: {Player_ID: playerId1}});
+  await models.Players.update({Tile_ID: tile1.Tile_ID}, {where: {Player_ID: playerId2}});
+},
+
+//Applies damage to one of a player's bodies, then runs the death check
+//against the row AS IT NOW IS.
+//
+//Every damage site used to write the new HP and then hand playerDeathLogic
+//the SAME in-memory row, whose Health_Points was still the pre-damage
+//value. The death check therefore always saw a healthy player, and no
+//mine, fire tile, shot, stab or snipe ever registered a kill - victims sat
+//at or below zero HP, alive, still occupying a tile.
+//
+//body 2 is a Twin's second body, which has its own Health_Points2.
+//playerDeathLogic already requires BOTH bodies at zero before a Twin dies.
+async damagePlayer(attacker, victim, damage, body = 1) {
+  const column = body === 2 ? 'Health_Points2' : 'Health_Points';
+  const current = body === 2 ? victim.Health_Points2 : victim.Health_Points;
+  await models.Players.update({[column]: current - damage}, {where: {Player_ID: victim.Player_ID}});
+  //re-read: the death check must see the damage it is checking for
+  const damaged = await models.Players.findByPk(victim.Player_ID);
+  await this.playerDeathLogic(attacker, damaged);
+  //and re-read again, because playerDeathLogic writes Dead/Tile_ID straight
+  //to the database - callers need to know whether the victim survived
+  return await models.Players.findByPk(victim.Player_ID);
 },
 
 //takes in two players and checks if the second one is dead
@@ -1089,13 +1172,17 @@ async playerDeathLogic(killer, victim) {
   const killerClass = killer ? await models.Classes.findByPk(killer.Class_ID) : null;
   const victimClass = await models.Classes.findByPk(victim.Class_ID);
   //check if the victim is dead and there isnt a class with weird death logic involved
+  //the killer null-check has to come BEFORE killerClass is read: it used to
+  //be the last clause of this chain, so an environmental death (a fire tile,
+  //which passes no killer) threw on killerClass.Class_Name. Nothing could
+  //die before damagePlayer, so the branch never ran and the crash never showed.
   if (victim.Health_Points <= 0 
     && victim.Pharoh_HP <= 0 
     && victimClass.Class_Name != "Twin" 
+    && killer != null
     && killerClass.Class_Name != "Hitman"
     && killerClass.Class_Name != "Cannibal"
-    && killerClass.Class_Name != "Minesweeper"
-    && killer != null) {
+    && killerClass.Class_Name != "Minesweeper") {
     //TODO ensure any changes to Tile_ID cascade to the tile itself aswell with either
     // a Tiles db call 
     // or a utils removePlayerFromTile call
@@ -1127,8 +1214,8 @@ async playerDeathLogic(killer, victim) {
       && victim.Pharoh_HP <= 0 )
     {
       await models.Players.update({Dead: true}, {where: {Player_ID: victim.Player_ID}});
-      await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID}});
-      await models.Players.update({Tile_ID2: null}, {where: {Player_ID: victim.Player_ID}});
+      await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID, 'Tile_ID');
+      await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID2, 'Tile_ID2');
     }
     //Both twins are at 0 hp but the player has some pharaoh hp so revive them on a random tile with their pharaoh hp as their health and reset their pharaoh hp
     if(victim.Health_Points <= 0 
@@ -1148,19 +1235,21 @@ async playerDeathLogic(killer, victim) {
     }
     //One twin is at 0 hp so kill it but dont mark the player as dead
     if(victim.Health_Points <= 0 && victim.Health_Points2 > 0){
-      await models.Players.update({Tile_ID2: null}, {where: {Player_ID: victim.Player_ID}});
+      await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID2, 'Tile_ID2');
     }
     if(victim.Health_Points > 0 && victim.Health_Points2 <= 0){
-      await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID}});
+      await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID, 'Tile_ID');
     }
   }
   //kill the victim if they have 0 hp arent a twin and dont have pharaoh hp
   else if(victim.Health_Points <= 0){
       await models.Players.update({Dead: true}, {where: {Player_ID: victim.Player_ID}});
-      await models.Players.update({Tile_ID: null}, {where: {Player_ID: victim.Player_ID}});
+      await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID, 'Tile_ID');
   }
 
-  if(victim.Health_Points <= 0){
+  //same nullable-killer problem: an environmental death has no killer, so
+  //there is no class to switch on and no kill bonus to pay out
+  if(victim.Health_Points <= 0 && killerClass != null){
     switch(killerClass.Class_Name){
       //Weird death case #2 hitman gets 4AP for every killed target, do normal death logic but also update the hitman's AP
       case "Hitman":

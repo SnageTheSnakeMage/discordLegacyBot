@@ -93,19 +93,12 @@ describe('movement', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
-  // A LETHAL mine cannot kill. Every damage path in the codebase writes the
-  // new HP with models.Players.update(...) and then hands playerDeathLogic
-  // the SAME in-memory row, whose Health_Points is still the pre-damage
-  // value - so the death check sees a healthy player and no mine, fire tile,
-  // shot or stab ever registers a kill. The victim is left at or below zero
-  // HP, alive, still occupying a tile.
-  //
-  // Pre-existing, not introduced by the refactor: cursord's move.js had the
-  // identical update-then-stale-row pair. Making it kill is a game rule
-  // (players would start dying to mines and fire in a live game), so it is
-  // documented here rather than changed silently. Fixing it means re-reading
-  // the row, or passing post-damage HP, at every damage site.
-  test.failing('a lethal mine actually kills the player who steps on it', async () => {
+  // This was pinned as test.failing for as long as the suite existed: every
+  // damage path wrote the new HP and then handed playerDeathLogic the SAME
+  // in-memory row, still holding the pre-damage value, so the death check
+  // always saw a healthy player. utils.damagePlayer now re-reads the row
+  // before the check (and again after, so callers learn the victim died).
+  it('a lethal mine actually kills the player who steps on it', async () => {
     const { game, layer } = await board();
     const walker = await seedPlayer(game.Game_ID, {
       discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Health_Points: 1, Action_Points: 8,
@@ -125,8 +118,9 @@ describe('movement', () => {
 
     const dead = await models.Players.findByPk(walker.Player_ID);
     expect(dead.Health_Points).toBeLessThanOrEqual(0);
-    expect(dead.Dead).toBe(true);            // currently false - the bug
-    expect(dead.Tile_ID).toBeNull();         // currently still on the board
+    // Dead is an INTEGER column, so sqlite hands back 1 rather than true
+    expect(dead.Dead).toBeTruthy();
+    expect(dead.Tile_ID).toBeNull();
     expect((await models.Players.findByPk(trapper.Player_ID)).Kills).toBe(1);
   });
 

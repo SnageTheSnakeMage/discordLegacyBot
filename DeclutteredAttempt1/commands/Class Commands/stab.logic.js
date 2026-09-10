@@ -85,7 +85,9 @@ async function run(input, deps = defaultDeps) {
   const shootersTile = await models.Tiles.findByPk(player.Tile_ID);
   const playerClass = await models.Classes.findOne({ where: { Class_ID: player.Class_ID } });
   // looked up by Discord_ID alone, exactly as before - no Game_ID filter
-  const targetPlayer = await models.Players.findOne({ where: { Discord_ID: input.targetDiscordId } });
+  const targetPlayer = await models.Players.findOne({
+    where: { Discord_ID: input.targetDiscordId, Game_ID: game.Game_ID },
+  });
 
   // 1 AP a stab
   const requiredAP = input.amount;
@@ -94,7 +96,11 @@ async function run(input, deps = defaultDeps) {
 
   // the old code hardcoded isClockwatcher=false, so even Clockwatchers are
   // blocked by a timestop
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!playerClass || playerClass.Class_Name != 'Fencer') {
@@ -136,12 +142,9 @@ async function run(input, deps = defaultDeps) {
   const appliedDamage = Math.min(amount * player.Damage * (player.DMG_BUFF + 1) * 2, player.MAX_DAMAGE);
   const announcedDamage = amount * player.Damage * (player.DMG_BUFF + 1);
 
-  await models.Players.update(
-    { Health_Points: targetPlayer.Health_Points - appliedDamage },
-    { where: { Player_ID: targetPlayer.Player_ID, Game_ID: gameId } },
-  );
-  // handed the pre-damage row, exactly as before
-  await utils.playerDeathLogic(player, targetPlayer);
+  // was: the write plus playerDeathLogic handed the pre-damage row, so a
+  // lethal stab never registered the kill
+  await utils.damagePlayer(player, targetPlayer, appliedDamage);
 
   // if there was a DMG buff make sure to reset it
   if (player.DMG_BUFF > 0) {

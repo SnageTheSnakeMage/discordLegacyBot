@@ -150,3 +150,35 @@ describe('getRandomClass', () => {
     expect(asked.every((id) => ids.includes(id))).toBe(true);
   });
 });
+
+describe('isClockwatcher', () => {
+  // The gamestate gate takes this as its second argument. All 27 call sites
+  // used to hard-code false, so the Clockwatcher's whole ability - acting
+  // while time is stopped - did nothing for anyone.
+  const models = () => ({ Classes: { findByPk: jest.fn() } });
+
+  it('is true for a Clockwatcher', async () => {
+    const m = models();
+    m.Classes.findByPk.mockResolvedValue(createFakeClass({ Class_Name: 'Clockwatcher' }));
+    expect(await utils.isClockwatcher(m, createFakePlayer({ Class_ID: 23 }))).toBe(true);
+    expect(m.Classes.findByPk).toHaveBeenCalledWith(23);
+  });
+
+  it('is false for any other class', async () => {
+    const m = models();
+    m.Classes.findByPk.mockResolvedValue(createFakeClass({ Class_Name: 'Sniper' }));
+    expect(await utils.isClockwatcher(m, createFakePlayer({ Class_ID: 30 }))).toBe(false);
+  });
+
+  it('is false when there is no player, without touching the database', async () => {
+    const m = models();
+    expect(await utils.isClockwatcher(m, null)).toBe(false);
+    expect(m.Classes.findByPk).not.toHaveBeenCalled();
+  });
+
+  it('is false when the class row is missing, rather than throwing', async () => {
+    const m = models();
+    m.Classes.findByPk.mockResolvedValue(null);
+    expect(await utils.isClockwatcher(m, createFakePlayer({ Class_ID: 99 }))).toBe(false);
+  });
+});

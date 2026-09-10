@@ -278,14 +278,15 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
  */
 async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, deps) {
   const { models, utils, random } = deps;
-  const hpColumn = secondBody ? 'Health_Points2' : 'Health_Points';
+  const body = secondBody ? 2 : 1;
   const currentHp = secondBody ? player.Health_Points2 : player.Health_Points;
 
   switch (startTile.Tile_Type) {
     // leaving a fire tile burns the player
     case 'Fire':
-      await models.Players.update({ [hpColumn]: currentHp - game.fireDmg }, { where: { Player_ID: player.Player_ID } });
-      await utils.playerDeathLogic(null, player);
+      // damagePlayer re-reads the row before the death check; this used to
+      // hand playerDeathLogic the pre-damage row, so fire never killed
+      if ((await utils.damagePlayer(null, player, game.fireDmg, body)).Dead) return { died: true };
       break;
     // leaving a smoke tile disperses it
     case 'Smoke':
@@ -298,13 +299,20 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
   switch (endTile.Tile_Type) {
     // entering a fire tile burns the player
     case 'Fire':
-      await models.Players.update({ [hpColumn]: currentHp - game.fireDmg }, { where: { Player_ID: player.Player_ID } });
-      await utils.playerDeathLogic(null, player);
+      // damagePlayer re-reads the row before the death check; this used to
+      // hand playerDeathLogic the pre-damage row, so fire never killed
+      if ((await utils.damagePlayer(null, player, game.fireDmg, body)).Dead) return { died: true };
       break;
     case 'Storm':
       // a Robot gains 1 HP
       if (player.Class_ID == ROBOT_CLASS_ID) {
-        await models.Players.update({ [hpColumn]: currentHp + 1 }, { where: { Player_ID: player.Player_ID } });
+        // capped, with the overflow banked as MISSED_HP like every other gain
+        await models.Players.update(
+          secondBody
+            ? { Health_Points2: Math.min(currentHp + 1, player.MAX_HP) }
+            : utils.hpGain(player, 1),
+          { where: { Player_ID: player.Player_ID } },
+        );
       }
       // a Stormchaser gains 1d4-2 AP
       if (player.Class_ID == STORMCHASER_CLASS_ID) {
@@ -336,9 +344,10 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
       throw new Error('Mine without trapper found. Please contact snage.');
     }
     const mineDmg = game.mineDmg;
-    await models.Players.update({ [hpColumn]: currentHp - mineDmg }, { where: { Player_ID: player.Player_ID } });
-    await utils.playerDeathLogic(trapper, player);
+    // same here: a lethal mine now actually kills, and credits the trapper
+    const afterMine = await utils.damagePlayer(trapper, player, mineDmg, body);
     await models.Tiles.update({ trapped: false, trapper: null }, { where: { Tile_ID: endTile.Tile_ID } });
+    if (afterMine.Dead) return { died: true };
   }
   return undefined;
 }
@@ -481,6 +490,10 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.NOT_ENOUGH_AP, data: { message: MSG_NO_AP } };
   }
 
+  // set when a fire tile or mine kills the mover mid-walk
+
+  let died = false;
+
   let response = '';
   let lastStringAddedToResponse = '';
   let amountOfRepeats = 0;
@@ -506,11 +519,16 @@ async function run(input, deps = defaultDeps) {
 
     // also holds the trapped-tile damage logic
     const blocked = await moveFromTiletoTile(cur_Tile, nxt_Tile, player, secondBody, game, deps);
+    // a tile can now kill the mover. playerDeathLogic has already taken them
+    // off the board, so the walk stops here rather than placing a corpse.
+    if (blocked && blocked.died) { died = true; break; }
     if (blocked) return { ok: false, reason: blocked.reason, data: blocked.data };
   }
 
   // put the player on the destination tile (and take them off the old one)
-  await utils.setPlayerToTile(player.Player_ID, originalTile.Layer_ID, newX, newY);
+  if (!died) {
+    await utils.setPlayerToTile(player.Player_ID, originalTile.Layer_ID, newX, newY);
+  }
 
   // deduct action points & update free movement
   await models.Players.update(

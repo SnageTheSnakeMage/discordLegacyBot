@@ -65,6 +65,7 @@ function makeDeps(over = {}) {
       // these three write to the board / kill players through utils' own
       // module-level models, so they are faked; the pure helpers are real
       setPlayerToTile: jest.fn(async () => undefined),
+      damagePlayer: jest.fn(async () => ({})),
       playerDeathLogic: jest.fn(async () => undefined),
       revertTileToBlank: jest.fn(async () => undefined),
       getOldestActiveGameId: jest.fn(async () => 1),
@@ -536,11 +537,9 @@ describe('move.run success', () => {
     const { deps, player } = makeDeps({ board: makeBoard({ '2,1': { Tile_Type: 'Fire' } }) });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 7 }, // 10 - fireDmg 3
-      { where: { Player_ID: 1 } },
-    );
-    expect(deps.utils.playerDeathLogic).toHaveBeenCalledWith(null, player);
+    // the HP write and the death check moved into damagePlayer, which
+    // re-reads the row - so a lethal fire tile now actually kills
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(null, player, 3, 1);
   });
 
   it('disperses a smoke tile the player leaves', async () => {
@@ -559,11 +558,7 @@ describe('move.run success', () => {
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(result.data.response).toBe('You moved from a Blank1 tile to a Blank1 tile IT WAS TRAPPED took 2! \n');
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 8 }, // 10 - mineDmg 2
-      { where: { Player_ID: 1 } },
-    );
-    expect(deps.utils.playerDeathLogic).toHaveBeenCalledWith(trapper, player);
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(trapper, player, 2, 1);
     expect(deps.models.Tiles.update).toHaveBeenCalledWith(
       { trapped: false, trapper: null },
       { where: { Tile_ID: 21 } },
@@ -579,8 +574,9 @@ describe('move.run success', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
+    // capped at MAX_HP with the overflow banked, like every other HP gain
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points: 11 },
+      { Health_Points: 10, MISSED_HP: 1 },
       { where: { Player_ID: 1 } },
     );
     // once for the storm displacement, once for the requested destination
@@ -625,9 +621,9 @@ describe('move.run success', () => {
     const result = await logic.run({ ...INPUT, body: 2 }, deps);
     expect(result.ok).toBe(true);
     expect(result.data.newX).toBe(2);
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Health_Points2: 5 }, // 8 - fireDmg 3
-      { where: { Player_ID: 1 } },
+    // body 2 is damaged through its own column
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      null, expect.objectContaining({ Player_ID: 1 }), 3, 2,
     );
   });
 });

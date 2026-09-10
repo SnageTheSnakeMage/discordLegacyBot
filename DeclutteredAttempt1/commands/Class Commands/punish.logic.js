@@ -84,7 +84,9 @@ async function run(input, deps = defaultDeps) {
   }
 
   // looked up by Discord_ID alone, exactly as before - no Game_ID filter
-  const targetPlayer = await models.Players.findOne({ where: { Discord_ID: input.targetDiscordId } });
+  const targetPlayer = await models.Players.findOne({
+    where: { Discord_ID: input.targetDiscordId, Game_ID: game.Game_ID },
+  });
 
   const targetTile = await models.Tiles.findOne({ where: { Layer_ID: attackersTile.Layer_ID, X_Position: input.x, Y_Position: input.y } });
   // the old code dereferenced a null target tile building the attack path
@@ -99,7 +101,11 @@ async function run(input, deps = defaultDeps) {
 
   // the old code hardcoded isClockwatcher=false here, so even Clockwatchers
   // are blocked by a timestop
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (player.Action_Points < REQUIRED_AP) {
@@ -110,7 +116,10 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.TARGET_NOT_IN_GAME, data: { message: 'That mention does not correspond to a player registered in that game!' } };
   }
 
-  if (targetPlayer.Tile_ID != targetTile.Tile_ID) {
+  // either of a Twin's bodies counts as being on the tile
+  const onTile = targetPlayer.Tile_ID == targetTile.Tile_ID
+    || (targetPlayer.Tile_ID2 != null && targetPlayer.Tile_ID2 == targetTile.Tile_ID);
+  if (!onTile) {
     return { ok: false, reason: REJECTIONS.TARGET_NOT_ON_TILE, data: { message: "That player isnt on that tile!" } };
   }
 

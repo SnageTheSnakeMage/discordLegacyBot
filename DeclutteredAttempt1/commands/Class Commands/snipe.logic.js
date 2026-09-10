@@ -107,7 +107,11 @@ async function run(input, deps = defaultDeps) {
 
   // the old code hardcoded isClockwatcher=false, so even Clockwatchers are
   // blocked by a timestop
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (player.Action_Points < requiredAP) {
@@ -118,7 +122,11 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.TARGET_NOT_IN_GAME, data: { message: 'The tile provided is not in the game!' } };
   }
 
-  if (targetTile.Tile_ID != targetPlayer.Tile_ID) {
+  // either of a Twin's bodies can be the one standing on the tile
+  const targetBody = targetPlayer && targetPlayer.Tile_ID == targetTile.Tile_ID ? 1
+    : (targetPlayer && targetPlayer.Tile_ID2 != null && targetPlayer.Tile_ID2 == targetTile.Tile_ID) ? 2
+      : null;
+  if (targetBody === null) {
     return { ok: false, reason: REJECTIONS.TARGET_NOT_ON_TILE, data: { message: 'Your target is not on the tile provided!' } };
   }
 
@@ -182,13 +190,10 @@ async function run(input, deps = defaultDeps) {
         const collateralPlayer = await models.Players.findOne({
           where: { Player_ID: occupant, Game_ID: game.Game_ID },
         });
-        await models.Players.update(
-          { Health_Points: collateralPlayer.Health_Points - collateralDamage },
-          { where: { Player_ID: collateralPlayer.Player_ID, Game_ID: game.Game_ID } },
-        );
-        // legacy argument order: the collateral player is passed as the
-        // killer and the sniper as the victim
-        await utils.playerDeathLogic(collateralPlayer, player);
+        // was: the HP write plus playerDeathLogic(collateralPlayer, player) -
+        // the arguments reversed, so the SNIPER was checked for death and
+        // the victim never was. damagePlayer takes (attacker, victim).
+        await utils.damagePlayer(player, collateralPlayer, collateralDamage);
         events.push({
           type: 'hitCollateral',
           targetDiscordId: collateralPlayer.Discord_ID,
@@ -201,12 +206,9 @@ async function run(input, deps = defaultDeps) {
     }
 
     if (tile.X_Position == input.x && tile.Y_Position == input.y) {
-      await models.Players.update(
-        { Health_Points: targetPlayer.Health_Points - announcedDamage },
-        { where: { Player_ID: targetPlayer.Player_ID, Game_ID: game.Game_ID } },
-      );
-      // legacy argument order again: (target, sniper)
-      await utils.playerDeathLogic(targetPlayer, player);
+      // same reversal fixed here, and the hit lands on whichever of a
+      // Twin's bodies is actually standing on the tile
+      await utils.damagePlayer(player, targetPlayer, announcedDamage, targetBody);
       events.push({
         type: 'hitTarget',
         username: input.targetUsername,

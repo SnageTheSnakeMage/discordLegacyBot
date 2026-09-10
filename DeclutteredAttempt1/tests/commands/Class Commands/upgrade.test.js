@@ -6,7 +6,7 @@
 const logic = require('../../../commands/Class Commands/upgrade.logic.js');
 const upgrade = require('../../../commands/Class Commands/upgrade.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
-const { createDeps, createFakeGame, createFakePlayer } = require('../../helpers/mockModels.js');
+const { createDeps, createFakeClass, createFakeGame, createFakePlayer } = require('../../helpers/mockModels.js');
 
 const ACTOR = '123';
 
@@ -275,12 +275,19 @@ describe('upgrade.run preserved quirks', () => {
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  it('blocks a Clockwatcher during a timestop: the gate is always isClockwatcher=false', async () => {
+  it('does not block a Clockwatcher during a timestop', async () => {
     const deps = makeDeps({ game: createFakeGame({ GAME_STATE: GAMESTATES.TIMESTOPPED }) });
+    // the actor really is a Clockwatcher: this fixture had no Classes
+    // mock, so the gate saw no class and blocked them
+    deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Clockwatcher' }));
     const result = await logic.run(INPUT, deps);
-    expect(result.reason).toBe(REJECTIONS.TIME_STOPPED);
+    // the gate now consults the actor's class, so a timestop does not
+    // stop a Clockwatcher; whatever the command decides next is its own
+    // business (often its own class gate)
+    expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
     // the command never even loads the player's class
-    expect(deps.models.Classes.findByPk).not.toHaveBeenCalled();
+    // the class IS consulted now - that is the whole fix
+    expect(deps.models.Classes.findByPk).toHaveBeenCalled();
   });
 });
 

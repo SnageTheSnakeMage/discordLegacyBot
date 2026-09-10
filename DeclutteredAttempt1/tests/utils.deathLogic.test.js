@@ -11,6 +11,18 @@ const utils = require('../utils.js');
 const { createFakePlayer, createFakeClass, createFakeTile, createFakeGame } = require('./helpers/mockModels.js');
 
 /** classes by id: 1 = killer's class, 2 = victim's class */
+// Death now vacates the tile as well as nulling Tile_ID, so every branch
+// reads the victim's tile row. Tests that care about the slot still stub
+// their own tile; this is the default so the rest need not.
+beforeEach(() => {
+  jest.spyOn(utils.models.Tiles, 'findByPk').mockResolvedValue(
+    createFakeTile({ Tile_ID: 7, Layer_ID: 1, X_Position: 3, Y_Position: 3 }),
+  );
+  jest.spyOn(utils.models.Tiles, 'findOne').mockResolvedValue(
+    createFakeTile({ Tile_ID: 7, Layer_ID: 1, X_Position: 3, Y_Position: 3 }),
+  );
+});
+
 function stubClasses({ killerClass = 'Average', victimClass = 'Average' } = {}) {
   jest.spyOn(utils.models.Classes, 'findByPk').mockImplementation(async (id) => (
     id === 1 ? createFakeClass({ Class_ID: 1, Class_Name: killerClass })
@@ -58,9 +70,11 @@ describe('playerDeathLogic - normal kill', () => {
 
   // Environment kills (fire tiles) pass killer = null; the guard order
   // dereferences killerClass.Class_Name before checking killer != null.
-  // The correct behaviour is a death with no kill credit; today it throws.
-  // Kept failing on purpose - fixing it is a game-logic decision (#63/#78).
-  test.failing('an environment kill (killer = null) processes the death instead of throwing', async () => {
+  // The killer null-check used to be the LAST clause of the guard chain, so
+  // killerClass.Class_Name was dereferenced first and a fire-tile death threw.
+  // Nothing could die before utils.damagePlayer, so this never surfaced in
+  // play; the integration death suite caught it immediately.
+  it('an environment kill (killer = null) processes the death instead of throwing', async () => {
     stubClasses();
     stubBoringGame();
     jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);

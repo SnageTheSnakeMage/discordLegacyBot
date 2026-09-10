@@ -127,7 +127,7 @@ describe('deliver.run success', () => {
     const result = await logic.run(INPUT, deps);
     expect(result).toEqual({ ok: true, kind: 'delivered', data: { amount: 3, receiverUsername: 'postbox' } });
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 5 }, // receiver: 2 + 3
+      { Action_Points: 5, MISSED_AP: 0 }, // receiver: 2 + 3, none wasted
       { where: { Player_ID: 2 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
@@ -142,7 +142,7 @@ describe('deliver.run success', () => {
     const result = await logic.run({ ...INPUT, amount: 1 }, deps);
     expect(result.data.amount).toBe(1);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 3 }, // receiver: 2 + 1
+      { Action_Points: 3, MISSED_AP: 0 }, // receiver: 2 + 1, none wasted
       { where: { Player_ID: 2 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
@@ -162,14 +162,14 @@ describe('deliver.run success', () => {
   });
 
   // quirk: no MAX_AP clamp - the receiver can be pushed over their cap
-  it('overfills the receiver past MAX_AP', async () => {
+  it('clamps the receiver at MAX_AP instead of overfilling them', async () => {
     const { deps } = happyDeps({
       receiver: createFakePlayer({ Player_ID: 2, Discord_ID: RECEIVER, Action_Points: 9, MAX_AP: 10 }),
     });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 12 }, // 9 + 3, over the MAX_AP of 10
+      { Action_Points: 10, MISSED_AP: 2 }, // 9 + 3 capped at 10, the 2 kept as missed
       { where: { Player_ID: 2 } },
     );
   });
@@ -191,7 +191,7 @@ describe('deliver.run success', () => {
     const result = await logic.run({ ...INPUT, targetDiscordId: MAILMAN }, deps);
     expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenNthCalledWith(1,
-      { Action_Points: 8 }, // 5 + 3
+      { Action_Points: 8, MISSED_AP: 0 }, // 5 + 3, none wasted
       { where: { Player_ID: 1 } },
     );
     expect(deps.models.Players.update).toHaveBeenNthCalledWith(2,

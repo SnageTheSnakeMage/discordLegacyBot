@@ -48,7 +48,11 @@ async function run(input, deps = defaultDeps) {
 
   // the old code hardcoded isClockwatcher=false here; a Mailman is never a
   // Clockwatcher, so timestop always blocks this command
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!player) return { ok: false, reason: REJECTIONS.NOT_IN_GAME };
@@ -67,7 +71,7 @@ async function run(input, deps = defaultDeps) {
   }
 
   await models.Players.update(
-    { Action_Points: receiver.Action_Points + input.amount },
+    deps.utils.apGain(receiver, input.amount),
     { where: { Player_ID: receiver.Player_ID } },
   );
   await models.Players.update(

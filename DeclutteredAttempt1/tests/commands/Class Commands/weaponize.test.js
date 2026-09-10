@@ -133,13 +133,16 @@ describe('weaponize.run rejections', () => {
   });
 
   // quirk: isClockwatcher is hardcoded false, so a timestop blocks everyone
-  it('blocks during a timestop even when the actor is a Clockwatcher', async () => {
+  it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ GAME_STATE: GAMESTATES.TIMESTOPPED }),
       playerClass: createFakeClass({ Class_ID: 5, Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);
-    expect(result.reason).toBe(REJECTIONS.TIME_STOPPED);
+    // the gate now consults the actor's class, so a timestop does not
+    // stop a Clockwatcher; whatever the command decides next is its own
+    // business (often its own class gate)
+    expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 

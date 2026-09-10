@@ -13,6 +13,7 @@ const punish = require('../../../commands/Class Commands/punish.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeTile,
+  createFakeClass
 } = require('../../helpers/mockModels.js');
 
 const ATTACKER = '123';
@@ -138,14 +139,20 @@ describe('punish.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('blocks everyone during a timestop: the gate is hardcoded to isClockwatcher=false and the class is never read', async () => {
+  it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED }) });
+    // the actor really is a Clockwatcher: this fixture had no Classes
+    // mock, so the gate saw no class and blocked them
+    deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Clockwatcher' }));
     const result = await logic.run(INPUT, deps);
-    expect(result.reason).toBe(REJECTIONS.TIME_STOPPED);
+    // the gate now consults the actor's class, so a timestop does not
+    // stop a Clockwatcher; whatever the command decides next is its own
+    // business (often its own class gate)
+    expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
     // the Classes lookup existed only for the Hunter check inside the
     // unported attack loop, so no class is fetched at all any more
-    expect(deps.models.Classes.findByPk).not.toHaveBeenCalled();
-    expect(deps.models.Classes.findOne).not.toHaveBeenCalled();
+    // the class IS consulted now - that is the whole fix
+    expect(deps.models.Classes.findByPk).toHaveBeenCalled();
     expectNoWrites(deps);
   });
 
@@ -221,10 +228,14 @@ describe('punish.run rejections', () => {
 });
 
 describe('punish.run preserved quirks', () => {
-  it('looks the target up by Discord_ID alone, with no Game_ID filter', async () => {
+  // was: looked up by Discord_ID alone, so a player registered only in
+  // another game could be named as the target
+  it('scopes the target lookup to this game', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);
-    expect(deps.models.Players.findOne).toHaveBeenCalledWith({ where: { Discord_ID: TARGET } });
+    expect(deps.models.Players.findOne).toHaveBeenCalledWith({
+      where: { Discord_ID: TARGET, Game_ID: 1 },
+    });
   });
 
   it('always reads the attacker Tile_ID, never Tile_ID2: the body option was never declared', async () => {

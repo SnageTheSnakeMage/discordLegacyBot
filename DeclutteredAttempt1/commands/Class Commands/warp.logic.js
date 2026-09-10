@@ -112,7 +112,11 @@ async function run(input, deps = defaultDeps) {
     };
   }
 
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   const hopperClass = await models.Classes.findOne({ where: { Class_Name: 'Dimensional Hopper' } });
@@ -163,9 +167,11 @@ async function run(input, deps = defaultDeps) {
     if (!newTile) return noneLeft;
   }
 
-  await models.Players.update(
-    { Tile_ID: newTile.Tile_ID },
-    { where: { Game_ID: gameId, Discord_ID: input.discordId } },
+  // both sides of the position invariant: this used to write
+  // Players.Tile_ID only, leaving the destination tile's PlayerN slots
+  // unclaimed and the old tile still naming the hopper (#78)
+  await deps.utils.setPlayerToTile(
+    player.Player_ID, newTile.Layer_ID, newTile.X_Position, newTile.Y_Position,
   );
 
   return {

@@ -70,7 +70,11 @@ async function run(input, deps = defaultDeps) {
   });
 
   // the old code hard-coded isClockwatcher=false here; keep that
-  const verdict = utils.checkGameState(game.GAME_STATE, false);
+  // a Clockwatcher acts through a timestop. Every call site used to
+  // hard-code false here, so the class's whole ability did nothing.
+  const verdict = utils.checkGameState(
+    game.GAME_STATE, await utils.isClockwatcher(models, player),
+  );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   const playerClass = await models.Classes.findByPk(player.Class_ID);
@@ -100,17 +104,17 @@ async function run(input, deps = defaultDeps) {
 
   // give the customer the AP & HP (unclamped, as before)
   await models.Players.update(
-    { Action_Points: customer.Action_Points + 2 },
+    deps.utils.apGain(customer, 2),
     { where: { Player_ID: customer.Player_ID } },
   );
   await models.Players.update(
-    { Health_Points: customer.Health_Points + 1 },
+    deps.utils.hpGain(customer, 1),
     { where: { Player_ID: customer.Player_ID } },
   );
 
   // give the chef the AP and consume the meal
   await models.Players.update(
-    { Action_Points: player.Action_Points + 1, Meals: player.Meals - 1 },
+    { ...deps.utils.apGain(player, 1), Meals: player.Meals - 1 },
     { where: { Player_ID: player.Player_ID } },
   );
 

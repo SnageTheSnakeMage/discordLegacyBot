@@ -23,7 +23,7 @@ describe('distributeAP', () => {
     return models.Players.findByPk(player.Player_ID);
   }
 
-  it('grants APAmount x times to every living player - uncapped (pinned; see #87)', async () => {
+  it('grants APAmount x times, capped at MAX_AP with the overflow kept as MISSED_AP', async () => {
     const game = await seedGame({ APAmount: 4 });
     const layer = await seedLayer(game.Game_ID);
     const poor = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 2, MAX_AP: 10 });
@@ -33,8 +33,11 @@ describe('distributeAP', () => {
 
     expect((await reload(poor)).Action_Points).toBe(6);
     const richAfter = await reload(rich);
-    expect(richAfter.Action_Points).toBe(13); // 9 + 4, over MAX_AP
-    expect(richAfter.MISSED_AP).toBe(0);
+    // 9 + 4 would be 13; capped to MAX_AP 10 with the 3 recorded, not lost.
+    // MISSED_AP is real currency - the kill bonus and the Leftovers chaos
+    // event both pay it out.
+    expect(richAfter.Action_Points).toBe(10);
+    expect(richAfter.MISSED_AP).toBe(3);
     await assertBoardConsistent(game.Game_ID);
   });
 
@@ -48,20 +51,9 @@ describe('distributeAP', () => {
     expect((await reload(dead)).Action_Points).toBe(2);
   });
 
-  it('a Glutton currently gets only ONE grant - the double-helping write clobbers itself (pinned)', async () => {
-    // both updates compute player.Action_Points + APAmount from the same
-    // stale in-memory row, so the second write stores the same value the
-    // first did instead of stacking. The class description promises two.
-    const game = await seedGame({ APAmount: 4 });
-    const layer = await seedLayer(game.Game_ID);
-    const glutton = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, className: 'Glutton', Action_Points: 0 });
-
-    await utils.distributeAP(game, 1, FAKE_CLIENT);
-
-    expect((await reload(glutton)).Action_Points).toBe(4);
-  });
-
-  test.failing('a Glutton gets the grant twice (intended behaviour - stale-read bug, #68 family)', async () => {
+  // was two writes off the same stale row, so the second stored what the
+  // first did and the glutton's double did nothing
+  it('a Glutton gets the grant twice', async () => {
     const game = await seedGame({ APAmount: 4 });
     const layer = await seedLayer(game.Game_ID);
     const glutton = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, className: 'Glutton', Action_Points: 0 });

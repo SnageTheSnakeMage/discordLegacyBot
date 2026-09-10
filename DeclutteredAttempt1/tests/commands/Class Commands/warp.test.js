@@ -66,6 +66,7 @@ function setup(over = {}) {
       Classes: { findOne: async () => hopperClass },
     },
     random: over.random,
+    utils: { setPlayerToTile: jest.fn(async () => undefined) },
   });
   return { deps, player, game, currentTile, destinationTiles };
 }
@@ -269,9 +270,7 @@ describe('warp.run preserved loop quirks', () => {
     // survivors are the tiles at odd original indexes: 71 and 73
     expect(deps.random).toHaveBeenCalledWith(1);
     expect(result.data.tileId).toBe(71);
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Tile_ID: 71 }, { where: { Game_ID: 1, Discord_ID: DISCORD } },
-    );
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 3, 1, 1);
   });
 
   // same quirk on the hopper branch: two walls, one survives, and the hopper
@@ -334,13 +333,11 @@ describe('warp.run success', () => {
       kind: 'warped',
       data: { up: false, viaGateway: false, tileId: 50, layerId: 3 },
     });
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Tile_ID: 50 }, { where: { Game_ID: 1, Discord_ID: DISCORD } },
-    );
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(1);
-    // preserved quirk: the destination tile's PlayerN slot is never claimed
-    // and the old tile is never vacated
-    expect(deps.models.Tiles.update).not.toHaveBeenCalled();
+    // was: a bare Players.Tile_ID write that never claimed the destination
+    // slot nor vacated the old tile. setPlayerToTile does both (#78).
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 3, 1, 1);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
+    expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
   it('teleports a hopper up, using the layer above', async () => {
@@ -359,9 +356,7 @@ describe('warp.run success', () => {
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: true, kind: 'warped', data: { viaGateway: true, tileId: 65 } });
     expect(deps.models.Tiles.findAll).toHaveBeenCalledWith({ where: { Layer_ID: 3, Tile_Type: 'Gateway_Open' } });
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Tile_ID: 65 }, { where: { Game_ID: 1, Discord_ID: DISCORD } },
-    );
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 3, 1, 1);
   });
 
   it('resolves the default game via getOldestGameId when no game is given', async () => {
