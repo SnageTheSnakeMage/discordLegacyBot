@@ -663,6 +663,104 @@ describe('move.present', () => {
 });
 
 // ---------------------------------------------------------------------------
+// internal logging (move.logic.js is the one logic file over the size
+// threshold, so it logs its own steps - see tests/logicFileLogging.test.js)
+// ---------------------------------------------------------------------------
+
+describe('move internal logging', () => {
+  function capturing() {
+    const lines = [];
+    const child = {
+      debug: (obj, msg) => lines.push({ obj, msg }),
+      info: () => {},
+      error: () => {},
+    };
+    return { logger: { child: () => child }, lines };
+  }
+
+  const steps = (lines) => lines.map((line) => line.obj.function);
+
+  it('records the walk it decided on, step by step', async () => {
+    const { logger, lines } = capturing();
+    const { deps } = makeDeps();
+    deps.logger = logger;
+
+    const result = await logic.run({ ...INPUT, distance: 3 }, deps);
+
+    expect(result.ok).toBe(true);
+    // 1,1 -> 4,1 is four coordinates, so three steps between them
+    expect(steps(lines)).toEqual(['resolved', 'destination', 'cost', 'step', 'step', 'step', 'placed']);
+
+    const destination = lines.find((line) => line.obj.function === 'destination').obj;
+    expect(destination).toMatchObject({ via: 'direction', direction: 'east', distance: 3, to: [4, 1], tilesWalked: 4 });
+
+    const walked = lines.filter((line) => line.obj.function === 'step').map((line) => line.obj);
+    expect(walked.map((step) => step.to)).toEqual([[2, 1], [3, 1], [4, 1]]);
+    expect(walked.every((step) => step.of === 3)).toBe(true);
+
+    expect(lines.find((line) => line.obj.function === 'placed').obj).toMatchObject({ at: [4, 1], layerId: 1 });
+  });
+
+  it('records the AP arithmetic including the ice discount', async () => {
+    const { logger, lines } = capturing();
+    const { deps } = makeDeps({ board: makeBoard({ '2,1': { Tile_Type: 'Ice' } }) });
+    deps.logger = logger;
+
+    await logic.run({ ...INPUT, distance: 2 }, deps);
+
+    // three coordinates crossed, one of them ice, so two billable at cost 1
+    expect(lines.find((line) => line.obj.function === 'cost').obj).toMatchObject({
+      iceTileDeduction: 1, billableTiles: 2, moveCost: 1, doubled: false, spentAP: 2,
+    });
+  });
+
+  it('records a tile effect and where a lethal tile stopped the walk', async () => {
+    const { logger, lines } = capturing();
+    const { deps } = makeDeps({ board: makeBoard({ '2,1': { Tile_Type: 'Fire' } }) });
+    deps.utils.damagePlayer = jest.fn(async () => ({ Dead: true }));
+    deps.logger = logger;
+
+    await logic.run({ ...INPUT, distance: 3 }, deps);
+
+    expect(lines.find((line) => line.obj.function === 'tileEffect').obj)
+      .toMatchObject({ effect: 'fireOnEntry', damage: 3, body: 1 });
+    expect(lines.find((line) => line.obj.function === 'diedMidWalk').obj)
+      .toMatchObject({ index: 0, at: [2, 1], tileType: 'Fire' });
+    // the walk stopped, so neither the later steps nor the placement happened
+    expect(steps(lines)).not.toContain('placed');
+    expect(steps(lines).filter((step) => step === 'step')).toHaveLength(1);
+  });
+
+  it('records why a rejection happened, not just that it did', async () => {
+    const { logger, lines } = capturing();
+    const { deps } = makeDeps({ player: createFakePlayer({
+      Player_ID: 1, Class_ID: 1, Game_ID: 1, Discord_ID: DISCORD_ID,
+      Action_Points: 1, Health_Points: 10, Free_Move: 0, Tile_ID: 11, Tile_ID2: null,
+    }) });
+    deps.logger = logger;
+
+    const result = await logic.run({ ...INPUT, distance: 3 }, deps);
+
+    expect(result.reason).toBe(REJECTIONS.NOT_ENOUGH_AP);
+    // the cost line is what makes the rejection explicable
+    expect(lines.find((line) => line.obj.function === 'cost').obj).toMatchObject({ spentAP: 4, ap: 1 });
+    expect(steps(lines)).not.toContain('step');
+  });
+
+  it('logs nothing at all when no logger is injected', async () => {
+    const saved = globalThis.topLogger;
+    globalThis.topLogger = undefined;
+    try {
+      const { deps } = makeDeps();
+      // the guarantee that let this land without touching the other 600 tests
+      await expect(logic.run(INPUT, deps)).resolves.toMatchObject({ ok: true });
+    } finally {
+      globalThis.topLogger = saved;
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // adapter
 // ---------------------------------------------------------------------------
 
