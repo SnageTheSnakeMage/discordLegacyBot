@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, InteractionContextType, PermissionFlagsBits } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { runLogged } = require('../_logging.js');
 const logic = require('./reloadCommands.logic.js');
 
 module.exports = {
@@ -27,7 +28,7 @@ module.exports = {
 			readOptions(interaction, {}),
 			{ ...readActor(interaction), isDev },
 		);
-		const result = await logic.run(input);
+		const result = await runLogged('reloadCommands', logic, input);
 
 		if (result.ok) {
 			for (const entry of result.data.reloaded) {

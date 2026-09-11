@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { runLogged } = require('../_logging.js');
 const logic = require('./stats.logic.js');
 
 module.exports = {
@@ -34,7 +35,7 @@ module.exports = {
         const targetUser = interaction.options.getUser('player') ?? interaction.user;
         raw.playerAvatarURL = targetUser.avatarURL();
         const input = logic.parse(raw, readActor(interaction));
-        const result = await logic.run(input);
+        const result = await runLogged('stats', logic, input);
         await interaction.editReply(toDiscord(logic.present(result)));
     },
 };

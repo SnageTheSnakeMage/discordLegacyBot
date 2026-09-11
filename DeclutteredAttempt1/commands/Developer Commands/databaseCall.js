@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { runLogged } = require('../_logging.js');
 const logic = require('./databaseCall.logic.js');
 
 // The `model` option exactly as the old (commented-out) builder declared it -
@@ -47,7 +48,7 @@ module.exports = {
             },
             { ...readActor(interaction), isDev: interaction.user.id === process.env.DEV_ID },
         );
-        const result = await logic.run(input);
+        const result = await runLogged('databaseCall', logic, input);
         await interaction.editReply(toDiscord(logic.present(result)));
     },
 };
