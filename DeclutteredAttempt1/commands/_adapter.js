@@ -8,10 +8,14 @@ const { AttachmentBuilder } = require('discord.js');
 
 /**
  * Reads declared options off the interaction into a plain object.
- * spec maps option name -> 'integer' | 'string' | 'boolean' | 'number' | 'user'.
+ * spec maps option name -> 'integer' | 'string' | 'boolean' | 'number' |
+ * 'user' | 'channel'.
  * Absent options come back null (never undefined), so ?? defaults in parse()
  * behave the same as interaction.options.get*() did.
  * 'user' yields the user's id as a string, plus <name>Username for messages.
+ * 'channel' does the same with <name>Name. Both stay STRINGS: a Discord
+ * snowflake is larger than Number.MAX_SAFE_INTEGER and does not survive
+ * being a JS number.
  */
 function readOptions(interaction, spec) {
   const out = {};
@@ -25,6 +29,12 @@ function readOptions(interaction, spec) {
         const user = interaction.options.getUser(name);
         out[name] = user ? user.id : null;
         out[`${name}Username`] = user ? user.username : null;
+        break;
+      }
+      case 'channel': {
+        const channel = interaction.options.getChannel(name);
+        out[name] = channel ? String(channel.id) : null;
+        out[`${name}Name`] = channel ? channel.name : null;
         break;
       }
       default: throw new Error(`readOptions: unknown option kind "${kind}" for "${name}"`);

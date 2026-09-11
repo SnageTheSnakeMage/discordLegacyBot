@@ -283,3 +283,62 @@ describe('punish adapter (smoke)', () => {
     expect(typeof punish.execute).toBe('function');
   });
 });
+
+describe('punish.run as an actual Punisher', () => {
+  // The class exists now. Its ability comes straight from the command's own
+  // description: damage equal to what the target has wasted.
+  function punisherDeps(over = {}) {
+    const { deps, ...rest } = happyDeps(over);
+    deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Punisher' }));
+    deps.utils = { ...deps.utils, damagePlayer: jest.fn(async () => ({})) };
+    return { deps, ...rest };
+  }
+
+  it('deals the target their missed AP plus missed HP, and charges 4 AP', async () => {
+    const { deps } = punisherDeps({
+      targetPlayer: createFakePlayer({
+        Player_ID: 2, Discord_ID: TARGET, Tile_ID: 42, MISSED_AP: 4, MISSED_HP: 3,
+      }),
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result).toMatchObject({ ok: true, kind: 'punished' });
+    expect(result.data).toMatchObject({ damage: 7, missedAp: 4, missedHp: 3 });
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.anything(), expect.objectContaining({ Player_ID: 2 }), 7, 1,
+    );
+    expect(deps.models.Players.update).toHaveBeenCalledWith(
+      { Action_Points: expect.any(Number) },
+      { where: { Player_ID: 1, Game_ID: 1 } },
+    );
+  });
+
+  it('a target who has wasted nothing takes no damage, and no damage call is made', async () => {
+    const { deps } = punisherDeps({
+      targetPlayer: createFakePlayer({
+        Player_ID: 2, Discord_ID: TARGET, Tile_ID: 42, MISSED_AP: 0, MISSED_HP: 0,
+      }),
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result.ok).toBe(true);
+    expect(result.data.damage).toBe(0);
+    expect(deps.utils.damagePlayer).not.toHaveBeenCalled();
+  });
+
+  it('still rejects a player who is not a Punisher', async () => {
+    const { deps } = happyDeps();
+    deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Sniper' }));
+    const result = await logic.run(INPUT, deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_CLASS });
+  });
+
+  it('renders the breakdown so the target can see why', () => {
+    const out = logic.present({
+      ok: true,
+      kind: 'punished',
+      data: { targetDiscordId: TARGET, damage: 7, missedAp: 4, missedHp: 3, x: 4, y: 7 },
+    });
+    expect(out.content).toBe(
+      `You punished <@${TARGET}> at 4,7 for 7 damage (4 missed AP + 3 missed HP)!`,
+    );
+  });
+});
