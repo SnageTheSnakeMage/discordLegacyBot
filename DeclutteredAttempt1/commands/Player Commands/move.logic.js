@@ -5,6 +5,12 @@
  * parse/run/present per TESTING.md Part 1. run() takes plain data and a deps
  * bundle and returns a CommandResult; it never sees an interaction.
  *
+ * This file also logs its own internals via stepLogger (commands/_logging.js),
+ * which the other logic files do not: it is the only one over the size
+ * threshold that tests/logicFileLogging.test.js enforces. A walk is a loop
+ * with damage in it, so "rejected: NO_SUCH_TILE" does not say how far the
+ * player got or what the tiles already did to them - the step lines do.
+ *
  * ---------------------------------------------------------------------------
  * WHY THIS FILE IS LONGER THAN THE OTHER CONVERSIONS
  *
@@ -88,6 +94,7 @@
  */
 const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
+const { stepLogger } = require('../_logging.js');
 const defaultDeps = require('../_deps.js');
 
 /** Class_ID 6 is Cloudborn - the only class allowed on wall/void terrain. */
@@ -278,6 +285,7 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
  */
 async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, deps) {
   const { models, utils, random } = deps;
+  const trace = stepLogger('move', deps);
   const body = secondBody ? 2 : 1;
   const currentHp = secondBody ? player.Health_Points2 : player.Health_Points;
 
@@ -286,10 +294,12 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
     case 'Fire':
       // damagePlayer re-reads the row before the death check; this used to
       // hand playerDeathLogic the pre-damage row, so fire never killed
+      trace('tileEffect', { effect: 'fireOnExit', damage: game.fireDmg, body, playerId: player.Player_ID });
       if ((await utils.damagePlayer(null, player, game.fireDmg, body)).Dead) return { died: true };
       break;
     // leaving a smoke tile disperses it
     case 'Smoke':
+      trace('tileEffect', { effect: 'smokeDispersed', tileId: startTile.Tile_ID });
       await utils.revertTileToBlank(startTile);
       break;
     default:
@@ -301,9 +311,11 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
     case 'Fire':
       // damagePlayer re-reads the row before the death check; this used to
       // hand playerDeathLogic the pre-damage row, so fire never killed
+      trace('tileEffect', { effect: 'fireOnEntry', damage: game.fireDmg, body, playerId: player.Player_ID });
       if ((await utils.damagePlayer(null, player, game.fireDmg, body)).Dead) return { died: true };
       break;
     case 'Storm':
+      trace('tileEffect', { effect: 'storm', classId: player.Class_ID, playerId: player.Player_ID });
       // a Robot gains 1 HP
       if (player.Class_ID == ROBOT_CLASS_ID) {
         // capped, with the overflow banked as MISSED_HP like every other gain
@@ -326,6 +338,7 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
     case 'Wall_Damaged':
       // only a Cloudborn may stand on these
       if (player.Class_ID != CLOUDBORN_CLASS_ID) {
+        trace('tileEffect', { effect: 'terrainBlocked', tileType: endTile.Tile_Type, classId: player.Class_ID });
         return {
           blocked: true,
           reason: REJECTIONS.WRONG_TILE_TYPE,
@@ -344,6 +357,7 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
       throw new Error('Mine without trapper found. Please contact snage.');
     }
     const mineDmg = game.mineDmg;
+    trace('tileEffect', { effect: 'mine', damage: mineDmg, body, trapperId: trapper.Player_ID, tileId: endTile.Tile_ID });
     // same here: a lethal mine now actually kills, and credits the trapper
     const afterMine = await utils.damagePlayer(trapper, player, mineDmg, body);
     await models.Tiles.update({ trapped: false, trapper: null }, { where: { Tile_ID: endTile.Tile_ID } });
@@ -359,6 +373,7 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
  */
 async function movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, attempt = 0) {
   const { models, utils, random } = deps;
+  const trace = stepLogger('move', deps);
   const player = await models.Players.findByPk(playerId);
   const playerClass = player ? await models.Classes.findByPk(player.Class_ID) : null;
 
@@ -373,9 +388,13 @@ async function movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, at
   const forbidden = !newTile
     || (playerClass && playerClass.Class_Name != 'Cloudborn' && STORM_FORBIDDEN_TILE_TYPES.includes(newTile.Tile_Type));
   if (forbidden) {
+    // a re-roll is invisible in the reply, so the log is the only place that
+    // says why a storm threw a player two tiles away from where they expected
+    trace('stormReroll', { attempt, rejected: [newX, newY], tileType: newTile ? newTile.Tile_Type : null });
     if (attempt >= RANDOM_DIRECTION_DELTAS.length) return;
     return movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, attempt + 1);
   }
+  trace('stormThrow', { playerId, from: [x, y], to: [newX, newY], attempts: attempt });
   await utils.setPlayerToTile(playerId, layer, newX, newY);
 }
 
@@ -396,6 +415,7 @@ function parse(raw, actor) {
 
 async function run(input, deps = defaultDeps) {
   const { models, utils } = deps;
+  const trace = stepLogger('move', deps);
 
   // legacy used a falsy check here, so game 0 falls back to the oldest game
   const gameId = input.gameId || await utils.getOldestActiveGameId(input.discordId);
@@ -411,8 +431,20 @@ async function run(input, deps = defaultDeps) {
   const originalTile = await models.Tiles.findByPk(secondBody ? player.Tile_ID2 : player.Tile_ID);
   if (!originalTile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE, data: { message: MSG_NO_TILE } };
 
+  trace('resolved', {
+    gameId,
+    playerId: player.Player_ID,
+    class: playerClass && playerClass.Class_Name,
+    body: secondBody ? 2 : 1,
+    from: [originalTile.X_Position, originalTile.Y_Position],
+    layerId: originalTile.Layer_ID,
+    ap: player.Action_Points,
+    freeMove: player.Free_Move,
+  });
+
   if (input.path != null) {
     const verdict = await verifyInputPath(input.path, originalTile.Layer_ID, originalTile.X_Position, originalTile.Y_Position, deps);
+    trace('pathVerified', { path: input.path, valid: verdict.valid });
     if (!verdict.valid) return { ok: false, reason: REJECTIONS.INVALID_PATH, data: { message: verdict.message } };
   }
 
@@ -461,6 +493,16 @@ async function run(input, deps = defaultDeps) {
   }
   //#endregion Calculation of New Position
 
+  trace('destination', {
+    via: input.path != null ? 'path' : 'direction',
+    direction: input.path != null ? null : input.direction,
+    distance: input.path != null ? null : input.distance,
+    to: [newX, newY],
+    // the clamp above is silent, so record what the layer allowed
+    bounds: [currentLayer.X_Bound, currentLayer.Y_Bound],
+    tilesWalked: iceChecklistAndTileList.length,
+  });
+
   // ice: every ice tile crossed is a tile the player does not pay for, and
   // nobody but a Snowman may stop on one
   let iceTileDeduction = 0;
@@ -485,6 +527,17 @@ async function run(input, deps = defaultDeps) {
   const spentAP = playerClass.Class_Name == 'Glutton'
     ? (2 * game.moveCost) * billableTiles
     : game.moveCost * billableTiles;
+
+  // the three numbers a player disputes most often: how many tiles they were
+  // charged for, what the ice took off, and what the Glutton doubling did
+  trace('cost', {
+    iceTileDeduction,
+    billableTiles,
+    moveCost: game.moveCost,
+    doubled: playerClass.Class_Name == 'Glutton',
+    spentAP,
+    ap: player.Action_Points,
+  });
 
   if (player.Action_Points < spentAP) {
     return { ok: false, reason: REJECTIONS.NOT_ENOUGH_AP, data: { message: MSG_NO_AP } };
@@ -517,17 +570,37 @@ async function run(input, deps = defaultDeps) {
       response += `x${amountOfRepeats + 1} \n`;
     }
 
+    // one line per tile crossed: this is the record that says how far the
+    // walk actually got, which the entry/exit pair around run() cannot
+    trace('step', {
+      index: cord,
+      of: iceChecklistAndTileList.length - 1,
+      from: [cur_Tile.X_Position, cur_Tile.Y_Position],
+      to: [nxt_Tile.X_Position, nxt_Tile.Y_Position],
+      fromType: cur_Tile.Tile_Type,
+      toType: nxt_Tile.Tile_Type,
+      trapped: !!nxt_Tile.trapped,
+    });
+
     // also holds the trapped-tile damage logic
     const blocked = await moveFromTiletoTile(cur_Tile, nxt_Tile, player, secondBody, game, deps);
     // a tile can now kill the mover. playerDeathLogic has already taken them
     // off the board, so the walk stops here rather than placing a corpse.
-    if (blocked && blocked.died) { died = true; break; }
-    if (blocked) return { ok: false, reason: blocked.reason, data: blocked.data };
+    if (blocked && blocked.died) {
+      trace('diedMidWalk', { index: cord, at: [nxt_Tile.X_Position, nxt_Tile.Y_Position], tileType: nxt_Tile.Tile_Type });
+      died = true;
+      break;
+    }
+    if (blocked) {
+      trace('blocked', { index: cord, reason: blocked.reason, tileType: nxt_Tile.Tile_Type });
+      return { ok: false, reason: blocked.reason, data: blocked.data };
+    }
   }
 
   // put the player on the destination tile (and take them off the old one)
   if (!died) {
     await utils.setPlayerToTile(player.Player_ID, originalTile.Layer_ID, newX, newY);
+    trace('placed', { at: [newX, newY], layerId: originalTile.Layer_ID });
   }
 
   // deduct action points & update free movement
