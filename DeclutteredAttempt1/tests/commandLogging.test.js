@@ -5,7 +5,7 @@
  * and rethrows exactly what run() threw. If it ever swallows a result or an
  * error, every command breaks at once - so those two are pinned first.
  */
-const { runLogged, summarise, describe: describeResult } = require('../commands/_logging.js');
+const { runLogged, stepLogger, summarise, describe: describeResult } = require('../commands/_logging.js');
 
 function fakeLogger() {
   const lines = { debug: [], info: [], error: [] };
@@ -84,5 +84,91 @@ describe('describe', () => {
     [null, { outcome: 'empty' }],
   ])('flattens %j', (result, expected) => {
     expect(describeResult(result)).toEqual(expected);
+  });
+});
+
+describe('stepLogger', () => {
+  const noGlobalLogger = () => {
+    const saved = globalThis.topLogger;
+    globalThis.topLogger = undefined;
+    return () => { globalThis.topLogger = saved; };
+  };
+
+  it('writes one debug line per step, tagged with the command', () => {
+    const { logger, lines } = fakeLogger();
+    const trace = stepLogger('move', { logger });
+
+    trace('destination', { to: [3, 4] });
+
+    expect(lines.debug).toHaveLength(1);
+    expect(lines.debug[0].msg).toBe('move: destination');
+    expect(lines.debug[0].obj).toEqual({ function: 'destination', to: [3, 4] });
+    // steps are debug only: they are for reconstructing a turn, not for
+    // normal operation, so they must never reach info or error
+    expect(lines.info).toHaveLength(0);
+    expect(lines.error).toHaveLength(0);
+  });
+
+  it('redacts step details the same way run() input is redacted', () => {
+    const { logger, lines } = fakeLogger();
+    const trace = stepLogger('move', { logger });
+
+    trace('pathVerified', { path: 'x'.repeat(400), iconUrl: 'http://example.invalid/i.png' });
+
+    const logged = lines.debug[0].obj;
+    expect(logged.path.endsWith('...')).toBe(true);
+    expect(logged.path.length).toBeLessThan(140);
+    expect(logged.iconUrl).toBe('[omitted]');
+  });
+
+  it('is a no-op function when there is no logger at all', () => {
+    const restore = noGlobalLogger();
+    try {
+      const trace = stepLogger('move', {});
+      // the point of the guarantee: a logic file called from a test that
+      // injects no logger behaves exactly as it did before step logging
+      expect(typeof trace).toBe('function');
+      expect(() => trace('destination', { to: [1, 2] })).not.toThrow();
+      expect(trace('destination')).toBeUndefined();
+    } finally {
+      restore();
+    }
+  });
+
+  it('falls back to the global logger when deps carries none', () => {
+    const { logger, lines } = fakeLogger();
+    const saved = globalThis.topLogger;
+    globalThis.topLogger = logger;
+    try {
+      stepLogger('move', {})('cost', { spentAP: 4 });
+      expect(lines.debug).toHaveLength(1);
+      expect(lines.debug[0].obj.spentAP).toBe(4);
+    } finally {
+      globalThis.topLogger = saved;
+    }
+  });
+
+  it('prefers the injected logger over the global one', () => {
+    const injected = fakeLogger();
+    const global = fakeLogger();
+    const saved = globalThis.topLogger;
+    globalThis.topLogger = global.logger;
+    try {
+      stepLogger('move', { logger: injected.logger })('step', { index: 0 });
+      expect(injected.lines.debug).toHaveLength(1);
+      expect(global.lines.debug).toHaveLength(0);
+    } finally {
+      globalThis.topLogger = saved;
+    }
+  });
+
+  it('survives a logger with no child()', () => {
+    const restore = noGlobalLogger();
+    try {
+      const trace = stepLogger('move', { logger: { debug: () => { throw new Error('should not be called'); } } });
+      expect(() => trace('step', {})).not.toThrow();
+    } finally {
+      restore();
+    }
   });
 });
