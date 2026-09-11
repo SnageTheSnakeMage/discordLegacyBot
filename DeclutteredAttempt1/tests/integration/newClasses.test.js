@@ -62,6 +62,54 @@ describe('new classes', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
+  it('a Bully sharing a tile shoves by icon slot, and the victim leaves the tile', async () => {
+    // Player1 is drawn top-left and Player2 top-right, so the victim reads
+    // as being east of the bully and 'back' pushes them one tile east
+    await seedClass('Bully');
+    const game = await seedGame();
+    const layer = await seedLayer(game.Game_ID, { width: 6, height: 6 });
+    const bully = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 3, y: 3, layerId: layer.Layer_ID, className: 'Bully', Action_Points: 5,
+    });
+    const victim = await seedPlayer(game.Game_ID, { discordId: '2', x: 3, y: 3, layerId: layer.Layer_ID });
+    const shared = await models.Tiles.findByPk(bully.Tile_ID);
+    expect([shared.Player1, shared.Player2]).toEqual([bully.Player_ID, victim.Player_ID]);
+
+    const result = await shoveLogic.run({
+      gameId: game.Game_ID, targetDiscordId: '2', targetUsername: 'v',
+      direction: 'back', discordId: '1', username: 'b',
+    }, DEPS());
+
+    expect(result.ok).toBe(true);
+    const moved = await tileOf(victim);
+    expect([moved.X_Position, moved.Y_Position]).toEqual([4, 3]);
+    // the shared tile now lists only the bully
+    const after = await models.Tiles.findByPk(shared.Tile_ID);
+    expect([after.Player1, after.Player2, after.Player3, after.Player4]
+      .filter((v) => v != null)).toEqual([bully.Player_ID]);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
+  it('a Bully shoves up to the north-east flank of an eastward victim', async () => {
+    await seedClass('Bully');
+    const game = await seedGame();
+    const layer = await seedLayer(game.Game_ID, { width: 6, height: 6 });
+    await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 2, y: 3, layerId: layer.Layer_ID, className: 'Bully', Action_Points: 5,
+    });
+    const victim = await seedPlayer(game.Game_ID, { discordId: '2', x: 3, y: 3, layerId: layer.Layer_ID });
+
+    const result = await shoveLogic.run({
+      gameId: game.Game_ID, targetDiscordId: '2', targetUsername: 'v',
+      direction: 'up', discordId: '1', username: 'b',
+    }, DEPS());
+
+    expect(result.ok).toBe(true);
+    const moved = await tileOf(victim);
+    expect([moved.X_Position, moved.Y_Position]).toEqual([4, 2]);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
   it('a Punisher deals the target their wasted AP and HP', async () => {
     await seedClass('Punisher');
     const game = await seedGame();
