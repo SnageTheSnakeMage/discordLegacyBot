@@ -4,20 +4,23 @@
  * parse/run/present per TESTING.md Part 1: run() takes plain data and a deps
  * bundle and returns a CommandResult, never an interaction.
  *
- * All three directions are RELATIVE to the line from the Bully to the
- * victim, not compass directions and not layers. "back" pushes the victim
- * one tile further along that line; "up" and "down" push them to the two
- * tiles flanking it. So a victim standing east of the Bully goes east,
- * north-east or south-east.
+ * All three directions are RELATIVE to the Bully, not compass directions and
+ * not layers. Picture the Bully turning to face the victim square on:
  *
- * "up" is always the more northerly of the two flanks, so it never sends
- * anyone south. When the victim is due north or due south of the Bully both
- * flanks are equally northerly, and the tie falls to the anticlockwise one.
+ *   back  - straight ahead, one tile further along that line
+ *   left  - 45 degrees to the Bully's left
+ *   right - 45 degrees to the Bully's right
  *
- * When both players share a tile the direction comes from their icon slots
+ * So a victim standing east of the Bully goes east on 'back', north-east on
+ * 'left' (facing east, the Bully's left hand points north) and south-east on
+ * 'right'. A victim standing west goes west, south-west and north-west: the
+ * Bully has turned around, so their left hand now points south. That is the
+ * whole rule - there is no compass in it and no tie to break.
+ *
+ * When both players share a tile the facing comes from their icon slots
  * instead: Player1 is drawn top-left, Player2 top-right, Player3 bottom-left
- * and Player4 bottom-right, so those positions give the same 8 directions.
- * The victim still leaves the tile - the slots only decide which way.
+ * and Player4 bottom-right, so those positions give the same 8 facings. The
+ * victim still leaves the tile - the slots only decide which way.
  *
  * A shove writes both sides of the position invariant through
  * utils.setPlayerToTile, so the tile the victim leaves stops naming them.
@@ -43,26 +46,27 @@ const SLOT_POSITION = {
 /**
  * The push vector for a direction, given the Bully -> victim vector.
  *
- * 'back' continues along that line. 'up' and 'down' take the two flanking
- * directions, with 'up' always the more northerly so it never sends anyone
- * south - which is why a westward push gives up=NW, down=SW rather than the
- * plain anticlockwise/clockwise pairing. A victim due north or due south has
- * two equally northerly flanks, and that tie falls to the anticlockwise one.
+ * The away-vector IS the Bully's facing, so the three directions are just
+ * that facing and its two 45-degree neighbours on the ring. RING runs
+ * clockwise on the board (+Y is south), so the step before the facing is the
+ * Bully's left and the step after it is their right - the same arithmetic
+ * whichever way they are turned, which is why 'left' points north-east for a
+ * victim to the east and south-west for one to the west.
  *
- * Returns null when the away-vector is not one of the 8 directions.
+ * Returns null when the away-vector is not one of the 8 directions, or when
+ * the direction is not one of the three the command offers.
  */
 function shoveVector(awayDx, awayDy, direction) {
   const away = [Math.sign(awayDx), Math.sign(awayDy)];
   const index = RING.findIndex(([x, y]) => x === away[0] && y === away[1]);
   if (index === -1) return null;
-  if (direction === 'back') return away;
 
-  const anticlockwise = RING[(index + 7) % 8];
-  const clockwise = RING[(index + 1) % 8];
-  // smaller Y is further north; on a tie the anticlockwise flank is 'up'
-  const up = anticlockwise[1] <= clockwise[1] ? anticlockwise : clockwise;
-  const down = up === anticlockwise ? clockwise : anticlockwise;
-  return direction === 'up' ? up : down;
+  switch (direction) {
+    case 'back': return away;
+    case 'left': return RING[(index + 7) % 8];
+    case 'right': return RING[(index + 1) % 8];
+    default: return null;
+  }
 }
 
 /** Which slot a player occupies on a tile, or null if the tile does not list them. */
@@ -139,9 +143,9 @@ async function run(input, deps = defaultDeps) {
     };
   }
 
-  // sharing a tile: the icons' own positions give the direction. Player1 is
+  // sharing a tile: the icons' own positions give the facing. Player1 is
   // drawn top-left, Player2 top-right, Player3 bottom-left, Player4
-  // bottom-right, so the slot pair reads as one of the same 8 directions.
+  // bottom-right, so the slot pair reads as one of the same 8 facings.
   if (awayDx === 0 && awayDy === 0) {
     const bullySlot = slotOf(bullyTile, player.Player_ID);
     const victimSlot = slotOf(targetTile, targetPlayer.Player_ID);
