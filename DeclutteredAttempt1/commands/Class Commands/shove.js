@@ -12,7 +12,7 @@ module.exports = {
       .setRequired(true))
     .addStringOption((option) => option
       .setName('direction')
-      .setDescription('back pushes them away from you; up and down move them a layer')
+      .setDescription('all relative to where they stand: back pushes them straight away, up and down to either side of that')
       .setRequired(true)
       .setChoices(
         { name: 'back', value: 'back' },
