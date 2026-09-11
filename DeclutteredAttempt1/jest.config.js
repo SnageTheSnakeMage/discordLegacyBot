@@ -32,8 +32,13 @@ module.exports = {
       testPathIgnorePatterns: ['<rootDir>/node_modules/'],
       setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
       globalSetup: '<rootDir>/tests/integration/globalSetup.js',
-      // one in-memory database at a time
-      maxWorkers: 1,
+      // NOTE no maxWorkers here. It used to say 1, "one in-memory database at
+      // a time", but jest only accepts maxWorkers at the root - it was being
+      // ignored, and jest 30.5 started warning about it. It is not needed:
+      // ':memory:' is per-connection and each test file gets its own module
+      // registry, so every integration file already builds its own separate
+      // database. Do not re-add it here; setting it at the root would
+      // serialise the unit suite too.
     },
   ],
 };
