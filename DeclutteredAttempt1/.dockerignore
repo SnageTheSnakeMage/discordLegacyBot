@@ -1,0 +1,12 @@
+node_modules
+Logs
+tests/coverage
+.git
+.gitignore
+.env
+*.log
+combined.log
+.DS_Store
+.vscode
+.idea
+database/database.db

@@ -1,0 +1,92 @@
+# Publish + deploy. Deliberately conservative: merging builds nothing here -
+# promotion to the live bot is a tag push, and the environment gate puts a
+# human between the tag and a running game.
+#
+# The deploy target itself is not configured yet (open question for the
+# maintainer - see README "Deploying"). Until DEPLOY_SSH_HOST is set as a
+# repository variable, this workflow publishes the image to GHCR by digest
+# and stops there; nothing touches the live bot.
+name: Deploy
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      register_commands:
+        description: Re-register slash commands with Discord (rate-limited; only when a command definition changed)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build runtime image
+        run: docker build --target runtime -t "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}" DeclutteredAttempt1
+      - name: Push by tag and capture the digest
+        id: push
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          IMG="ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_REF_NAME}"
+          docker push "$IMG"
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMG")
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "Published $DIGEST - deploy by THIS digest, never by tag."
+
+  deploy:
+    # gated by the production environment (add a required reviewer there);
+    # no-ops with instructions until a deploy target is configured
+    if: github.event_name == 'push'
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Backup, deploy by digest, verify, roll back on failure
+        env:
+          DIGEST: ${{ needs.publish.outputs.digest }}
+        run: |
+          if [ -z "${{ vars.DEPLOY_SSH_HOST || '' }}" ]; then
+            echo "No deploy target configured (repository variable DEPLOY_SSH_HOST is unset)."
+            echo "Image published as: $DIGEST"
+            echo "Manual promotion on the host:"
+            echo "  1. cp the sqlite file out of the legacy-db volume (BACKUP FIRST - fail the deploy if this fails)"
+            echo "  2. docker pull $DIGEST && docker compose up -d"
+            echo "  3. watch 'docker inspect --format {{.State.Health.Status}} discord-bot' until healthy"
+            echo "  4. if not healthy in 120s: docker compose down, restore previous digest, restore backup"
+            exit 0
+          fi
+          echo "SSH deploy path not implemented until the maintainer confirms the host - see README."
+          exit 1
+
+  register-commands:
+    # manual, rate-limited side effect - never part of a container boot
+    if: github.event_name == 'workflow_dispatch' && inputs.register_commands
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: DeclutteredAttempt1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: DeclutteredAttempt1/.nvmrc
+          cache: npm
+          cache-dependency-path: DeclutteredAttempt1/package-lock.json
+      - run: npm ci --omit=dev
+      - run: node scripts/register-commands.js
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          GUILD_ID: ${{ secrets.GUILD_ID }}
