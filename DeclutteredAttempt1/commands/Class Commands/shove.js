@@ -13,12 +13,12 @@ module.exports = {
       .setRequired(true))
     .addStringOption((option) => option
       .setName('direction')
-      .setDescription('all relative to where they stand: back pushes them straight away, up and down to either side of that')
+      .setDescription('as if you turned to face them: back is straight ahead, left and right are 45 degrees either side')
       .setRequired(true)
       .setChoices(
+        { name: 'left', value: 'left' },
         { name: 'back', value: 'back' },
-        { name: 'up', value: 'up' },
-        { name: 'down', value: 'down' },
+        { name: 'right', value: 'right' },
       ))
     .addIntegerOption((option) => option
       .setName('game')

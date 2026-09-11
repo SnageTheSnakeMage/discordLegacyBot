@@ -90,7 +90,7 @@ describe('new classes', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
-  it('a Bully shoves up to the north-east flank of an eastward victim', async () => {
+  it('a Bully facing east shoves left to the north-east tile', async () => {
     await seedClass('Bully');
     const game = await seedGame();
     const layer = await seedLayer(game.Game_ID, { width: 6, height: 6 });
@@ -101,7 +101,7 @@ describe('new classes', () => {
 
     const result = await shoveLogic.run({
       gameId: game.Game_ID, targetDiscordId: '2', targetUsername: 'v',
-      direction: 'up', discordId: '1', username: 'b',
+      direction: 'left', discordId: '1', username: 'b',
     }, DEPS());
 
     expect(result.ok).toBe(true);

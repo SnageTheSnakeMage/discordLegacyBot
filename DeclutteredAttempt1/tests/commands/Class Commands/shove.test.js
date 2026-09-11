@@ -1,8 +1,9 @@
 /**
  * /shove - the Bully's ability. Plain data in, plain data out.
  *
- * "up" and "down" are LAYERS, per the sheet's ">shove @mention up/back/down";
- * "back" is the one that pushes across the board, away from the Bully.
+ * The three directions read off the Bully's facing: picture them turning to
+ * face the victim, then "back" is straight ahead and "left"/"right" are 45
+ * degrees either side of that. No compass, no layers.
  */
 const logic = require('../../../commands/Class Commands/shove.logic.js');
 const shove = require('../../../commands/Class Commands/shove.js');
@@ -83,11 +84,12 @@ describe('shove.run success', () => {
     );
   });
 
-  // victim stands EAST of the bully, so the fan is NE / E / SE
+  // victim stands EAST of the bully, so the bully faces east: their left
+  // hand points north (NE) and their right hand south (SE)
   it.each([
     ['back', 4, 2],
-    ['up', 4, 1],
-    ['down', 4, 3],
+    ['left', 4, 1],
+    ['right', 4, 3],
   ])('shoves %s to (%i, %i) for a victim standing east', async (direction, x, y) => {
     const { deps } = happyDeps({ board: true });
     const result = await logic.run({ ...INPUT, direction }, deps);
@@ -162,9 +164,17 @@ describe('shove.run rejections', () => {
   });
 
   it('rejects a shove toward a tile that does not exist', async () => {
-    // only the straight-back tile is on the board, so 'up' has nowhere to go
-    const { result, deps } = await rejects({}, { direction: 'up' });
+    // only the straight-back tile is on the board, so 'left' has nowhere to go
+    const { result, deps } = await rejects({}, { direction: 'left' });
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_TILE });
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+  });
+
+  it('rejects a direction the command does not offer', async () => {
+    // the slash command constrains this, but a stale client or a renamed
+    // choice must not fall through to some arbitrary direction
+    const { result, deps } = await rejects({ board: true }, { direction: 'up' });
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 
@@ -181,16 +191,16 @@ describe('shove command surface', () => {
     expect(json.name).toBe('shove');
     expect(json.options.map((o) => o.name)).toEqual(['target', 'direction', 'game']);
     const direction = json.options.find((o) => o.name === 'direction');
-    expect(direction.choices.map((c) => c.value)).toEqual(['back', 'up', 'down']);
+    expect(direction.choices.map((c) => c.value)).toEqual(['left', 'back', 'right']);
   });
 });
 
 describe('shoveVector', () => {
-  // Directions are relative to the Bully -> victim line. Snage's rule: "up"
-  // is always the more northerly flank, so it never sends anyone south -
-  // which is why a westward push gives NW/SW rather than the plain
-  // anticlockwise/clockwise pairing. A victim due north or due south has two
-  // equally northerly flanks, and that tie falls anticlockwise.
+  // Snage's rule: picture the Bully turning to face the victim, then read
+  // left/back/right off that facing. So there is no compass involved and
+  // nothing to tie-break - and 'left' points north-east for an eastward
+  // victim but south-west for a westward one, because the Bully has turned
+  // around and their left hand went with them.
   const { shoveVector } = logic;
   const DIRS = {
     N: [0, -1], NE: [1, -1], E: [1, 0], SE: [1, 1],
@@ -199,39 +209,76 @@ describe('shoveVector', () => {
   const name = (v) => Object.keys(DIRS).find((k) => DIRS[k][0] === v[0] && DIRS[k][1] === v[1]);
 
   it.each([
-    // away, back, up,   down
+    // facing, back, left, right
     ['N', 'N', 'NW', 'NE'],
     ['NE', 'NE', 'N', 'E'],
     ['E', 'E', 'NE', 'SE'],
     ['SE', 'SE', 'E', 'S'],
     ['S', 'S', 'SE', 'SW'],
-    ['SW', 'SW', 'W', 'S'],
-    ['W', 'W', 'NW', 'SW'],
-    ['NW', 'NW', 'N', 'W'],
-  ])('a victim %s of the bully: back=%s up=%s down=%s', (away, back, up, down) => {
+    ['SW', 'SW', 'S', 'W'],
+    ['W', 'W', 'SW', 'NW'],
+    ['NW', 'NW', 'W', 'N'],
+  ])('a victim %s of the bully: back=%s left=%s right=%s', (away, back, left, right) => {
     const [dx, dy] = DIRS[away];
     expect(name(shoveVector(dx, dy, 'back'))).toBe(back);
-    expect(name(shoveVector(dx, dy, 'up'))).toBe(up);
-    expect(name(shoveVector(dx, dy, 'down'))).toBe(down);
+    expect(name(shoveVector(dx, dy, 'left'))).toBe(left);
+    expect(name(shoveVector(dx, dy, 'right'))).toBe(right);
   });
 
-  it('never sends anyone south when asked for up', () => {
+  // The facing rule stated as maths, so it holds for all 8 facings at once
+  // rather than only the ones the table spells out. +Y is south, so on this
+  // board a clockwise turn has a positive cross product.
+  const cross = (a, b) => a[0] * b[1] - a[1] * b[0];
+
+  it('turns left for left and right for right, from every facing', () => {
     for (const [dx, dy] of Object.values(DIRS)) {
-      const up = shoveVector(dx, dy, 'up');
-      const straight = shoveVector(dx, dy, 'back');
-      // up is never more southerly than straight away
-      expect(up[1]).toBeLessThanOrEqual(straight[1]);
+      const facing = shoveVector(dx, dy, 'back');
+      expect(cross(facing, shoveVector(dx, dy, 'left'))).toBeLessThan(0);
+      expect(cross(facing, shoveVector(dx, dy, 'right'))).toBeGreaterThan(0);
+    }
+  });
+
+  it('puts left and right exactly 45 degrees either side of back', () => {
+    const ring = Object.values(DIRS);
+    const indexOf = (v) => ring.findIndex(([x, y]) => x === v[0] && y === v[1]);
+    for (const [dx, dy] of ring) {
+      // DIRS is listed clockwise, so left is one step back round it
+      const i = indexOf(shoveVector(dx, dy, 'back'));
+      expect(indexOf(shoveVector(dx, dy, 'left'))).toBe((i + 7) % 8);
+      expect(indexOf(shoveVector(dx, dy, 'right'))).toBe((i + 1) % 8);
+    }
+  });
+
+  it('rotates left and right with the bully when they turn around', () => {
+    // `|| 0` because negating a 0 component gives -0, which toEqual rejects
+    const flip = (v) => v.map((n) => -n || 0);
+    for (const [dx, dy] of Object.values(DIRS)) {
+      // handedness is intrinsic: facing the opposite way, the bully's left
+      // is the opposite of where their left was - NOT where their right was.
+      // So a victim east gives left=NE and a victim west gives left=SW.
+      expect(shoveVector(-dx, -dy, 'left')).toEqual(flip(shoveVector(dx, dy, 'left')));
+      expect(shoveVector(-dx, -dy, 'right')).toEqual(flip(shoveVector(dx, dy, 'right')));
     }
   });
 
   it('normalises a longer vector to one of the 8 directions', () => {
     expect(shoveVector(3, 0, 'back')).toEqual([1, 0]);
   });
+
+  it('returns null for a direction the command does not offer', () => {
+    expect(shoveVector(1, 0, 'up')).toBeNull();
+    expect(shoveVector(1, 0, 'down')).toBeNull();
+    expect(shoveVector(1, 0, undefined)).toBeNull();
+  });
+
+  it('returns null when the bully and victim are on the same spot', () => {
+    expect(shoveVector(0, 0, 'back')).toBeNull();
+  });
 });
 
 describe('shove on a shared tile', () => {
   // Player1 is drawn top-left, Player2 top-right, Player3 bottom-left,
-  // Player4 bottom-right, so the slot pair gives the direction.
+  // Player4 bottom-right, so the slot pair gives the bully's facing.
   function sharedDeps(bullySlot, victimSlot) {
     const shared = createFakeTile({
       Tile_ID: 10, Layer_ID: 1, X_Position: 3, Y_Position: 3, [bullySlot]: 1, [victimSlot]: 2,
