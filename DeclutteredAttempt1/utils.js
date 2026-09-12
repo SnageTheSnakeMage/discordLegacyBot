@@ -560,6 +560,11 @@ async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
   // Get all tiles for this layer
   const layerTiles = await models.Tiles.findAll({where: {Layer_ID: databaseLayerID}});
   logger150.debug({function: "GenereateGameGridImage"}, `fetched the following tiles of the layer: ${JSON.stringify(layerTiles)}`)
+  // declared, not leaked: both were assigned without `let`, so every render
+  // wrote them onto globalThis and the next render started from whatever the
+  // last viewer happened to be
+  let trapSight = false;
+  let allLayerSight = false;
   if(playerID != null) {
     const playerSeeing = await models.Players.findByPk(playerID);
     const playersTile = await models.Tiles.findByPk(playerSeeing.Tile_ID);
@@ -624,8 +629,11 @@ async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
     // Draw the environment tile
     context.drawImage(tileImage, canvasX, canvasY, tileSize, tileSize);
 
-    // Draw players
-    for ( playerIndex in tilePlayers ) {
+    // Draw players. This was `for (playerIndex in tilePlayers)`, which both
+    // leaked a global and yielded STRING keys - so the strict `switch` below
+    // matched no case and all four players drew in the top-left quadrant on
+    // top of each other.
+    for (let playerIndex = 0; playerIndex < tilePlayers.length; playerIndex++) {
       const tilePlayer = tilePlayers[playerIndex];
       if (tilePlayer === null) continue;
       if(tilePlayer.Class_ID == (await models.Classes.findOne({where: {Class_Name: "Spy"}})).Class_ID && !allLayerSight) continue;
@@ -661,7 +669,7 @@ async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
 
     // Draw mines if tile is trapped
     if (currentTile.trapped && (trapSight)) {
-      const mineImage = await loadTileTexture("mines", "Mine");
+      const mineImage = await this.loadTileTexture("mines", "Mine");
       context.drawImage(mineImage, canvasX, canvasY, tileSize, tileSize);
     }
   }
