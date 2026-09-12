@@ -1,0 +1,26 @@
+# A small hand-drawn board for testing: two layers, no border, one gateway
+# pair per layer. Copy this file to start a new board.
+#
+# '.' is the blank checkerboard, and a comment is '#' plus a space - a line
+# of bare '#' characters is a row of walls, not a comment.
+description: small two-layer sandbox board
+
+layer Arena
+.........
+.~~...FF.
+.~G...F..
+.........
+..#.+.#..
+.........
+..S...B..
+.SS..BBG.
+.........
+vvvvvvvvv
+layer Vault
+#######
+#..G..#
+#.,...#
+#..+..#
+#...C.#
+#..G..#
+#######

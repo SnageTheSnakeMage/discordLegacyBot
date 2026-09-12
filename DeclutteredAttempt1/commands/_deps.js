@@ -9,10 +9,13 @@
  * This file must never import discord.js.
  */
 const utils = require('../utils');
+const boards = require('../database/boardPresets.js');
 
 module.exports = {
   models: utils.models,
   utils,
+  // ASCII board presets for /create-board; injected so tests never read disk
+  boards,
   now: () => Date.now(),
   random: (max) => utils.getRandomInt(max),
 };
