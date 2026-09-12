@@ -76,9 +76,9 @@ just don't.
 | `S` | Storm | | | |
 
 `.` picks Blank1 or Blank2 from the tile's own coordinates, so the checker
-pattern can never drift. `1` and `2` pin one explicitly — that is how the old
-hand-tuned boards, which have a dozen off-pattern blanks, survive being
-exported and re-imported unchanged.
+pattern can never drift. `1` and `2` pin one explicitly, for a board that
+wants two blanks of the same shade side by side; every shipped preset is a
+clean checkerboard and uses neither.
 
 Add your own character with a `legend` line before the first layer:
 
@@ -104,10 +104,12 @@ a comment must be `#` *plus a space* (`###` is a row of walls), and a
 | `legacy-fourlayer` | 11×11, 9×9, 9×9, 8×8 | `tileTableHydration.sql` layers 1–4 |
 | `legacy-threelayer` | 11×11, 9×9, 9×9 | `tileTableHydration.sql` layers 5–7 |
 
-The two `legacy-*` presets are the playtest boards, exported tile for tile.
-The SQL called a gateway `Gateway`, which is not a `Tile_Type` any code or
-texture knows — the export rewrote all 16 of them to `Gateway_Open`, matching
-what the live database already had.
+The two `legacy-*` presets are the playtest boards, exported tile for tile,
+with two corrections. The SQL called a gateway `Gateway`, which is not a
+`Tile_Type` any code or texture knows — all 16 became `Gateway_Open`, matching
+what the live database already had. And 21 blanks sat off the checker pattern
+(12 on the four-layer board's top layer, 9 on the three-layer board's); they
+now follow it, so both files are `.` throughout. No terrain tile changed.
 
 ---
 

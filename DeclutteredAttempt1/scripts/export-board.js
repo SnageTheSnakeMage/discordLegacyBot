@@ -8,9 +8,9 @@
  *   LEGACY_DB_STORAGE=/data/database.db node scripts/export-board.js --from-db --game 3 --name playtest
  *
  * --from-sql reads the INSERT statements and groups them by Layer_ID in file
- * order. --from-db reads Layers/Tiles for one game, in the same order
- * utils.commonLayerIDtoDbLayerID uses, so layer 1 of the preset is layer 1 to
- * a player. Writes database/boards/<name>.board unless --stdout is given.
+ * order. --from-db reads Layers/Tiles for one game in Layer_ID order, which
+ * is the order board.logic.js maps a player's "layer 1" against, so layer 1
+ * of the preset is layer 1 to a player. Writes database/boards/<name>.board unless --stdout is given.
  *
  * The old SQL calls a gateway "Gateway", which is not a Tile_Type any code
  * or texture knows - the live database has "Gateway_Open". The export

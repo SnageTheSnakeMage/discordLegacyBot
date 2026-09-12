@@ -540,7 +540,7 @@ async classRemoval(victim, excorist){
 async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
   const tileSize = 208;
   logger150.trace({})
-  const selectedLayer = await models.Layers.findByPk(layerDbId);
+  const selectedLayer = await models.Layers.findByPk(databaseLayerID);
   logger150.debug({function: "GenerateGameGridImage"}, `selectedLayer:  + ${JSON.stringify(selectedLayer)} from database to generate`);
   const baseGridHeight = selectedLayer.Y_Bound;
   logger150.debug({function: "GenereateGameGridImage"}, `set baseGridHeight to ${baseGridHeight}`)
@@ -558,7 +558,7 @@ async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
   context.fillRect(0, 0, canvasWidth, canvasHeight);
   logger150.debug({function: "GenereateGameGridImage"}, `created canvas context`)
   // Get all tiles for this layer
-  const layerTiles = await models.Tiles.findAll({where: {Layer_ID: layerDbId}});
+  const layerTiles = await models.Tiles.findAll({where: {Layer_ID: databaseLayerID}});
   logger150.debug({function: "GenereateGameGridImage"}, `fetched the following tiles of the layer: ${JSON.stringify(layerTiles)}`)
   if(playerID != null) {
     const playerSeeing = await models.Players.findByPk(playerID);
@@ -587,7 +587,7 @@ async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
       trapSight = true;
     }
     if(!allLayerSight) {
-      if (layerDbId != playersTile.Layer_ID) {
+      if (databaseLayerID != playersTile.Layer_ID) {
         throw "You can only view the layer you are currently on, unless you are an oracle";
       }
     }

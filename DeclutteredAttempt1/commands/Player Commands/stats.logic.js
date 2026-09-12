@@ -7,7 +7,8 @@
  * Ported from the old execute with these fixes, each of which was a crash
  * before (see the conversion commit):
  * - utils.dbLayerIDtoCommonLayerID does not exist on the real utils object
- *   (it survives only in __mocks__/utils.js), so every /stats that got past
+ *   (it only ever existed on the since-deleted __mocks__ copy), so every
+ *   /stats that got past
  *   the gamestate gate threw a TypeError; the db-layer-id -> common-layer-id
  *   conversion is now done inline against deps.models.Layers
  * - an unknown game id crashed reading game.GAME_STATE off null; it now

@@ -75,8 +75,8 @@ async function run(input, deps = defaultDeps) {
     removedLayers = existingLayers.length;
   }
 
-  // Layers first, in file order: utils.commonLayerIDtoDbLayerID maps a
-  // player's "layer 1" to the first Layers row of the game, so the top of the
+  // Layers first, in file order: a player's "layer 1" is the first Layers
+  // row of their game (board.logic.js maps it that way), so the top of the
   // file has to be the first row created.
   const created = [];
   for (const layer of preset.layers) {
