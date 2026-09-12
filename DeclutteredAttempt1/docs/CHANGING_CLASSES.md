@@ -185,7 +185,7 @@ The dangerous case. **This is a code change.**
    descriptions in `<command>.js`, embed field labels in `stats.logic.js`.
 6. Confirm nothing is left:
    ```bash
-   grep -rn "<OldName>" --include=*.js --include=*.csv . | grep -v node_modules | grep -v __mocks__
+   grep -rn "<OldName>" --include=*.js --include=*.csv . | grep -v node_modules
    ```
 7. `npx jest && npx eslint .`
 8. Seed a scratch database and confirm the new name is present and the old

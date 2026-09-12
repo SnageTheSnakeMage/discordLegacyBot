@@ -20,6 +20,7 @@ function createMockModel() {
     findOne: jest.fn(),
     findAll: jest.fn().mockResolvedValue([]),
     create: jest.fn(),
+    bulkCreate: jest.fn().mockResolvedValue([]),
     update: jest.fn().mockResolvedValue([1]),
     destroy: jest.fn(),
     count: jest.fn(),
@@ -70,6 +71,8 @@ function createDeps(overrides = {}) {
     random: overrides.random || (() => 0),
   };
   if (overrides.utils) deps.utils = { ...utils, ...overrides.utils };
+  // board presets: the real parser over fake files unless a test says otherwise
+  deps.boards = { ...require('../../database/boardPresets.js'), ...(overrides.boards || {}) };
   // only the logic files big enough to log their own internals read this
   // (see commands/_logging.js stepLogger); left off, they log nothing
   if (overrides.logger) deps.logger = overrides.logger;

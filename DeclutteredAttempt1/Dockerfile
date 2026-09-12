@@ -49,7 +49,7 @@ COPY --chown=bot:bot . .
 
 # the test stage needs tests/ in the build context, so .dockerignore cannot
 # exclude them - drop the test-only files from the shipped layer instead
-RUN rm -rf tests jest.config.js eslint.config.js __mocks__ Dockerfile* docker-compose.yml
+RUN rm -rf tests jest.config.js eslint.config.js Dockerfile* docker-compose.yml
 
 # the database lives on a volume; LEGACY_DB_STORAGE points into it
 RUN mkdir -p /data /app/Logs /app/tiles/players && chown -R bot:bot /data /app/Logs /app/tiles
