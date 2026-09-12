@@ -1,0 +1,36 @@
+description: the three-layer board from tileTableHydration.sql (playtest game 3)
+
+layer Surface
+VV...G...VV
+V........2V
+V.FF.S.~~1V
+V.FF.S.~~2V
+V....S...1V
+V.SSSSSSS2V
+V....S...1V
+V.~~.S.FF2V
+V.~~.S.FF1V
+V........2V
+VV...G...VV
+vvvvvvvvv
+layer Caverns
+~~~~~~~~~
+~G..#..G~
+~...#...~
+~.FVVV..~
+~V..+..V~
+~..VVVF.~
+~...#...~
+~G..#..G~
+~~~~~~~~~
+vvvvvvvvv
+layer Depths
+FF..#..FF
+FG..#..+F
+....#....
+...SFS...
+###FFF###
+...SFS...
+....#....
+F+..#..GF
+FF..#..FF

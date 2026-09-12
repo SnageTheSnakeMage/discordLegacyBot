@@ -43,6 +43,10 @@ const MESSAGES = {
   [REJECTIONS.NO_AVAILABLE_TILE]: (d) => (d && d.message) || "There are no available tiles to move to!",
   [REJECTIONS.INVALID_PATH]: (d) => (d && d.message) || "Invalid input path.",
   [REJECTIONS.INVALID_AMOUNT]: (d) => (d && d.message) || "That amount is not valid!",
+
+  [REJECTIONS.NO_SUCH_PRESET]: (d) => `No board preset called "${(d && d.preset) || ""}". Available: ${(d && d.available && d.available.join(", ")) || "none"}`,
+  [REJECTIONS.BOARD_EXISTS]: (d) => `Game ${(d && d.gameId) ?? "?"} already has ${(d && d.layerCount) ?? "some"} layers. Pass replace:true to rebuild its board.`,
+  [REJECTIONS.BOARD_IN_USE]: (d) => `${(d && d.playerCount) ?? "Some"} players are standing on this game's board - move or remove them before replacing it.`,
 };
 
 function messageFor(reason, data) {
