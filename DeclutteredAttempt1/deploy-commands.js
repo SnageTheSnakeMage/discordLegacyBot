@@ -33,15 +33,20 @@ for (const folder of commandFolders) {
 // Construct and prepare an instance of the REST module
 const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 // and deploy your commands!
-(async () => {
+// Returned, not fire-and-forget: the caller's promise must not resolve until the
+// PUT has actually completed, or scripts/register-commands.js exits the process
+// mid-request and reports a success that never reached Discord.
+return (async () => {
 	try {
 		topLogger.debug({file: 'deploy-commands.js', function: 'null(Top Level)'},`Started refreshing ${commands.length} application (/) commands.`);
 		// The put method is used to fully refresh all commands in the guild with the current set
 		const data = await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands });
 		topLogger.debug({file: 'deploy-commands.js', function: 'null(Top Level)'},`Successfully reloaded ${data.length} application (/) commands.`);
 	} catch (error) {
-		// And of course, make sure you catch and log any errors!
+		// Log it, then rethrow: a swallowed failure here registers nothing and
+		// still exits 0, so a green deploy job proves nothing about Discord's state.
 		topLogger.error({file: 'deploy-commands.js', function: 'null(Top Level)'}, `${error}`);
+		throw error;
 	}
 })()};
 
