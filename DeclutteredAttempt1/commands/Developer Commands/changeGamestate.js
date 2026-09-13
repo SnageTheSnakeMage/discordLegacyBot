@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
 const { runLogged } = require('../_logging.js');
+const utils = require('../../utils.js');
 const logic = require('./changeGamestate.logic.js');
 
 module.exports = {
@@ -35,6 +36,10 @@ module.exports = {
             { ...readActor(interaction), isDev: interaction.user.id === process.env.DEV_ID },
         );
         const result = await runLogged('changeGamestate', logic, input);
+        //the new GAME_STATE decides whether this game should be running an AP
+        //check interval. run() never sees the client, so the reconcile happens
+        //here in the adapter, where interaction.client is available.
+        if (result.ok) await utils.timeCheck(interaction.client);
         await interaction.reply(toDiscord(logic.present(result)));
     },
 };
