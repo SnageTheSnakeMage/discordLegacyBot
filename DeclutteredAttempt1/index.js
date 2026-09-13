@@ -3,7 +3,6 @@ const { Client, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
-const deployCommands = require('./deploy-commands');
 const pino = require('pino')
 const prettyPino = require('pino-pretty')
 var logger100 = pino(
@@ -70,8 +69,11 @@ for (const file of eventFiles) {
 	}
 }
 
-// Login to Discord with your client's token
-deployCommands()
+// Slash-command registration is a deploy-time side effect against a
+// rate-limited Discord endpoint, so it deliberately does not run here -
+// every container restart would spend the budget. Register with the
+// Deploy workflow's register-commands job when a command's data changes.
 
+// Login to Discord with your client's token
 client.login(process.env.DISCORD_TOKEN);
 
