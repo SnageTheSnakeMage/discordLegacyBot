@@ -182,6 +182,86 @@ describe('pollToResults', () => {
   });
 });
 
+describe('buildChaosCouncilDescriptions', () => {
+  const { ChaosEvents } = require('../enums.js');
+
+  it('describes every answer the poll offers', () => {
+    const poll = utils.buildChaosCouncilPoll('Blockade', createFakeGame({ Game_ID: 1, AP_INTERVAL_MIN: 720 }));
+    const body = utils.buildChaosCouncilDescriptions(poll);
+
+    for (const answer of poll.answers) {
+      expect(body).toContain(answer.text);
+    }
+    // three answers, so three descriptions and no "no description" fallbacks
+    expect(body).not.toContain('No description available.');
+  });
+
+  it('strips the "previous event: " label so the standing event is described too', () => {
+    const poll = utils.buildChaosCouncilPoll('Blockade', createFakeGame({ Game_ID: 1, AP_INTERVAL_MIN: 720 }));
+    const body = utils.buildChaosCouncilDescriptions(poll);
+    expect(body).toContain('previous event: Blockade');
+    expect(body).toContain(ChaosEvents.Blockade);
+  });
+
+  it('an event missing from the enum costs its line, not the whole message', () => {
+    const body = utils.buildChaosCouncilDescriptions({
+      answers: [{ text: 'Blockade' }, { text: 'Not A Real Event' }],
+    });
+    expect(body).toContain(ChaosEvents.Blockade);
+    expect(body).toContain('No description available.');
+  });
+
+  it('stays inside discord\'s message limit', () => {
+    // every real event at once is far more than a poll ever offers, and still
+    // has to come back sendable
+    const body = utils.buildChaosCouncilDescriptions({
+      answers: Object.keys(ChaosEvents).map((text) => ({ text })),
+    });
+    expect(body.length).toBeLessThanOrEqual(2000);
+  });
+
+  it('returns null for a poll with no answers, so nothing is posted', () => {
+    expect(utils.buildChaosCouncilDescriptions({ answers: [] })).toBeNull();
+    expect(utils.buildChaosCouncilDescriptions(null)).toBeNull();
+  });
+});
+
+describe('postChaosCouncilPoll', () => {
+  function fakeClient(channel) {
+    return { channels: { fetch: jest.fn(async () => channel) } };
+  }
+
+  it('posts the descriptions in a second message replying to the poll', async () => {
+    jest.spyOn(utils.models.Games, 'update').mockResolvedValue([1]);
+    const send = jest.fn(async () => ({ id: '999' }));
+    const game = createFakeGame({ Game_ID: 1, deadChatChannelId: '77', CURR_CC_EVENT: 'Blockade', AP_INTERVAL_MIN: 720 });
+
+    const id = await utils.postChaosCouncilPoll(game, fakeClient({ send }));
+
+    expect(id).toBe('999');
+    expect(send).toHaveBeenCalledTimes(2);
+    // the poll first, on its own: a poll message carries no body text
+    expect(send.mock.calls[0][0]).toHaveProperty('poll');
+    const followUp = send.mock.calls[1][0];
+    expect(followUp.content).toContain('previous event: Blockade');
+    expect(followUp.reply).toEqual({ messageReference: '999', failIfNotExists: false });
+  });
+
+  it('keeps the poll when the descriptions cannot be sent', async () => {
+    jest.spyOn(utils.models.Games, 'update').mockResolvedValue([1]);
+    const send = jest.fn()
+      .mockResolvedValueOnce({ id: '999' })
+      .mockRejectedValueOnce(new Error('missing permissions'));
+    const game = createFakeGame({ Game_ID: 1, deadChatChannelId: '77', CURR_CC_EVENT: 'Blockade', AP_INTERVAL_MIN: 720 });
+
+    // the poll is open and recorded; the descriptions failing is not its problem
+    await expect(utils.postChaosCouncilPoll(game, fakeClient({ send }))).resolves.toBe('999');
+    expect(utils.models.Games.update).toHaveBeenCalledWith(
+      { currentChaosPollMsgId: '999' }, { where: { Game_ID: 1 } },
+    );
+  });
+});
+
 describe('buildChaosCouncilPoll', () => {
   it('names the game in the question, so concurrent councils are tellable apart', () => {
     const poll = utils.buildChaosCouncilPoll('BOOOORRRINNNG', createFakeGame({ Game_ID: 4, AP_INTERVAL_MIN: 720 }));
