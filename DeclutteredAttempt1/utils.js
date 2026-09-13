@@ -326,7 +326,9 @@ async distributeAP(game, times, client){
       await models.Players.update(this.apGain(player, apGained), {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
       //kill immutables if their doomsday is 0
       if(game.immutableDoomsday <= 0 && player.Class_ID == immutableClass.Class_ID){
-        await models.Players.update({Dead: true, Tile_ID: null}, {where: {Game_ID: game.Game_ID, Player_ID: player.Player_ID}});
+       player.Health_Points = 0;
+       player.Health_Points2 = 0;
+        await this.playerDeathLogic(null, player);
       }
       //give meals to chefs
       if(player.Class_ID == chefClass.Class_ID){
@@ -428,7 +430,11 @@ async pollToResults(poll, game) {
     where: {Game_ID: game.Game_ID, Dead: true},
     attributes: ["Discord_ID"],
   });
-  const eligible = new Set(deadPlayers.map((p) => String(p.Discord_ID)));
+  const mediums = await models.Players.findAll({
+    where: {Game_ID: game.Game_ID, Class_ID: mediumClass.Class_ID},
+    attributes: ["Discord_ID"],
+  });
+  const eligible = new Set([...deadPlayers.map((p) => String(p.Discord_ID)), ...mediums.map((p) => String(p.Discord_ID))]);
 
   //the overrider is stored as a Player_ID; the poll knows discord ids
   let overriderDiscordId = null;
