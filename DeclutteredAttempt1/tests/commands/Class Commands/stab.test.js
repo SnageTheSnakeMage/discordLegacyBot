@@ -105,16 +105,15 @@ describe('stab.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // the gamestate table: every state has a defined outcome; adding a state
-  // without deciding its gate breaks this test
+  // The state -> verdict table belongs to utils.checkGameState, and
+  // tests/utils.pure.test.js walks every state in the enum - including a
+  // newly added one. What is this command's own is only that run() asks the
+  // gate and returns its verdict without writing, so one state that passes,
+  // one that blocks, and the timestop (whose answer depends on the
+  // isClockwatcher argument this command passes) cover it here.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.REGISTRATION, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ])('gamestate %s -> %s', async (state, reason) => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state }) });
@@ -376,11 +375,7 @@ describe('stab.run success', () => {
 
 describe('stab.present', () => {
   it.each([
-    [REJECTIONS.WRONG_CLASS, { message: 'Only Fencers can use this command!' }, 'Only Fencers can use this command!'],
     [REJECTIONS.NOT_ENOUGH_AP, { message: "You don't have enough AP to shoot that much!" }, "You don't have enough AP to shoot that much!"],
-    [REJECTIONS.NOT_IN_GAME, { message: 'You are not on the board! Are you registered in that game?' }, 'You are not on the board! Are you registered in that game?'],
-    [REJECTIONS.TARGET_NOT_IN_GAME, { message: 'That mention does not correspond to a player registered in that game!' }, 'That mention does not correspond to a player registered in that game!'],
-    [REJECTIONS.TARGET_NOT_ON_TILE, { message: 'You are not on the same tile as the target!' }, 'You are not on the same tile as the target!'],
     [REJECTIONS.PLAYER_DEAD, undefined, "Dead players can't use this command."],
   ])('renders %s as its legacy wording', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

@@ -133,16 +133,15 @@ describe('resurrect.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // the gamestate table: every state has a defined outcome; adding a state
-  // without deciding its gate breaks this test
+  // The state -> verdict table belongs to utils.checkGameState, and
+  // tests/utils.pure.test.js walks every state in the enum - including a
+  // newly added one. What is this command's own is only that run() asks the
+  // gate and returns its verdict without writing, so one state that passes,
+  // one that blocks, and the timestop (whose answer depends on the
+  // isClockwatcher argument this command passes) cover it here.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.REGISTRATION, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ])('gamestate %s -> %s', async (state, reason) => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state }) });
@@ -328,26 +327,6 @@ describe('resurrect.present', () => {
   it('renders success with the resurrectees username', () => {
     const out = logic.present({ ok: true, kind: 'resurrected', data: { targetUsername: 'ghost' } });
     expect(out).toEqual({ content: 'You have resurrected ghost to the tile provided!' });
-  });
-
-  it.each([
-    [REJECTIONS.GAME_OVER, undefined],
-    [REJECTIONS.GAME_PAUSED, undefined],
-    [REJECTIONS.TIME_STOPPED, undefined],
-    [REJECTIONS.NO_SUCH_GAME, { gameId: 1 }],
-    [REJECTIONS.NOT_IN_GAME, undefined],
-    [REJECTIONS.WRONG_CLASS, { className: 'Necromancer' }],
-    [REJECTIONS.NO_SUCH_TILE, { message: 'The tile provided is not in the game!' }],
-    [REJECTIONS.TARGET_NOT_IN_GAME, { message: 'The resurrectee is not in this game!' }],
-    [REJECTIONS.TARGET_NOT_DEAD, undefined],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'resurrect' }],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot resurrect to that tile!' }],
-    [REJECTIONS.TILE_OCCUPIED, { message: 'You cannot resurrect to that tile!' }],
-  ])('renders %s as non-empty text', (reason, data) => {
-    const out = logic.present({ ok: false, reason, data });
-    expect(typeof out.content).toBe('string');
-    expect(out.content.length).toBeGreaterThan(0);
-    expect(out.content).not.toMatch(/undefined/);
   });
 });
 

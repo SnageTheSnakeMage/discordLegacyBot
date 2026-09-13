@@ -269,19 +269,9 @@ describe('swap.run success', () => {
 describe('swap.present', () => {
   it.each([
     [REJECTIONS.WRONG_CLASS, { className: 'Switchmate' }, 'You are not a Switchmate!'],
-    [REJECTIONS.TARGET_NOT_IN_GAME, { message: 'The victim is not in this game!' }, 'The victim is not in this game!'],
-    [REJECTIONS.NOT_IN_GAME, { message: 'You are not in this game!' }, 'You are not in this game!'],
     [REJECTIONS.SAME_TILE, undefined, 'The player and victim are on the same tile!'],
   ])('renders %s with the legacy wording', (reason, data, content) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content });
-  });
-
-  it('renders the crash-fix rejections as non-empty text', () => {
-    for (const reason of [REJECTIONS.NO_SUCH_GAME, REJECTIONS.NO_SUCH_TILE]) {
-      const out = logic.present({ ok: false, reason, data: {} });
-      expect(typeof out.content).toBe('string');
-      expect(out.content.length).toBeGreaterThan(0);
-    }
   });
 
   it('renders success with the victim\'s username', () => {

@@ -91,19 +91,18 @@ describe('trap.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // the gamestate table: every state has a defined outcome; adding a state
-  // without deciding its gate breaks this test. The old command called
+  // Rows dropped where they only re-ran utils.checkGameState's shared table,
+  // which tests/utils.pure.test.js walks in full. The REGISTRATION row stays:
+  // that one is this command's own behaviour, not the shared gate's.
+  //
+  // The old command called
   // checkGameStateAndReply(state, false, interaction), which blocked only
   // OVER, DEV_PAUSED and TIMESTOPPED - REGISTRATION passes, unlike most
   // other class commands.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.REGISTRATION, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ])('gamestate %s -> %s', async (state, reason) => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state }) });
@@ -346,7 +345,6 @@ describe('trap.present', () => {
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.NO_SUCH_TILE, { action: 'trap' }, 'Could not find tile to trap at the given coordinates.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Minesweeper' }, 'You are not a Minesweeper!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to trap!' }, 'You are not in range of the tile you want to trap!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'trap a tile' }, 'You dont have enough AP to trap a tile!'],
   ])('renders %s as its legacy message', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

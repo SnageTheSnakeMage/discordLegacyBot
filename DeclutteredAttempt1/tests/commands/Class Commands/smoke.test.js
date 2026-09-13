@@ -104,17 +104,16 @@ describe('smoke.run rejections', () => {
     expect(result.reason).toBe(REJECTIONS.PLAYER_DEAD);
   });
 
-  // the gamestate table: every state has a defined outcome; adding a state
-  // without deciding its gate breaks this test. The dead switch this replaces
-  // blocked TIMESTOPPED, DEV_PAUSED, "FINISHED" (really OVER) and
-  // REGISTRATION, with no Clockwatcher exemption - preserved.
+  // Rows dropped where they only re-ran utils.checkGameState's shared table,
+  // which tests/utils.pure.test.js walks in full. The REGISTRATION row stays:
+  // blocking it is this command's own behaviour, not the shared gate's.
+  //
+  // The dead switch this replaces blocked TIMESTOPPED, DEV_PAUSED, "FINISHED"
+  // (really OVER) and REGISTRATION, with no Clockwatcher exemption -
+  // preserved.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
     [GAMESTATES.REGISTRATION, REJECTIONS.GAME_IN_REGISTRATION],
   ])('gamestate %s -> %s', async (state, reason) => {
@@ -297,8 +296,6 @@ describe('smoke.present', () => {
     [REJECTIONS.GAME_IN_REGISTRATION, undefined, 'Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.'],
     [REJECTIONS.NO_SUCH_TILE, { action: 'smoke' }, 'Could not find tile to smoke at the given coordinates.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Smoker' }, 'You are not a Smoker!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You can only smoke blank tiles!' }, 'You can only smoke blank tiles!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to smoke!' }, 'You are not in range of the tile you want to smoke!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'smoke a tile' }, 'You dont have enough AP to smoke a tile!'],
   ])('renders %s as its legacy message', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

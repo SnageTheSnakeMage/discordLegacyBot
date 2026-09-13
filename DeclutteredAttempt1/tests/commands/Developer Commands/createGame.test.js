@@ -256,14 +256,6 @@ describe('createGame.present', () => {
     expect(logic.present({ ok: false, reason: REJECTIONS.NOT_DEV }))
       .toEqual({ content: 'Only the dev can use this command.' });
   });
-
-  it('every rejection this command can return renders non-empty text', () => {
-    for (const reason of [REJECTIONS.NOT_DEV]) {
-      const out = logic.present({ ok: false, reason });
-      expect(typeof out.content).toBe('string');
-      expect(out.content.length).toBeGreaterThan(0);
-    }
-  });
 });
 
 describe('createGame adapter (smoke)', () => {

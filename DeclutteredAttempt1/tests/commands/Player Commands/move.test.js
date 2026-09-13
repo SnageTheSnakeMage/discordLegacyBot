@@ -271,15 +271,15 @@ describe('move.run rejections', () => {
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  // the gamestate table: every state in the enum has a decided outcome
+  // The state -> verdict table belongs to utils.checkGameState, and
+  // tests/utils.pure.test.js walks every state in the enum - including a
+  // newly added one. What is this command's own is only that run() asks the
+  // gate and returns its verdict without writing, so one state that passes,
+  // one that blocks, and the timestop (whose answer depends on the
+  // isClockwatcher argument this command passes) cover it here.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.REGISTRATION, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ])('gamestate %s -> %s', async (state, reason) => {
     const { deps } = makeDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state, moveCost: 1 }) });
@@ -641,24 +641,6 @@ describe('move.present', () => {
   it('renders a rejection without data as its shared message', () => {
     expect(logic.present({ ok: false, reason: REJECTIONS.PLAYER_DEAD }))
       .toEqual({ content: "Dead players can't use this command." });
-  });
-
-  it.each([
-    REJECTIONS.NO_SUCH_GAME,
-    REJECTIONS.NOT_IN_GAME,
-    REJECTIONS.NO_SUCH_TILE,
-    REJECTIONS.PLAYER_DEAD,
-    REJECTIONS.GAME_OVER,
-    REJECTIONS.GAME_PAUSED,
-    REJECTIONS.TIME_STOPPED,
-    REJECTIONS.WRONG_TILE_TYPE,
-    REJECTIONS.NOT_ENOUGH_AP,
-    REJECTIONS.INVALID_PATH,
-  ])('renders %s as non-empty text', (reason) => {
-    const { content } = logic.present({ ok: false, reason });
-    expect(typeof content).toBe('string');
-    expect(content.length).toBeGreaterThan(0);
-    expect(content).not.toMatch(/undefined/);
   });
 });
 

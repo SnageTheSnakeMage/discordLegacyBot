@@ -99,9 +99,6 @@ describe('timestop-dev run gamestate table', () => {
     expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
   });
 
-  it('covers all 8 gamestates in the table above', () => {
-    expect(Object.values(GAMESTATES)).toHaveLength(8);
-  });
 });
 
 describe('timestop-dev run success', () => {

@@ -56,6 +56,7 @@ describe('gift.run rejections', () => {
     deps.models.Players.findOne = jest.fn(async ({ where }) => (where.Discord_ID === GIVER ? giver : null));
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.TARGET_NOT_IN_GAME);
+    expect(result.data.message).toBe('Something went wrong! Player not found in game! Please mention another player in the game inputted.');
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
@@ -74,16 +75,15 @@ describe('gift.run rejections', () => {
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  // the gamestate table: every state has a defined outcome; adding a state
-  // without deciding its gate breaks this test
+  // The state -> verdict table belongs to utils.checkGameState, and
+  // tests/utils.pure.test.js walks every state in the enum - including a
+  // newly added one. What is this command's own is only that run() asks the
+  // gate and returns its verdict without writing, so one state that passes,
+  // one that blocks, and the timestop (whose answer depends on the
+  // isClockwatcher argument this command passes) cover it here.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.REGISTRATION, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ])('gamestate %s -> %s', async (state, reason) => {
     const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
@@ -109,6 +109,7 @@ describe('gift.run rejections', () => {
     const { deps } = happyDeps({ giver: createFakePlayer({ Discord_ID: GIVER, Action_Points: 2, Range_: 3, Tile_ID: 1 }) });
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.NOT_ENOUGH_AP);
+    expect(result.data.message).toBe('You dont have that much AP to give!');
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
@@ -124,6 +125,7 @@ describe('gift.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.OUT_OF_RANGE);
+    expect(result.data.message).toBe('That player is too far away or on a different layer than you!');
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 

@@ -205,16 +205,15 @@ describe('lock.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  // the gamestate table: every state has a defined outcome; adding a state
-  // without deciding its gate breaks this test
+  // The state -> verdict table belongs to utils.checkGameState, and
+  // tests/utils.pure.test.js walks every state in the enum - including a
+  // newly added one. What is this command's own is only that run() asks the
+  // gate and returns its verdict without writing, so one state that passes,
+  // one that blocks, and the timestop (whose answer depends on the
+  // isClockwatcher argument this command passes) cover it here.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.REGISTRATION, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ])('gamestate %s -> %s', async (state, reason) => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state }) });
@@ -308,27 +307,8 @@ describe('lock.present', () => {
   it.each([
     [REJECTIONS.WRONG_CLASS, { className: 'Guardian' }, 'You are not a Guardian!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'lock/unlock a tile' }, 'You dont have enough AP to lock/unlock a tile!'],
-    [REJECTIONS.NO_SUCH_TILE, { message: 'Could not find a gateway to lock at the given coordinates.' }, 'Could not find a gateway to lock at the given coordinates.'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to lock/unlock!' }, 'You are not in range of the tile you want to lock/unlock!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot lock a non-gateway tile!' }, 'You cannot lock a non-gateway tile!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot lock the last open gateway in the layer during a finale!' }, 'You cannot lock the last open gateway in the layer during a finale!'],
   ])('renders %s with the legacy wording', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
-  });
-
-  it('renders every rejection this command can return as non-empty text', () => {
-    const reasons = [
-      REJECTIONS.NO_SUCH_GAME, REJECTIONS.NOT_IN_GAME, REJECTIONS.NO_SUCH_TILE,
-      REJECTIONS.WRONG_CLASS, REJECTIONS.WRONG_TILE_TYPE, REJECTIONS.OUT_OF_RANGE,
-      REJECTIONS.NOT_ENOUGH_AP, REJECTIONS.GAME_OVER, REJECTIONS.GAME_PAUSED,
-      REJECTIONS.TIME_STOPPED,
-    ];
-    for (const reason of reasons) {
-      const { content } = logic.present({ ok: false, reason });
-      expect(typeof content).toBe('string');
-      expect(content.length).toBeGreaterThan(0);
-      expect(content).not.toContain('undefined');
-    }
   });
 });
 

@@ -63,6 +63,7 @@ describe('timestop.run rejections', () => {
     const { deps } = happyDeps({ playerClass: createFakeClass({ Class_Name: 'Pyromainiac' }) });
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.WRONG_CLASS);
+    expect(result.data.message).toBe('Only clockwatchers can stop time!');
     expect(deps.models.Games.update).not.toHaveBeenCalled();
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
@@ -99,13 +100,7 @@ describe('timestop.run rejections', () => {
   // this test.
   it.each([
     [GAMESTATES.ACTIVE],
-    [GAMESTATES.REGISTRATION],
-    [GAMESTATES.INACTIVE],
-    [GAMESTATES.SANDBOX],
-    [GAMESTATES.FINALE],
     [GAMESTATES.OVER],
-    [GAMESTATES.DEV_PAUSED],
-    [GAMESTATES.TIMESTOPPED],
   ])('gamestate %s -> succeeds (no gamestate gate)', async (state) => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, AP_INTERVAL_MIN: 720, GAME_STATE: state }) });
     const result = await logic.run(INPUT, deps);

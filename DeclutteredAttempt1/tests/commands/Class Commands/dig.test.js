@@ -84,18 +84,19 @@ describe('dig.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // the gamestate table: every state has a defined outcome; adding a state
-  // without deciding its gate breaks this test. The old code passed
-  // isClockwatcher=false unconditionally, so TIMESTOPPED always blocks
-  // (a Gravedigger is never a Clockwatcher) - preserved.
+  // The state -> verdict table belongs to utils.checkGameState, and
+  // tests/utils.pure.test.js walks every state in the enum - including a
+  // newly added one. What is this command's own is only that run() asks the
+  // gate and returns its verdict without writing, so one state that passes,
+  // one that blocks, and the timestop (whose answer depends on the
+  // isClockwatcher argument this command passes) cover it here.
+  //
+  // The old code passed isClockwatcher=false unconditionally, so
+  // TIMESTOPPED always blocks (a Gravedigger is never a Clockwatcher) -
+  // preserved.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.REGISTRATION, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ])('gamestate %s -> %s', async (state, reason) => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state }) });
@@ -137,6 +138,7 @@ describe('dig.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+    expect(result.data.message).toBe('You cannot dig a gateway tile!');
     expectNoWrites(deps);
   });
 
@@ -148,6 +150,7 @@ describe('dig.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TILE_OCCUPIED });
+    expect(result.data.message).toBe('There is a player on this tile!');
     expectNoWrites(deps);
   });
 
@@ -157,6 +160,7 @@ describe('dig.run rejections', () => {
     });
     const result = await logic.run({ ...INPUT, x: 4, y: 1 }, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
+    expect(result.data.message).toBe('You are not in range of the tile you want to dig!');
     expectNoWrites(deps);
   });
 
@@ -265,9 +269,6 @@ describe('dig.present', () => {
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.NO_SUCH_TILE, { action: 'dig' }, 'Could not find tile to dig at the given coordinates.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Gravedigger' }, 'You are not a Gravedigger!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot dig a gateway tile!' }, 'You cannot dig a gateway tile!'],
-    [REJECTIONS.TILE_OCCUPIED, { message: 'There is a player on this tile!' }, 'There is a player on this tile!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to dig!' }, 'You are not in range of the tile you want to dig!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'dig a tile' }, 'You dont have enough AP to dig a tile!'],
   ])('renders %s as its legacy message', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

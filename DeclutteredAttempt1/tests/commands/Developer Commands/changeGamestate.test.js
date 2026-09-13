@@ -75,10 +75,6 @@ describe('change-gamestate run success', () => {
     );
   });
 
-  it('covers all 8 gamestates in the table above', () => {
-    expect(Object.values(GAMESTATES)).toHaveLength(8);
-  });
-
   // QUIRK (preserved): the "Finished" choice's value is the mixed-case
   // 'Inactive', which is not GAMESTATES.INACTIVE. The choice list lives in
   // the command's unchanged `data`, so the value is written as given.

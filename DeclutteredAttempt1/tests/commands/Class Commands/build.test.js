@@ -96,6 +96,7 @@ describe('build.run rejections', () => {
     });
     const result = await logic.run({ ...INPUT, wall: true }, deps);
     expect(result.reason).toBe(REJECTIONS.WRONG_TILE_TYPE);
+    expect(result.data.message).toBe('You cannot build on a gateway tile!');
     expectNoWrites(deps);
   });
 
@@ -127,6 +128,7 @@ describe('build.run rejections', () => {
     });
     const result = await logic.run({ ...INPUT, x: 4, y: 1 }, deps);
     expect(result.reason).toBe(REJECTIONS.OUT_OF_RANGE);
+    expect(result.data.message).toBe('You are not in range of the tile you want to build!');
     expectNoWrites(deps);
   });
 
@@ -156,17 +158,18 @@ describe('build.run rejections', () => {
     expect(deps.models.Players.update).toHaveBeenCalledWith({ Action_Points: 0 }, { where: { Player_ID: 1 } });
   });
 
-  // the gamestate table: every state has a defined outcome; adding a state
-  // without deciding its gate breaks this test. The old code hard-coded
-  // isClockwatcher=false, so TIMESTOPPED always blocks.
+  // The state -> verdict table belongs to utils.checkGameState, and
+  // tests/utils.pure.test.js walks every state in the enum - including a
+  // newly added one. What is this command's own is only that run() asks the
+  // gate and returns its verdict without writing, so one state that passes,
+  // one that blocks, and the timestop (whose answer depends on the
+  // isClockwatcher argument this command passes) cover it here.
+  //
+  // The old code hard-coded isClockwatcher=false, so TIMESTOPPED always
+  // blocks.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.REGISTRATION, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ])('gamestate %s -> %s', async (state, reason) => {
     const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
@@ -250,9 +253,7 @@ describe('build.present', () => {
   it.each([
     [REJECTIONS.NO_SUCH_TILE, { action: 'build on' }, 'Could not find tile to build on at the given coordinates.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Construction Worker' }, 'You are not a Construction Worker!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot build on a gateway tile!' }, 'You cannot build on a gateway tile!'],
     [REJECTIONS.TILE_OCCUPIED, undefined, 'There is a player on that tile!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to build!' }, 'You are not in range of the tile you want to build!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'build a wall or chest' }, 'You dont have enough AP to build a wall or chest!'],
   ])('renders %s byte-identical to the legacy string', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

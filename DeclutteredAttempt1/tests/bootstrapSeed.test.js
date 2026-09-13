@@ -9,6 +9,30 @@ const { parseCsv, readSeed } = require('../scripts/bootstrap-db.js');
 
 const SEED = path.join(__dirname, '..', 'database', 'seed', 'classes.csv');
 
+/**
+ * Stand a broken seed file in front of readSeed() for one assertion.
+ *
+ * The spy MUST stay path-aware. A bare
+ * `jest.spyOn(fs, 'readFileSync').mockReturnValue(csv)` hands that CSV to
+ * every caller of readFileSync, Jest's own source-map reader included - so
+ * with a warm transform cache Jest parses `id,class,ap,...` as JavaScript
+ * and the whole suite fails to run with "Unexpected token ','". It passed on
+ * a cold cache and failed on every run after, which is the worst way for a
+ * test to be wrong. Delegate anything that is not the seed file to the real
+ * implementation.
+ */
+function withBrokenSeed(csv, assertion) {
+  const real = fs.readFileSync;
+  const spy = jest.spyOn(fs, 'readFileSync').mockImplementation(
+    (file, ...rest) => (file === SEED ? csv : real(file, ...rest)),
+  );
+  try {
+    assertion();
+  } finally {
+    spy.mockRestore();
+  }
+}
+
 describe('parseCsv', () => {
   it.each([
     ['plain rows', 'a,b\n1,2\n', [['a', 'b'], ['1', '2']]],
@@ -60,22 +84,22 @@ describe('classes.csv', () => {
   it('rejects a row with the wrong number of fields', () => {
     const good = fs.readFileSync(SEED, 'utf8');
     const broken = `${good.trimEnd()}\n42,Broken,0,12\n`;
-    const spy = jest.spyOn(fs, 'readFileSync').mockReturnValue(broken);
-    expect(() => readSeed()).toThrow(/line 43: got 4 fields, expected 12/);
-    spy.mockRestore();
+    withBrokenSeed(broken, () => {
+      expect(() => readSeed()).toThrow(/line 43: got 4 fields, expected 12/);
+    });
   });
 
   it('rejects a stat that is not a number', () => {
     const broken = 'id,class,ap,max_ap,hp,max_hp,range,max_range,damage,max_damage,color,description\n'
       + '1,Vampyr,N/A,12,6,12,1,6,1,2,CB0000,desc\n';
-    const spy = jest.spyOn(fs, 'readFileSync').mockReturnValue(broken);
-    expect(() => readSeed()).toThrow(/column "ap" is "N\/A", which is not a number/);
-    spy.mockRestore();
+    withBrokenSeed(broken, () => {
+      expect(() => readSeed()).toThrow(/column "ap" is "N\/A", which is not a number/);
+    });
   });
 
   it('rejects an unknown column', () => {
-    const spy = jest.spyOn(fs, 'readFileSync').mockReturnValue('id,class,nonsense\n1,Vampyr,x\n');
-    expect(() => readSeed()).toThrow(/unknown column\(s\): nonsense/);
-    spy.mockRestore();
+    withBrokenSeed('id,class,nonsense\n1,Vampyr,x\n', () => {
+      expect(() => readSeed()).toThrow(/unknown column\(s\): nonsense/);
+    });
   });
 });

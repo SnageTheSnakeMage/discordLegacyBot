@@ -24,8 +24,10 @@ function happyDeps(over = {}) {
   const target = 'target' in over ? over.target : createFakePlayer({
     Player_ID: 2, Discord_ID: VICTIM, Class_ID: 1, Tile_ID: 11,
   });
-  const bullyTile = createFakeTile({ Tile_ID: 10, Layer_ID: 1, X_Position: 2, Y_Position: 2 });
-  const victimTile = createFakeTile({ Tile_ID: 11, Layer_ID: 1, X_Position: 3, Y_Position: 2 });
+  const bullyTile = 'bullyTile' in over ? over.bullyTile
+    : createFakeTile({ Tile_ID: 10, Layer_ID: 1, X_Position: 2, Y_Position: 2 });
+  const victimTile = 'victimTile' in over ? over.victimTile
+    : createFakeTile({ Tile_ID: 11, Layer_ID: 1, X_Position: 3, Y_Position: 2 });
   const behind = 'behind' in over ? over.behind
     : createFakeTile({ Tile_ID: 12, Layer_ID: 1, X_Position: 4, Y_Position: 2, Tile_Type: 'Blank1' });
   const classes = {
@@ -130,16 +132,57 @@ describe('shove.run rejections', () => {
   });
 
   it('rejects shoving yourself', async () => {
-    const { result } = await rejects({}, { targetDiscordId: BULLY });
-    expect(result.ok).toBe(false);
+    const { result, deps } = await rejects({}, { targetDiscordId: BULLY });
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.INVALID_AMOUNT });
+    expect(result.data.message).toBe('You cannot shove yourself!');
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+    expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  it('rejects a victim who is not adjacent', async () => {
+  // Tile_ID 99 has no row, so this is the missing-tile branch. The adjacency
+  // and layer branches are below - they were both deletable with this suite
+  // green until they got their own tests.
+  it('rejects a victim whose tile row is missing', async () => {
     const { result, deps } = await rejects({
       target: createFakePlayer({ Player_ID: 2, Discord_ID: VICTIM, Class_ID: 1, Tile_ID: 99 }),
     });
-    expect(result.ok).toBe(false);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_TILE });
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+  });
+
+  it('rejects a victim standing on another layer', async () => {
+    // (3,2) is adjacent to the bully's (2,2), so only the layer differs -
+    // delete the layer guard and this shove would otherwise succeed
+    const { result, deps } = await rejects({
+      victimTile: createFakeTile({ Tile_ID: 11, Layer_ID: 2, X_Position: 3, Y_Position: 2 }),
+    });
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
+    expect(result.data.message).toBe('They are not on your layer!');
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+  });
+
+  // the bully reaches exactly one tile. `board: true` puts a tile everywhere
+  // on layer 1, so nothing but the adjacency check can stop these.
+  it.each([
+    ['two tiles east', 4, 2],
+    ['two tiles diagonally', 4, 4],
+    ['two tiles north', 2, 0],
+  ])('rejects a victim %s away', async (_label, x, y) => {
+    const { result, deps } = await rejects({
+      board: true,
+      victimTile: createFakeTile({ Tile_ID: 11, Layer_ID: 1, X_Position: x, Y_Position: y }),
+    });
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
+    expect(result.data.message).toBe('You can only shove someone on a tile next to you!');
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+  });
+
+  it('accepts a victim exactly one tile away, diagonally (boundary: adjacent)', async () => {
+    const { result } = await rejects({
+      board: true,
+      victimTile: createFakeTile({ Tile_ID: 11, Layer_ID: 1, X_Position: 3, Y_Position: 3 }),
+    });
+    expect(result.ok).toBe(true);
   });
 
   it('rejects a Bully with no AP', async () => {
@@ -152,14 +195,18 @@ describe('shove.run rejections', () => {
   it('rejects a shove off the edge of the board', async () => {
     const { result, deps } = await rejects({ layers: () => null });
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_TILE });
+    expect(result.data.message).toBe('There is nothing that way to shove them onto!');
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 
-  it('rejects a shove onto a wall', async () => {
+  // the message interpolates the tile type, so each impassable kind renders
+  // its own wording
+  it.each(['Wall', 'Wall_Damaged', 'Void'])('rejects a shove onto a %s tile', async (tileType) => {
     const { result, deps } = await rejects({
-      behind: createFakeTile({ Tile_ID: 12, Layer_ID: 1, X_Position: 4, Y_Position: 2, Tile_Type: 'Wall' }),
+      behind: createFakeTile({ Tile_ID: 12, Layer_ID: 1, X_Position: 4, Y_Position: 2, Tile_Type: tileType }),
     });
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+    expect(result.data.message).toBe(`You cannot shove anyone onto a ${tileType} tile!`);
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 
@@ -167,6 +214,7 @@ describe('shove.run rejections', () => {
     // only the straight-back tile is on the board, so 'left' has nowhere to go
     const { result, deps } = await rejects({}, { direction: 'left' });
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_TILE });
+    expect(result.data.message).toBe('There is nothing that way to shove them onto!');
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 
@@ -175,6 +223,7 @@ describe('shove.run rejections', () => {
     // choice must not fall through to some arbitrary direction
     const { result, deps } = await rejects({ board: true }, { direction: 'up' });
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
+    expect(result.data.message).toBe('You cannot work out which way to shove them from there!');
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 
@@ -343,5 +392,19 @@ describe('shove on a shared tile', () => {
     }));
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_TILE });
+    // the invariant is broken, so the reply says so rather than blaming the player
+    expect(result.data.message)
+      .toBe('The tile does not agree on who is standing on it - tell snage.');
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the tile lists the victim but not the bully', async () => {
+    const deps = sharedDeps('Player1', 'Player2');
+    deps.models.Tiles.findByPk = jest.fn(async () => createFakeTile({
+      Tile_ID: 10, Layer_ID: 1, X_Position: 3, Y_Position: 3, Player2: 2,
+    }));
+    const result = await logic.run(INPUT, deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_TILE });
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 });
