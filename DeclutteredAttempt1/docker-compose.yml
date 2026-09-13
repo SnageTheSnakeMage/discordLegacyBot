@@ -2,10 +2,24 @@ services:
   bot:
     build: .
     container_name: discord-bot
-    env_file: .env
+    # Values come from DeclutteredAttempt1/.env - the same file dotenv reads
+    # when you run `node index.js` locally. The path is resolved relative to
+    # this compose file, not to your shell's cwd, so `docker compose -f
+    # DeclutteredAttempt1/docker-compose.yml up` from the repo root works too.
+    # `required: true` turns a missing file into an error at `up` instead of a
+    # container that boots with no configuration at all.
+    env_file:
+      - path: .env
+        required: true
     environment:
       NODE_ENV: production
       LEGACY_DB_STORAGE: /data/database.db
+      # env_file already passes DISCORD_TOKEN through; restating it here as a
+      # required interpolation is what makes `up` fail fast, and name the fix,
+      # when the value is missing or blank. Without it the only symptom is
+      # discord.js throwing "An invalid token was provided" from inside the
+      # container seconds after start.
+      DISCORD_TOKEN: ${DISCORD_TOKEN:?missing - copy DeclutteredAttempt1/.env.example to DeclutteredAttempt1/.env and set DISCORD_TOKEN}
     volumes:
       # named volume: game state survives image rebuilds. The old bind mount
       # (./data) pointed at a path the bot never wrote; the database lived

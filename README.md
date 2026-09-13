@@ -91,6 +91,65 @@ test that proves the runtime image boots to a Discord login attempt, and a Trivy
 CVE scan. Fork PRs get no secrets; the workflow token is read-only; every action
 is pinned to a commit SHA.
 
+### Configuration (.env) and Docker
+
+There is one `.env` file and it lives in `DeclutteredAttempt1/`, next to
+`docker-compose.yml`. `DeclutteredAttempt1/.env.example` lists every variable;
+copy it and fill it in:
+
+```bash
+cd DeclutteredAttempt1
+cp .env.example .env
+```
+
+The same file feeds both ways of running the bot, by two different mechanisms:
+
+| | how the value reaches `process.env` |
+|---|---|
+| `node index.js` | `dotenv.config()` in `index.js` reads `./.env` from the **shell's cwd** |
+| `docker compose up` | `env_file:` hands the values to the container; the path resolves relative to **the compose file**, not your cwd |
+
+The `.env` is deliberately excluded by `.dockerignore`, so it is never baked
+into the image, and `dotenv.config()` inside the container finds no file and
+does nothing. In Docker, `env_file:` is the *only* thing putting configuration
+into the process - if it does not arrive there, nothing else will supply it.
+
+`docker compose up` now fails immediately, naming the fix, when `.env` is
+missing or `DISCORD_TOKEN` is unset. To see exactly what a container will get,
+without starting anything:
+
+```bash
+cd DeclutteredAttempt1
+docker compose config          # rendered config, .env already merged in
+```
+
+Every variable that arrived appears under `services.bot.environment`. If one is
+missing there, it is missing from `.env` - the container is not the problem.
+To check the values a *running* container actually has:
+
+```bash
+docker compose exec bot env | sort
+```
+
+Things that break this, roughly in order of how often they do:
+
+- **`.env` in the wrong directory.** It must be `DeclutteredAttempt1/.env`, not
+  the repo root. `docker compose config` says which path it looked at.
+- **`docker run` instead of `docker compose`.** `docker run` reads no `.env` at
+  all; it needs `--env-file .env` spelled out.
+- **An old `docker-compose` v1 (the Python one).** It does not strip surrounding
+  quotes or Windows CRLF line endings, so `DISCORD_TOKEN="abc"` becomes the
+  literal `"abc"` and a CRLF file yields a token with a trailing `\r` - both
+  read as invalid tokens by Discord while dotenv, which strips both, keeps
+  working locally. `docker compose version` should report v2 or newer;
+  otherwise write `.env` with LF endings and no quotes.
+- **A UTF-8 BOM**, which Notepad and `>` redirection in PowerShell add. Save as
+  "UTF-8" rather than "UTF-8 with BOM", or write the file with
+  `Set-Content -Encoding utf8NoBOM`.
+- **`DEV_ID` unset.** The bot connects fine and every command under
+  `commands/Developer Commands` silently refuses, because each one compares
+  `interaction.user.id` against it.
+
 ### Releasing
 
 1. Tag: `git tag v0.x.y && git push origin v0.x.y`
