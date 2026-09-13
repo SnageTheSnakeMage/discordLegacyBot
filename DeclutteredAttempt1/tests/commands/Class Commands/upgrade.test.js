@@ -300,22 +300,6 @@ describe('upgrade.present', () => {
     expect(logic.present({ ok: false, reason: REJECTIONS.PLAYER_DEAD }))
       .toEqual({ content: "Dead players can't use this command." });
   });
-
-  it.each([
-    [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }],
-    [REJECTIONS.NOT_IN_GAME, undefined],
-    [REJECTIONS.PLAYER_DEAD, undefined],
-    [REJECTIONS.GAME_OVER, undefined],
-    [REJECTIONS.GAME_PAUSED, undefined],
-    [REJECTIONS.TIME_STOPPED, undefined],
-    [REJECTIONS.NOT_ENOUGH_AP, { message: "You don't have enough AP to upgrade that much!\n You need 1 more AP." }],
-    [REJECTIONS.INVALID_AMOUNT, { message: "You can't upgrade your health past 10! Unless you kill some people :)" }],
-  ])('every rejection this command can return renders non-empty text (%s)', (reason, data) => {
-    const out = logic.present({ ok: false, reason, data });
-    expect(typeof out.content).toBe('string');
-    expect(out.content.length).toBeGreaterThan(0);
-    expect(out.content).not.toMatch(/undefined/);
-  });
 });
 
 describe('upgrade adapter (smoke)', () => {

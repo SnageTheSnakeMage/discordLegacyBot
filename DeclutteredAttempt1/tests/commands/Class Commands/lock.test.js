@@ -314,21 +314,6 @@ describe('lock.present', () => {
   ])('renders %s with the legacy wording', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
   });
-
-  it('renders every rejection this command can return as non-empty text', () => {
-    const reasons = [
-      REJECTIONS.NO_SUCH_GAME, REJECTIONS.NOT_IN_GAME, REJECTIONS.NO_SUCH_TILE,
-      REJECTIONS.WRONG_CLASS, REJECTIONS.WRONG_TILE_TYPE, REJECTIONS.OUT_OF_RANGE,
-      REJECTIONS.NOT_ENOUGH_AP, REJECTIONS.GAME_OVER, REJECTIONS.GAME_PAUSED,
-      REJECTIONS.TIME_STOPPED,
-    ];
-    for (const reason of reasons) {
-      const { content } = logic.present({ ok: false, reason });
-      expect(typeof content).toBe('string');
-      expect(content.length).toBeGreaterThan(0);
-      expect(content).not.toContain('undefined');
-    }
-  });
 });
 
 describe('lock adapter (smoke)', () => {

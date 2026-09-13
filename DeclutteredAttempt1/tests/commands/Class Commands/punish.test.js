@@ -266,10 +266,8 @@ describe('punish.present', () => {
     [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! only the dev can use commands for this game at this time.'],
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],
-  ])('renders %s as non-empty player-facing text', (reason, data, expected) => {
-    const out = logic.present({ ok: false, reason, data });
-    expect(out).toEqual({ content: expected });
-    expect(out.content.length).toBeGreaterThan(0);
+  ])('renders %s with the legacy wording', (reason, data, expected) => {
+    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
   });
 
   it('passes a carried legacy message straight through', () => {

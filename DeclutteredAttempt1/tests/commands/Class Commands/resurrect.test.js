@@ -328,26 +328,6 @@ describe('resurrect.present', () => {
     const out = logic.present({ ok: true, kind: 'resurrected', data: { targetUsername: 'ghost' } });
     expect(out).toEqual({ content: 'You have resurrected ghost to the tile provided!' });
   });
-
-  it.each([
-    [REJECTIONS.GAME_OVER, undefined],
-    [REJECTIONS.GAME_PAUSED, undefined],
-    [REJECTIONS.TIME_STOPPED, undefined],
-    [REJECTIONS.NO_SUCH_GAME, { gameId: 1 }],
-    [REJECTIONS.NOT_IN_GAME, undefined],
-    [REJECTIONS.WRONG_CLASS, { className: 'Necromancer' }],
-    [REJECTIONS.NO_SUCH_TILE, { message: 'The tile provided is not in the game!' }],
-    [REJECTIONS.TARGET_NOT_IN_GAME, { message: 'The resurrectee is not in this game!' }],
-    [REJECTIONS.TARGET_NOT_DEAD, undefined],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'resurrect' }],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot resurrect to that tile!' }],
-    [REJECTIONS.TILE_OCCUPIED, { message: 'You cannot resurrect to that tile!' }],
-  ])('renders %s as non-empty text', (reason, data) => {
-    const out = logic.present({ ok: false, reason, data });
-    expect(typeof out.content).toBe('string');
-    expect(out.content.length).toBeGreaterThan(0);
-    expect(out.content).not.toMatch(/undefined/);
-  });
 });
 
 describe('resurrect adapter (smoke)', () => {

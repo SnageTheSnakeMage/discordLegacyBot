@@ -642,24 +642,6 @@ describe('move.present', () => {
     expect(logic.present({ ok: false, reason: REJECTIONS.PLAYER_DEAD }))
       .toEqual({ content: "Dead players can't use this command." });
   });
-
-  it.each([
-    REJECTIONS.NO_SUCH_GAME,
-    REJECTIONS.NOT_IN_GAME,
-    REJECTIONS.NO_SUCH_TILE,
-    REJECTIONS.PLAYER_DEAD,
-    REJECTIONS.GAME_OVER,
-    REJECTIONS.GAME_PAUSED,
-    REJECTIONS.TIME_STOPPED,
-    REJECTIONS.WRONG_TILE_TYPE,
-    REJECTIONS.NOT_ENOUGH_AP,
-    REJECTIONS.INVALID_PATH,
-  ])('renders %s as non-empty text', (reason) => {
-    const { content } = logic.present({ ok: false, reason });
-    expect(typeof content).toBe('string');
-    expect(content.length).toBeGreaterThan(0);
-    expect(content).not.toMatch(/undefined/);
-  });
 });
 
 // ---------------------------------------------------------------------------

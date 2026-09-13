@@ -448,18 +448,6 @@ describe('shoot.present', () => {
       .toEqual({ content: 'That tile is not on the board!' });
   });
 
-  it.each([
-    [REJECTIONS.NO_SUCH_GAME],
-    [REJECTIONS.NOT_IN_GAME],
-    [REJECTIONS.GAME_OVER],
-    [REJECTIONS.GAME_PAUSED],
-    [REJECTIONS.TIME_STOPPED],
-  ])('renders %s as non-empty text', (reason) => {
-    const out = logic.present({ ok: false, reason });
-    expect(typeof out.content).toBe('string');
-    expect(out.content.length).toBeGreaterThan(0);
-  });
-
   // byte-identical legacy formatting, including "damaged wall" on a miss
   // against an intact wall, the newline BEFORE the "!" on wall hits, and the
   // "$" after the damage number

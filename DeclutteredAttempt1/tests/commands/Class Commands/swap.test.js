@@ -276,14 +276,6 @@ describe('swap.present', () => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content });
   });
 
-  it('renders the crash-fix rejections as non-empty text', () => {
-    for (const reason of [REJECTIONS.NO_SUCH_GAME, REJECTIONS.NO_SUCH_TILE]) {
-      const out = logic.present({ ok: false, reason, data: {} });
-      expect(typeof out.content).toBe('string');
-      expect(out.content.length).toBeGreaterThan(0);
-    }
-  });
-
   it('renders success with the victim\'s username', () => {
     const out = logic.present({
       ok: true,

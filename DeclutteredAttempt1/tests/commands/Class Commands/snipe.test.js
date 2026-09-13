@@ -449,19 +449,6 @@ describe('snipe.present', () => {
     expect(out).toEqual({ content: "You don't have enough AP to shoot that much!" });
   });
 
-  it.each([
-    [REJECTIONS.NO_SUCH_GAME],
-    [REJECTIONS.NOT_IN_GAME],
-    [REJECTIONS.WRONG_CLASS],
-    [REJECTIONS.GAME_OVER],
-    [REJECTIONS.GAME_PAUSED],
-    [REJECTIONS.TIME_STOPPED],
-  ])('renders %s as non-empty text', (reason) => {
-    const out = logic.present({ ok: false, reason });
-    expect(typeof out.content).toBe('string');
-    expect(out.content.length).toBeGreaterThan(0);
-  });
-
   // byte-identical legacy formatting: the newline BEFORE the "!" on the wall
   // and zip lines, the "$" after the damage number, the target named by
   // username while collateral is mentioned

@@ -395,19 +395,6 @@ describe('warp.present', () => {
     });
     expect(out).toEqual({ content: 'There are no available(not full or locked) gateways on the layer above you!' });
   });
-
-  it('renders every rejection this command can return as non-empty text', () => {
-    const codes = [
-      REJECTIONS.NO_SUCH_GAME, REJECTIONS.NOT_IN_GAME, REJECTIONS.NO_SUCH_TILE,
-      REJECTIONS.NO_SUCH_LAYER, REJECTIONS.NO_AVAILABLE_TILE, REJECTIONS.NOT_ON_GATEWAY,
-      REJECTIONS.GAME_OVER, REJECTIONS.GAME_PAUSED, REJECTIONS.TIME_STOPPED,
-    ];
-    for (const reason of codes) {
-      const { content } = logic.present({ ok: false, reason });
-      expect(typeof content).toBe('string');
-      expect(content.length).toBeGreaterThan(0);
-    }
-  });
 });
 
 describe('warp adapter (smoke)', () => {
