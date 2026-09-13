@@ -84,16 +84,41 @@ describe('setDeadChat.run', () => {
     expect(deps.models.Games.update).not.toHaveBeenCalled();
   });
 
+  // this used to assert only result.ok === false, which left both the reason
+  // code and the wording free to change - and the branch is the one a dev
+  // actually hits, by passing something that is not a channel
   it.each([
     ['no channel', null],
     ['not a snowflake', 'general'],
-    ['too short', '123'],
-    ['too long', '123456789012345678901'],
+    ['a mention rather than an id', '<#1392574348333678633>'],
+    ['16 digits, one short', '1234567890123456'],
+    ['21 digits, one over', '123456789012345678901'],
   ])('rejects %s and writes nothing', async (_label, channelId) => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, channelId }, deps);
-    expect(result.ok).toBe(false);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.INVALID_AMOUNT });
+    expect(result.data.message).toBe('That is not a channel this bot can post to.');
     expect(deps.models.Games.update).not.toHaveBeenCalled();
+  });
+
+  // the boundaries of the 17-20 digit snowflake range, from the inside
+  it.each([
+    ['17 digits', '12345678901234567'],
+    ['20 digits', '12345678901234567890'],
+  ])('accepts %s', async (_label, channelId) => {
+    const { deps } = happyDeps();
+    const result = await logic.run({ ...INPUT, channelId }, deps);
+    expect(result.ok).toBe(true);
+    expect(deps.models.Games.update).toHaveBeenCalledWith(
+      { deadChatChannelId: channelId }, { where: { Game_ID: 1 } },
+    );
+  });
+
+  it('rejects a non-dev before looking at the channel at all', async () => {
+    const { deps } = happyDeps();
+    const result = await logic.run({ ...INPUT, isDev: false, channelId: 'general' }, deps);
+    expect(result).toEqual({ ok: false, reason: REJECTIONS.NOT_DEV });
+    expect(deps.models.Games.findByPk).not.toHaveBeenCalled();
   });
 });
 
@@ -105,6 +130,12 @@ describe('setDeadChat.present', () => {
       data: { gameId: 1, channelId: CHANNEL, channelName: 'dead-chat', previousChannelId: null },
     });
     expect(out).toEqual({ content: `Dead chat for game 1 is now <#${CHANNEL}>.`, ephemeral: true });
+  });
+
+  it('keeps a rejection ephemeral too, not just the success', () => {
+    for (const reason of [REJECTIONS.NOT_DEV, REJECTIONS.INVALID_AMOUNT, REJECTIONS.NO_SUCH_GAME]) {
+      expect(logic.present({ ok: false, reason, data: {} }).ephemeral).toBe(true);
+    }
   });
 
   it('names the previous channel when it changed', () => {
