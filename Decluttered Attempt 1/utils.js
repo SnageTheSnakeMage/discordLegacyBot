@@ -15,18 +15,27 @@ const fs = require('fs');
 var models = initModels(sequelize);
 var GAMESTATES = require('G:/LegacyBotDiscord/Decluttered Attempt 1/enums.js').GAMESTATES;
 const ChaosEvents = require('G:/LegacyBotDiscord/Decluttered Attempt 1/enums.js').ChaosEvents;
+//tracks the running AP check interval for each game so we never double-schedule one
+const apIntervals = new Map();
 //#endregion BOILERPLATE
 module.exports = {
   models,
   GAMESTATES,
 // Function to load a tile texture
 
-timeCheck(client){ 
-  //start apcheckinterval for each active game
-  models.Games.findAll({where: {GAME_STATE: {[Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE ]}}}).then((games) => {
-    games.forEach((game) => {
-      this.startAPCheckInterval(game, client);
-    })
+async timeCheck(client){
+  //reconcile the running apcheckintervals against the games that should have one
+  var games = await models.Games.findAll({where: {GAME_STATE: {[Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE ]}}});
+  var runningIds = new Set(games.map((game) => game.Game_ID));
+  //stop the intervals of any game that is no longer running
+  for(const gameId of [...apIntervals.keys()]){
+    if(!runningIds.has(gameId)){
+      this.stopAPCheckInterval(gameId);
+    }
+  }
+  //start (or restart with fresh game data) an interval for each running game
+  games.forEach((game) => {
+    this.startAPCheckInterval(game, client);
   })
 },
 
@@ -53,14 +62,16 @@ buildChaosCouncilPoll(lastEventKey, game){
 },
 
 startAPCheckInterval(game, client){
+  //never let a game have two intervals running at once
+  this.stopAPCheckInterval(game.Game_ID);
   //every 30 seconds check if AP needs to be distributed if your behind distribute it multiple times for each interval you are behind on
-  setInterval( async() => {
+  var intervalId = setInterval( async() => {
     //how often AP is distributed for the game in milliseconds
     var apInterval = game.AP_INTERVAL_MIN * 60000
     //how long it has been since the last AP distribution in milliseconds
-    var lastDistrib = game.lastAPDistributionTimestampInMS - Date.now();
+    var lastDistrib = Date.now() - game.lastAPDistributionTimestampInMS;
 
-    if(lastDistrib < apInterval){
+    if(lastDistrib >= apInterval){
       //amount of times ap should have been distributed
       var times = Math.floor(lastDistrib / apInterval);
       await this.distributeAP(game, times, client);
@@ -68,6 +79,15 @@ startAPCheckInterval(game, client){
     }
 
   }, 30000)
+  apIntervals.set(game.Game_ID, intervalId);
+},
+
+stopAPCheckInterval(gameId){
+  var existing = apIntervals.get(gameId);
+  if(existing){
+    clearInterval(existing);
+    apIntervals.delete(gameId);
+  }
 },
 
 async distributeAP(game, times, client){

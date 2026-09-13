@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
-var models = require("../../utils.js").models;
+var utils = require("../../utils.js");
+var models = utils.models;
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -29,9 +30,10 @@ module.exports = {
             await interaction.reply('You must be a dev to use this command!'); 
             return;
         }
-        models.Games.update({GAME_STATE: interaction.options.getString('gamestate')}, {where: {Game_ID: interaction.options.getInteger('game')}}).then((result) => {
-            interaction.reply(`Game ${interaction.options.getInteger('game')} has been changed to ${interaction.options.getString('gamestate')}!`);
-        });
+        await models.Games.update({GAME_STATE: interaction.options.getString('gamestate')}, {where: {Game_ID: interaction.options.getInteger('game')}});
+        //the gamestate decides whether this game should have an AP check interval, so reconcile them
+        await utils.timeCheck(interaction.client);
+        await interaction.reply(`Game ${interaction.options.getInteger('game')} has been changed to ${interaction.options.getString('gamestate')}!`);
 
     }
 }

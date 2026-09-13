@@ -1,5 +1,6 @@
  const { SlashCommandBuilder } = require('discord.js');
-var models = require("../../utils.js").models;
+var utils = require("../../utils.js");
+var models = utils.models;
 var GAMESTATES = require('G:/LegacyBotDiscord/Decluttered Attempt 1/enums.js').GAMESTATES;
 
 module.exports = {
@@ -82,7 +83,7 @@ module.exports = {
         var APAmount = interaction.options.getInteger('ap-amount') ?? 2;
         var immutableDoomsday = interaction.options.getInteger('immutable-doomsday') ?? 32;
         //Create Game in Database
-        await models.Game.create({ 
+        await models.Games.create({ 
             GAME_STATE: GAMESTATES.REGISTRATION,
             AP_INTERVAL_MIN: AP_Distribution_Interval, 
             CHEST_AMOUNT: Chest_Amount, 
@@ -101,6 +102,9 @@ module.exports = {
             APAmount: APAmount,
             immutableDoomsday: immutableDoomsday
         });
+
+        //pick up the new game if it was created in a state that needs an AP check interval
+        await utils.timeCheck(interaction.client);
 
         await interaction.editReply({ content: "Game "+ await models.Games.count() + " created!" });
     }
