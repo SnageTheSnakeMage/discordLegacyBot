@@ -155,6 +155,25 @@ describe('pollToResults', () => {
       .toBe('Blockade');
   });
 
+  it('counts the dead alone when the Medium class row is missing', async () => {
+    // a fresh or half-seeded database must cost the council its mediums,
+    // not throw and lose the whole vote
+    utils.models.Classes.findOne.mockResolvedValue(null);
+    jest.spyOn(utils.models.Players, 'findAll').mockResolvedValue([
+      createFakePlayer({ Discord_ID: DEAD_A }),
+    ]);
+    const poll = fakePoll([
+      { text: 'previous', voters: [ALIVE] },
+      { text: 'Blockade', voters: [DEAD_A] },
+    ]);
+
+    const result = await utils.pollToResults(poll, createFakeGame({ Game_ID: 1, overrider: null }));
+
+    expect(result).toBe('Blockade');
+    // only the dead lookup ran: no Class_ID to query mediums by
+    expect(utils.models.Players.findAll).toHaveBeenCalledTimes(1);
+  });
+
   it('a poll nobody eligible voted in leaves the event unchanged', async () => {
     jest.spyOn(utils.models.Players, 'findAll').mockResolvedValue([]);
     const poll = fakePoll([{ text: 'Blockade', voters: [ALIVE] }]);
