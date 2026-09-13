@@ -28,7 +28,7 @@
  *       orphaning every player who has it.
  *
  *       Renaming a class here is only half the job - production code
- *       matches class names by string. See docs/CHANGING_CLASSES.md.
+ *       matches class names by string. See "Prompts & Guidelines/CHANGING_CLASSES.md".
  */
 const path = require('path');
 const fs = require('fs');

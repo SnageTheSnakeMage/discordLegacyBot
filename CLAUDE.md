@@ -30,10 +30,11 @@ Commands are split into a thin adapter and a pure logic file, e.g.
   `runLogged(...)`, and replies. Anything needing the discord client —
   `interaction.client` — belongs here, not in the logic file.
 
-The longer-form documents live in `Prompts & Guidelines/`:
-`TESTING.md` describes this split in full, `QUIRKS.md` records known broken
-and surprising behaviour that tests deliberately pin, and `CI_CD_PROMPT.md`
-covers the pipeline and the container build.
+Every longer-form document lives in `Prompts & Guidelines/`: `TESTING.md`
+describes this split in full, `QUIRKS.md` records known broken and surprising
+behaviour that tests deliberately pin, `CI_CD_PROMPT.md` covers the pipeline
+and the container build, and `BOARDS.md` and `CHANGING_CLASSES.md` are the
+gameplay references.
 
 Unit tests never touch the database. `utils.models.*` is stubbed with
 `jest.spyOn`; only the integration project seeds a real schema. If a unit test
