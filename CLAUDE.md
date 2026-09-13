@@ -5,10 +5,8 @@
 `DeclutteredAttempt1/` is the live tree. Everything runs, builds and is tested
 from there — CI sets `working-directory: DeclutteredAttempt1` for every job.
 
-`Decluttered Attempt 1/` (with spaces) and `Discord Bot Studio Attempt/` are
-older attempts kept for reference. They are not built, not tested and not
-deployed. Never make a change there: the file names are near-identical, so
-check the directory before editing.
+`Discord Bot Studio Attempt/` is an older attempt kept for reference. It is
+not built, not tested and not deployed, so changes do not belong there.
 
 ## Commands
 
