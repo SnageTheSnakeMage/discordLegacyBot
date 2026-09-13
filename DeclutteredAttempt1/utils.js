@@ -430,6 +430,7 @@ async pollToResults(poll, game) {
     where: {Game_ID: game.Game_ID, Dead: true},
     attributes: ["Discord_ID"],
   });
+  const mediumClass = await models.Classes.findOne({where: {Class_Name: "Medium"}});
   const mediums = await models.Players.findAll({
     where: {Game_ID: game.Game_ID, Class_ID: mediumClass.Class_ID},
     attributes: ["Discord_ID"],
