@@ -20,6 +20,12 @@ var GAMESTATES = require('./enums.js').GAMESTATES;
 var REJECTIONS = require('./enums.js').REJECTIONS;
 const ChaosEvents = require('./enums.js').ChaosEvents;
 const APCHECKINTERVAL_SECONDS = 30;
+//the first council answer is the standing event, labelled. Kept here because
+//buildChaosCouncilDescriptions has to strip it back off to find the event in
+//the ChaosEvents enum.
+const PREVIOUS_EVENT_PREFIX = "previous event: ";
+//discord rejects a message body over 2000 characters
+const DISCORD_MESSAGE_LIMIT = 2000;
 //the live AP check interval per Game_ID. startAPCheckInterval is now called
 //outside of ready.js (every create-game and change-gamestate reconciles), so
 //without this a game accumulated a duplicate 30s timer per call and no timer
@@ -191,7 +197,7 @@ buildChaosCouncilPoll(lastEventKey, game){
   return {
     question: {text: `Chaos Council Poll - Game ${game.Game_ID} - Choose A Chaos Event`},
     answers: [
-      {text: "previous event: "+ lastEventKey},
+      {text: PREVIOUS_EVENT_PREFIX + lastEventKey},
       {text: randomEvent1},
       {text: randomEvent2}
     ],
@@ -200,6 +206,32 @@ buildChaosCouncilPoll(lastEventKey, game){
     //minutes used to produce 0, which discord rejects outright.
     duration: Math.max(1, Math.round(game.AP_INTERVAL_MIN / 60))
   }
+},
+
+//A discord poll answer is a bare label with no room for the rules, so voters
+//had no way to tell what an option actually does without reading the source.
+//This is the body of the message posted alongside the poll, describing every
+//option it offers.
+//
+//Pure on purpose, like tallyChaosVotes: postChaosCouncilPoll does the
+//sending, this does the wording, and only the wording is worth testing.
+buildChaosCouncilDescriptions(poll){
+  const answers = poll && Array.isArray(poll.answers) ? poll.answers : [];
+  const lines = [];
+  for (const answer of answers) {
+    const label = String(answer && answer.text != null ? answer.text : "");
+    //the standing event is labelled "previous event: X"; the enum is keyed by
+    //the bare name
+    const key = label.startsWith(PREVIOUS_EVENT_PREFIX) ? label.slice(PREVIOUS_EVENT_PREFIX.length) : label;
+    //an event that is in the poll but not the enum is a bug, not a reason to
+    //post nothing
+    lines.push(`**${label}**\n${ChaosEvents[key] || "No description available."}`);
+  }
+  if (lines.length === 0) return null;
+  const body = ["__What these do__", ...lines].join("\n\n");
+  return body.length > DISCORD_MESSAGE_LIMIT
+    ? body.slice(0, DISCORD_MESSAGE_LIMIT - 3) + "..."
+    : body;
 },
 
 //Picks the winning answer from already-fetched votes. Pure on purpose: the
@@ -405,10 +437,22 @@ async postChaosCouncilPoll(game, client) {
   try {
     const channel = await client.channels.fetch(String(game.deadChatChannelId));
     if (!channel) return null;
-    const message = await channel.send({poll: this.buildChaosCouncilPoll(game.CURR_CC_EVENT, game)});
+    const poll = this.buildChaosCouncilPoll(game.CURR_CC_EVENT, game);
+    const message = await channel.send({poll});
     //written through the model, not onto the in-memory row: the old code
     //assigned it inside a .then that resolved after game.save() had run
     await models.Games.update({currentChaosPollMsgId: String(message.id)}, {where: {Game_ID: game.Game_ID}});
+    //the descriptions ride in their own message, replying to the poll so the
+    //two stay together. Caught separately: losing the descriptions must not
+    //lose the poll that is already open and already recorded.
+    try {
+      const descriptions = this.buildChaosCouncilDescriptions(poll);
+      if (descriptions) {
+        await channel.send({content: descriptions, reply: {messageReference: message.id, failIfNotExists: false}});
+      }
+    } catch (error) {
+      logger150.error({function: "postChaosCouncilPoll", game: game.Game_ID}, `poll posted but its descriptions did not: ${String(error)}`);
+    }
     return String(message.id);
   } catch (error) {
     logger150.error({function: "postChaosCouncilPoll", game: game.Game_ID}, String(error));
