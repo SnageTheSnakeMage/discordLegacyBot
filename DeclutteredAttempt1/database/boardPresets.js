@@ -6,7 +6,7 @@
  * diff, instead of 600 INSERT statements (database/tileTableHydration.sql)
  * that nobody can picture.
  *
- * FORMAT (see docs/BOARDS.md for the full guide)
+ * FORMAT (see "Prompts & Guidelines/BOARDS.md" for the full guide)
  *
  *   # comments (hash + space) and blank lines are ignored
  *   description: four-layer board from the 2025 playtest
