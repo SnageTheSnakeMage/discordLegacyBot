@@ -345,7 +345,6 @@ describe('trap.present', () => {
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.NO_SUCH_TILE, { action: 'trap' }, 'Could not find tile to trap at the given coordinates.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Minesweeper' }, 'You are not a Minesweeper!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to trap!' }, 'You are not in range of the tile you want to trap!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'trap a tile' }, 'You dont have enough AP to trap a tile!'],
   ])('renders %s as its legacy message', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

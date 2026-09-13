@@ -140,6 +140,7 @@ describe('exorcise.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+    expect(result.data.message).toBe('You cannot exorcise a gateway tile!');
     expectNoWrites(deps);
   });
 
@@ -159,6 +160,7 @@ describe('exorcise.run rejections', () => {
     });
     const result = await logic.run({ ...INPUT, x: 4 }, deps);
     expect(result.reason).toBe(REJECTIONS.OUT_OF_RANGE);
+    expect(result.data.message).toBe('You are not in range of the tile or player you want to exorcise!');
     expectNoWrites(deps);
   });
 
@@ -280,8 +282,6 @@ describe('exorcise.present', () => {
   it.each([
     [REJECTIONS.NO_SUCH_TILE, { action: 'exorcise' }, 'Could not find tile to exorcise at the given coordinates.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Exorcist' }, 'You are not a Exorcist!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot exorcise a gateway tile!' }, 'You cannot exorcise a gateway tile!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile or player you want to exorcise!' }, 'You are not in range of the tile or player you want to exorcise!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'dig a tile' }, 'You dont have enough AP to dig a tile!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'remove a class' }, 'You dont have enough AP to remove a class!'],
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],

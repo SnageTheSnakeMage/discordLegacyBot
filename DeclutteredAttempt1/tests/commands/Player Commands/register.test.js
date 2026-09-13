@@ -106,6 +106,20 @@ describe('register.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
+  // and the branch itself, reached only by inventing the column the gate
+  // reads. Nothing else covers it: the present() table used to "check" this
+  // wording by passing it in as data.message and asserting it came back.
+  it('rejects a full game once playerMax exists, with the legacy message', async () => {
+    const { deps } = happyDeps({
+      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.REGISTRATION, playerMax: 8 }),
+      playerCount: 8,
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result.reason).toBe(REJECTIONS.TILE_FULL);
+    expect(result.data.message).toBe('Game is full. Please try another game.');
+    expectNoWrites(deps);
+  });
+
   it('rejects a non-PNG icon with the legacy message and writes nothing', async () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, contentType: 'image/jpeg' } }, deps);
@@ -210,11 +224,6 @@ describe('register.present', () => {
   // every rejection carries its byte-identical legacy string in data.message
   it.each([
     [REJECTIONS.NO_SUCH_GAME, { gameId: 1, message: 'Game not found. Please check the game ID.' }, 'Game not found. Please check the game ID.'],
-    [REJECTIONS.GAME_NOT_IN_REGISTRATION, { message: 'Cannot register for games not in registration phase.' }, 'Cannot register for games not in registration phase.'],
-    [REJECTIONS.TILE_FULL, { message: 'Game is full. Please try another game.' }, 'Game is full. Please try another game.'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'The file is a image/jpeg file. Player icon must be a PNG file' }, 'The file is a image/jpeg file. Player icon must be a PNG file'],
-    [REJECTIONS.INVALID_AMOUNT, { message: 'Player icon must be exactly 80x80 pixels' }, 'Player icon must be exactly 80x80 pixels'],
-    [REJECTIONS.ALREADY_REGISTERED, { message: 'You are already registered in this game' }, 'You are already registered in this game'],
   ])('renders %s as its legacy message', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
   });

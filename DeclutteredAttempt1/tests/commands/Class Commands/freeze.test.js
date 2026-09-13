@@ -145,6 +145,7 @@ describe('freeze.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+    expect(result.data.message).toBe('You cannot freeze a gateway tile!');
     expectNoWrites(deps);
   });
 
@@ -154,6 +155,7 @@ describe('freeze.run rejections', () => {
     });
     const result = await logic.run({ ...INPUT, x: 4, y: 1 }, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
+    expect(result.data.message).toBe('You are not in range of the tile you want to freeze!');
     expectNoWrites(deps);
   });
 
@@ -274,8 +276,6 @@ describe('freeze.present', () => {
     [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! only the dev can use commands for this game at this time.'],
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Snowman' }, 'You are not a Snowman!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot freeze a gateway tile!' }, 'You cannot freeze a gateway tile!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to freeze!' }, 'You are not in range of the tile you want to freeze!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'freeze a tile' }, 'You dont have enough AP to freeze a tile!'],
   ])('renders %s as its legacy message', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

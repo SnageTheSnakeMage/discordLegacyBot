@@ -56,6 +56,7 @@ describe('gift.run rejections', () => {
     deps.models.Players.findOne = jest.fn(async ({ where }) => (where.Discord_ID === GIVER ? giver : null));
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.TARGET_NOT_IN_GAME);
+    expect(result.data.message).toBe('Something went wrong! Player not found in game! Please mention another player in the game inputted.');
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
@@ -108,6 +109,7 @@ describe('gift.run rejections', () => {
     const { deps } = happyDeps({ giver: createFakePlayer({ Discord_ID: GIVER, Action_Points: 2, Range_: 3, Tile_ID: 1 }) });
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.NOT_ENOUGH_AP);
+    expect(result.data.message).toBe('You dont have that much AP to give!');
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
@@ -123,6 +125,7 @@ describe('gift.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.OUT_OF_RANGE);
+    expect(result.data.message).toBe('That player is too far away or on a different layer than you!');
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 

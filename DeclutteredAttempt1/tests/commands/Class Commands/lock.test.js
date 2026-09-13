@@ -307,10 +307,6 @@ describe('lock.present', () => {
   it.each([
     [REJECTIONS.WRONG_CLASS, { className: 'Guardian' }, 'You are not a Guardian!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'lock/unlock a tile' }, 'You dont have enough AP to lock/unlock a tile!'],
-    [REJECTIONS.NO_SUCH_TILE, { message: 'Could not find a gateway to lock at the given coordinates.' }, 'Could not find a gateway to lock at the given coordinates.'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to lock/unlock!' }, 'You are not in range of the tile you want to lock/unlock!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot lock a non-gateway tile!' }, 'You cannot lock a non-gateway tile!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot lock the last open gateway in the layer during a finale!' }, 'You cannot lock the last open gateway in the layer during a finale!'],
   ])('renders %s with the legacy wording', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
   });

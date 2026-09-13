@@ -313,9 +313,7 @@ describe('weaponize.present', () => {
   it.each([
     [REJECTIONS.NO_SUCH_GAME, { gameId: 1 }, 'Could not find game #1!'],
     [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
-    [REJECTIONS.NO_SUCH_TILE, { message: 'The tile provided is not in the game!' }, 'The tile provided is not in the game!'],
     [REJECTIONS.NO_TARGET, undefined, 'Could not find target player!'],
-    [REJECTIONS.TARGET_NOT_ON_TILE, { message: 'Your target is not on the tile provided!' }, 'Your target is not on the tile provided!'],
     [REJECTIONS.OUT_OF_RANGE, undefined, 'Your target is not in range!'],
     [REJECTIONS.WRONG_CLASS, { className: 'Blacksmith' }, 'You are not a Blacksmith!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'weaponize' }, 'You dont have enough AP to weaponize!'],

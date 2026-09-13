@@ -138,6 +138,7 @@ describe('dig.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+    expect(result.data.message).toBe('You cannot dig a gateway tile!');
     expectNoWrites(deps);
   });
 
@@ -149,6 +150,7 @@ describe('dig.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TILE_OCCUPIED });
+    expect(result.data.message).toBe('There is a player on this tile!');
     expectNoWrites(deps);
   });
 
@@ -158,6 +160,7 @@ describe('dig.run rejections', () => {
     });
     const result = await logic.run({ ...INPUT, x: 4, y: 1 }, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
+    expect(result.data.message).toBe('You are not in range of the tile you want to dig!');
     expectNoWrites(deps);
   });
 
@@ -266,9 +269,6 @@ describe('dig.present', () => {
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.NO_SUCH_TILE, { action: 'dig' }, 'Could not find tile to dig at the given coordinates.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Gravedigger' }, 'You are not a Gravedigger!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot dig a gateway tile!' }, 'You cannot dig a gateway tile!'],
-    [REJECTIONS.TILE_OCCUPIED, { message: 'There is a player on this tile!' }, 'There is a player on this tile!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to dig!' }, 'You are not in range of the tile you want to dig!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'dig a tile' }, 'You dont have enough AP to dig a tile!'],
   ])('renders %s as its legacy message', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

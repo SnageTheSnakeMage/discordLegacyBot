@@ -296,8 +296,6 @@ describe('smoke.present', () => {
     [REJECTIONS.GAME_IN_REGISTRATION, undefined, 'Game is in registration phase! only the dev can use commands for this game at this time.\n Please wait for the game to start.'],
     [REJECTIONS.NO_SUCH_TILE, { action: 'smoke' }, 'Could not find tile to smoke at the given coordinates.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Smoker' }, 'You are not a Smoker!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You can only smoke blank tiles!' }, 'You can only smoke blank tiles!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to smoke!' }, 'You are not in range of the tile you want to smoke!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'smoke a tile' }, 'You dont have enough AP to smoke a tile!'],
   ])('renders %s as its legacy message', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

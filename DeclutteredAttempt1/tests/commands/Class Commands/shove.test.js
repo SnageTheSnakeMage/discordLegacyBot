@@ -175,6 +175,7 @@ describe('shove.run rejections', () => {
     // choice must not fall through to some arbitrary direction
     const { result, deps } = await rejects({ board: true }, { direction: 'up' });
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
+    expect(result.data.message).toBe('You cannot work out which way to shove them from there!');
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 

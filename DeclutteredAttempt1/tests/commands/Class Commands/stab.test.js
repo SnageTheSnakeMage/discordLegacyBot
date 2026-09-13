@@ -375,11 +375,7 @@ describe('stab.run success', () => {
 
 describe('stab.present', () => {
   it.each([
-    [REJECTIONS.WRONG_CLASS, { message: 'Only Fencers can use this command!' }, 'Only Fencers can use this command!'],
     [REJECTIONS.NOT_ENOUGH_AP, { message: "You don't have enough AP to shoot that much!" }, "You don't have enough AP to shoot that much!"],
-    [REJECTIONS.NOT_IN_GAME, { message: 'You are not on the board! Are you registered in that game?' }, 'You are not on the board! Are you registered in that game?'],
-    [REJECTIONS.TARGET_NOT_IN_GAME, { message: 'That mention does not correspond to a player registered in that game!' }, 'That mention does not correspond to a player registered in that game!'],
-    [REJECTIONS.TARGET_NOT_ON_TILE, { message: 'You are not on the same tile as the target!' }, 'You are not on the same tile as the target!'],
     [REJECTIONS.PLAYER_DEAD, undefined, "Dead players can't use this command."],
   ])('renders %s as its legacy wording', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

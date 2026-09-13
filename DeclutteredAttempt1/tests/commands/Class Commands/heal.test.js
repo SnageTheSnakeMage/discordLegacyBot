@@ -161,6 +161,7 @@ describe('heal.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+    expect(result.data.message).toBe('You cannot heal a gateway tile!');
     expectNoWrites(deps);
   });
 
@@ -170,6 +171,7 @@ describe('heal.run rejections', () => {
     });
     const result = await logic.run({ ...INPUT, x: 4, y: 1 }, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
+    expect(result.data.message).toBe('You are not in range of the tile you want to heal!');
     expectNoWrites(deps);
   });
 
@@ -307,8 +309,6 @@ describe('heal.present', () => {
     [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! only the dev can use commands for this game at this time.'],
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Doctor' }, 'You are not a Doctor!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot heal a gateway tile!' }, 'You cannot heal a gateway tile!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to heal!' }, 'You are not in range of the tile you want to heal!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'heal a tile' }, 'You dont have enough AP to heal a tile!'],
     [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
   ])('renders %s as its legacy message', (reason, data, expected) => {

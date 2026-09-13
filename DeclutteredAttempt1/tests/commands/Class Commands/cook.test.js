@@ -76,6 +76,7 @@ describe('cook.run rejections', () => {
     deps.models.Players.findOne = jest.fn(async ({ where }) => (where.Discord_ID === CUSTOMER ? customer : null));
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.NOT_IN_GAME);
+    expect(result.data.message).toBe('You are not in the game!');
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 

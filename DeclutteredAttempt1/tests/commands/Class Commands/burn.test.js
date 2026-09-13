@@ -144,6 +144,7 @@ describe('burn.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+    expect(result.data.message).toBe('You cannot burn a gateway tile!');
     expectNoWrites(deps);
   });
 
@@ -153,6 +154,7 @@ describe('burn.run rejections', () => {
     });
     const result = await logic.run({ ...INPUT, x: 4, y: 1 }, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
+    expect(result.data.message).toBe('You are not in range of the tile you want to burn!');
     expectNoWrites(deps);
   });
 
@@ -262,8 +264,6 @@ describe('burn.present', () => {
     [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! only the dev can use commands for this game at this time.'],
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Pyromainiac' }, 'You are not a Pyromainiac!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot burn a gateway tile!' }, 'You cannot burn a gateway tile!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to burn!' }, 'You are not in range of the tile you want to burn!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'burn a tile' }, 'You dont have enough AP to burn a tile!'],
   ])('renders %s as its legacy message', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

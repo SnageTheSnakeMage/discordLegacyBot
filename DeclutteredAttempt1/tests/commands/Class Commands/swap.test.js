@@ -269,8 +269,6 @@ describe('swap.run success', () => {
 describe('swap.present', () => {
   it.each([
     [REJECTIONS.WRONG_CLASS, { className: 'Switchmate' }, 'You are not a Switchmate!'],
-    [REJECTIONS.TARGET_NOT_IN_GAME, { message: 'The victim is not in this game!' }, 'The victim is not in this game!'],
-    [REJECTIONS.NOT_IN_GAME, { message: 'You are not in this game!' }, 'You are not in this game!'],
     [REJECTIONS.SAME_TILE, undefined, 'The player and victim are on the same tile!'],
   ])('renders %s with the legacy wording', (reason, data, content) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content });

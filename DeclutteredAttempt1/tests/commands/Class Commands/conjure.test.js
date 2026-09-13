@@ -153,6 +153,7 @@ describe('conjure.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+    expect(result.data.message).toBe('You cannot conjure a storm on a gateway tile!');
     expectNoWrites(deps);
   });
 
@@ -162,6 +163,7 @@ describe('conjure.run rejections', () => {
     });
     const result = await logic.run({ ...INPUT, x: 4, y: 1 }, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
+    expect(result.data.message).toBe('You are not in range of the tile you want to conjure a storm on!');
     expectNoWrites(deps);
   });
 
@@ -271,8 +273,6 @@ describe('conjure.present', () => {
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.NO_SUCH_TILE, { action: 'conjure a storm on' }, 'Could not find tile to conjure a storm on at the given coordinates.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Druid' }, 'You are not a Druid!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot conjure a storm on a gateway tile!' }, 'You cannot conjure a storm on a gateway tile!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to conjure a storm on!' }, 'You are not in range of the tile you want to conjure a storm on!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'conjure a storm on a tile' }, 'You dont have enough AP to conjure a storm on a tile!'],
   ])('renders %s as its legacy message', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });

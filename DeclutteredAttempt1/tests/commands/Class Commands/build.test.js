@@ -96,6 +96,7 @@ describe('build.run rejections', () => {
     });
     const result = await logic.run({ ...INPUT, wall: true }, deps);
     expect(result.reason).toBe(REJECTIONS.WRONG_TILE_TYPE);
+    expect(result.data.message).toBe('You cannot build on a gateway tile!');
     expectNoWrites(deps);
   });
 
@@ -127,6 +128,7 @@ describe('build.run rejections', () => {
     });
     const result = await logic.run({ ...INPUT, x: 4, y: 1 }, deps);
     expect(result.reason).toBe(REJECTIONS.OUT_OF_RANGE);
+    expect(result.data.message).toBe('You are not in range of the tile you want to build!');
     expectNoWrites(deps);
   });
 
@@ -251,9 +253,7 @@ describe('build.present', () => {
   it.each([
     [REJECTIONS.NO_SUCH_TILE, { action: 'build on' }, 'Could not find tile to build on at the given coordinates.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Construction Worker' }, 'You are not a Construction Worker!'],
-    [REJECTIONS.WRONG_TILE_TYPE, { message: 'You cannot build on a gateway tile!' }, 'You cannot build on a gateway tile!'],
     [REJECTIONS.TILE_OCCUPIED, undefined, 'There is a player on that tile!'],
-    [REJECTIONS.OUT_OF_RANGE, { message: 'You are not in range of the tile you want to build!' }, 'You are not in range of the tile you want to build!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'build a wall or chest' }, 'You dont have enough AP to build a wall or chest!'],
   ])('renders %s byte-identical to the legacy string', (reason, data, expected) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
