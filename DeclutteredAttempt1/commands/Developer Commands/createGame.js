@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
 const { runLogged } = require('../_logging.js');
+const utils = require('../../utils.js');
 const logic = require('./createGame.logic.js');
 
 const OPTION_SPEC = {
@@ -89,6 +90,9 @@ module.exports = {
             readActor(interaction),
         );
         const result = await runLogged('createGame', logic, input);
+        //pick the new game up without waiting for a restart, same reason as in
+        //changeGamestate.js: run() has no client, the adapter does
+        if (result.ok) await utils.timeCheck(interaction.client);
         await interaction.editReply(toDiscord(logic.present(result)));
     },
 };

@@ -20,6 +20,11 @@ var GAMESTATES = require('./enums.js').GAMESTATES;
 var REJECTIONS = require('./enums.js').REJECTIONS;
 const ChaosEvents = require('./enums.js').ChaosEvents;
 const APCHECKINTERVAL_SECONDS = 30;
+//the live AP check interval per Game_ID. startAPCheckInterval is now called
+//outside of ready.js (every create-game and change-gamestate reconciles), so
+//without this a game accumulated a duplicate 30s timer per call and no timer
+//was ever cleared when a game stopped being ACTIVE.
+const apIntervals = new Map();
 var logger150 = globalThis.topLogger.child({file: 'utils.js'})
 //#endregion BOILERPLATE
 module.exports = {
@@ -29,9 +34,21 @@ module.exports = {
 // Function to load a tile texture
 
 
+/**
+ * Reconciles the running AP check intervals against the games that should
+ * have one: every game in a running state ends up with exactly one interval,
+ * and every game that left those states has its interval cleared. Safe to
+ * call as often as you like, so any code path that creates a game or changes
+ * a GAME_STATE can just call this afterwards.
+ */
 async timeCheck(client){ 
-  //start apcheckinterval for each active game
   const games = await models.Games.findAll({where: {GAME_STATE: {[Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE ]}}});
+  const runningIds = new Set(games.map((game) => game.Game_ID));
+  //stop the intervals of games that are no longer running
+  for (const gameId of [...apIntervals.keys()]) {
+    if (!runningIds.has(gameId)) this.stopAPCheckInterval(gameId);
+  }
+  //start apcheckinterval for each active game
   for (const game of games) {
     this.startAPCheckInterval(game, client);
   }
@@ -215,8 +232,11 @@ tallyChaosVotes(votes, eligible, overriderDiscordId) {
 },
 
 startAPCheckInterval(game, client){
+  //one interval per game: replace any interval this game already has rather
+  //than stacking a second one on top of it
+  this.stopAPCheckInterval(game.Game_ID);
   //every 30 seconds check if AP needs to be distributed if your behind distribute it multiple times for each interval you are behind on
-  setInterval( async() => {
+  const intervalId = setInterval( async() => {
     logger150.debug({function: "startAPCheckInterval"},  "started an ap check interval!")
     //how often AP is distributed for the game in milliseconds
     var apInterval = game.AP_INTERVAL_MIN *  60000
@@ -230,6 +250,16 @@ startAPCheckInterval(game, client){
       if(times >= 1){await models.Games.update({lastAPDistributionTimestampInMS: Date.now()}, {where: {Game_ID: game.Game_ID}});}
     }
   }, APCHECKINTERVAL_SECONDS * 1000)
+  apIntervals.set(game.Game_ID, intervalId);
+},
+
+//clears the AP check interval of a game that should no longer have one
+stopAPCheckInterval(gameId){
+  const existing = apIntervals.get(gameId);
+  if (existing) {
+    clearInterval(existing);
+    apIntervals.delete(gameId);
+  }
 },
 
 async distributeAP(game, times, client){
