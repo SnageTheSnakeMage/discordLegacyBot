@@ -85,22 +85,17 @@ describe('upgrade.run rejections', () => {
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  // the gamestate table: every state has a defined outcome; adding a state
-  // without deciding its gate breaks this test
+  // The state -> verdict table belongs to utils.checkGameState, and
+  // tests/utils.pure.test.js walks every state in the enum - including a
+  // newly added one. What is this command's own is only that run() asks the
+  // gate and returns its verdict without writing, so one state that passes,
+  // one that blocks, and the timestop (whose answer depends on the
+  // isClockwatcher argument this command passes) cover it here.
   const GAMESTATE_TABLE = [
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.REGISTRATION, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ];
-
-  it('covers every gamestate in the enum', () => {
-    expect(GAMESTATE_TABLE.map(([state]) => state).sort()).toEqual(Object.values(GAMESTATES).sort());
-  });
 
   it.each(GAMESTATE_TABLE)('gamestate %s -> %s', async (state, reason) => {
     const deps = makeDeps({ game: createFakeGame({ GAME_STATE: state }) });

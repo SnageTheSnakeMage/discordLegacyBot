@@ -91,19 +91,18 @@ describe('trap.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // the gamestate table: every state has a defined outcome; adding a state
-  // without deciding its gate breaks this test. The old command called
+  // Rows dropped where they only re-ran utils.checkGameState's shared table,
+  // which tests/utils.pure.test.js walks in full. The REGISTRATION row stays:
+  // that one is this command's own behaviour, not the shared gate's.
+  //
+  // The old command called
   // checkGameStateAndReply(state, false, interaction), which blocked only
   // OVER, DEV_PAUSED and TIMESTOPPED - REGISTRATION passes, unlike most
   // other class commands.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.REGISTRATION, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ])('gamestate %s -> %s', async (state, reason) => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state }) });

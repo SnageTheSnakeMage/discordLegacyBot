@@ -104,17 +104,16 @@ describe('smoke.run rejections', () => {
     expect(result.reason).toBe(REJECTIONS.PLAYER_DEAD);
   });
 
-  // the gamestate table: every state has a defined outcome; adding a state
-  // without deciding its gate breaks this test. The dead switch this replaces
-  // blocked TIMESTOPPED, DEV_PAUSED, "FINISHED" (really OVER) and
-  // REGISTRATION, with no Clockwatcher exemption - preserved.
+  // Rows dropped where they only re-ran utils.checkGameState's shared table,
+  // which tests/utils.pure.test.js walks in full. The REGISTRATION row stays:
+  // blocking it is this command's own behaviour, not the shared gate's.
+  //
+  // The dead switch this replaces blocked TIMESTOPPED, DEV_PAUSED, "FINISHED"
+  // (really OVER) and REGISTRATION, with no Clockwatcher exemption -
+  // preserved.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.SANDBOX, null],
-    [GAMESTATES.FINALE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
     [GAMESTATES.REGISTRATION, REJECTIONS.GAME_IN_REGISTRATION],
   ])('gamestate %s -> %s', async (state, reason) => {

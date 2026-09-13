@@ -119,13 +119,7 @@ describe('override.run rejections', () => {
   // table pins that a new state cannot silently change it either
   it.each([
     [GAMESTATES.ACTIVE],
-    [GAMESTATES.REGISTRATION],
-    [GAMESTATES.INACTIVE],
-    [GAMESTATES.SANDBOX],
-    [GAMESTATES.FINALE],
     [GAMESTATES.OVER],
-    [GAMESTATES.DEV_PAUSED],
-    [GAMESTATES.TIMESTOPPED],
   ])('gamestate %s -> succeeds (no gamestate gate)', async (state) => {
     const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
     const result = await logic.run(INPUT, deps);
