@@ -430,11 +430,16 @@ async pollToResults(poll, game) {
     where: {Game_ID: game.Game_ID, Dead: true},
     attributes: ["Discord_ID"],
   });
+  //mediums vote with the dead. A database without the Medium row must cost
+  //the council its mediums, not throw and lose the whole vote.
   const mediumClass = await models.Classes.findOne({where: {Class_Name: "Medium"}});
-  const mediums = await models.Players.findAll({
+  if (!mediumClass) {
+    logger150.error({function: "pollToResults", game: game.Game_ID}, "no Medium class row; counting the dead only");
+  }
+  const mediums = mediumClass ? await models.Players.findAll({
     where: {Game_ID: game.Game_ID, Class_ID: mediumClass.Class_ID},
     attributes: ["Discord_ID"],
-  });
+  }) : [];
   const eligible = new Set([...deadPlayers.map((p) => String(p.Discord_ID)), ...mediums.map((p) => String(p.Discord_ID))]);
 
   //the overrider is stored as a Player_ID; the poll knows discord ids

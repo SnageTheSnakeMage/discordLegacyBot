@@ -13,7 +13,7 @@
  * players of other games sharing the channel.
  */
 const utils = require('../utils.js');
-const { createFakePlayer, createFakeGame } = require('./helpers/mockModels.js');
+const { createFakePlayer, createFakeGame, createFakeClass } = require('./helpers/mockModels.js');
 
 const DEAD_A = '111111111111111111';
 const DEAD_B = '222222222222222222';
@@ -85,6 +85,15 @@ describe('tallyChaosVotes', () => {
 });
 
 describe('pollToResults', () => {
+  // pollToResults looks the Medium class up by name so mediums can vote
+  // alongside the dead. Unit tests never touch the database, so the lookup is
+  // stubbed here; without it every case below hits real sqlite and dies with
+  // "no such table: Classes".
+  beforeEach(() => {
+    jest.spyOn(utils.models.Classes, 'findOne')
+      .mockResolvedValue(createFakeClass({ Class_ID: 9, Class_Name: 'Medium' }));
+  });
+
   /** a stand-in for discord's poll object: answers is a Collection */
   function fakePoll(answers) {
     return {
@@ -144,6 +153,25 @@ describe('pollToResults', () => {
 
     expect(await utils.pollToResults(poll, createFakeGame({ Game_ID: 1, overrider: null })))
       .toBe('Blockade');
+  });
+
+  it('counts the dead alone when the Medium class row is missing', async () => {
+    // a fresh or half-seeded database must cost the council its mediums,
+    // not throw and lose the whole vote
+    utils.models.Classes.findOne.mockResolvedValue(null);
+    jest.spyOn(utils.models.Players, 'findAll').mockResolvedValue([
+      createFakePlayer({ Discord_ID: DEAD_A }),
+    ]);
+    const poll = fakePoll([
+      { text: 'previous', voters: [ALIVE] },
+      { text: 'Blockade', voters: [DEAD_A] },
+    ]);
+
+    const result = await utils.pollToResults(poll, createFakeGame({ Game_ID: 1, overrider: null }));
+
+    expect(result).toBe('Blockade');
+    // only the dead lookup ran: no Class_ID to query mediums by
+    expect(utils.models.Players.findAll).toHaveBeenCalledTimes(1);
   });
 
   it('a poll nobody eligible voted in leaves the event unchanged', async () => {
