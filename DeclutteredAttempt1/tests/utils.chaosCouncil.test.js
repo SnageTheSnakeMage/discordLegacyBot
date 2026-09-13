@@ -13,7 +13,7 @@
  * players of other games sharing the channel.
  */
 const utils = require('../utils.js');
-const { createFakePlayer, createFakeGame } = require('./helpers/mockModels.js');
+const { createFakePlayer, createFakeGame, createFakeClass } = require('./helpers/mockModels.js');
 
 const DEAD_A = '111111111111111111';
 const DEAD_B = '222222222222222222';
@@ -85,6 +85,15 @@ describe('tallyChaosVotes', () => {
 });
 
 describe('pollToResults', () => {
+  // pollToResults looks the Medium class up by name so mediums can vote
+  // alongside the dead. Unit tests never touch the database, so the lookup is
+  // stubbed here; without it every case below hits real sqlite and dies with
+  // "no such table: Classes".
+  beforeEach(() => {
+    jest.spyOn(utils.models.Classes, 'findOne')
+      .mockResolvedValue(createFakeClass({ Class_ID: 9, Class_Name: 'Medium' }));
+  });
+
   /** a stand-in for discord's poll object: answers is a Collection */
   function fakePoll(answers) {
     return {
