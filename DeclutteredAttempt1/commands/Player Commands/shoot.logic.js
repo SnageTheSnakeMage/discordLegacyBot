@@ -52,7 +52,7 @@ function parse(raw, actor) {
 async function run(input, deps = defaultDeps) {
   const { models, utils, random } = deps;
 
-  const gameId = input.gameId ?? await utils.getOldestGameId(input.discordId);
+  const gameId = input.gameId ?? await utils.getOldestActiveGameId(input.discordId);
   const game = await models.Games.findByPk(gameId);
   if (!game) return { ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId } };
 
