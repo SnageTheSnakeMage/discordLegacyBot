@@ -424,12 +424,14 @@ describe('shoot.run success', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('resolves the default game via getOldestGameId with the shooter id (old code passed nothing and threw)', async () => {
+  it('resolves the default game via getOldestActiveGameId with the shooter id (old code passed nothing and threw)', async () => {
+    // 8c3cd694 moved the resolver to getOldestActiveGameId so a finished game
+    // can no longer be shot in; the stub moved with it
     const { deps } = happyDeps();
-    deps.utils = { ...deps.utils, getOldestGameId: jest.fn(async () => 1) };
+    deps.utils = { ...deps.utils, getOldestActiveGameId: jest.fn(async () => 1) };
     const result = await logic.run({ ...INPUT, gameId: null }, deps);
     expect(result.ok).toBe(true);
-    expect(deps.utils.getOldestGameId).toHaveBeenCalledWith(SHOOTER);
+    expect(deps.utils.getOldestActiveGameId).toHaveBeenCalledWith(SHOOTER);
   });
 });
 
