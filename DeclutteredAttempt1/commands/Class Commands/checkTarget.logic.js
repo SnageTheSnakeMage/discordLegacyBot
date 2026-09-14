@@ -17,10 +17,14 @@
  * - the success message reads X_Position, Y_Position, Layer_ID and Class off
  *   the target's PLAYERS row; none of those are Players columns, so the
  *   message renders them as "undefined" exactly as the source line would
- * - no Dead check on the CALLER: a dead hitman can still check their target
  * - the gamestate gate is called with isClockwatcher hardcoded false, as the
  *   old checkGameStateAndReply call did
  * - the hitman check is the loose `Class_ID != 10`
+ *
+ * A dead hitman is turned away with PLAYER_DEAD. The ported command let them
+ * look, which was the old behaviour, but a corpse has no contract to keep -
+ * and now that looking hands out a new target, letting them look would spend
+ * a live player's name on someone who can never act on it.
  *
  * Reassignment: a target that is dead, or that the hitman does not have, is
  * replaced with a random living player before the answer is presented, rather
@@ -70,6 +74,10 @@ async function run(input, deps = defaultDeps) {
   if (player.Class_ID != 10) {
     return { ok: false, reason: REJECTIONS.WRONG_CLASS, data: { className: 'hitman' } };
   }
+
+  // after the class check, so a non-hitman is still told they are not a
+  // hitman rather than that they are dead
+  if (player.Dead) return { ok: false, reason: REJECTIONS.PLAYER_DEAD };
 
   let target = player.Hitman_Target == null
     ? null

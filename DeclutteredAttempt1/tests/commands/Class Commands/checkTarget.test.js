@@ -96,6 +96,34 @@ describe('checkTarget.run rejections', () => {
     expectNoWrites(deps);
   });
 
+  it('rejects a dead hitman and writes nothing', async () => {
+    const { deps } = happyDeps({
+      hitman: createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 10, Hitman_Target: 2, Dead: true }),
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.PLAYER_DEAD });
+    expectNoWrites(deps);
+  });
+
+  it('a dead hitman is turned away before any reassignment happens', async () => {
+    // the dead gate has to beat the retarget, or a corpse burns a live
+    // player's name on a target they can never act on
+    const { deps } = happyDeps({
+      hitman: createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 10, Hitman_Target: null, Dead: true }),
+      target: null,
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.PLAYER_DEAD });
+    expectNoWrites(deps);
+  });
+
+  it('tells a dead non-hitman they are not a hitman, not that they are dead', async () => {
+    const { deps } = happyDeps({
+      hitman: createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 9, Hitman_Target: 2, Dead: true }),
+    });
+    expect((await logic.run(INPUT, deps)).reason).toBe(REJECTIONS.WRONG_CLASS);
+  });
+
   it('rejects a non-hitman (Class_ID != 10)', async () => {
     const { deps } = happyDeps({ hitman: createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 9, Hitman_Target: 2 }) });
     const result = await logic.run(INPUT, deps);
@@ -138,13 +166,6 @@ describe('checkTarget.run success', () => {
     expect(deps.models.Players.findOne).toHaveBeenCalledWith({ where: { Game_ID: 1, Player_ID: 2 } });
   });
 
-  it('still shows the target to a dead hitman (quirk: no Dead check)', async () => {
-    const { deps } = happyDeps({
-      hitman: createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 10, Hitman_Target: 2, Dead: true }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result.ok).toBe(true);
-  });
 
   it('resolves the default game via getOldestGameId when no game is given', async () => {
     const { deps } = happyDeps();
