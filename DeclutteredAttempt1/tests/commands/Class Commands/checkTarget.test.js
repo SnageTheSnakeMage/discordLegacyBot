@@ -17,16 +17,20 @@ function happyDeps(over = {}) {
   const hitman = over.hitman || createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 10, Hitman_Target: 2 });
   const target = 'target' in over ? over.target : createFakePlayer({ Player_ID: 2, Discord_ID: '456', Class_ID: 3 });
   const game = over.game || createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE });
+  // the pool a dead/missing target is replaced from; the hitman is in it so
+  // tests can prove they are filtered out
+  const living = 'living' in over ? over.living : [hitman, createFakePlayer({ Player_ID: 3, Discord_ID: '789', Class_ID: 4 })];
   const deps = createDeps({
     models: {
       Games: { findByPk: async () => game },
       Players: {
         findOne: async ({ where }) =>
           (where.Discord_ID === HITMAN ? hitman : where.Player_ID != null && target && where.Player_ID === target.Player_ID ? target : null),
+        findAll: async () => living,
       },
     },
   });
-  return { deps, hitman, target, game };
+  return { deps, hitman, target, game, living };
 }
 
 function expectNoWrites(deps) {
@@ -99,11 +103,11 @@ describe('checkTarget.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a hitman whose target row is missing (Hitman_Target null)', async () => {
-    const { deps } = happyDeps({
-      hitman: createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 10, Hitman_Target: null }),
-      target: null,
-    });
+  it('rejects only when there is nobody left alive to target', async () => {
+    // the hitman is the last one standing: they are filtered out of their own
+    // candidate list, which leaves it empty
+    const hitman = createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 10, Hitman_Target: null });
+    const { deps } = happyDeps({ hitman, target: null, living: [hitman] });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NO_TARGET, data: { message: 'No current target...' } });
     expectNoWrites(deps);
@@ -123,7 +127,7 @@ describe('checkTarget.run success', () => {
       // quirk pinned: X_Position/Y_Position/Layer_ID/Class are not Players
       // columns, so the old message rendered them as "undefined"; the port
       // keeps reading them off the Players row
-      data: { targetDiscordId: '456', x: undefined, y: undefined, layerId: undefined, className: undefined },
+      data: { targetDiscordId: '456', reassigned: false, x: undefined, y: undefined, layerId: undefined, className: undefined },
     });
     expectNoWrites(deps);
   });
@@ -151,6 +155,78 @@ describe('checkTarget.run success', () => {
   });
 });
 
+describe('checkTarget.run reassignment', () => {
+  const NEW_TARGET = { Player_ID: 3, Discord_ID: '789' };
+
+  it('gives a new target when the hitman has none', async () => {
+    const { deps } = happyDeps({
+      hitman: createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 10, Hitman_Target: null }),
+      target: null,
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result).toMatchObject({ ok: true, data: { targetDiscordId: NEW_TARGET.Discord_ID, reassigned: true } });
+    expect(deps.models.Players.update).toHaveBeenCalledWith(
+      { Hitman_Target: NEW_TARGET.Player_ID }, { where: { Game_ID: 1, Player_ID: 1 } },
+    );
+  });
+
+  it('gives a new target when the current one is dead', async () => {
+    const { deps } = happyDeps({
+      target: createFakePlayer({ Player_ID: 2, Discord_ID: '456', Dead: true }),
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result).toMatchObject({ ok: true, data: { targetDiscordId: NEW_TARGET.Discord_ID, reassigned: true } });
+    expect(deps.models.Players.update).toHaveBeenCalled();
+  });
+
+  it('never picks the hitman themselves', async () => {
+    // the hitman is first in the living pool and deps.random returns 0, so an
+    // unfiltered list would hand them themselves
+    const { deps, hitman } = happyDeps({
+      hitman: createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 10, Hitman_Target: null }),
+      target: null,
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result.data.targetDiscordId).not.toBe(hitman.Discord_ID);
+  });
+
+  it('only considers living candidates', async () => {
+    const { deps } = happyDeps({
+      hitman: createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 10, Hitman_Target: null }),
+      target: null,
+    });
+    await logic.run(INPUT, deps);
+    expect(deps.models.Players.findAll).toHaveBeenCalledWith({ where: { Game_ID: 1, Dead: false } });
+  });
+
+  it('indexes with length - 1, because getRandomInt is inclusive of max', async () => {
+    // deps.random is handed the top index, not the count: passing the count
+    // would let the roll land one past the end and return undefined
+    const seen = [];
+    const { deps } = happyDeps({
+      hitman: createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN, Class_ID: 10, Hitman_Target: null }),
+      target: null,
+      living: [
+        createFakePlayer({ Player_ID: 1, Discord_ID: HITMAN }),
+        createFakePlayer({ Player_ID: 3, Discord_ID: '789' }),
+        createFakePlayer({ Player_ID: 4, Discord_ID: '999' }),
+      ],
+    });
+    deps.random = jest.fn((max) => { seen.push(max); return max; });
+    const result = await logic.run(INPUT, deps);
+    // two candidates after filtering the hitman out, so the top index is 1
+    expect(seen).toEqual([1]);
+    expect(result.data.targetDiscordId).toBe('999');
+  });
+
+  it('leaves a living target alone and writes nothing', async () => {
+    const { deps } = happyDeps();
+    const result = await logic.run(INPUT, deps);
+    expect(result.data).toMatchObject({ targetDiscordId: '456', reassigned: false });
+    expectNoWrites(deps);
+  });
+});
+
 describe('checkTarget.present', () => {
   it('renders the wrong-class rejection with the exact legacy wording', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.WRONG_CLASS, data: { className: 'hitman' } });
@@ -166,9 +242,18 @@ describe('checkTarget.present', () => {
     const out = logic.present({
       ok: true,
       kind: 'target',
-      data: { targetDiscordId: '456', x: undefined, y: undefined, layerId: undefined, className: undefined },
+      data: { targetDiscordId: '456', reassigned: false, x: undefined, y: undefined, layerId: undefined, className: undefined },
     });
     expect(out).toEqual({ content: 'Target: <@456> , Location: (undefined, undefined) layer: undefined, Class: undefined' });
+  });
+
+  it('says so above the legacy line when the target was reassigned', () => {
+    const out = logic.present({
+      ok: true,
+      kind: 'target',
+      data: { targetDiscordId: '789', reassigned: true, x: undefined, y: undefined, layerId: undefined, className: undefined },
+    });
+    expect(out.content).toBe('Your last target is gone, so you have a new one.\nTarget: <@789> , Location: (undefined, undefined) layer: undefined, Class: undefined');
   });
 });
 
