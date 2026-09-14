@@ -147,6 +147,17 @@ describe('trace.run', () => {
     expect(hunter.data.fromBush).toBe(false);
   });
 
+  it('resolves the default game the way /shoot does, skipping finished games', async () => {
+    // /shoot moved to getOldestActiveGameId in 8c3cd694; a preview of a shot
+    // has to pick the same game the shot would
+    const deps = happyDeps();
+    deps.utils = { ...deps.utils, getOldestActiveGameId: jest.fn(async () => 1), getOldestGameId: jest.fn(async () => 99) };
+    const result = await logic.run(input({ gameId: null }), deps);
+    expect(result.ok).toBe(true);
+    expect(deps.utils.getOldestActiveGameId).toHaveBeenCalledWith('123');
+    expect(deps.utils.getOldestGameId).not.toHaveBeenCalled();
+  });
+
   it('traces from the second body when asked', async () => {
     const player = createFakePlayer({ Discord_ID: '123', Tile_ID: 1, Tile_ID2: 2 });
     const deps = happyDeps({ player });
