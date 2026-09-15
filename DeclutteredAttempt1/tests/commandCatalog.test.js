@@ -33,18 +33,33 @@ function allOptions() {
 }
 
 describe('commandCatalog entries are ones Discord will accept', () => {
-  it.each(Object.keys(COMMANDS))('%s has a legal name and description', (name) => {
-    expect(name).toMatch(NAME);
-    expect(COMMANDS[name].description.length).toBeGreaterThan(0);
-    // the longest description in the catalogue is exactly 100 characters, so
-    // this is not hypothetical: one more word breaks the deploy
-    expect(COMMANDS[name].description.length).toBeLessThanOrEqual(MAX_DESCRIPTION);
+  // These collect every offender rather than running one case per entry: the
+  // failing expectation names them all at once, and the suite's test count
+  // stays a count of rules rather than of catalogue rows.
+  it('gives every command a legal name and a 1-100 character description', () => {
+    const offenders = [];
+    for (const [name, entry] of Object.entries(COMMANDS)) {
+      if (!NAME.test(name)) offenders.push(`${name}: illegal name`);
+      if (entry.description.length === 0) offenders.push(`${name}: empty description`);
+      // the longest description in the catalogue is exactly 100 characters, so
+      // this is not hypothetical: one more word breaks the deploy
+      if (entry.description.length > MAX_DESCRIPTION) {
+        offenders.push(`${name}: description is ${entry.description.length} characters`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
-  it.each(allOptions())('option %s has a legal name and description', (_label, optionName, spec) => {
-    expect(optionName).toMatch(NAME);
-    expect(spec.description.length).toBeGreaterThan(0);
-    expect(spec.description.length).toBeLessThanOrEqual(MAX_DESCRIPTION);
+  it('gives every option a legal name and a 1-100 character description', () => {
+    const offenders = [];
+    for (const [label, optionName, spec] of allOptions()) {
+      if (!NAME.test(optionName)) offenders.push(`${label}: illegal name`);
+      if (spec.description.length === 0) offenders.push(`${label}: empty description`);
+      if (spec.description.length > MAX_DESCRIPTION) {
+        offenders.push(`${label}: description is ${spec.description.length} characters`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
   it('never declares a required option after an optional one', () => {
@@ -101,10 +116,14 @@ describe('the catalogue and the command files agree', () => {
     expect(adapters.length).toBeGreaterThan(40);
   });
 
-  it.each(adapters)('%s exports data built from its catalogue entry', (_label, file) => {
-    const command = require(file);
-    expect(typeof command.execute).toBe('function');
-    expect(COMMANDS[command.data.name]).toBeDefined();
+  it('has every command file exporting data built from a catalogue entry', () => {
+    const offenders = [];
+    for (const [label, file] of adapters) {
+      const command = require(file);
+      if (typeof command.execute !== 'function') offenders.push(`${label}: no execute`);
+      if (!COMMANDS[command.data.name]) offenders.push(`${label}: "${command.data.name}" is not in the catalogue`);
+    }
+    expect(offenders).toEqual([]);
   });
 
   it('has no catalogue entry without a command file', () => {
