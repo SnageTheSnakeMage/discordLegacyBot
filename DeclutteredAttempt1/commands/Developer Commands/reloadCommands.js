@@ -1,14 +1,10 @@
-const { SlashCommandBuilder, InteractionContextType, PermissionFlagsBits } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { buildData, optionSpec } = require('../_catalog.js');
 const { runLogged } = require('../_logging.js');
 const logic = require('./reloadCommands.logic.js');
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('reload-commands')
-		.setDescription('Reloads all commands.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
-	    .setContexts(InteractionContextType.Guild),
+	data: buildData('reload-commands'),
 
 	// The dev gate stays here and travels into run() as input.isDev (TESTING.md
 	// Part 1, order-of-work item 6). It is still an early, silent return: the
@@ -25,7 +21,7 @@ module.exports = {
 		if (!isDev) return;
 
 		const input = logic.parse(
-			readOptions(interaction, {}),
+			readOptions(interaction, optionSpec('reload-commands')),
 			{ ...readActor(interaction), isDev },
 		);
 		const result = await runLogged('reloadCommands', logic, input);

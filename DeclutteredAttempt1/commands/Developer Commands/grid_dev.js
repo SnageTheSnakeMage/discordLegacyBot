@@ -1,20 +1,10 @@
-const { SlashCommandBuilder } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { buildData, optionSpec } = require('../_catalog.js');
 const { runLogged } = require('../_logging.js');
 const logic = require('./grid_dev.logic.js');
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('grid_dev')
-    .setDescription('shows that games grid and layer, dev command')
-    .addStringOption(option =>
-      option.setName('layer')
-        .setDescription('which layer to show')
-        .setRequired(true))
-    .addStringOption(option =>
-      option.setName('game')
-        .setDescription('which grid to show from which game')
-        .setRequired(true)),
+  data: buildData('grid_dev'),
   // Aliases for text-based commands
   aliases: ['gridDev'],
 
@@ -31,7 +21,7 @@ module.exports = {
     await interaction.deferReply();
 
     const input = logic.parse(
-      readOptions(interaction, { layer: 'string', game: 'string' }),
+      readOptions(interaction, optionSpec('grid_dev')),
       { ...readActor(interaction), isDev },
     );
     const result = await runLogged('grid_dev', logic, input);

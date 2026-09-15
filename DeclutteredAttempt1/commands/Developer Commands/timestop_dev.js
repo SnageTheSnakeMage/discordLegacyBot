@@ -1,16 +1,10 @@
-const { SlashCommandBuilder } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { buildData, optionSpec } = require('../_catalog.js');
 const { runLogged } = require('../_logging.js');
 const logic = require('./timestop_dev.logic.js');
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('timestop-dev')
-        .setDescription('pauses the game')
-        .addIntegerOption(option =>
-            option.setName('game')
-                .setDescription('which game, defaults to oldest active game')
-                .setRequired(false)),
+    data: buildData('timestop-dev'),
 
     // The dev gate stays here and travels into run() as input.isDev (TESTING.md
     // Part 1, order-of-work item 6). It is still an early, silent return: the
@@ -22,7 +16,7 @@ module.exports = {
         if (!isDev) return;
 
         const input = logic.parse(
-            readOptions(interaction, { game: 'integer' }),
+            readOptions(interaction, optionSpec('timestop-dev')),
             { ...readActor(interaction), isDev },
         );
         const result = await runLogged('timestop_dev', logic, input);
