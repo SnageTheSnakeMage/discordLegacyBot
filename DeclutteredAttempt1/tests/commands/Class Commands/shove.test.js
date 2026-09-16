@@ -9,7 +9,11 @@ const logic = require('../../../commands/Class Commands/shove.logic.js');
 const shove = require('../../../commands/Class Commands/shove.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeTile, createFakeClass,
+  createDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeTile,
+  createFakeClass,
 } = require('../../helpers/mockModels.js');
 
 const BULLY = '111';

@@ -9,7 +9,12 @@ const logic = require('../../../commands/Player Commands/stats.logic.js');
 const stats = require('../../../commands/Player Commands/stats.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
+  createActorDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeClass,
+  createFakeTile,
+  createFakeLayer,
 } = require('../../helpers/mockModels.js');
 
 const ACTOR = '123';
@@ -23,12 +28,12 @@ function happyDeps(over = {}) {
   const playerClass = over.playerClass || createFakeClass({ Class_Name: 'Average' });
   const tile1 = over.tile1 || createFakeTile({ Tile_ID: 1, Layer_ID: 11, Tile_Type: 'Blank1', X_Position: 3, Y_Position: 4 });
   const tile2 = over.tile2 || createFakeTile({ Tile_ID: 2, Layer_ID: 22, Tile_Type: 'Blank2', X_Position: 7, Y_Position: 8 });
-  const deps = createDeps({
+  const deps = createActorDeps({
+    game,
+    player,
+    playerClass,
+    tiles: { findByPk: async (id) => (id === 1 ? tile1 : tile2) },
     models: {
-      Games: { findByPk: async () => game },
-      Players: { findOne: async () => player },
-      Classes: { findByPk: async () => playerClass },
-      Tiles: { findByPk: async (id) => (id === 1 ? tile1 : tile2) },
       Layers: { findAll: async () => [createFakeLayer({ Layer_ID: 11 }), createFakeLayer({ Layer_ID: 22 })] },
     },
   });

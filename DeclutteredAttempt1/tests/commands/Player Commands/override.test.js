@@ -6,7 +6,11 @@ const logic = require('../../../commands/Player Commands/override.logic.js');
 const override = require('../../../commands/Player Commands/override.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeClass,
+  createActorDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeClass,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const ACTOR = '123';
@@ -18,11 +22,11 @@ function happyDeps(over = {}) {
   });
   const game = over.game || createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE });
   const playerClass = over.playerClass || createFakeClass({ Class_Name: 'Medium' });
-  const deps = createDeps({
+  const deps = createActorDeps({
+    game,
+    playerClass,
     models: {
-      Games: { findByPk: async () => game },
       Players: { findOne: async ({ where }) => (where.Discord_ID === ACTOR ? player : null) },
-      Classes: { findByPk: async () => playerClass },
     },
   });
   return { deps, player, game };
@@ -30,10 +34,6 @@ function happyDeps(over = {}) {
 
 const INPUT = { pollOption: 2, gameId: 1, discordId: ACTOR };
 
-function expectNoWrites(deps) {
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Games.update).not.toHaveBeenCalled();
-}
 
 describe('override.parse', () => {
   it('maps raw options and applies defaults', () => {

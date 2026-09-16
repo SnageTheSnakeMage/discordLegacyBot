@@ -7,7 +7,10 @@ const logic = require('../../../commands/Class Commands/checkTarget.logic.js');
 const checkTarget = require('../../../commands/Class Commands/checkTarget.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer,
+  createActorDeps,
+  createFakeGame,
+  createFakePlayer,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const HITMAN = '123';
@@ -20,9 +23,9 @@ function happyDeps(over = {}) {
   // the pool a dead/missing target is replaced from; the hitman is in it so
   // tests can prove they are filtered out
   const living = 'living' in over ? over.living : [hitman, createFakePlayer({ Player_ID: 3, Discord_ID: '789', Class_ID: 4 })];
-  const deps = createDeps({
+  const deps = createActorDeps({
+    game,
     models: {
-      Games: { findByPk: async () => game },
       Players: {
         findOne: async ({ where }) =>
           (where.Discord_ID === HITMAN ? hitman : where.Player_ID != null && target && where.Player_ID === target.Player_ID ? target : null),
@@ -33,12 +36,6 @@ function happyDeps(over = {}) {
   return { deps, hitman, target, game, living };
 }
 
-function expectNoWrites(deps) {
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Players.create).not.toHaveBeenCalled();
-  expect(deps.models.Games.update).not.toHaveBeenCalled();
-  expect(deps.models.Games.create).not.toHaveBeenCalled();
-}
 
 const INPUT = { gameId: 1, discordId: HITMAN };
 

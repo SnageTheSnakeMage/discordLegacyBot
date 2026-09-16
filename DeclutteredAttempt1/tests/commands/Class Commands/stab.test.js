@@ -8,7 +8,12 @@ const logic = require('../../../commands/Class Commands/stab.logic.js');
 const stab = require('../../../commands/Class Commands/stab.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
+  createDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeClass,
+  createFakeTile,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const STABBER = '123';
@@ -55,11 +60,6 @@ function happyDeps(over = {}) {
 
 const INPUT = { targetDiscordId: TARGET, amount: 1, gameId: 1, discordId: STABBER };
 
-function expectNoWrites(deps) {
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-  expect(deps.utils.playerDeathLogic).not.toHaveBeenCalled();
-}
 
 describe('stab.parse', () => {
   it('applies defaults: amount 1, absent game null', () => {

@@ -11,19 +11,11 @@
 const logic = require('../../../commands/Developer Commands/databaseCall.logic.js');
 const databaseCall = require('../../../commands/Developer Commands/databaseCall.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
-const { createDeps, createFakeGame, createFakePlayer } = require('../../helpers/mockModels.js');
+const { createDeps, createFakeGame, createFakePlayer, expectNoWrites } = require('../../helpers/mockModels.js');
 
 const MODEL_NAMES = ['Players', 'Games', 'Classes', 'Tiles', 'Layers'];
 const DEV_INPUT = { subcommand: 'find-all', model: 'Games', isDev: true, discordId: '123' };
 
-/** every model, every mutating accessor: this command must never write. */
-function expectNoWrites(deps) {
-  for (const name of MODEL_NAMES) {
-    expect(deps.models[name].update).not.toHaveBeenCalled();
-    expect(deps.models[name].create).not.toHaveBeenCalled();
-    expect(deps.models[name].destroy).not.toHaveBeenCalled();
-  }
-}
 
 /** every model, every accessor: nothing reached the database at all. */
 function expectNoDatabaseAccess(deps) {

@@ -6,7 +6,13 @@ const logic = require('../../../commands/Class Commands/resurrect.logic.js');
 const resurrect = require('../../../commands/Class Commands/resurrect.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
+  createActorDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeClass,
+  createFakeTile,
+  createFakeLayer,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const CASTER = '123';
@@ -37,9 +43,26 @@ function happyDeps(over = {}) {
       Tile_ID: INPUTTED_TILE_ID, Layer_ID: CASTER_LAYER, X_Position: 3, Y_Position: 4, Tile_Type: 'Blank1',
     });
 
-  const deps = createDeps({
+  const deps = createActorDeps({
+    game,
+    playerClass: casterClass,
+    tiles: {
+      findOne: async ({ where }) => {
+        // the caster's own tile is looked up by Tile_ID
+        if (where.Tile_ID !== undefined) {
+          return where.Tile_ID === CASTER_TILE_ID ? casterTile : null;
+        }
+        // the destination tile is looked up by layer + coordinates
+        if (inputtedTile
+          && where.Layer_ID === inputtedTile.Layer_ID
+          && where.X_Position === inputtedTile.X_Position
+          && where.Y_Position === inputtedTile.Y_Position) {
+          return inputtedTile;
+        }
+        return null;
+      },
+    },
     models: {
-      Games: { findByPk: async () => game },
       Players: {
         findOne: async ({ where }) => {
           if (where.Discord_ID === CASTER) return caster;
@@ -47,28 +70,11 @@ function happyDeps(over = {}) {
           return null;
         },
       },
-      Classes: { findByPk: async () => casterClass },
       Layers: {
         findAll: async () => [
           createFakeLayer({ Layer_ID: CASTER_LAYER }),
           createFakeLayer({ Layer_ID: OTHER_LAYER }),
         ],
-      },
-      Tiles: {
-        findOne: async ({ where }) => {
-          // the caster's own tile is looked up by Tile_ID
-          if (where.Tile_ID !== undefined) {
-            return where.Tile_ID === CASTER_TILE_ID ? casterTile : null;
-          }
-          // the destination tile is looked up by layer + coordinates
-          if (inputtedTile
-            && where.Layer_ID === inputtedTile.Layer_ID
-            && where.X_Position === inputtedTile.X_Position
-            && where.Y_Position === inputtedTile.Y_Position) {
-            return inputtedTile;
-          }
-          return null;
-        },
       },
     },
   });
@@ -85,13 +91,6 @@ const INPUT = {
   discordId: CASTER,
 };
 
-/** every write this command can make must be untouched on a rejection */
-function expectNoWrites(deps) {
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-  expect(deps.models.Players.create).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.create).not.toHaveBeenCalled();
-}
 
 describe('resurrect.parse', () => {
   it('maps raw options and applies defaults', () => {

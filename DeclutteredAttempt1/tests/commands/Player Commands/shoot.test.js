@@ -8,7 +8,12 @@ const logic = require('../../../commands/Player Commands/shoot.logic.js');
 const shoot = require('../../../commands/Player Commands/shoot.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
+  createDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeClass,
+  createFakeTile,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const SHOOTER = '123';
@@ -68,12 +73,6 @@ function happyDeps(over = {}) {
 
 const INPUT = { x: 3, y: 1, targetDiscordId: TARGET, amount: 1, gameId: 1, body: 1, discordId: SHOOTER };
 
-function expectNoWrites(deps) {
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-  expect(deps.utils.damagePlayer).not.toHaveBeenCalled();
-  expect(deps.utils.revertTileToBlank).not.toHaveBeenCalled();
-}
 
 describe('shoot.parse', () => {
   it('maps raw options and applies defaults', () => {
