@@ -80,50 +80,15 @@ function createDeps(overrides = {}) {
 }
 
 /**
- * The deps most command tests build: a live game, one actor, the actor's
- * class row, and whatever tiles the command reads. 37 test files hand-rolled
- * this same shape as a local `happyDeps`, 919 lines of it, no two spellings
- * quite alike - so a reader could not tell which differences were meaningful.
- *
- * It sets ONLY what the caller passes. That matters more than the line count:
- * an unstubbed accessor is a jest.fn() returning undefined, which is how a
- * test proves a command rejects a missing row. A helper that eagerly filled
- * in a Tiles.findOne nobody asked for would quietly turn those tests green.
- *
- *   const deps = createActorDeps({
- *     game,
- *     player: createFakePlayer({ Discord_ID: ACTOR }),
- *     playerClass,
- *     tiles: { findByPk: async () => tile },
- *   });
- *
- * A test needing a shape this does not cover - a second player, a lookup
- * whose answer changes between calls - passes `models` through for those, or
- * calls createDeps directly.
- */
-function createActorDeps({
-  game, player, playerClass, tiles, models: extraModels = {}, ...rest
-} = {}) {
-  const models = {};
-  if (game !== undefined) models.Games = { findByPk: async () => game };
-  if (player !== undefined) models.Players = { findOne: async () => player };
-  if (playerClass !== undefined) models.Classes = { findByPk: async () => playerClass };
-  if (tiles !== undefined) models.Tiles = tiles;
-  for (const [name, methods] of Object.entries(extraModels)) {
-    models[name] = { ...(models[name] || {}), ...methods };
-  }
-  return createDeps({ models, ...rest });
-}
-
-/**
  * Asserts a command wrote NOTHING, on every table and by every route.
  *
  * There were 23 local copies of this name and 12 different bodies: one
  * checked Players and Tiles, another Players and Games, a third looped five
  * models. All of them read as "no writes" at the call site while promising
  * something narrower, so a rejection path that started writing to a table
- * the local copy did not list would have gone unnoticed. This checks all of
- * them, which is what the name has always claimed.
+ * the local copy did not list would have gone unnoticed - a stray
+ * Layers.update in smoke.logic.js passed 42/42 under the copy that lived
+ * there. This checks all of them, which is what the name always claimed.
  */
 function expectNoWrites(deps) {
   const offenders = [];
@@ -292,7 +257,6 @@ module.exports = {
   createMockModel,
   createMockModels,
   createDeps,
-  createActorDeps,
   expectNoWrites,
   createFakeGame,
   createFakePlayer,

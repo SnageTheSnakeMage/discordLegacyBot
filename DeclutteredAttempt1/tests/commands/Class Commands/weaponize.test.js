@@ -6,11 +6,7 @@ const logic = require('../../../commands/Class Commands/weaponize.logic.js');
 const weaponize = require('../../../commands/Class Commands/weaponize.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
-  createFakeGame,
-  createFakePlayer,
-  createFakeClass,
-  createFakeTile,
+  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
 } = require('../../helpers/mockModels.js');
 
 const SMITH = '123';
@@ -31,24 +27,24 @@ function happyDeps(over = {}) {
   }));
   const playerClass = over.playerClass || createFakeClass({ Class_ID: 5, Class_Name: 'Blacksmith' });
 
-  const deps = createActorDeps({
-    playerClass,
-    tiles: {
-      findOne: async ({ where }) => {
-        if (where.Tile_ID !== undefined) {
-          return where.Tile_ID === playersTile.Tile_ID ? playersTile : null;
-        }
-        if (!targetTile) return null;
-        const match = where.Layer_ID === targetTile.Layer_ID
-          && where.X_Position === targetTile.X_Position
-          && where.Y_Position === targetTile.Y_Position;
-        return match ? targetTile : null;
-      },
-    },
+  const deps = createDeps({
     models: {
       Games: { findByPk: async (id) => (id === null || id === undefined ? null : game) },
       Players: {
         findOne: async ({ where }) => (where.Discord_ID === SMITH ? player : where.Discord_ID === TARGET ? targetPlayer : null),
+      },
+      Classes: { findByPk: async () => playerClass },
+      Tiles: {
+        findOne: async ({ where }) => {
+          if (where.Tile_ID !== undefined) {
+            return where.Tile_ID === playersTile.Tile_ID ? playersTile : null;
+          }
+          if (!targetTile) return null;
+          const match = where.Layer_ID === targetTile.Layer_ID
+            && where.X_Position === targetTile.X_Position
+            && where.Y_Position === targetTile.Y_Position;
+          return match ? targetTile : null;
+        },
       },
     },
   });

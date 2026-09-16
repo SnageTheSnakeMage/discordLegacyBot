@@ -10,12 +10,7 @@ const logic = require('../../../commands/Class Commands/warp.logic.js');
 const warp = require('../../../commands/Class Commands/warp.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps,
-  createFakeGame,
-  createFakePlayer,
-  createFakeClass,
-  createFakeTile,
-  createFakeLayer,
+  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
 } = require('../../helpers/mockModels.js');
 
 const DISCORD = '123';

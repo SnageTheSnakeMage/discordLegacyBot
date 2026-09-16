@@ -7,7 +7,7 @@ const logic = require('../../../commands/Class Commands/lock.logic.js');
 const lock = require('../../../commands/Class Commands/lock.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
+  createDeps,
   createFakeGame,
   createFakePlayer,
   createFakeClass,
@@ -41,14 +41,16 @@ function happyDeps(over = {}) {
     createFakeTile({ Tile_ID: 43, X_Position: 5, Y_Position: 5, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
   ].filter(Boolean);
 
-  const deps = createActorDeps({
-    game,
-    player,
-    playerClass,
-    tiles: {
-      findByPk: async () => playerTile,
-      findOne: async () => tileToChange,
-      findAll: async () => layersTiles,
+  const deps = createDeps({
+    models: {
+      Games: { findByPk: async () => game },
+      Players: { findOne: async () => player },
+      Classes: { findByPk: async () => playerClass },
+      Tiles: {
+        findByPk: async () => playerTile,
+        findOne: async () => tileToChange,
+        findAll: async () => layersTiles,
+      },
     },
   });
   return { deps, game, player, playerClass, playerTile, tileToChange };
