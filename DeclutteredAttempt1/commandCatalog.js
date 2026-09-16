@@ -179,6 +179,37 @@ const COMMANDS = {
       },
     },
   },
+
+  // /sandbox - debug powers for a game in the SANDBOX gamestate. Each
+  // subcommand is its own key; Discord forbids mixing subcommands with
+  // top-level options, so the game option is repeated on each one.
+  'sandbox': {
+    description: 'debug tools for a game in the SANDBOX gamestate',
+    subcommands: {
+      'get-tile-id': {
+        description: 'look up the Tile_ID of a tile by its position',
+        options: {
+          'x': { kind: 'integer', description: 'X_Position of the tile', required: true },
+          'y': { kind: 'integer', description: 'Y_Position of the tile', required: true },
+          'layer': { kind: 'integer', description: 'which layer of the board, 1 being the first', required: true, min: 1 },
+          'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
+        },
+      },
+      'get-classes': {
+        description: 'send the classes csv so you can see every Class_ID',
+        options: {
+          'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
+        },
+      },
+      'view-chaos': {
+        description: 'list the chaos events set-chaos will accept, and the current one',
+        options: {
+          'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
+        },
+      },
+    },
+  },
+
   //#endregion Player Commands
 
   //#region Class Commands

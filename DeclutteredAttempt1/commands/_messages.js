@@ -21,6 +21,7 @@ const MESSAGES = {
   [REJECTIONS.NOT_DEV]: () => "Only the dev can use this command.",
   [REJECTIONS.NOT_DEAD_OR_MEDIUM]: () => "Only Dead or Medium can override a chaos council poll!",
   [REJECTIONS.ALREADY_REGISTERED]: () => "You are already registered for this game!",
+  [REJECTIONS.NOT_SANDBOX]: (d) => `/sandbox only works on a game in the SANDBOX gamestate${d && d.gamestate ? ` - game ${d.gameId} is ${d.gamestate}` : ""}.`,
 
   [REJECTIONS.TARGET_NOT_IN_GAME]: (d) => `The ${(d && d.role) || "target"} is not in the game!`,
   [REJECTIONS.TARGET_NOT_ON_TILE]: (d) => `The ${(d && d.role) || "target"} is not on the tile provided!`,
