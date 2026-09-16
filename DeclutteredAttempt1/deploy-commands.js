@@ -9,6 +9,18 @@ const dotenv = require('dotenv');
 // Load environment variables
 dotenv.config();
 
+// Check the environment before reading a single command file. Without this, a
+// missing DISCORD_TOKEN surfaces from inside @discordjs/rest as "Expected token
+// to be set for this request, but none was present", and a missing CLIENT_ID or
+// GUILD_ID is worse still: Routes builds a live-looking path with the string
+// "undefined" in it (/applications/123/guilds/undefined/commands) and Discord
+// answers 404. Neither names the variable that is actually missing.
+const required = ['DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID'];
+const missing = required.filter((name) => !process.env[name]);
+if (missing.length > 0) {
+	throw new Error(`cannot register commands: ${missing.join(', ')} not set in the environment`);
+}
+
 const commands = [];
 // Grab all the command folders from the commands directory you created earlier
 const foldersPath = path.join(__dirname, 'commands');
