@@ -294,7 +294,11 @@ stopAPCheckInterval(gameId){
   }
 },
 
-async distributeAP(game, times, client){
+//runChaosPoll is how /sandbox ap-tick runs a distribution without touching
+//dead chat: it skips both halves of the council round trip (reading the open
+//poll, then opening the next one). It defaults to true, so the AP check
+//interval and every other caller behave exactly as before.
+async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   var lavaDiverClass = await models.Classes.findOne({where: {Class_Name: "Lava Diver"}});
   var gluttonClass = await models.Classes.findOne({where: {Class_Name: "Glutton"}});
   var immutableClass = await models.Classes.findOne({where: {Class_Name: "Immutable"}});
@@ -321,7 +325,7 @@ async distributeAP(game, times, client){
   //(it is client.guilds), .messages.fetch(...) returns a promise so .poll on
   //it was undefined, and pollToResults was never awaited so CURR_CC_EVENT
   //would have been written a Promise.
-  if (game.chaosCouncilBool && game.currentChaosPollMsgId && game.deadChatChannelId) {
+  if (runChaosPoll && game.chaosCouncilBool && game.currentChaosPollMsgId && game.deadChatChannelId) {
     const winner = await this.readChaosCouncilPoll(game, client);
     if (winner) await models.Games.update({CURR_CC_EVENT: winner}, {where: {Game_ID: game.Game_ID}});
     await models.Games.update({currentChaosPollMsgId: null}, {where: {Game_ID: game.Game_ID}});
@@ -409,7 +413,7 @@ async distributeAP(game, times, client){
   //Open the next council poll. Same story: client.channel.cache does not
   //exist (it is client.channels.cache), and the id was assigned to the
   //in-memory row inside a .then, after the save below had already run.
-  if (game.chaosCouncilBool && game.deadChatChannelId) {
+  if (runChaosPoll && game.chaosCouncilBool && game.deadChatChannelId) {
     await this.postChaosCouncilPoll(game, client);
   }
   await game.save();
