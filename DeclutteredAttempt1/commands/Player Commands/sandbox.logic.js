@@ -55,6 +55,8 @@ function parse(raw, actor) {
     // set-stat calls it stat, set-meta calls it field; one column name either way
     column: raw.stat ?? raw.field ?? null,
     value: raw.value ?? null,
+    tileId: raw['tile-id'] ?? null,
+    classId: raw['class-id'] ?? null,
     minutes: raw.minutes ?? null,
     times: raw.times ?? null,
     event: raw.event ?? null,
@@ -262,6 +264,104 @@ function apTick(input, game) {
   return { ok: true, kind: 'apTick', data: { gameId: game.Game_ID, times: input.times } };
 }
 
+/**
+ * /sandbox summon-dummy - a fake player to shoot at.
+ *
+ * The dummy's Discord_ID is synthetic ("dummy-<game>-<n>"), which does two
+ * useful things at once: it cannot collide with a real snowflake, since those
+ * are all digits, and the board renderer asks loadTileTexture for
+ * players/<Discord_ID>_<gameId>.png, finds nothing, and falls back to
+ * players/default.png. So a dummy is visibly not a real player and needs no
+ * icon file of its own.
+ *
+ * One body only, whatever the class. A Twin spawns two in registerPlayer, but
+ * summon-dummy is "put a target on this tile" and a second body somewhere
+ * else is not that.
+ */
+async function summonDummy(input, models, game, trace) {
+  const tile = await models.Tiles.findByPk(input.tileId);
+  if (!tile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE };
+
+  // a Tile_ID from another game would put a dummy on a board this sandbox
+  // does not own, so check the tile's layer belongs here
+  const layer = await models.Layers.findByPk(tile.Layer_ID);
+  if (!layer || layer.Game_ID !== game.Game_ID) {
+    return {
+      ok: false,
+      reason: REJECTIONS.NO_SUCH_TILE,
+      data: { message: `Tile_ID ${input.tileId} is not on game ${game.Game_ID}'s board.` },
+    };
+  }
+
+  const dummyClass = await models.Classes.findByPk(input.classId);
+  if (!dummyClass) {
+    return {
+      ok: false,
+      reason: REJECTIONS.INVALID_AMOUNT,
+      data: { message: `There is no class with Class_ID ${input.classId}. Run /sandbox get-classes for the list.` },
+    };
+  }
+
+  // claimTileSlot throws "tile is full" rather than returning, so the free
+  // slot is checked here and reported as a rejection
+  if (tile.Player1 != null && tile.Player2 != null && tile.Player3 != null && tile.Player4 != null) {
+    return { ok: false, reason: REJECTIONS.TILE_FULL };
+  }
+
+  const existing = await models.Players.findAll({ where: { Game_ID: game.Game_ID }, attributes: ['Discord_ID'] });
+  const dummyCount = existing.filter((row) => String(row.Discord_ID).startsWith('dummy-')).length;
+  const discordId = `dummy-${game.Game_ID}-${dummyCount + 1}`;
+
+  await models.Players.create({
+    Class_ID: dummyClass.Class_ID,
+    Game_ID: game.Game_ID,
+    Action_Points: dummyClass.Start_AP,
+    MAX_AP: dummyClass.Start_MAX_AP,
+    MISSED_AP: 0,
+    Health_Points: dummyClass.Start_HP,
+    MAX_HP: dummyClass.Start_MAX_HP,
+    Damage: dummyClass.Start_Damage,
+    MAX_DAMAGE: dummyClass.Start_MAX_Damage,
+    Range_: dummyClass.Start_Range_,
+    MAX_RANGE: dummyClass.Start_MAX_Range_,
+    Tile_ID: tile.Tile_ID,
+    Discord_ID: discordId,
+  });
+
+  const dummy = await models.Players.findOne({ where: { Game_ID: game.Game_ID, Discord_ID: discordId } });
+  trace('summonedDummy', { discordId, playerId: dummy && dummy.Player_ID, tileId: tile.Tile_ID, className: dummyClass.Class_Name });
+
+  // both sides of the position invariant: the row points at the tile above,
+  // the tile points back at the row here
+  await utilsClaimSlot(models, tile, dummy);
+
+  return {
+    ok: true,
+    kind: 'dummy',
+    data: {
+      gameId: game.Game_ID,
+      discordId,
+      playerId: dummy ? dummy.Player_ID : null,
+      className: dummyClass.Class_Name,
+      tileId: tile.Tile_ID,
+      health: dummyClass.Start_HP,
+    },
+  };
+}
+
+/**
+ * The tile half of placing the dummy.
+ *
+ * utils.claimTileSlot takes a model instance and calls tile.save(), which a
+ * plain fake row in a test does not have; writing the slot through
+ * Tiles.update keeps this on the same models seam as everything else here.
+ */
+async function utilsClaimSlot(models, tile, dummy) {
+  if (!dummy) return;
+  const slot = ['Player1', 'Player2', 'Player3', 'Player4'].find((column) => tile[column] == null);
+  if (slot) await models.Tiles.update({ [slot]: dummy.Player_ID }, { where: { Tile_ID: tile.Tile_ID } });
+}
+
 async function run(input, deps = defaultDeps) {
   const { models } = deps;
   const trace = stepLogger('sandbox', deps);
@@ -283,7 +383,8 @@ async function run(input, deps = defaultDeps) {
     case 'set-meta':
     case 'ap-time':
     case 'ap-tick':
-    case 'set-chaos': {
+    case 'set-chaos':
+    case 'summon-dummy': {
       const membership = await requirePlayer(input, models, game);
       if (!membership.ok) return membership;
       const { player } = membership;
@@ -293,6 +394,7 @@ async function run(input, deps = defaultDeps) {
         case 'set-meta': return setColumn(input, models, game, player, SETTABLE_META, 'field', trace);
         case 'ap-time': return apTime(input, models, game);
         case 'set-chaos': return setChaos(input, models, game);
+        case 'summon-dummy': return summonDummy(input, models, game, trace);
         default: return apTick(input, game);
       }
     }
@@ -336,6 +438,14 @@ function present(result) {
     case 'apTick':
       return {
         content: `Ran ${d.times} AP distribution${d.times === 1 ? '' : 's'} on game ${d.gameId}. No chaos poll was posted - ap-tick skips the council round trip so dead chat stays quiet.`,
+      };
+    case 'dummy':
+      return {
+        content: [
+          `Summoned **${d.className}** dummy on Tile_ID ${d.tileId} in game ${d.gameId}.`,
+          `Player_ID ${d.playerId}, Discord_ID \`${d.discordId}\`, ${d.health} HP.`,
+          'It renders as default.png and has no Discord account behind it.',
+        ].join('\n'),
       };
     case 'chaosList':
       return {
