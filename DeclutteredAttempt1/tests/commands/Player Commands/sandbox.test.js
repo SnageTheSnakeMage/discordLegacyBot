@@ -22,7 +22,10 @@ function happyDeps(over = {}) {
         findByPk: async () => game,
         findAll: async () => (game.GAME_STATE === GAMESTATES.SANDBOX ? [game] : []),
       },
-      Players: { findAll: async () => (over.membership || [createFakePlayer({ Game_ID: 7, Discord_ID: PLAYER })]) },
+      Players: {
+        findAll: async () => (over.membership || [createFakePlayer({ Game_ID: 7, Discord_ID: PLAYER })]),
+        findOne: async () => ('player' in over ? over.player : createFakePlayer({ Player_ID: 5, Game_ID: 7, Discord_ID: PLAYER, Tile_ID: 40, Tile_ID2: null, Health_Points: 8 })),
+      },
       Layers: { findAll: async () => layers },
       Tiles: { findOne: async () => tile },
     },
@@ -36,12 +39,17 @@ const input = (over = {}) => ({
 describe('sandbox.parse', () => {
   it('carries the subcommand and the options through', () => {
     expect(logic.parse({ subcommand: 'get-tile-id', x: 1, y: 2, layer: 3, game: 4 }, { discordId: PLAYER }))
-      .toEqual({ subcommand: 'get-tile-id', x: 1, y: 2, layer: 3, gameId: 4, discordId: PLAYER });
+      .toEqual({ subcommand: 'get-tile-id', x: 1, y: 2, layer: 3, gameId: 4, column: null, value: null, discordId: PLAYER });
   });
 
   it('nulls every absent option rather than leaving it undefined', () => {
     expect(logic.parse({ subcommand: 'view-chaos' }, { discordId: PLAYER }))
-      .toEqual({ subcommand: 'view-chaos', x: null, y: null, layer: null, gameId: null, discordId: PLAYER });
+      .toEqual({ subcommand: 'view-chaos', x: null, y: null, layer: null, gameId: null, column: null, value: null, discordId: PLAYER });
+  });
+
+  it('folds set-stat\'s stat and set-meta\'s field into one column name', () => {
+    expect(logic.parse({ subcommand: 'set-stat', stat: 'Health_Points', value: 4 }, { discordId: PLAYER }).column).toBe('Health_Points');
+    expect(logic.parse({ subcommand: 'set-meta', field: 'Class_ID', value: 9 }, { discordId: PLAYER }).column).toBe('Class_ID');
   });
 });
 
@@ -144,8 +152,8 @@ describe('sandbox view-chaos', () => {
   });
 });
 
-describe('sandbox writes nothing in this set', () => {
-  it.each(['get-tile-id', 'get-classes', 'view-chaos'])('%s is read-only', async (subcommand) => {
+describe('the read-only subcommands stay read-only', () => {
+  it.each(['get-tile-id', 'get-classes', 'view-chaos'])('%s writes nothing', async (subcommand) => {
     const deps = happyDeps();
     await logic.run(input({ subcommand }), deps);
     for (const model of ['Games', 'Players', 'Tiles', 'Layers']) {
@@ -156,11 +164,119 @@ describe('sandbox writes nothing in this set', () => {
   });
 });
 
+describe('the writing subcommands require membership', () => {
+  it.each(['reset', 'set-stat', 'set-meta'])('%s refuses a caller who is not in the game', async (subcommand) => {
+    const deps = happyDeps({ player: null });
+    const result = await logic.run(input({ subcommand, column: 'Health_Points', value: 1 }), deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NOT_IN_GAME });
+    expect(deps.models.Players.update).not.toHaveBeenCalled();
+    expect(deps.models.Players.destroy).not.toHaveBeenCalled();
+  });
+});
+
+describe('sandbox set-stat / set-meta', () => {
+  it('writes the column and reports what it was before', async () => {
+    const deps = happyDeps();
+    const result = await logic.run(input({ subcommand: 'set-stat', column: 'Health_Points', value: 3 }), deps);
+    expect(result).toMatchObject({ ok: true, kind: 'columnSet', data: { column: 'Health_Points', before: 8, after: 3 } });
+    expect(deps.models.Players.update).toHaveBeenCalledWith({ Health_Points: 3 }, { where: { Player_ID: 5 } });
+    expect(logic.present(result).content).toContain('**Health_Points** 8 -> **3**');
+  });
+
+  it('keys the write on Player_ID, so it can only ever hit the caller', async () => {
+    const deps = happyDeps();
+    await logic.run(input({ subcommand: 'set-meta', column: 'Class_ID', value: 10 }), deps);
+    const [, where] = deps.models.Players.update.mock.calls[0];
+    expect(where).toEqual({ where: { Player_ID: 5 } });
+  });
+
+  it.each([
+    ['set-stat', 'Discord_ID'],
+    ['set-stat', 'Game_ID'],
+    ['set-stat', 'Player_ID'],
+    ['set-stat', 'Class_ID'],
+    ['set-meta', 'Health_Points'],
+  ])('%s refuses to write %s', async (subcommand, column) => {
+    // the identity columns are the ones that matter: a player must never be
+    // able to rewrite whose row it is. Class_ID/Health_Points are here to pin
+    // that the two allowlists really are separate.
+    const deps = happyDeps();
+    const result = await logic.run(input({ subcommand, column, value: 1 }), deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.INVALID_AMOUNT });
+    expect(deps.models.Players.update).not.toHaveBeenCalled();
+  });
+
+  it('lists the legal columns when one is refused', async () => {
+    const result = await logic.run(input({ subcommand: 'set-stat', column: 'nonsense', value: 1 }), happyDeps());
+    expect(logic.present(result).content).toContain('Action_Points');
+  });
+});
+
+describe('sandbox reset', () => {
+  function resetDeps(over = {}) {
+    const deps = happyDeps(over);
+    const respawned = createFakePlayer({ Player_ID: 6, Game_ID: 7, Discord_ID: PLAYER, Tile_ID: 77 });
+    let call = 0;
+    deps.models.Players.findOne = jest.fn(async () => {
+      call += 1;
+      // first call is the membership check, second reads the respawned row
+      if (call === 1) return 'player' in over ? over.player : createFakePlayer({ Player_ID: 5, Game_ID: 7, Discord_ID: PLAYER, Tile_ID: 40, Tile_ID2: over.tileId2 ?? null });
+      return respawned;
+    });
+    deps.utils = {
+      ...deps.utils,
+      clearPlayerFromBoard: jest.fn(async () => undefined),
+      spawnPlayer: jest.fn(async () => ({ Class_ID: 3, Class_Name: 'Hunter' })),
+    };
+    return deps;
+  }
+
+  it('clears the board, destroys the row, then respawns', async () => {
+    const deps = resetDeps();
+    const result = await logic.run(input({ subcommand: 'reset' }), deps);
+
+    expect(deps.utils.clearPlayerFromBoard).toHaveBeenCalledWith(5, 40, 'Tile_ID');
+    expect(deps.models.Players.destroy).toHaveBeenCalledWith({ where: { Player_ID: 5 } });
+    expect(deps.utils.spawnPlayer).toHaveBeenCalledWith(7, PLAYER);
+    expect(result).toMatchObject({ ok: true, kind: 'reset', data: { oldPlayerId: 5, newPlayerId: 6, className: 'Hunter' } });
+  });
+
+  it('clears a Twin\'s second body too', async () => {
+    const deps = resetDeps({ tileId2: 41 });
+    await logic.run(input({ subcommand: 'reset' }), deps);
+    expect(deps.utils.clearPlayerFromBoard).toHaveBeenCalledWith(5, 41, 'Tile_ID2');
+    expect(deps.utils.clearPlayerFromBoard).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves the second body alone when there is not one', async () => {
+    const deps = resetDeps();
+    await logic.run(input({ subcommand: 'reset' }), deps);
+    expect(deps.utils.clearPlayerFromBoard).toHaveBeenCalledTimes(1);
+  });
+
+  it('never downloads an icon - a reset has no attachment to take one from', async () => {
+    const deps = resetDeps();
+    deps.utils.downloadImageWithFetch = jest.fn();
+    deps.utils.registerPlayer = jest.fn();
+    await logic.run(input({ subcommand: 'reset' }), deps);
+    expect(deps.utils.downloadImageWithFetch).not.toHaveBeenCalled();
+    expect(deps.utils.registerPlayer).not.toHaveBeenCalled();
+  });
+
+  it('says what it rolled and where it put you', async () => {
+    const deps = resetDeps();
+    const { content } = logic.present(await logic.run(input({ subcommand: 'reset' }), deps));
+    expect(content).toContain('Rolled **Hunter**');
+    expect(content).toContain('Tile_ID 77');
+    expect(content).toContain('icon was left as it is');
+  });
+});
+
 describe('sandbox adapter', () => {
   it('registers as /sandbox with the three subcommands', () => {
     const json = sandbox.data.toJSON();
     expect(json.name).toBe('sandbox');
-    expect(json.options.map((o) => o.name)).toEqual(['get-tile-id', 'get-classes', 'view-chaos']);
+    expect(json.options.map((o) => o.name)).toEqual(['get-tile-id', 'get-classes', 'reset', 'set-stat', 'set-meta', 'view-chaos']);
     expect(json.options.every((o) => o.type === 1)).toBe(true);
     expect(typeof sandbox.execute).toBe('function');
   });

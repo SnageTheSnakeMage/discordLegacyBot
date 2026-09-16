@@ -201,6 +201,38 @@ const COMMANDS = {
           'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
         },
       },
+      'reset': {
+        description: 'wipe yourself from the board and the DB, then respawn as if newly registered',
+        options: {
+          'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
+        },
+      },
+      'set-stat': {
+        description: 'set one of your own combat or resource stats',
+        options: {
+          'stat': {
+            kind: 'string',
+            description: 'which stat to set',
+            required: true,
+            choices: [{ name: 'Action_Points', value: 'Action_Points' }, { name: 'MAX_AP', value: 'MAX_AP' }, { name: 'MISSED_AP', value: 'MISSED_AP' }, { name: 'Health_Points', value: 'Health_Points' }, { name: 'MAX_HP', value: 'MAX_HP' }, { name: 'MISSED_HP', value: 'MISSED_HP' }, { name: 'Health_Points2', value: 'Health_Points2' }, { name: 'Damage', value: 'Damage' }, { name: 'MAX_DAMAGE', value: 'MAX_DAMAGE' }, { name: 'Damage2', value: 'Damage2' }, { name: 'DMG_BUFF', value: 'DMG_BUFF' }, { name: 'Range_', value: 'Range_' }, { name: 'MAX_RANGE', value: 'MAX_RANGE' }, { name: 'Range2', value: 'Range2' }, { name: 'Free_Move', value: 'Free_Move' }, { name: 'Free_Move2', value: 'Free_Move2' }, { name: 'Kills', value: 'Kills' }, { name: 'Meals', value: 'Meals' }, { name: 'Pharoh_HP', value: 'Pharoh_HP' }, { name: 'cCOverides', value: 'cCOverides' }],
+          },
+          'value': { kind: 'integer', description: 'the value to set it to', required: true },
+          'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
+        },
+      },
+      'set-meta': {
+        description: 'set your class, position, or one of your other non-stat columns',
+        options: {
+          'field': {
+            kind: 'string',
+            description: 'which field to set',
+            required: true,
+            choices: [{ name: 'Class_ID', value: 'Class_ID' }, { name: 'Tile_ID', value: 'Tile_ID' }, { name: 'Tile_ID2', value: 'Tile_ID2' }, { name: 'Dead', value: 'Dead' }, { name: 'MarkedForDeath', value: 'MarkedForDeath' }, { name: 'Hitman_Target', value: 'Hitman_Target' }, { name: 'HP_COST', value: 'HP_COST' }, { name: 'RANGE_COST', value: 'RANGE_COST' }, { name: 'DAMAGE_COST', value: 'DAMAGE_COST' }],
+          },
+          'value': { kind: 'integer', description: 'the value to set it to', required: true },
+          'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
+        },
+      },
       'view-chaos': {
         description: 'list the chaos events set-chaos will accept, and the current one',
         options: {
