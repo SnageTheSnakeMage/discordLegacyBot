@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #
 # Promote a published image to the live bot. Runs ON the host - either by
 # hand, or from the Deploy workflow's `deploy` job when a self-hosted runner
@@ -10,7 +10,10 @@
 # then verify the container actually reports healthy - and roll back to the
 # digest that was live before if it does not. A deploy that cannot be rolled
 # back is not a deploy, so the digest that succeeded is recorded on the host.
-set -euo pipefail
+# POSIX sh, not bash: the CI image is node:24-alpine, which has no bash at
+# all, so a bash script here cannot be tested by the suite that guards it.
+# `pipefail` is not POSIX either, and there is no pipeline to protect.
+set -eu
 
 # launchd starts a service with a minimal PATH that has neither Homebrew
 # directory on it, so `docker` is missing from the runner even though it
@@ -25,7 +28,7 @@ DEPLOY_DIR="${LEGACY_DEPLOY_DIR:-$HOME/legacy-bot}"
 HEALTH_TRIES="${LEGACY_HEALTH_TRIES:-24}"   # x5s = ~2 minutes, as the README says
 HEALTH_DELAY="${LEGACY_HEALTH_DELAY:-5}"
 CONTAINER=discord-bot
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 COMPOSE_SRC="$SCRIPT_DIR/../docker-compose.yml"
 
 die() { echo "deploy: $*" >&2; exit 1; }
@@ -52,7 +55,6 @@ cd "$DEPLOY_DIR"
 #    `-v legacy-db:/data` silently creates a NEW empty volume and "backs up"
 #    nothing.
 container_volume() {
-  local cid
   cid=$(docker compose ps -q bot 2>/dev/null || true)
   [ -n "$cid" ] || return 0
   docker inspect --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' "$cid"
@@ -89,12 +91,14 @@ docker compose up -d
 #    refreshing the heartbeat, so a bot that boots and fails to log in is
 #    unhealthy rather than "up".
 wait_for_health() {
-  local status i
-  for i in $(seq "$HEALTH_TRIES"); do
+  # a counted while loop rather than `seq`, which is not in every base image
+  i=1
+  while [ "$i" -le "$HEALTH_TRIES" ]; do
     status=$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER" 2>&1) || status="no such container"
-    [ "$status" = healthy ] && return 0
+    if [ "$status" = healthy ]; then return 0; fi
     echo "deploy: $status"
     if [ "$i" -lt "$HEALTH_TRIES" ]; then sleep "$HEALTH_DELAY"; fi
+    i=$((i + 1))
   done
   return 1
 }
