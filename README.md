@@ -170,6 +170,26 @@ command's definition changes. There is no environment-variable shortcut: the
 workflow, or `node scripts/register-commands.js` with `DISCORD_TOKEN`,
 `CLIENT_ID` and `GUILD_ID` set, is the whole of it.
 
+### A command in the picker that the bot does not have
+
+Registration PUTs the whole **guild** command set, so a command that no longer
+exists in the code disappears the next time it runs. **Global** commands are a
+separate list that PUT never touches: one registered by an older version of the
+bot outlives every deploy and keeps appearing, with nothing behind it.
+
+```bash
+node scripts/global-commands.js                    # list them, with ids
+node scripts/global-commands.js --delete old-name  # delete one
+node scripts/global-commands.js --delete-all       # delete every one
+```
+
+Needs `DISCORD_TOKEN` and `CLIENT_ID` (not `GUILD_ID` — global commands are not
+scoped to a guild). A delete is checked against the live list first, so a typo
+is a "no such command" naming what is really there rather than a 404. Global
+changes take up to an hour to reach clients, so still seeing it straight
+afterwards is propagation, not a failed delete — confirm with the listing, not
+the picker.
+
 ### Host setup
 
 The current host is a **Mac mini**. Most deployment writing on the internet -
