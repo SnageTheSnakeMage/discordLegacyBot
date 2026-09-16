@@ -1,3 +1,9 @@
+# A fixed project name, so the volume is always legacy_legacy-db no matter
+# which directory compose is run from. Without it the project name comes from
+# the directory, and a deploy run from a different path would silently create
+# a second, empty database volume.
+name: legacy
+
 services:
   bot:
     # Deploys go by immutable digest, never by tag and never by rebuilding on

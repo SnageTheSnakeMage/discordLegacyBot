@@ -98,19 +98,40 @@ is pinned to a commit SHA.
    prints the immutable **digest**. Deploys go by digest, never by tag.
 3. The `deploy` job waits on the `production` environment (add yourself as a
    required reviewer under Settings → Environments → production).
+4. Approve it, and the host deploys itself — see below.
 
-### Deploying / rolling back (manual until a deploy target is configured)
+### Deploying / rolling back
 
-The `docker` commands below are the same everywhere. **Everything about setting
-the host up is Linux-specific** — users, groups, the daemon, autostart — and
-none of it ports to macOS. See [Host setup](#host-setup) before following any
-guide that says `adduser`.
+Approving the gated `deploy` job runs
+`DeclutteredAttempt1/scripts/deploy.sh` **on the host**, which backs the
+database up, pulls the digest, brings compose up, waits for the container to
+report healthy and rolls back to the previously live digest if it never does.
 
-On the host:
+That works because the runner is registered on the Mac mini itself, so the job
+is already on the machine it is deploying to: no SSH, no deploy key, no inbound
+port. See [Host setup](#host-setup) to register it. Until the repository
+variable `DEPLOY_RUNNER_LABEL` is set, the job lands on a hosted runner and
+just prints the digest and the command to run by hand.
+
+Running it by hand is the same path, not a different one:
+
+```bash
+IMAGE_DIGEST=ghcr.io/<owner>/<repo>@sha256:<digest> \
+  DeclutteredAttempt1/scripts/deploy.sh
+```
+
+It reads `~/legacy-bot` (override with `LEGACY_DEPLOY_DIR`), which holds the
+bot's `.env`, the `backups/` directory and `current-digest` — the digest it
+rolls back to. A deploy that never goes healthy leaves `current-digest`
+untouched, so the last known-good digest survives a failed attempt.
+
+<details>
+<summary>The same four steps, by hand, if the script is unavailable</summary>
 
 ```bash
 # 1. BACK UP FIRST - abort if this fails
-docker run --rm -v legacy-db:/data -v "$PWD":/backup alpine \
+#    the volume is project-scoped: `legacy-db` alone creates a NEW empty one
+docker run --rm -v legacy_legacy-db:/data -v "$PWD":/backup alpine \
   cp /data/database.db /backup/database.$(date +%Y%m%d%H%M%S).db
 
 # 2. deploy by digest - compose reads IMAGE_DIGEST, and refuses to start
@@ -137,7 +158,9 @@ docker pull "$IMAGE_DIGEST"
 docker compose up -d   # then restore the backup into the volume if needed
 ```
 
-Game state lives in the `legacy-db` named volume and survives image rebuilds.
+</details>
+
+Game state lives in the `legacy_legacy-db` named volume and survives image rebuilds.
 Slash-command registration is rate-limited by Discord and does NOT run on boot.
 Run the Deploy workflow manually with "register commands" checked when a
 command's definition changes. There is no environment-variable shortcut: the
@@ -180,15 +203,51 @@ macOS: Docker Desktop, Colima and OrbStack each run a Linux VM **under a user's
 session**, with a per-user socket. A separate `deploy` user would SSH in and
 find no Docker at all.
 
-**So deploy as the user that runs the VM.** Add the workflow's public key to
-that user's own `~/.ssh/authorized_keys`, and restrict what the key may do:
+**So deploy as the user that runs the VM** — which is why the deploy runs on
+the mini itself rather than SSHing into it. A home Mac mini is also behind NAT,
+so a GitHub-hosted runner could not reach it without port forwarding or a
+tunnel; a registered runner makes an *outbound* connection instead and needs
+neither.
 
-```
-restrict,pty,command="/Users/<you>/deploy.sh" ssh-ed25519 AAAA... github-actions-deploy
+##### Registering the runner
+
+Under Settings → Actions → Runners → **New self-hosted runner** → macOS, run
+the commands GitHub shows you (they embed a one-time registration token), then
+install it as a service so it survives a reboot:
+
+```bash
+./svc.sh install
+./svc.sh start
+./svc.sh status
 ```
 
-Enable SSH under System Settings → General → Sharing → **Remote Login**, and
-set `DEPLOY_SSH_USER` to your short name (`whoami`).
+Then set the repository variable **`DEPLOY_RUNNER_LABEL`** (Settings →
+Secrets and variables → Actions → Variables) to the runner's label, normally
+`self-hosted`. That variable is the switch: unset, the deploy job stays on a
+hosted runner and only prints instructions, so it cannot hang in a queue
+waiting for a runner that is not there.
+
+Finally, create the host directory the deploy reads and put the bot's `.env`
+in it:
+
+```bash
+mkdir -p ~/legacy-bot
+cp /path/to/your/.env ~/legacy-bot/.env   # never commit this file
+```
+
+`docker-compose.yml` is copied there from the checkout on every deploy, so the
+compose config stays versioned in git while the secrets stay on the host.
+
+> **A self-hosted runner executes whatever a workflow tells it to.** Keep it on
+> a private repository, and never enable it for fork pull requests — a fork
+> could otherwise run code on the machine hosting the live bot.
+
+##### If the runner cannot find `docker`
+
+`launchd` starts services with a minimal `PATH` that has neither Homebrew
+directory on it, so a deploy fails with `docker: command not found` even though
+`docker` works in your own shell. `scripts/deploy.sh` prepends
+`/opt/homebrew/bin` and `/usr/local/bin` for exactly this reason.
 
 ##### Keeping it actually always-on
 
