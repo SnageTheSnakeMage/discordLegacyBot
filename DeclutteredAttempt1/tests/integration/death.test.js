@@ -64,6 +64,7 @@ describe('death', () => {
     const pharoh = await seedPlayer(game.Game_ID, {
       discordId: '2', x: 2, y: 1, layerId: layer.Layer_ID, className: 'Pharoh', Health_Points: 2, Pharoh_HP: 5,
     });
+    const fallenTile = pharoh.Tile_ID;
 
     await utils.damagePlayer(killer, pharoh, 5);
 
@@ -74,6 +75,30 @@ describe('death', () => {
     expect(revived.Tile_ID).not.toBeNull(); // placed on a spawn tile
     // it still counts as a kill
     expect((await reload(killer)).Kills).toBe(1);
+    // and the move is written on both sides: the tile they fell on no longer
+    // names them, the tile they stand on does
+    const fallen = await models.Tiles.findByPk(fallenTile);
+    expect([fallen.Player1, fallen.Player2, fallen.Player3, fallen.Player4]).not.toContain(pharoh.Player_ID);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
+  // fire tiles and mines damage with no attacker. The revive branch credited
+  // the kill before checking, so killer.Kills threw for any victim holding
+  // revive HP - the one combination that never came up in the other suites.
+  it('the environment can revive a Pharoh with no killer to credit', async () => {
+    const { game, layer } = await board();
+    const pharoh = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, className: 'Pharoh', Health_Points: 1, Pharoh_HP: 4,
+    });
+
+    await utils.damagePlayer(null, pharoh, 5);
+
+    const revived = await reload(pharoh);
+    expect(revived.Dead).toBeFalsy();
+    expect(revived.Health_Points).toBe(4);
+    expect(revived.Pharoh_HP).toBe(0);
+    expect(revived.Tile_ID).not.toBeNull();
+    await assertBoardConsistent(game.Game_ID);
   });
 
   it('a Twin survives losing one body and dies when both are gone', async () => {
