@@ -1,20 +1,14 @@
-const { SlashCommandBuilder } = require('discord.js');
 const { readOptions, readActor, toDiscord } = require('../_adapter.js');
+const { buildData, optionSpec } = require('../_catalog.js');
 const { runLogged } = require('../_logging.js');
 const logic = require('./timestop.logic.js');
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('timestop')
-        .setDescription('command for Clockwatchers, be the only one who can do anything for 4AP distributions, costs 12AP')
-        .addIntegerOption(option =>
-            option.setName('game')
-                .setDescription('which game, defaults to oldest active game')
-                .setRequired(false)),
+    data: buildData('timestop'),
     async execute(interaction) {
         await interaction.deferReply();
         const input = logic.parse(
-            readOptions(interaction, { game: 'integer' }),
+            readOptions(interaction, optionSpec('timestop')),
             readActor(interaction),
         );
         const result = await runLogged('timestop', logic, input);
