@@ -262,8 +262,10 @@ describe('resurrect.run success', () => {
       kind: 'resurrected',
       data: { targetUsername: 'ghost', targetPlayerId: 2, x: 3, y: 4, layerId: CASTER_LAYER },
     });
+    // Dead and the position are written together - a player who is alive but
+    // has no tile is the state this command used to leave behind
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Dead: 0 }, { where: { Player_ID: 2 } },
+      { Tile_ID: INPUTTED_TILE_ID, Dead: 0 }, { where: { Player_ID: 2 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 0 }, { where: { Player_ID: 1 } },
@@ -272,15 +274,38 @@ describe('resurrect.run success', () => {
     expect(deps.models.Tiles.update).toHaveBeenCalledTimes(1);
   });
 
-  // preserved quirk: the tile write claims a slot on the RESURRECTEE'S OLD
-  // tile, not the tile the caster asked for, and Players.Tile_ID is never
-  // repointed - so the body comes back exactly where it died
-  it('claims Player1 on the resurrectees own tile, not the inputted tile', async () => {
+  // was: "preserved quirk: the tile write claims a slot on the RESURRECTEE'S
+  // OLD tile ... so the body comes back exactly where it died". It did not.
+  // A dead player's Tile_ID is null, so `where: { Tile_ID: null }` matched no
+  // row and the resurrectee came back alive and off the board. The old test
+  // only looked right because its fixture gave the dead target a non-null
+  // Tile_ID, which is a state the game never produces.
+  it('claims a slot on the tile the caster asked for, and points the row back at it', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);
+
     expect(deps.models.Tiles.update).toHaveBeenCalledWith(
-      { Player1: 2 }, { where: { Tile_ID: TARGET_TILE_ID } },
+      { Player1: 2 }, { where: { Tile_ID: INPUTTED_TILE_ID } },
     );
+    expect(deps.models.Tiles.update).not.toHaveBeenCalledWith(
+      expect.anything(), { where: { Tile_ID: TARGET_TILE_ID } },
+    );
+  });
+
+  // the invariant, stated as one assertion: whatever a resurrect writes, it
+  // never leaves the two columns disagreeing
+  it('never writes Dead: 0 without also writing a tile', async () => {
+    const { deps } = happyDeps({
+      // a realistic corpse: playerDeathLogic nulls the tile when it sets Dead
+      target: createFakePlayer({ Player_ID: 2, Discord_ID: TARGET, Dead: 1, Tile_ID: null }),
+    });
+    await logic.run(INPUT, deps);
+
+    const offenders = deps.models.Players.update.mock.calls
+      .filter(([payload]) => Object.prototype.hasOwnProperty.call(payload, 'Dead'))
+      .filter(([payload]) => payload.Dead === 0 && payload.Tile_ID == null)
+      .map(([payload]) => JSON.stringify(payload));
+    expect(offenders).toEqual([]);
   });
 
   it('maps an explicit common layer number to the games Layer_ID (this path used to throw TypeError)', async () => {

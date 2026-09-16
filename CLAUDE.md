@@ -80,6 +80,35 @@ time to learn, so it is written down rather than rediscovered.
   was then fixed on its own, as its own commit — see the icon path section
   below. That is the order to do it in, not a reason to preserve it again.)
 
+### The position invariant: `Tile_ID` and `Dead` are one state
+
+A player is on the board or they are not, and two columns have to agree about
+it. `playerDeathLogic` writes `{Tile_ID: null, Dead: true}` together, so:
+
+- a tile set without clearing `Dead` is a corpse standing on the board;
+- `Dead` cleared without setting a tile is a live player **nowhere** — the
+  renderer cannot draw them and every command that needs a tile refuses them;
+- a `Players.Tile_ID` naming a tile whose `PlayerN` slots do not name the
+  player back is unreachable by anything that looks players up by tile.
+
+There is one writer for each direction, and neither is optional:
+
+- **`utils.clearPlayerFromBoard(playerId, tileId, column)`** takes a body off:
+  vacates the tile slot and nulls the player's own column.
+- **`utils.placePlayerOnBoard(playerId, tile, { column, db })`** puts one on:
+  claims a free slot, points the row at the tile, and clears `Dead` — all
+  three in one call. It takes the tile *row* (every caller has already fetched
+  it to check occupancy) and throws `"tile is full"` rather than returning, so
+  check occupancy first and reject with `TILE_FULL`. Pass `db: models` from a
+  logic file so the unit tests exercise it instead of stubbing it.
+
+`/resurrect` is the cautionary tale: it wrote `{ Dead: 0 }` and claimed a slot
+using the resurrectee's *own* `Tile_ID`, which is null for a dead player — so
+the where-clause matched nothing and resurrection produced a live player off
+the board. Its test looked right only because the fixture gave a dead player a
+non-null `Tile_ID`, a state the game never produces. **Build fake rows that
+match what the writers actually write.**
+
 ### Traps in this codebase
 
 - **`getRandomInt(max)` is inclusive of `max`.** Index a collection with

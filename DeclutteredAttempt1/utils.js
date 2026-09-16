@@ -1355,6 +1355,42 @@ async setPlayerToTile(playerId, layer, x, y) {
   await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
 },
 
+/**
+ * The mirror of clearPlayerFromBoard: put a player onto a tile, writing BOTH
+ * halves of the position invariant and clearing Dead in the same breath.
+ *
+ * Those three writes belong together because the game treats "alive" and "on
+ * the board" as one state. playerDeathLogic nulls the tile when it sets Dead,
+ * so the two columns are only ever meaningful as a pair:
+ *
+ * - a tile set without clearing Dead is a corpse standing on the board;
+ * - Dead cleared without setting a tile is a live player nowhere - invisible
+ *   to the renderer, and refused by every command that needs a tile;
+ * - a Players.Tile_ID naming a tile that does not name the player back is
+ *   unreachable by anything that looks players up by tile.
+ *
+ * Callers check occupancy themselves and reject with TILE_FULL; this throws
+ * rather than returning, matching claimTileSlot. Tiles.update is used instead
+ * of claimTileSlot because that calls tile.save() on a model instance and so
+ * cannot run against a plain row.
+ *
+ * `db` defaults to the module-level models, and a logic file passes its own
+ * deps.models - so the invariant is written once and still exercised by the
+ * unit tests rather than stubbed out of them.
+ */
+async placePlayerOnBoard(playerId, tile, { column = 'Tile_ID', db = models } = {}) {
+  // takes the row, not an id: every caller has already fetched the tile to
+  // check whether it is free, so re-reading it here would be a second query
+  // for a row we were just handed
+  if (!tile) throw new Error('placePlayerOnBoard: no tile');
+
+  const slot = ['Player1', 'Player2', 'Player3', 'Player4'].find((s) => tile[s] == null);
+  if (!slot) throw "tile is full";
+
+  await db.Tiles.update({[slot]: playerId}, {where: {Tile_ID: tile.Tile_ID}});
+  await db.Players.update({[column]: tile.Tile_ID, Dead: 0}, {where: {Player_ID: playerId}});
+},
+
 //Takes one body off the board: vacates the tile's PlayerN slot AND clears
 //the player's own Tile_ID/Tile_ID2. Every death branch used to null only
 //the player side, leaving the tile still naming a corpse (#78).
