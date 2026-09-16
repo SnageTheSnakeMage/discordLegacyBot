@@ -39,18 +39,24 @@ describe('the gamestate gate is never told the actor is not a Clockwatcher', () 
     expect(gated.length).toBeGreaterThanOrEqual(27);
   });
 
-  it.each(gated.map(([name]) => name))('%s does not hard-code the exemption to false', (name) => {
-    const [, src] = gated.find(([n]) => n === name);
+  // One test per rule, not per file: the failure then names every command
+  // that regressed in one go, and the suite counts rules rather than rows.
+  it('no gated command hard-codes the exemption to false', () => {
     // `checkGameState(x, false)` on one line, or wrapped across several
     // with a trailing comma - both must fail this
-    expect(src).not.toMatch(/checkGameState\([^)]*,\s*false\s*,?\s*\)/s);
+    const offenders = gated
+      .filter(([, src]) => /checkGameState\([^)]*,\s*false\s*,?\s*\)/s.test(src))
+      .map(([name]) => name);
+    expect(offenders).toEqual([]);
   });
 
   // board and move already resolved it inline, because they had the class
   // row in hand; the rest go through utils.isClockwatcher. Either is fine -
   // what matters is that the answer comes from the actor's class.
-  it.each(gated.map(([name]) => name))('%s decides the exemption from the actor class', (name) => {
-    const [, src] = gated.find(([n]) => n === name);
-    expect(src).toMatch(/isClockwatcher|Class_Name\s*===?\s*'Clockwatcher'/);
+  it('every gated command decides the exemption from the actor class', () => {
+    const offenders = gated
+      .filter(([, src]) => !/isClockwatcher|Class_Name\s*===?\s*'Clockwatcher'/.test(src))
+      .map(([name]) => name);
+    expect(offenders).toEqual([]);
   });
 });

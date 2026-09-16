@@ -29,9 +29,14 @@ describe('every command logs its run()', () => {
     expect(commands.length).toBeGreaterThanOrEqual(42);
   });
 
-  it.each(commands.map(([n]) => n))('%s calls runLogged, not logic.run directly', (name) => {
-    const [, src] = commands.find(([n]) => n === name);
-    expect(src).toMatch(/runLogged\(/);
-    expect(src).not.toMatch(/await logic\.run\(/);
+  // One test over all 44, not one test each: the failure names every command
+  // that lost its logging, and the suite counts the rule rather than the row.
+  it('every command calls runLogged, and none calls logic.run directly', () => {
+    const offenders = [];
+    for (const [name, src] of commands) {
+      if (!/runLogged\(/.test(src)) offenders.push(`${name}: no runLogged(`);
+      if (/await logic\.run\(/.test(src)) offenders.push(`${name}: calls logic.run directly`);
+    }
+    expect(offenders).toEqual([]);
   });
 });

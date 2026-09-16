@@ -27,26 +27,34 @@ describe('every rejection code has player-facing text', () => {
     expect(CODES.length).toBeGreaterThan(30);
   });
 
-  it.each(CODES)('%s has an entry in MESSAGES', (reason) => {
-    expect(typeof MESSAGES[reason]).toBe('function');
+  // One test per rule rather than one per code. Three it.each blocks over
+  // ~37 codes reported 110-odd tests for three assertions, and a failure
+  // named one code at a time; walking the list and collecting offenders
+  // names every code that lost its text in a single message.
+  it('every code has an entry in MESSAGES', () => {
+    const offenders = CODES.filter((reason) => typeof MESSAGES[reason] !== 'function');
+    expect(offenders).toEqual([]);
   });
+
+  /** what is wrong with the text for `reason`, given `data`, if anything */
+  function faults(reason, data) {
+    const text = data === undefined ? messageFor(reason) : messageFor(reason, data);
+    if (typeof text !== 'string') return `${reason}: not a string (${typeof text})`;
+    if (text.length === 0) return `${reason}: empty`;
+    if (UNRECOGNISED.test(text)) return `${reason}: fell through to the unrecognised fallback`;
+    if (/undefined|\[object Object\]/.test(text)) return `${reason}: leaks a placeholder - "${text}"`;
+    return null;
+  }
 
   // data is absent here on purpose: a command may return a bare
   // { ok: false, reason }, and every formatter has to survive that rather
   // than interpolating "undefined" into the reply a player reads
-  it.each(CODES)('%s renders without data', (reason) => {
-    const text = messageFor(reason);
-    expect(typeof text).toBe('string');
-    expect(text.length).toBeGreaterThan(0);
-    expect(text).not.toMatch(UNRECOGNISED);
-    expect(text).not.toMatch(/undefined|\[object Object\]/);
+  it('every code renders without data', () => {
+    expect(CODES.map((r) => faults(r, undefined)).filter(Boolean)).toEqual([]);
   });
 
-  it.each(CODES)('%s renders with an empty data object', (reason) => {
-    const text = messageFor(reason, {});
-    expect(text.length).toBeGreaterThan(0);
-    expect(text).not.toMatch(UNRECOGNISED);
-    expect(text).not.toMatch(/undefined|\[object Object\]/);
+  it('every code renders with an empty data object', () => {
+    expect(CODES.map((r) => faults(r, {})).filter(Boolean)).toEqual([]);
   });
 
   it('MESSAGES carries no key that is not a rejection code', () => {
