@@ -65,6 +65,14 @@ describe('death', () => {
       discordId: '2', x: 2, y: 1, layerId: layer.Layer_ID, className: 'Pharoh', Health_Points: 2, Pharoh_HP: 5,
     });
     const fallenTile = pharoh.Tile_ID;
+    // The spawnpoint is RANDOM, and on a 5x5 board it lands on the tile the
+    // victim fell on about one run in 25 - where "the fallen tile no longer
+    // names them" is false for a correct deploy, because they are standing on
+    // it again. Pinning the destination makes the move assertable at all.
+    const spawn = await models.Tiles.findOne({
+      where: { Layer_ID: layer.Layer_ID, X_Position: 5, Y_Position: 5 },
+    });
+    jest.spyOn(utils, 'getSpawnpointTile').mockResolvedValue(spawn);
 
     await utils.damagePlayer(killer, pharoh, 5);
 
@@ -72,13 +80,15 @@ describe('death', () => {
     expect(revived.Dead).toBeFalsy();
     expect(revived.Health_Points).toBe(5); // revived at the overflow HP
     expect(revived.Pharoh_HP).toBe(0); // which is spent
-    expect(revived.Tile_ID).not.toBeNull(); // placed on a spawn tile
+    expect(revived.Tile_ID).toBe(spawn.Tile_ID); // placed on the spawn tile
     // it still counts as a kill
     expect((await reload(killer)).Kills).toBe(1);
     // and the move is written on both sides: the tile they fell on no longer
     // names them, the tile they stand on does
     const fallen = await models.Tiles.findByPk(fallenTile);
     expect([fallen.Player1, fallen.Player2, fallen.Player3, fallen.Player4]).not.toContain(pharoh.Player_ID);
+    const landed = await models.Tiles.findByPk(spawn.Tile_ID);
+    expect([landed.Player1, landed.Player2, landed.Player3, landed.Player4]).toContain(pharoh.Player_ID);
     await assertBoardConsistent(game.Game_ID);
   });
 
