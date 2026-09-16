@@ -6,10 +6,7 @@ const logic = require('../../../commands/Class Commands/deliver.logic.js');
 const deliver = require('../../../commands/Class Commands/deliver.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
-  createFakeGame,
-  createFakePlayer,
-  createFakeClass,
+  createDeps, createFakeGame, createFakePlayer, createFakeClass,
 } = require('../../helpers/mockModels.js');
 
 const MAILMAN = '123';
@@ -20,9 +17,9 @@ function happyDeps(over = {}) {
   const player = over.player || createFakePlayer({ Player_ID: 1, Discord_ID: MAILMAN, Action_Points: 5 });
   const receiver = 'receiver' in over ? over.receiver : createFakePlayer({ Player_ID: 2, Discord_ID: RECEIVER, Action_Points: 2, MAX_AP: 10 });
   const game = over.game || createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE });
-  const deps = createActorDeps({
-    game,
+  const deps = createDeps({
     models: {
+      Games: { findByPk: async () => game },
       Players: {
         findOne: async ({ where }) => (where.Discord_ID === MAILMAN ? player : where.Discord_ID === RECEIVER ? receiver : null),
       },

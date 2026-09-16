@@ -6,10 +6,7 @@ const logic = require('../../../commands/Class Commands/timestop.logic.js');
 const timestop = require('../../../commands/Class Commands/timestop.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
-  createFakeGame,
-  createFakePlayer,
-  createFakeClass,
+  createDeps, createFakeGame, createFakePlayer, createFakeClass,
 } = require('../../helpers/mockModels.js');
 
 const ACTOR = '123';
@@ -19,10 +16,12 @@ function happyDeps(over = {}) {
   const game = over.game || createFakeGame({ Game_ID: 1, AP_INTERVAL_MIN: 720, GAME_STATE: GAMESTATES.ACTIVE });
   const player = over.player || createFakePlayer({ Player_ID: 1, Discord_ID: ACTOR, Class_ID: 7, Action_Points: 12 });
   const playerClass = 'playerClass' in over ? over.playerClass : createFakeClass({ Class_ID: 7, Class_Name: 'Clockwatcher' });
-  const deps = createActorDeps({
-    game,
-    player,
-    playerClass,
+  const deps = createDeps({
+    models: {
+      Games: { findByPk: async () => game },
+      Players: { findOne: async () => player },
+      Classes: { findByPk: async () => playerClass },
+    },
   });
   return { deps, game, player, playerClass };
 }

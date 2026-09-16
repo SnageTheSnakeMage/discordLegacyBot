@@ -6,7 +6,7 @@ const logic = require('../../../commands/Player Commands/override.logic.js');
 const override = require('../../../commands/Player Commands/override.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
+  createDeps,
   createFakeGame,
   createFakePlayer,
   createFakeClass,
@@ -22,11 +22,11 @@ function happyDeps(over = {}) {
   });
   const game = over.game || createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE });
   const playerClass = over.playerClass || createFakeClass({ Class_Name: 'Medium' });
-  const deps = createActorDeps({
-    game,
-    playerClass,
+  const deps = createDeps({
     models: {
+      Games: { findByPk: async () => game },
       Players: { findOne: async ({ where }) => (where.Discord_ID === ACTOR ? player : null) },
+      Classes: { findByPk: async () => playerClass },
     },
   });
   return { deps, player, game };

@@ -6,11 +6,7 @@ const logic = require('../../../commands/Class Commands/cook.logic.js');
 const cook = require('../../../commands/Class Commands/cook.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
-  createFakeGame,
-  createFakePlayer,
-  createFakeClass,
-  createFakeTile,
+  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
 } = require('../../helpers/mockModels.js');
 
 const CHEF = '123';
@@ -23,23 +19,23 @@ function happyDeps(over = {}) {
   const game = over.game || createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE });
   const chefTile = over.chefTile || createFakeTile({ Tile_ID: 1, X_Position: 1, Y_Position: 1, Layer_ID: 1 });
   const customerTile = over.customerTile || createFakeTile({ Tile_ID: 2, X_Position: 2, Y_Position: 1, Layer_ID: 1 });
-  const deps = createActorDeps({
-    game,
-    tiles: {
-      findByPk: async (id) => (id === chefTile.Tile_ID ? chefTile : id === customerTile.Tile_ID ? customerTile : null),
-      // the (Layer_ID, x, y) lookup for the coordinates the chef typed
-      findOne: async ({ where }) => {
-        for (const tile of [chefTile, customerTile]) {
-          if (tile.Layer_ID === where.Layer_ID && tile.X_Position === where.X_Position && tile.Y_Position === where.Y_Position) return tile;
-        }
-        return null;
-      },
-    },
+  const deps = createDeps({
     models: {
+      Games: { findByPk: async () => game },
       Players: {
         findOne: async ({ where }) => (where.Discord_ID === CHEF ? chef : where.Discord_ID === CUSTOMER ? customer : null),
       },
       Classes: { findByPk: async () => over.chefClass || createFakeClass({ Class_Name: 'Chef' }) },
+      Tiles: {
+        findByPk: async (id) => (id === chefTile.Tile_ID ? chefTile : id === customerTile.Tile_ID ? customerTile : null),
+        // the (Layer_ID, x, y) lookup for the coordinates the chef typed
+        findOne: async ({ where }) => {
+          for (const tile of [chefTile, customerTile]) {
+            if (tile.Layer_ID === where.Layer_ID && tile.X_Position === where.X_Position && tile.Y_Position === where.Y_Position) return tile;
+          }
+          return null;
+        },
+      },
     },
   });
   return { deps, chef, customer, game };

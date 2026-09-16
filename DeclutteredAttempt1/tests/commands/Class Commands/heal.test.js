@@ -7,7 +7,7 @@ const logic = require('../../../commands/Class Commands/heal.logic.js');
 const heal = require('../../../commands/Class Commands/heal.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
+  createDeps,
   createFakeGame,
   createFakePlayer,
   createFakeClass,
@@ -34,13 +34,15 @@ function happyDeps(over = {}) {
   const tileToChange = 'tileToChange' in over ? over.tileToChange : createFakeTile({
     Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1',
   });
-  const deps = createActorDeps({
-    game,
-    player,
-    playerClass,
-    tiles: {
-      findByPk: async () => playerTile,
-      findOne: async () => tileToChange,
+  const deps = createDeps({
+    models: {
+      Games: { findByPk: async () => game },
+      Players: { findOne: async () => player },
+      Classes: { findByPk: async () => playerClass },
+      Tiles: {
+        findByPk: async () => playerTile,
+        findOne: async () => tileToChange,
+      },
     },
   });
   return { deps, game, player, playerTile, tileToChange };

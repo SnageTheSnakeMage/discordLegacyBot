@@ -6,11 +6,7 @@ const logic = require('../../../commands/Player Commands/gift.logic.js');
 const gift = require('../../../commands/Player Commands/gift.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
-  createFakeGame,
-  createFakePlayer,
-  createFakeClass,
-  createFakeTile,
+  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
 } = require('../../helpers/mockModels.js');
 
 const GIVER = '123';
@@ -23,14 +19,14 @@ function happyDeps(over = {}) {
   const game = over.game || createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE });
   const giverTile = over.giverTile || createFakeTile({ Tile_ID: 1, X_Position: 1, Y_Position: 1, Layer_ID: 1 });
   const receiverTile = over.receiverTile || createFakeTile({ Tile_ID: 2, X_Position: 2, Y_Position: 1, Layer_ID: 1 });
-  const deps = createActorDeps({
-    game,
-    tiles: { findByPk: async (id) => (id === 1 ? giverTile : receiverTile) },
+  const deps = createDeps({
     models: {
+      Games: { findByPk: async () => game },
       Players: {
         findOne: async ({ where }) => (where.Discord_ID === GIVER ? giver : where.Discord_ID === RECEIVER ? receiver : null),
       },
       Classes: { findByPk: async () => over.giverClass || createFakeClass({ Class_Name: 'Average' }) },
+      Tiles: { findByPk: async (id) => (id === 1 ? giverTile : receiverTile) },
     },
   });
   return { deps, giver, receiver, game };
