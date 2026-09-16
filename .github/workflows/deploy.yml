@@ -2,10 +2,11 @@
 # promotion to the live bot is a tag push, and the environment gate puts a
 # human between the tag and a running game.
 #
-# The deploy target itself is not configured yet (open question for the
-# maintainer - see README "Deploying"). Until DEPLOY_SSH_HOST is set as a
-# repository variable, this workflow publishes the image to GHCR by digest
-# and stops there; nothing touches the live bot.
+# The deploy job runs ON the host: a self-hosted Actions runner is registered
+# on the Mac mini, so there is no SSH, no key to leak and no inbound port.
+# Until DEPLOY_RUNNER_LABEL is set as a repository variable the job lands on
+# a hosted runner, prints the manual steps and stops there; nothing touches
+# the live bot.
 name: Deploy
 
 on:
@@ -45,29 +46,35 @@ jobs:
           echo "Published $DIGEST - deploy by THIS digest, never by tag."
 
   deploy:
-    # gated by the production environment (add a required reviewer there);
-    # no-ops with instructions until a deploy target is configured
+    # Gated by the production environment (add a required reviewer there), and
+    # run ON the Mac mini by its own registered runner - the job is already on
+    # the machine it deploys to, so it just runs docker.
+    #
+    # runs-on has to be decided before any step runs, so the switch is a
+    # repository variable rather than an `if`: set DEPLOY_RUNNER_LABEL to the
+    # runner's label (self-hosted) once the mini is registered. Unset, this
+    # lands on a hosted runner and prints the manual steps instead of hanging
+    # forever in a queue waiting for a runner that does not exist.
     if: github.event_name == 'push'
     needs: publish
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.DEPLOY_RUNNER_LABEL || 'ubuntu-latest' }}
     environment: production
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Backup, deploy by digest, verify, roll back on failure
         env:
-          DIGEST: ${{ needs.publish.outputs.digest }}
+          IMAGE_DIGEST: ${{ needs.publish.outputs.digest }}
+          RUNNER_LABEL: ${{ vars.DEPLOY_RUNNER_LABEL || '' }}
         run: |
-          if [ -z "${{ vars.DEPLOY_SSH_HOST || '' }}" ]; then
-            echo "No deploy target configured (repository variable DEPLOY_SSH_HOST is unset)."
-            echo "Image published as: $DIGEST"
-            echo "Manual promotion on the host:"
-            echo "  1. cp the sqlite file out of the legacy-db volume (BACKUP FIRST - fail the deploy if this fails)"
-            echo "  2. docker pull $DIGEST && docker compose up -d"
-            echo "  3. watch 'docker inspect --format {{.State.Health.Status}} discord-bot' until healthy"
-            echo "  4. if not healthy in 120s: docker compose down, restore previous digest, restore backup"
+          if [ -z "$RUNNER_LABEL" ]; then
+            echo "No host runner configured (repository variable DEPLOY_RUNNER_LABEL is unset)."
+            echo "Image published as: $IMAGE_DIGEST"
+            echo "Promote it on the host with:"
+            echo "  IMAGE_DIGEST=$IMAGE_DIGEST DeclutteredAttempt1/scripts/deploy.sh"
+            echo "which backs up, pulls, brings compose up, verifies health and rolls back."
             exit 0
           fi
-          echo "SSH deploy path not implemented until the maintainer confirms the host - see README."
-          exit 1
+          bash DeclutteredAttempt1/scripts/deploy.sh "$IMAGE_DIGEST"
 
   register-commands:
     # manual, rate-limited side effect - never part of a container boot
