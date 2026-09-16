@@ -233,6 +233,27 @@ const COMMANDS = {
           'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
         },
       },
+      'ap-time': {
+        description: 'set how often this game distributes AP, in minutes',
+        options: {
+          'minutes': { kind: 'integer', description: 'AP_INTERVAL_MIN, the gap between distributions', required: true, min: 1 },
+          'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
+        },
+      },
+      'ap-tick': {
+        description: 'run AP distributions right now, without waiting for the interval',
+        options: {
+          'times': { kind: 'integer', description: 'how many distributions to run, 1 to 20', required: true, min: 1, max: 20 },
+          'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
+        },
+      },
+      'set-chaos': {
+        description: 'set this game\'s current chaos event - view-chaos lists the names',
+        options: {
+          'event': { kind: 'string', description: 'the event name, exactly as view-chaos spells it', required: true },
+          'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
+        },
+      },
       'view-chaos': {
         description: 'list the chaos events set-chaos will accept, and the current one',
         options: {

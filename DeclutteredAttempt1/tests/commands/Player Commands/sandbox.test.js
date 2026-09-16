@@ -39,12 +39,12 @@ const input = (over = {}) => ({
 describe('sandbox.parse', () => {
   it('carries the subcommand and the options through', () => {
     expect(logic.parse({ subcommand: 'get-tile-id', x: 1, y: 2, layer: 3, game: 4 }, { discordId: PLAYER }))
-      .toEqual({ subcommand: 'get-tile-id', x: 1, y: 2, layer: 3, gameId: 4, column: null, value: null, discordId: PLAYER });
+      .toEqual({ subcommand: 'get-tile-id', x: 1, y: 2, layer: 3, gameId: 4, column: null, value: null, minutes: null, times: null, event: null, discordId: PLAYER });
   });
 
   it('nulls every absent option rather than leaving it undefined', () => {
     expect(logic.parse({ subcommand: 'view-chaos' }, { discordId: PLAYER }))
-      .toEqual({ subcommand: 'view-chaos', x: null, y: null, layer: null, gameId: null, column: null, value: null, discordId: PLAYER });
+      .toEqual({ subcommand: 'view-chaos', x: null, y: null, layer: null, gameId: null, column: null, value: null, minutes: null, times: null, event: null, discordId: PLAYER });
   });
 
   it('folds set-stat\'s stat and set-meta\'s field into one column name', () => {
@@ -272,11 +272,70 @@ describe('sandbox reset', () => {
   });
 });
 
+describe('sandbox ap-time', () => {
+  it('writes AP_INTERVAL_MIN and reports the old value', async () => {
+    const deps = happyDeps();
+    const result = await logic.run(input({ subcommand: 'ap-time', minutes: 5 }), deps);
+    expect(deps.models.Games.update).toHaveBeenCalledWith({ AP_INTERVAL_MIN: 5 }, { where: { Game_ID: 7 } });
+    expect(result).toMatchObject({ ok: true, kind: 'apTime', data: { before: 720, after: 5 } });
+  });
+});
+
+describe('sandbox set-chaos', () => {
+  it('sets an event the enum knows', async () => {
+    const deps = happyDeps();
+    const result = await logic.run(input({ subcommand: 'set-chaos', event: 'Leftovers' }), deps);
+    expect(deps.models.Games.update).toHaveBeenCalledWith({ CURR_CC_EVENT: 'Leftovers' }, { where: { Game_ID: 7 } });
+    expect(result).toMatchObject({ ok: true, kind: 'chaosSet', data: { before: 'Blockade', after: 'Leftovers' } });
+  });
+
+  it('refuses an event the enum does not know, and says where the list is', async () => {
+    const deps = happyDeps();
+    const result = await logic.run(input({ subcommand: 'set-chaos', event: 'leftovers' }), deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.INVALID_AMOUNT });
+    expect(deps.models.Games.update).not.toHaveBeenCalled();
+    // the names are case sensitive, which is the mistake worth naming
+    expect(logic.present(result).content).toContain('view-chaos');
+  });
+
+  it('accepts every name view-chaos lists, so the two cannot disagree', async () => {
+    for (const name of Object.keys(ChaosEvents)) {
+      const deps = happyDeps();
+      expect((await logic.run(input({ subcommand: 'set-chaos', event: name }), deps)).ok).toBe(true);
+    }
+  });
+});
+
+describe('sandbox ap-tick', () => {
+  it('returns a plan and distributes nothing itself', async () => {
+    // run() has no client, so the adapter does the distributing
+    const deps = happyDeps();
+    deps.utils = { ...deps.utils, distributeAP: jest.fn() };
+    const result = await logic.run(input({ subcommand: 'ap-tick', times: 3 }), deps);
+    expect(result).toMatchObject({ ok: true, kind: 'apTick', data: { gameId: 7, times: 3 } });
+    expect(deps.utils.distributeAP).not.toHaveBeenCalled();
+    expect(deps.models.Games.update).not.toHaveBeenCalled();
+  });
+
+  it('still needs the caller to be in the game', async () => {
+    const deps = happyDeps({ player: null });
+    expect((await logic.run(input({ subcommand: 'ap-tick', times: 1 }), deps)).reason).toBe(REJECTIONS.NOT_IN_GAME);
+  });
+
+  it('says that no poll was posted, so the silence is not a bug report', async () => {
+    const { content } = logic.present(await logic.run(input({ subcommand: 'ap-tick', times: 2 }), happyDeps()));
+    expect(content).toContain('Ran 2 AP distributions');
+    expect(content).toContain('No chaos poll');
+  });
+});
+
 describe('sandbox adapter', () => {
   it('registers as /sandbox with the three subcommands', () => {
     const json = sandbox.data.toJSON();
     expect(json.name).toBe('sandbox');
-    expect(json.options.map((o) => o.name)).toEqual(['get-tile-id', 'get-classes', 'reset', 'set-stat', 'set-meta', 'view-chaos']);
+    expect(json.options.map((o) => o.name)).toEqual([
+      'get-tile-id', 'get-classes', 'reset', 'set-stat', 'set-meta', 'ap-time', 'ap-tick', 'set-chaos', 'view-chaos',
+    ]);
     expect(json.options.every((o) => o.type === 1)).toBe(true);
     expect(typeof sandbox.execute).toBe('function');
   });

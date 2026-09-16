@@ -55,6 +55,9 @@ function parse(raw, actor) {
     // set-stat calls it stat, set-meta calls it field; one column name either way
     column: raw.stat ?? raw.field ?? null,
     value: raw.value ?? null,
+    minutes: raw.minutes ?? null,
+    times: raw.times ?? null,
+    event: raw.event ?? null,
     gameId: raw.game ?? null,
     discordId: actor.discordId,
   };
@@ -224,6 +227,41 @@ async function reset(input, deps, game, player, trace) {
   };
 }
 
+/** /sandbox ap-time - change how often this game distributes AP. */
+async function apTime(input, models, game) {
+  const before = game.AP_INTERVAL_MIN;
+  await models.Games.update({ AP_INTERVAL_MIN: input.minutes }, { where: { Game_ID: game.Game_ID } });
+  return { ok: true, kind: 'apTime', data: { gameId: game.Game_ID, before, after: input.minutes } };
+}
+
+/** /sandbox set-chaos - set CURR_CC_EVENT to one of the enum's events. */
+async function setChaos(input, models, game) {
+  const names = Object.keys(ChaosEvents);
+  if (!names.includes(input.event)) {
+    return {
+      ok: false,
+      reason: REJECTIONS.INVALID_AMOUNT,
+      data: { message: `"${input.event}" is not a chaos event. Run /sandbox view-chaos for the list - the names are case and punctuation sensitive.` },
+    };
+  }
+  const before = game.CURR_CC_EVENT;
+  await models.Games.update({ CURR_CC_EVENT: input.event }, { where: { Game_ID: game.Game_ID } });
+  return { ok: true, kind: 'chaosSet', data: { gameId: game.Game_ID, before, after: input.event } };
+}
+
+/**
+ * /sandbox ap-tick - the plan only.
+ *
+ * run() deliberately does NOT distribute: utils.distributeAP needs a Discord
+ * client to fetch the dead chat channel, and a logic file never gets one -
+ * override.logic.js records an out-of-scope `client` as a bug that was
+ * removed. So this validates and hands the adapter a count; sandbox.js, which
+ * has interaction.client, runs the distributions.
+ */
+function apTick(input, game) {
+  return { ok: true, kind: 'apTick', data: { gameId: game.Game_ID, times: input.times } };
+}
+
 async function run(input, deps = defaultDeps) {
   const { models } = deps;
   const trace = stepLogger('sandbox', deps);
@@ -242,14 +280,21 @@ async function run(input, deps = defaultDeps) {
       return viewChaos(game);
     case 'reset':
     case 'set-stat':
-    case 'set-meta': {
+    case 'set-meta':
+    case 'ap-time':
+    case 'ap-tick':
+    case 'set-chaos': {
       const membership = await requirePlayer(input, models, game);
       if (!membership.ok) return membership;
       const { player } = membership;
-      if (input.subcommand === 'reset') return reset(input, deps, game, player, trace);
-      return input.subcommand === 'set-stat'
-        ? setColumn(input, models, game, player, SETTABLE_STATS, 'stat', trace)
-        : setColumn(input, models, game, player, SETTABLE_META, 'field', trace);
+      switch (input.subcommand) {
+        case 'reset': return reset(input, deps, game, player, trace);
+        case 'set-stat': return setColumn(input, models, game, player, SETTABLE_STATS, 'stat', trace);
+        case 'set-meta': return setColumn(input, models, game, player, SETTABLE_META, 'field', trace);
+        case 'ap-time': return apTime(input, models, game);
+        case 'set-chaos': return setChaos(input, models, game);
+        default: return apTick(input, game);
+      }
     }
     default:
       // Discord will not send a subcommand that is not registered, so this is
@@ -283,6 +328,14 @@ function present(result) {
           `Rolled **${d.className}**, spawned on Tile_ID ${d.tileId}${d.tileId2 != null ? ` and ${d.tileId2}` : ''}.`,
           'Your icon was left as it is - a reset has no upload to take a new one from.',
         ].join('\n'),
+      };
+    case 'apTime':
+      return { content: `Game ${d.gameId}: AP_INTERVAL_MIN ${d.before} -> **${d.after}** minutes. The running AP check picks this up on its next pass.` };
+    case 'chaosSet':
+      return { content: `Game ${d.gameId}: chaos event ${d.before ?? 'none'} -> **${d.after}**` };
+    case 'apTick':
+      return {
+        content: `Ran ${d.times} AP distribution${d.times === 1 ? '' : 's'} on game ${d.gameId}. No chaos poll was posted - ap-tick skips the council round trip so dead chat stays quiet.`,
       };
     case 'chaosList':
       return {
