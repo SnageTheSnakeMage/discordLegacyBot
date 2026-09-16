@@ -209,3 +209,92 @@ name.
 - `events/interactionCreate.js` returns early on anything that is not a chat
   input command, so buttons, select menus and autocomplete are dropped today.
   Any component UI needs that handler extended or a per-message collector.
+
+## THINGS AGENT #2 FOUND HELPFUL
+
+Notes from the session that added the null guards, the content cap, the
+`/listgames` gamestate filter, `placePlayerOnBoard` and the Twin
+consolidation. Same deal as above: written down rather than rediscovered.
+
+### "There was an error while executing this command!" is a symptom
+
+That string is `events/interactionCreate.js` catching anything that escapes.
+It is almost never a bug in the command's own logic — it is usually the
+Discord boundary rejecting a reply, or a null row read one line too early.
+Four causes found in one session:
+
+- **Empty content.** Discord will not send `{ content: '' }`, so a `present()`
+  that builds a string in a loop fails when the loop body never runs. The fix
+  is words, not a guard: see `NOTICES` in `commands/_messages.js`.
+- **Content over 2000 characters.** `toDiscord` caps it now, so this one is
+  handled centrally — but only for `content`.
+- **An attachment path that does not exist.** `AttachmentBuilder` does not read
+  the file until send time, so a missing icon fails as an unhandled error
+  rather than a missing image. Never build one by hand; see the icon path
+  section above.
+- **A null row read straight into a property access.** The big one, below.
+
+When a command "errors", reach for the reply shape before the logic.
+
+### A fixture that cannot occur hides the bug it documents
+
+Three separate bugs this session were invisible because a test built a state
+the game never produces, and every one of those tests was passing:
+
+- a dead player with a non-null `Tile_ID`, which hid `/resurrect` never
+  putting anyone back on the board;
+- a `className: 'Twin'` with `Health_Points2` but no `Tile_ID2`, which hid the
+  body swap and reads as a player who already lost a body;
+- an icon attached at a path nothing writes.
+
+**Build fake rows from what the writers actually write.** If you are unsure,
+find the write and copy its shape. `tests/integration/helpers/seed.js` and
+`assertBoardConsistent` exist for exactly this; a real schema catches what a
+hand-built object will not.
+
+### `playerDeathLogic` is guard clauses that `return`
+
+Before adding a branch there, check it can be reached. The chain returns
+early several times, and the guards are not consistent with each other — the
+first excludes Twins and null killers, weird death case #0 immediately below
+excludes neither. Case #0 therefore swallows every Twin revive where body 1
+went down, and dereferences `killer.Kills` on an environmental death
+(`damagePlayer(null, ...)` from a fire tile) whenever the victim has
+`Pharoh_HP > 0`. Both are still true; see the note in the Twin block.
+
+A branch written without checking reachability is dead code that reads as
+behaviour.
+
+### One row, many writes: beware the stale object
+
+`playerDeathLogic` receives `victim` once and then writes to it repeatedly.
+Sequential `if`s all test the ORIGINAL values, so an earlier branch's write is
+invisible to a later one — a revive was being undone by a clear branch below
+it that still saw the pre-revive hp. Use `else if` when exactly one outcome
+should happen, and re-read the row when a later decision depends on an earlier
+write. `damagePlayer` already re-reads for this reason, and `/sandbox ap-tick`
+re-reads the game row each pass.
+
+### Give a DB helper an injectable `db`
+
+A `utils` helper that writes is normally unreachable from a unit test, because
+`utils` uses its own module-level `models` while a logic file is handed
+`deps.models`. The usual answer is to stub the helper, which means the thing
+you extracted to enforce an invariant is never exercised. `placePlayerOnBoard`
+takes `{ db = models }` instead, and the logic file passes `deps.models` — one
+definition, still tested. Worth doing for anything that must not drift.
+
+### `test.failing` is a question, not a broken test
+
+`utils.deathLogic.test.js` carried one for the Twin body swap, flagged on PR
+#92 and waiting on a game-rule decision. It is a good pattern: the suite stays
+green, the finding does not get lost, and when the rule is decided the test
+becomes a normal `it`. If you find one, the answer is a decision from the
+maintainer, not a code change.
+
+### `main` moves under you
+
+Four merges landed during this session. Before opening a PR, re-fetch; before
+claiming CI is green, check the run for the head sha you actually pushed
+rather than the newest run in the list, which may be someone else's push to
+`main`.
