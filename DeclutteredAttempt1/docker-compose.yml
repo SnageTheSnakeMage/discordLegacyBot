@@ -1,6 +1,17 @@
 services:
   bot:
-    build: .
+    # Deploys go by immutable digest, never by tag and never by rebuilding on
+    # the host: `build: .` here would compile whatever source happens to be in
+    # the working directory and silently ignore the digest the Deploy workflow
+    # published, which is the whole guarantee the README describes.
+    #
+    #   IMAGE_DIGEST=ghcr.io/<owner>/<repo>@sha256:<digest> docker compose up -d
+    #
+    # The :? makes an unset digest a clear error from compose rather than a
+    # container that starts on the wrong image. To build locally for
+    # development instead, uncomment build: and drop image:.
+    image: ${IMAGE_DIGEST:?set IMAGE_DIGEST to the ghcr digest to deploy}
+    # build: .
     container_name: discord-bot
     env_file: .env
     environment:

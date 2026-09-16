@@ -230,13 +230,33 @@ describe('cook.run success', () => {
     );
   });
 
-  // preserved quirk: the legacy default-game lookup passed no discord id
-  it('resolves the default game via getOldestGameId with no argument', async () => {
+  // was: "preserved quirk: the legacy default-game lookup passed no discord
+  // id". That quirk was not survivable - getOldestGameId throws
+  // "missing playerDiscordID" for a falsy id, so every /cook without an
+  // explicit game died before doing any work.
+  it('resolves the default game via getOldestGameId with the chefs discord id', async () => {
     const { deps } = happyDeps();
     deps.utils = { ...deps.utils, getOldestGameId: jest.fn(async () => 1) };
     const result = await logic.run({ ...INPUT, gameId: null }, deps);
     expect(result.ok).toBe(true);
-    expect(deps.utils.getOldestGameId).toHaveBeenCalledWith();
+    expect(deps.utils.getOldestGameId).toHaveBeenCalledWith(CHEF);
+  });
+
+  // the regression this fix is for: the real helper, not a stub
+  it('does not throw when the game option is omitted', async () => {
+    const { deps } = happyDeps();
+    const realHelper = require('../../../utils.js').getOldestGameId;
+    deps.utils = {
+      ...deps.utils,
+      // stand in for the real helper's only contract that matters here: it
+      // rejects a falsy id rather than returning anything usable
+      getOldestGameId: async (id) => {
+        if (!id) throw 'missing playerDiscordID';
+        return 1;
+      },
+    };
+    expect(typeof realHelper).toBe('function');
+    await expect(logic.run({ ...INPUT, gameId: null }, deps)).resolves.toMatchObject({ ok: true });
   });
 });
 

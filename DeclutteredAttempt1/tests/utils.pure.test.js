@@ -114,3 +114,44 @@ describe('randomness helpers', () => {
     }
   });
 });
+
+describe('playerIconName', () => {
+  it('is the one definition of the suffixed name the renderer reads', () => {
+    expect(utils.playerIconName('123', 4)).toBe('123_4');
+  });
+});
+
+describe('resolveTileTexturePath', () => {
+  it('returns the texture when it is on disk', () => {
+    expect(utils.resolveTileTexturePath('environment', 'Blank1'))
+      .toBe('./tiles/environment/Blank1.png');
+  });
+
+  it('falls back to the layer default for a name that is not on disk', () => {
+    expect(utils.resolveTileTexturePath('environment', 'NotARealTileType'))
+      .toBe('./tiles/environment/default.png');
+  });
+
+  // Deliberately NOT loadTileTexture's transparent-for-null. An invisible
+  // texture looks exactly like a correctly transparent one, so resolving null
+  // to transparent.png would render a misspelt or missing name as nothing at
+  // all and make it look intentional. default.png is visible, so the mistake
+  // gets reported instead of shipped.
+  it('falls back to the layer default for a null name, not to transparent', () => {
+    const resolved = utils.resolveTileTexturePath('environment', null);
+    expect(resolved).toBe('./tiles/environment/default.png');
+    expect(resolved).not.toContain('transparent');
+  });
+
+  it('treats undefined the same as null', () => {
+    expect(utils.resolveTileTexturePath('environment', undefined))
+      .toBe('./tiles/environment/default.png');
+  });
+
+  it('returns null when even the layer default is missing', () => {
+    // a layer directory that does not exist has no default.png either, which
+    // is a broken checkout rather than a missing texture - the caller is
+    // expected to say so rather than attach a path that cannot be uploaded
+    expect(utils.resolveTileTexturePath('no-such-layer', 'Blank1')).toBeNull();
+  });
+});

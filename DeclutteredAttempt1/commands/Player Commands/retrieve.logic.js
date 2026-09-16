@@ -53,6 +53,9 @@ async function run(input, deps = defaultDeps) {
   if (!player) return { ok: false, reason: REJECTIONS.NOT_IN_GAME };
 
   const playerTile = await models.Tiles.findByPk(player.Tile_ID);
+  // Tile_ID is null for a dead player (playerDeathLogic writes it), so this
+  // read returns null and every use below would be a TypeError
+  if (!playerTile) return { ok: false, reason: REJECTIONS.NOT_ON_BOARD };
 
   // hard false: the old code never consulted the player's class here, so a
   // Clockwatcher is blocked during a timestop like everyone else

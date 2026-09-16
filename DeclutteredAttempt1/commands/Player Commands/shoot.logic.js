@@ -130,6 +130,10 @@ async function run(input, deps = defaultDeps) {
     const px = attackPath[i][0];
     const py = attackPath[i][1];
     const tile = await models.Tiles.findOne({ where: { X_Position: px, Y_Position: py, Layer_ID: shootersTile.Layer_ID } });
+    // A coordinate on the line with no tile row behind it - a hole in the
+    // board. Skipping it keeps the shot travelling; reading Tile_Type off null
+    // would end the whole command in the central handler instead.
+    if (!tile) continue;
     // an intact wall takes damage
     if (tile.Tile_Type == 'Wall') {
       // shooting out of a bush misses 50% of the time unless a Hunter

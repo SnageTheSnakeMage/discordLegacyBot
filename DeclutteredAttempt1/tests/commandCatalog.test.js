@@ -180,7 +180,14 @@ describe('optionSpec', () => {
     expect(optionSpec('call-db')).toEqual({ model: 'string' });
   });
 
+  // reload-commands is the only option-less command left in the catalogue, so
+  // this picks it by that property rather than by name - if it ever gains an
+  // option, the assertion below says so instead of failing on a stale example
   it('is empty for a command that declares no options', () => {
-    expect(optionSpec('listgames')).toEqual({});
+    const optionless = Object.entries(COMMANDS)
+      .filter(([, entry]) => !entry.options && !entry.subcommands)
+      .map(([name]) => name);
+    expect(optionless.length).toBeGreaterThan(0);
+    for (const name of optionless) expect(optionSpec(name)).toEqual({});
   });
 });

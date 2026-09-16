@@ -75,20 +75,30 @@ async function run(input, deps = defaultDeps) {
 
   const playerClass = await models.Classes.findByPk(player.Class_ID);
   const playerTile = await models.Tiles.findByPk(player.Tile_ID);
+  // playerDeathLogic writes {Tile_ID: null, Dead: true}, so a dead player has
+  // no tile. That is not a reason to refuse the command: their final stats -
+  // class, HP, kills, what they died with - are exactly what someone wants to
+  // look up afterwards. Only the fields that describe a position on the board
+  // are dropped, and present() says why rather than silently omitting them.
+  const onBoard = playerTile != null;
 
   // db Layer_ID -> 1-based "common" layer number the players know
   const layerIds = (await models.Layers.findAll({ where: { Game_ID: gameId }, attributes: ['Layer_ID'] }))
     .map((l) => l.Layer_ID);
-  const commonLayerId = `${layerIds.indexOf(playerTile.Layer_ID) + 1}`;
+  const commonLayerId = onBoard ? `${layerIds.indexOf(playerTile.Layer_ID) + 1}` : null;
 
   let secondBody = null;
   if (playerClass.Class_Name === 'Twin') {
     const playerTile2 = await models.Tiles.findByPk(player.Tile_ID2);
-    secondBody = {
-      commonLayerId: `${layerIds.indexOf(playerTile2.Layer_ID) + 1}`,
-      xPosition: playerTile2.X_Position,
-      yPosition: playerTile2.Y_Position,
-    };
+    // a Twin can lose one body and keep the other, so this is independent of
+    // whether the first body is still on the board
+    if (playerTile2 != null) {
+      secondBody = {
+        commonLayerId: `${layerIds.indexOf(playerTile2.Layer_ID) + 1}`,
+        xPosition: playerTile2.X_Position,
+        yPosition: playerTile2.Y_Position,
+      };
+    }
   }
 
   return {
@@ -111,9 +121,11 @@ async function run(input, deps = defaultDeps) {
       maxDamage: player.MAX_DAMAGE,
       range: player.Range_,
       maxRange: player.MAX_RANGE,
-      tileType: playerTile.Tile_Type,
-      xPosition: playerTile.X_Position,
-      yPosition: playerTile.Y_Position,
+      onBoard,
+      dead: Boolean(player.Dead),
+      tileType: onBoard ? playerTile.Tile_Type : null,
+      xPosition: onBoard ? playerTile.X_Position : null,
+      yPosition: onBoard ? playerTile.Y_Position : null,
       commonLayerId,
       kills: player.Kills,
       pharohHp: player.Pharoh_HP,
@@ -122,6 +134,15 @@ async function run(input, deps = defaultDeps) {
       discordId: player.Discord_ID,
       secondBody,
       timestamp: new Date(deps.now()).toISOString(),
+      // Resolved here, not in present(): these become Discord attachments, and
+      // AttachmentBuilder does not read the file until send time, so a path
+      // that is not on disk fails as an unhandled error rather than a missing
+      // image. resolveTileTexturePath falls back to the layer default, and
+      // returns null only if that is missing too.
+      iconPath: deps.utils.resolveTileTexturePath('players', deps.utils.playerIconName(player.Discord_ID, player.Game_ID)),
+      tileThumbnailPath: onBoard
+        ? deps.utils.resolveTileTexturePath('environment', playerTile.Tile_Type)
+        : null,
     },
   };
 }
@@ -140,11 +161,19 @@ function present(result) {
     { name: 'Current/Max Damage', value: `${(d.damage * (d.dmgBuff + 1)).toString()}/${d.maxDamage.toString()}` },
     { name: 'Current/Max Range', value: `${d.range.toString()}/${d.maxRange.toString()}` },
     { name: '\u200B', value: '\u200B' },
-    { name: 'Current Tile', value: d.tileType, inline: true },
-    { name: 'Kills', value: d.kills.toString(), inline: true },
   ];
 
-  if (d.className !== 'Spy' && d.className !== 'Twin') {
+  // A player off the board has no tile to describe. Say so once, in place of
+  // the position fields, rather than dropping them and leaving the reader to
+  // wonder whether the command half-worked.
+  if (d.onBoard) {
+    fields.push({ name: 'Current Tile', value: d.tileType, inline: true });
+  } else {
+    fields.push({ name: 'Current Tile', value: d.dead ? 'Dead - off the board' : 'Not on the board', inline: true });
+  }
+  fields.push({ name: 'Kills', value: d.kills.toString(), inline: true });
+
+  if (d.onBoard && d.className !== 'Spy' && d.className !== 'Twin') {
     fields.push(
       { name: 'X Position', value: d.xPosition.toString(), inline: true },
       { name: 'Y Position', value: d.yPosition.toString(), inline: true },
@@ -154,12 +183,18 @@ function present(result) {
 
   switch (d.className) {
     case 'Twin':
-      fields.push(
-        { name: '\u200B', value: '\u200B' },
-        { name: "Second Body's Layer", value: d.secondBody.commonLayerId, inline: true },
-        { name: "Second Body's X Position", value: d.secondBody.xPosition.toString(), inline: true },
-        { name: "Second Body's Y Position", value: d.secondBody.yPosition.toString(), inline: true },
-      );
+      // a Twin can lose one body and keep the other, so the second body is
+      // reported independently of whether the first is still on the board
+      fields.push({ name: '\u200B', value: '\u200B' });
+      if (d.secondBody) {
+        fields.push(
+          { name: "Second Body's Layer", value: d.secondBody.commonLayerId, inline: true },
+          { name: "Second Body's X Position", value: d.secondBody.xPosition.toString(), inline: true },
+          { name: "Second Body's Y Position", value: d.secondBody.yPosition.toString(), inline: true },
+        );
+      } else {
+        fields.push({ name: "Second Body", value: 'Off the board', inline: true });
+      }
       break;
     case 'Pharoh':
       fields.push({ name: 'Pharoh HP', value: d.pharohHp.toString(), inline: true });
@@ -193,14 +228,17 @@ function present(result) {
     footer: { text: 'Game ID: ' + d.gameId },
   };
 
-  return {
-    embeds: [embed],
-    // legacy attached the icon first, then the thumbnail
-    files: [
-      { path: `tiles/players/${d.discordId}.png`, name: 'icon.png' },
-      { path: `tiles/environment/${d.tileType}.png`, name: 'tileThumbnail.png' },
-    ],
-  };
+  // Only attach what actually exists, and only reference an attachment the
+  // embed will have. A null path means even the layer default is missing, so
+  // the embed drops that image rather than handing Discord a dead path.
+  const files = [];
+  if (d.iconPath) files.push({ path: d.iconPath, name: 'icon.png' });
+  else delete embed.image;
+  if (d.tileThumbnailPath) files.push({ path: d.tileThumbnailPath, name: 'tileThumbnail.png' });
+  else delete embed.thumbnail;
+
+  // legacy attached the icon first, then the thumbnail
+  return { embeds: [embed], files };
 }
 
 module.exports = { parse, run, present };

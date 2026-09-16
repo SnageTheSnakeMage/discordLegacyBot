@@ -31,10 +31,11 @@ Commands are split into a thin adapter and a pure logic file, e.g.
   `interaction.client` — belongs here, not in the logic file.
 
 Every longer-form document lives in `Prompts & Guidelines/`: `TESTING.md`
-describes this split in full, `QUIRKS.md` records known broken and surprising
-behaviour that tests deliberately pin, `CI_CD_PROMPT.md` covers the pipeline
-and the container build, and `BOARDS.md` and `CHANGING_CLASSES.md` are the
-gameplay references.
+describes this split in full, `CI_CD_PROMPT.md` covers the pipeline and the
+container build, and `BOARDS.md` and `CHANGING_CLASSES.md` are the gameplay
+references. `QUIRKS.md` is **no longer in use** — it is kept for history, much
+of it is fixed, and some of it was wrong when written; check the code rather
+than trusting an entry there.
 
 Unit tests never touch the database. `utils.models.*` is stubbed with
 `jest.spyOn`; only the integration project seeds a real schema. If a unit test
@@ -75,7 +76,9 @@ time to learn, so it is written down rather than rediscovered.
   the old output instead of retyping it.
 - **Split a function without changing it.** `spawnPlayer` came out of
   `registerPlayer` carrying its quirks forward verbatim, including the icon
-  path bug below. Fixing behaviour inside a refactor hides both changes.
+  path bug. Fixing behaviour inside a refactor hides both changes. (That bug
+  was then fixed on its own, as its own commit — see the icon path section
+  below. That is the order to do it in, not a reason to preserve it again.)
 
 ### Traps in this codebase
 
@@ -96,13 +99,40 @@ time to learn, so it is written down rather than rediscovered.
   missing, so a player with no icon file silently renders as the default
   instead of erroring.
 
-### Known bug, not yet fixed
+### The player icon path — fixed, and the one place still out of step
 
-`registerPlayer` writes the player icon to `tiles/players/<Discord_ID>.png` on
-its non-Twin branch, but the renderer reads
-`tiles/players/<Discord_ID>_<gameId>.png` (`utils.js:726`). Only the Twin
-branch writes the path that is read, so **every non-Twin player renders as
-`default.png`**.
+`registerPlayer` used to write `tiles/players/<Discord_ID>.png` on its non-Twin
+branch while the renderer read `tiles/players/<Discord_ID>_<gameId>.png`, so
+every non-Twin player rendered as `default.png`. **This is fixed**:
+registration now always writes `<Discord_ID>_<gameId>.png`, matching the
+renderer. Do not "preserve" it in a refactor — it is no longer the behaviour.
+
+`<Discord_ID>_<gameId>.png` is the one true player-icon path, and nothing
+spells it by hand any more: **`utils.playerIconName(discordId, gameId)`** is
+the single definition, used by the writer (`registerPlayer`) and by both
+readers.
+
+Both readers now survive a missing file, by different routes:
+
+- the renderer asks `loadTileTexture`, which **falls back to `default.png`**,
+  so a missing icon is cosmetic;
+- `stats.logic.js` goes through **`utils.resolveTileTexturePath(layer, name)`**
+  — `loadTileTexture` in path form, same fallback. It used to attach the old
+  unsuffixed path directly, and since `AttachmentBuilder` does not read the
+  file until send time, a missing icon took `/stats` into the central error
+  handler.
+
+**Never build an attachment path by hand.** A path that does not exist fails
+at send time as an unhandled error, not as a missing image, so the player is
+told "There was an error while executing this command!" for a cosmetic
+problem. `resolveTileTexturePath` returns `null` only when even the layer
+default is missing, and the caller is expected to drop the image rather than
+name an attachment it did not attach.
+
+Note it does **not** copy `loadTileTexture`'s transparent-for-null behaviour:
+a null name resolves to `default.png`, because an invisible texture is
+indistinguishable from a correctly transparent one and would hide a misspelt
+name.
 
 ### Discord limits worth knowing before designing a command
 

@@ -39,7 +39,7 @@
  * this file, by design.
  */
 const { REJECTIONS } = require('../../enums.js');
-const { messageFor } = require('../_messages.js');
+const { messageFor, MAX_CONTENT } = require('../_messages.js');
 const defaultDeps = require('../_deps.js');
 
 /** the five values of the `model` option's choice list, verbatim */
@@ -52,8 +52,6 @@ const SUBCOMMANDS = Object.freeze({
   UPDATE_PLAYER: 'update-player',
 });
 
-/** Discord's hard limit on message content; present() stays under it. */
-const MAX_CONTENT = 2000;
 
 function parse(raw, actor) {
   return {
