@@ -1,5 +1,4 @@
 # AI DISCLOSURE 
--
 I know that the culture around LLM assisted coding is controversial and that a big sticking point I agree with is that it should be a choice of the consumer, due to many of my friends caring deeply about this and myself caring about being transparent and integral as a person the following text summarizes how I used AI(mainly Claude) to develop this discord bot so that they can come to their own conclusions, and just due to the fact that my haphazard way of development does not make it easy to tell just what I did my hand and what came out of the trillion parameter statistical model known as Claude Code.
 
 The development process of this discord bot started in November 2020, through a tool I bought and downloaded off of steam known as '[Discord Bot Studio](https://store.steampowered.com/app/1118380/Bot_Studio_for_Discord/)' after running into the frustration inducing sequence of attempting to port in proper database protocols into it through flowcharts I gave up on the tool and decided to just code it from a lower level for an easier development experience and more control.
