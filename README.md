@@ -101,6 +101,11 @@ is pinned to a commit SHA.
 
 ### Deploying / rolling back (manual until a deploy target is configured)
 
+The `docker` commands below are the same everywhere. **Everything about setting
+the host up is Linux-specific** — users, groups, the daemon, autostart — and
+none of it ports to macOS. See [Host setup](#host-setup) before following any
+guide that says `adduser`.
+
 On the host:
 
 ```bash
@@ -114,8 +119,16 @@ export IMAGE_DIGEST=ghcr.io/<owner>/<repo>@sha256:<digest>
 docker pull "$IMAGE_DIGEST"
 docker compose up -d
 
-# 3. verify - the healthcheck reflects the Discord connection, not the process
-watch docker inspect --format '{{.State.Health.Status}}' discord-bot
+# 3. verify - the healthcheck reflects the Discord connection, not the process.
+#    `watch` is GNU and is NOT installed on macOS, so poll instead. Bounded at
+#    ~2 minutes: an unbounded loop spins forever on a container that never
+#    becomes healthy, or was never created at all
+for _ in $(seq 24); do
+  status=$(docker inspect --format '{{.State.Health.Status}}' discord-bot 2>&1) || status="no such container"
+  [ "$status" = healthy ] && break
+  echo "$status"; sleep 5
+done
+[ "$status" = healthy ] || echo "NOT healthy after 2 minutes - roll back"
 
 # 4. roll back if unhealthy after ~2 minutes
 docker compose down
@@ -130,6 +143,77 @@ Run the Deploy workflow manually with "register commands" checked when a
 command's definition changes. There is no environment-variable shortcut: the
 workflow, or `node scripts/register-commands.js` with `DISCORD_TOKEN`,
 `CLIENT_ID` and `GUILD_ID` set, is the whole of it.
+
+### Host setup
+
+The current host is a **Mac mini**. Most deployment writing on the internet -
+and most of what an assistant will hand you - assumes a Linux server, so the
+differences are written down here rather than rediscovered.
+
+#### Linux
+
+The usual shape: a dedicated unprivileged user in the `docker` group, because
+`dockerd` is a system daemon whose socket is group-readable.
+
+```bash
+sudo adduser --disabled-password --gecos "" deploy
+sudo usermod -aG docker deploy
+```
+
+Being in the `docker` group is root-equivalent, which is why that user should
+do nothing else.
+
+#### macOS (the Mac mini)
+
+**None of the above works, and the design does not port either.** Expect:
+
+| What you'd run on Linux | On macOS |
+|---|---|
+| `adduser`, `usermod` | do not exist - macOS uses `sysadminctl` / `dscl` |
+| `/home/deploy` | `/home` is an **autofs mount point**; `mkdir` there fails with `Operation not supported`. Home directories live in `/Users` |
+| `chown user:group` | BSD `chown` - different flags and error wording |
+| the `docker` group | **does not exist** |
+| `watch` | not installed |
+
+The important one is the last row but one. There is no system Docker daemon on
+macOS: Docker Desktop, Colima and OrbStack each run a Linux VM **under a user's
+session**, with a per-user socket. A separate `deploy` user would SSH in and
+find no Docker at all.
+
+**So deploy as the user that runs the VM.** Add the workflow's public key to
+that user's own `~/.ssh/authorized_keys`, and restrict what the key may do:
+
+```
+restrict,pty,command="/Users/<you>/deploy.sh" ssh-ed25519 AAAA... github-actions-deploy
+```
+
+Enable SSH under System Settings → General → Sharing → **Remote Login**, and
+set `DEPLOY_SSH_USER` to your short name (`whoami`).
+
+##### Keeping it actually always-on
+
+A Mac mini will happily sleep through the night and drop the gateway
+connection. Three settings, none optional for a permanent host:
+
+```bash
+sudo pmset -a sleep 0 disablesleep 1   # never sleep
+sudo pmset -a autorestart 1            # come back after a power cut
+pmset -g                               # check it took
+```
+
+and **Colima instead of Docker Desktop**, because Docker Desktop needs a
+logged-in GUI session - after an unattended reboot there is no Docker until
+someone signs in:
+
+```bash
+brew install colima docker docker-compose
+colima start
+brew services start colima   # start at boot; confirm with `brew services list`
+```
+
+If you stay on Docker Desktop instead, enable automatic login *and* Docker
+Desktop's "Start Docker Desktop when you sign in", or a reboot leaves the bot
+down until you are physically there.
 
 ### Secrets
 
