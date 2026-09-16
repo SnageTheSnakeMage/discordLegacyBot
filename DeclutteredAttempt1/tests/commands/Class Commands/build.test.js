@@ -6,7 +6,12 @@ const logic = require('../../../commands/Class Commands/build.logic.js');
 const build = require('../../../commands/Class Commands/build.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
+  createActorDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeClass,
+  createFakeTile,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const BUILDER = '123';
@@ -22,15 +27,15 @@ function happyDeps(over = {}) {
   // targetTile: null means "no tile at those coordinates"
   const targetTile = 'targetTile' in over ? over.targetTile
     : createFakeTile({ Tile_ID: 2, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1' });
-  const deps = createDeps({
+  const deps = createActorDeps({
+    game,
+    playerClass,
+    tiles: {
+      findByPk: async () => playerTile,
+      findOne: async () => targetTile,
+    },
     models: {
-      Games: { findByPk: async () => game },
       Players: { findOne: async ({ where }) => (where.Discord_ID === BUILDER ? player : null) },
-      Classes: { findByPk: async () => playerClass },
-      Tiles: {
-        findByPk: async () => playerTile,
-        findOne: async () => targetTile,
-      },
     },
   });
   return { deps, player, game, targetTile };
@@ -39,13 +44,6 @@ function happyDeps(over = {}) {
 // chest build at (2,1), one step east of the builder
 const INPUT = { wall: false, x: 2, y: 1, gameId: 1, discordId: BUILDER };
 
-/** no writes of any kind happened */
-function expectNoWrites(deps) {
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-  expect(deps.models.Players.create).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.create).not.toHaveBeenCalled();
-}
 
 describe('build.parse', () => {
   it('maps raw options and applies defaults', () => {

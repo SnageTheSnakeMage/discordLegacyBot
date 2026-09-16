@@ -7,7 +7,7 @@
 const logic = require('../../../commands/Player Commands/register.logic.js');
 const register = require('../../../commands/Player Commands/register.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
-const { createDeps, createFakeGame, createFakePlayer } = require('../../helpers/mockModels.js');
+const { createDeps, createFakeGame, createFakePlayer, expectNoWrites } = require('../../helpers/mockModels.js');
 
 const ACTOR = '123';
 const PNG_ICON = { contentType: 'image/png', width: 80, height: 80, url: 'https://cdn.example/icon.png' };
@@ -31,13 +31,6 @@ function happyDeps(over = {}) {
   return { deps, game };
 }
 
-/** no Players row may be created or destroyed by a rejected registration */
-function expectNoWrites(deps) {
-  expect(deps.models.Players.create).not.toHaveBeenCalled();
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Players.destroy).not.toHaveBeenCalled();
-  expect(deps.utils.registerPlayer).not.toHaveBeenCalled();
-}
 
 const INPUT = { gameId: 1, icon: PNG_ICON, discordId: ACTOR };
 

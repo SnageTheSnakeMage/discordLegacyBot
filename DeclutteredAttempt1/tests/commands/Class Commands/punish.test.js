@@ -12,8 +12,12 @@ const logic = require('../../../commands/Class Commands/punish.logic.js');
 const punish = require('../../../commands/Class Commands/punish.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeTile,
-  createFakeClass
+  createActorDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeTile,
+  createFakeClass,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const ATTACKER = '123';
@@ -44,15 +48,15 @@ function happyDeps(over = {}) {
       Tile_ID: 42, X_Position: where.X_Position, Y_Position: where.Y_Position, Layer_ID: where.Layer_ID,
     });
 
-  const deps = createDeps({
+  const deps = createActorDeps({
+    game,
+    tiles: {
+      findByPk: async () => attackersTile,
+      findOne: findTile,
+    },
     models: {
-      Games: { findByPk: async () => game },
       Players: {
         findOne: async ({ where }) => (where.Discord_ID === ATTACKER ? player : where.Discord_ID === TARGET ? targetPlayer : null),
-      },
-      Tiles: {
-        findByPk: async () => attackersTile,
-        findOne: findTile,
       },
     },
   });
@@ -61,12 +65,6 @@ function happyDeps(over = {}) {
 
 const INPUT = { x: 3, y: 1, targetDiscordId: TARGET, gameId: 1, discordId: ATTACKER };
 
-function expectNoWrites(deps) {
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-  expect(deps.models.Players.create).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.create).not.toHaveBeenCalled();
-}
 
 describe('punish.parse', () => {
   it('maps raw options and applies defaults', () => {

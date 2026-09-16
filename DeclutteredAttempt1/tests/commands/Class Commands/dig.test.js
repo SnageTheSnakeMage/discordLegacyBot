@@ -7,7 +7,12 @@ const logic = require('../../../commands/Class Commands/dig.logic.js');
 const dig = require('../../../commands/Class Commands/dig.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
+  createActorDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeClass,
+  createFakeTile,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const DIGGER = '123';
@@ -29,15 +34,13 @@ function happyDeps(over = {}) {
   const tileToChange = 'tileToChange' in over ? over.tileToChange : createFakeTile({
     Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1',
   });
-  const deps = createDeps({
-    models: {
-      Games: { findByPk: async () => game },
-      Players: { findOne: async () => player },
-      Classes: { findByPk: async () => playerClass },
-      Tiles: {
-        findByPk: async () => playerTile,
-        findOne: async () => tileToChange,
-      },
+  const deps = createActorDeps({
+    game,
+    player,
+    playerClass,
+    tiles: {
+      findByPk: async () => playerTile,
+      findOne: async () => tileToChange,
     },
   });
   return { deps, game, player, playerTile, tileToChange };
@@ -45,12 +48,6 @@ function happyDeps(over = {}) {
 
 const INPUT = { x: 2, y: 1, gameId: 1, discordId: DIGGER, username: 'snage' };
 
-function expectNoWrites(deps) {
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-  expect(deps.models.Players.create).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.create).not.toHaveBeenCalled();
-}
 
 describe('dig.parse', () => {
   it('maps raw options and applies defaults', () => {

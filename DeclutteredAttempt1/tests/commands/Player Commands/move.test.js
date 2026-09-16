@@ -8,7 +8,12 @@ const logic = require('../../../commands/Player Commands/move.logic.js');
 const move = require('../../../commands/Player Commands/move.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
+  createDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeClass,
+  createFakeTile,
+  createFakeLayer,
 } = require('../../helpers/mockModels.js');
 
 const DISCORD_ID = '123';

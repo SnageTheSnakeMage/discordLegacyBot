@@ -14,7 +14,7 @@ const path = require('path');
 const logic = require('../../../commands/Developer Commands/reloadCommands.logic.js');
 const reloadCommands = require('../../../commands/Developer Commands/reloadCommands.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
-const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
+const { createDeps, createFakeGame, expectNoWrites } = require('../../helpers/mockModels.js');
 
 const ROOT = path.join('/fake', 'commands');
 
@@ -84,14 +84,6 @@ function happyDeps(over = {}) {
 
 const INPUT = { isDev: true, discordId: '123' };
 
-/** every model write accessor across the fake models */
-function expectNoWrites(deps) {
-  for (const name of ['Games', 'Players', 'Tiles', 'Classes', 'Layers']) {
-    expect(deps.models[name].update).not.toHaveBeenCalled();
-    expect(deps.models[name].create).not.toHaveBeenCalled();
-    expect(deps.models[name].destroy).not.toHaveBeenCalled();
-  }
-}
 
 describe('reloadCommands parse', () => {
   it('maps the dev flag and the actor, and declares no options', () => {

@@ -7,7 +7,12 @@ const logic = require('../../../commands/Class Commands/lock.logic.js');
 const lock = require('../../../commands/Class Commands/lock.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
+  createActorDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeClass,
+  createFakeTile,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const ACTOR = '123';
@@ -36,16 +41,14 @@ function happyDeps(over = {}) {
     createFakeTile({ Tile_ID: 43, X_Position: 5, Y_Position: 5, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
   ].filter(Boolean);
 
-  const deps = createDeps({
-    models: {
-      Games: { findByPk: async () => game },
-      Players: { findOne: async () => player },
-      Classes: { findByPk: async () => playerClass },
-      Tiles: {
-        findByPk: async () => playerTile,
-        findOne: async () => tileToChange,
-        findAll: async () => layersTiles,
-      },
+  const deps = createActorDeps({
+    game,
+    player,
+    playerClass,
+    tiles: {
+      findByPk: async () => playerTile,
+      findOne: async () => tileToChange,
+      findAll: async () => layersTiles,
     },
   });
   return { deps, game, player, playerClass, playerTile, tileToChange };
@@ -53,13 +56,6 @@ function happyDeps(over = {}) {
 
 const INPUT = { x: 3, y: 1, gameId: 1, discordId: ACTOR };
 
-/** every rejection must leave the database untouched */
-function expectNoWrites(deps) {
-  expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.create).not.toHaveBeenCalled();
-  expect(deps.models.Players.create).not.toHaveBeenCalled();
-}
 
 describe('lock.parse', () => {
   it('maps raw options and applies defaults', () => {

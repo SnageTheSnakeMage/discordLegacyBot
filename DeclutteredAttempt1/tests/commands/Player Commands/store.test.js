@@ -7,8 +7,12 @@ const logic = require('../../../commands/Player Commands/store.logic.js');
 const store = require('../../../commands/Player Commands/store.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeTile,
-  createFakeClass
+  createActorDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeTile,
+  createFakeClass,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const ACTOR = '123';
@@ -18,23 +22,14 @@ function happyDeps(over = {}) {
   const game = over.game || createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, CHEST_AMOUNT: 10 });
   const player = over.player || createFakePlayer({ Player_ID: 1, Discord_ID: ACTOR, Action_Points: 5, Tile_ID: 1 });
   const tile = over.tile || createFakeTile({ Tile_ID: 1, Tile_Type: 'Chest' });
-  const deps = createDeps({
-    models: {
-      Games: { findByPk: async () => game },
-      Players: { findOne: async () => player },
-      Tiles: { findByPk: async () => tile },
-    },
+  const deps = createActorDeps({
+    game,
+    player,
+    tiles: { findByPk: async () => tile },
   });
   return { deps, game, player, tile };
 }
 
-/** asserts neither the chest nor the player was written */
-function expectNoWrites(deps) {
-  expect(deps.models.Games.update).not.toHaveBeenCalled();
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Games.create).not.toHaveBeenCalled();
-  expect(deps.models.Players.create).not.toHaveBeenCalled();
-}
 
 const INPUT = { amount: 3, gameId: 1, discordId: ACTOR };
 

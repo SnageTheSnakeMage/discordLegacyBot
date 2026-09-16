@@ -8,7 +8,12 @@ const logic = require('../../../commands/Class Commands/snipe.logic.js');
 const snipe = require('../../../commands/Class Commands/snipe.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
+  createDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeClass,
+  createFakeTile,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const SNIPER = '123';
@@ -81,12 +86,6 @@ const INPUT = {
   x: 3, y: 1, targetDiscordId: TARGET, targetUsername: 'victim', amount: 1, gameId: 1, discordId: SNIPER,
 };
 
-function expectNoWrites(deps) {
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-  expect(deps.utils.playerDeathLogic).not.toHaveBeenCalled();
-  expect(deps.utils.revertTileToBlank).not.toHaveBeenCalled();
-}
 
 describe('snipe.parse', () => {
   it('maps raw options and applies defaults', () => {

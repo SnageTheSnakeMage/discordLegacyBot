@@ -8,7 +8,12 @@ const logic = require('../../../commands/Class Commands/exorcise.logic.js');
 const exorcise = require('../../../commands/Class Commands/exorcise.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
+  createDeps,
+  createFakeGame,
+  createFakePlayer,
+  createFakeClass,
+  createFakeTile,
+  expectNoWrites,
 } = require('../../helpers/mockModels.js');
 
 const EXORCIST = '123';
@@ -60,12 +65,6 @@ function classModeDeps(over = {}) {
   });
 }
 
-function expectNoWrites(deps) {
-  expect(deps.models.Players.update).not.toHaveBeenCalled();
-  expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-  expect(deps.utils.revertTileToBlank).not.toHaveBeenCalled();
-  expect(deps.utils.classRemoval).not.toHaveBeenCalled();
-}
 
 describe('exorcise.parse', () => {
   it('maps raw options and turns an absent target into nulls', () => {
