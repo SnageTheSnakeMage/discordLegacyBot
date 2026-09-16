@@ -136,11 +136,12 @@ Two consequences worth knowing:
 were six sequential `if`s all reading the same stale `victim`, so a revive was
 immediately undone by a clear branch below it that still saw the pre-revive hp.
 
-Note that **weird death case #0 shadows Twin revives**: it tests
+Note that **weird death case #0 handles Twin revives**: it tests
 `Health_Points <= 0 && Pharoh_HP > 0` with no Twin exclusion and returns, so
 every Twin revive where body 1 went down is handled there, not in the Twin
-block. Moving it is a real decision, not a tidy-up - case #0 also pays the
-kill credit, and the killer-class switch pays none for an ordinary killer.
+block — and correctly, because consolidation means a Twin with body 1 at zero
+has no second body left. Do not add a branch for it in the Twin block; it
+would be dead code.
 
 ### Traps in this codebase
 
@@ -257,10 +258,12 @@ hand-built object will not.
 Before adding a branch there, check it can be reached. The chain returns
 early several times, and the guards are not consistent with each other — the
 first excludes Twins and null killers, weird death case #0 immediately below
-excludes neither. Case #0 therefore swallows every Twin revive where body 1
-went down, and dereferences `killer.Kills` on an environmental death
-(`damagePlayer(null, ...)` from a fire tile) whenever the victim has
-`Pharoh_HP > 0`. Both are still true; see the note in the Twin block.
+excludes neither. That is why case #0 handles every Twin revive where body 1
+went down (see the note in the Twin block). It also used to dereference
+`killer.Kills` on an environmental death (`damagePlayer(null, ...)` from a
+fire tile) whenever the victim had `Pharoh_HP > 0` — **that is fixed**: the
+kill credit and `ChaosEventDeathCheck` are both behind a `killer != null`
+guard, matching the branch above.
 
 A branch written without checking reachability is dead code that reads as
 behaviour.

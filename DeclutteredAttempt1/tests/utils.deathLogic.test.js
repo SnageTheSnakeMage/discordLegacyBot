@@ -86,22 +86,70 @@ describe('playerDeathLogic - normal kill', () => {
 });
 
 describe('playerDeathLogic - pharaoh revive', () => {
+  /** the spawn tile a revive lands on, plus the corpse's tile it leaves. */
+  function stubRevivePlacement() {
+    const spawnTile = createFakeTile({ Tile_ID: 99 });
+    const fallenTile = createFakeTile({ Tile_ID: 7, Layer_ID: 1, X_Position: 3, Y_Position: 3, Player1: 20 });
+    jest.spyOn(utils, 'getSpawnpointTile').mockResolvedValue(spawnTile);
+    jest.spyOn(utils.models.Tiles, 'findByPk').mockResolvedValue(fallenTile);
+    jest.spyOn(utils.models.Tiles, 'findOne').mockResolvedValue(fallenTile);
+    return { spawnTile, fallenTile };
+  }
+
   it('respawns with revive HP instead of dying, and still credits the kill', async () => {
     stubClasses();
     stubBoringGame();
-    const spawnTile = createFakeTile({ Tile_ID: 99 });
-    jest.spyOn(utils, 'getSpawnpointTile').mockResolvedValue(spawnTile);
+    stubRevivePlacement();
     const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
 
     await utils.playerDeathLogic(killer(), victim({ Pharoh_HP: 3 }));
 
+    expect(update).toHaveBeenCalledWith({ Tile_ID: 99, Dead: 0 }, { where: { Player_ID: 20 } });
     expect(update).toHaveBeenCalledWith(
-      { Tile_ID: 99, Health_Points: 3, Pharoh_HP: 0 },
+      { Health_Points: 3, Pharoh_HP: 0 },
       { where: { Player_ID: 20 } },
     );
     expect(update).toHaveBeenCalledWith({ Kills: 3 }, { where: { Player_ID: 10 } });
     // and never marked dead
     expect(update).not.toHaveBeenCalledWith(expect.objectContaining({ Dead: true }), expect.anything());
+  });
+
+  // A revive is a MOVE, and both halves of the position invariant (#78) have
+  // to move with it. This wrote Players.Tile_ID only: the tile the victim
+  // fell on kept naming them, and the spawn tile named nobody.
+  it('vacates the tile the victim fell on and claims the spawn tile', async () => {
+    stubClasses();
+    stubBoringGame();
+    const { fallenTile } = stubRevivePlacement();
+    jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
+    const tileUpdate = jest.spyOn(utils.models.Tiles, 'update').mockResolvedValue([1]);
+
+    await utils.playerDeathLogic(killer(), victim({ Pharoh_HP: 3 }));
+
+    expect(fallenTile.Player1).toBeNull();
+    expect(fallenTile.save).toHaveBeenCalled();
+    expect(tileUpdate).toHaveBeenCalledWith({ Player1: 20 }, { where: { Tile_ID: 99 } });
+  });
+
+  // Fire tiles and mines kill with no killer to credit. This read
+  // killer.Kills unguarded, so a player with revive HP stepping onto fire
+  // took the whole command into the central error handler.
+  it('an environment kill (killer = null) revives without crediting anyone', async () => {
+    stubClasses();
+    stubBoringGame();
+    stubRevivePlacement();
+    const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
+
+    await utils.playerDeathLogic(null, victim({ Pharoh_HP: 3 }));
+
+    expect(update).toHaveBeenCalledWith(
+      { Health_Points: 3, Pharoh_HP: 0 },
+      { where: { Player_ID: 20 } },
+    );
+    expect(update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ Kills: expect.anything() }),
+      expect.anything(),
+    );
   });
 });
 
@@ -203,11 +251,12 @@ describe('playerDeathLogic - twin revive HP', () => {
   };
 
   // Weird death case #0 tests `Health_Points <= 0 && Pharoh_HP > 0` with no
-  // Twin exclusion and RETURNS, so it swallows every Twin revive where body 1
-  // is the one that went down - the both-bodies-down case included. This pins
-  // that shadowing rather than pretending the Twin block handles it: it is
-  // why there is no such branch there, and moving it is a separate decision
-  // (case #0 also pays the kill credit, which the switch below does not).
+  // Twin exclusion and RETURNS, so every Twin revive where body 1 is the one
+  // that went down is handled there, not here - and that is the right place
+  // for it. Whichever body a Twin loses, the survivor is consolidated into
+  // body 1, so a Twin with body 1 at zero has no second body left to weigh:
+  // reviving body 1 revives the last body. This pins the shadowing, which is
+  // why the twin block has no branch for the case.
   it('body 1 down with revive HP never reaches the twin block - case #0 takes it', async () => {
     stubClasses({ victimClass: 'Twin' });
     stubBoringGame();
@@ -217,9 +266,10 @@ describe('playerDeathLogic - twin revive HP', () => {
       Health_Points: 0, Health_Points2: 5, Tile_ID2: 8, Pharoh_HP: 3,
     }));
 
-    // case #0's single write: body 1 to a spawnpoint, revive hp spent
+    // case #0's writes: body 1 onto a spawnpoint, revive hp spent
+    expect(update).toHaveBeenCalledWith({ Tile_ID: 99, Dead: 0 }, { where: { Player_ID: 20 } });
     expect(update).toHaveBeenCalledWith(
-      { Tile_ID: 99, Health_Points: 3, Pharoh_HP: 0 }, { where: { Player_ID: 20 } },
+      { Health_Points: 3, Pharoh_HP: 0 }, { where: { Player_ID: 20 } },
     );
     // and nothing from the twin block: body 2 is neither consolidated nor nulled
     expect(update).not.toHaveBeenCalledWith(

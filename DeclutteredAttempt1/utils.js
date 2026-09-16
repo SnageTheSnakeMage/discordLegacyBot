@@ -1504,9 +1504,25 @@ async playerDeathLogic(killer, victim) {
   //this still counts as a kill
   if(victim.Health_Points <= 0 && victim.Pharoh_HP > 0)
   {
-    await models.Players.update({Tile_ID: (await this.getSpawnpointTile(victim.Game_ID)).Tile_ID, Health_Points: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
-    await models.Players.update({Kills: killer.Kills + 1}, {where: {Player_ID: killer.Player_ID}});
-    await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
+    //a revive MOVES a body, so both tiles have to be written: the tile the
+    //victim fell on has to be vacated and the spawn tile has to name them
+    //back. Writing Players.Tile_ID alone left the corpse's tile still holding
+    //the Player_ID and the spawn tile holding nobody - the revived player was
+    //then reachable on a tile they had left and invisible on the one they
+    //were standing on (#78).
+    await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID, 'Tile_ID');
+    await this.placePlayerOnBoard(victim.Player_ID, await this.getSpawnpointTile(victim.Game_ID));
+    await models.Players.update({Health_Points: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
+    //killer is nullable: a fire tile or a mine kills with nobody to credit.
+    //This read `killer.Kills` unguarded, so any victim with revive hp who
+    //stepped onto a fire tile took the whole command into the error handler.
+    //ChaosEventDeathCheck is inside the guard too - its Leftovers case reads
+    //killer.Action_Points - which matches the ordinary-death branch above,
+    //where the whole branch is conditional on killer != null.
+    if(killer != null){
+      await models.Players.update({Kills: killer.Kills + 1}, {where: {Player_ID: killer.Player_ID}});
+      await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
+    }
     return
   }
 
@@ -1542,15 +1558,15 @@ async playerDeathLogic(killer, victim) {
       await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID2, 'Tile_ID2');
     }
     //NOTE: there is no branch here for "body 1 is down and there is revive
-    //hp". There cannot be one that runs: weird death case #0 above tests
+    //hp", and it is not missing. Weird death case #0 above tests
     //`victim.Health_Points <= 0 && victim.Pharoh_HP > 0` with no Twin
-    //exclusion and RETURNS, so it swallows every Twin revive where body 1 is
-    //the body that went down - including the both-bodies-down case. It
-    //revives body 1 at a spawnpoint without vacating either corpse's tile or
-    //claiming the new one, and without touching body 2. Any branch written
-    //for that case here would be dead code, so none is. See the PR for why
-    //moving it is a separate decision: case #0 also pays the kill credit,
-    //and the switch below pays none for an ordinary killer.
+    //exclusion and RETURNS, so it handles every Twin revive where body 1 is
+    //the body that went down, and it is the right handler for it: whichever
+    //body a Twin loses, the survivor is consolidated INTO body 1 by the
+    //branches below, so a Twin standing with body 1 at zero has no second
+    //body left to consider. Reviving body 1 revives the last body, and case
+    //#0 now vacates the corpse's tile and claims the spawn tile like every
+    //other move. Any branch written for that case here would be dead code.
     else if(secondDown && hasRevive)
     {
       //same swap the other way round: body 2 died, so body 2 comes back
