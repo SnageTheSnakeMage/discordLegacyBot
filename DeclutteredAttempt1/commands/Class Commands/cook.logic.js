@@ -26,8 +26,10 @@
  *   still be cooked for
  * - the customer's +2 AP and +1 HP are NOT clamped to MAX_AP/MAX_HP, and
  *   neither is the chef's +1 AP
- * - the default game comes from getOldestGameId() with NO discord id, as
- *   the old code called it
+ * Fixed: the default game came from getOldestGameId() with NO discord id,
+ * as the old code called it, and that helper throws without one - so
+ * omitting the game option made /cook fail every time. It is now passed the
+ * chef's discord id.
  * - rejection order: gamestate, class, missing tile, customer-on-tile,
  *   range, meals (the null checks moved ahead of it as crash fixes)
  */
@@ -49,8 +51,12 @@ function parse(raw, actor) {
 async function run(input, deps = defaultDeps) {
   const { models, utils } = deps;
 
-  // the old code called getOldestGameId() with no argument; keep that
-  const gameId = input.gameId ?? await utils.getOldestGameId();
+  // The old code called getOldestGameId() with no argument. That helper
+  // throws "missing playerDiscordID" for a falsy id, so every /cook that left
+  // the game option off died before doing any work and the chef was told
+  // "There was an error while executing this command!". It now takes the
+  // chef's id, like every other command's default-game path.
+  const gameId = input.gameId ?? await utils.getOldestGameId(input.discordId);
   const game = await models.Games.findByPk(gameId);
   if (!game) return { ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId } };
 
@@ -65,6 +71,9 @@ async function run(input, deps = defaultDeps) {
   }
 
   const playersTile = await models.Tiles.findByPk(player.Tile_ID);
+  // Tile_ID is null for a dead player (playerDeathLogic writes it), so this
+  // read returns null and every use below would be a TypeError
+  if (!playersTile) return { ok: false, reason: REJECTIONS.NOT_ON_BOARD };
   const customersTile = await models.Tiles.findOne({
     where: { Layer_ID: playersTile.Layer_ID, X_Position: input.x, Y_Position: input.y },
   });

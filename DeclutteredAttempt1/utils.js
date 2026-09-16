@@ -515,6 +515,40 @@ async pollToResults(poll, game) {
   return this.tallyChaosVotes(votes, eligible, overriderDiscordId);
 },
 
+/**
+ * loadTileTexture in path form, for callers that need a file to hand to
+ * something else (a Discord attachment) rather than a Canvas image.
+ *
+ * Same fallback rule as loadTileTexture: a texture that is not on disk
+ * resolves to that layer's default.png. That is the whole point of using this
+ * instead of building the path by hand - AttachmentBuilder does not read the
+ * file until the message is sent, so a path that does not exist fails at send
+ * time as an unhandled error, and the player is told "There was an error
+ * while executing this command!" for a missing icon.
+ *
+ * Returns null when even the layer default is missing. That is a broken
+ * checkout rather than a missing player icon, and the caller should say so
+ * plainly instead of attaching a path that cannot be uploaded.
+ */
+resolveTileTexturePath(layer, textureName) {
+  const name = textureName == null ? 'transparent' : textureName;
+  const tilePath = "./tiles/" + layer + "/" + name + ".png";
+  if (fs.existsSync(tilePath)) return tilePath;
+
+  logger150.debug({function: "resolveTileTexturePath"}, `No texture ${tilePath}, falling back to the ${layer} default`);
+  const defaultPath = "./tiles/" + layer + "/default.png";
+  if (fs.existsSync(defaultPath)) return defaultPath;
+
+  logger150.error({function: "resolveTileTexturePath"}, `Neither ${tilePath} nor ${defaultPath} exists`);
+  return null;
+},
+
+/** The icon filename for a player in a game. One definition, so the writer
+ * (registerPlayer) and every reader agree. */
+playerIconName(discordId, gameId) {
+  return discordId + "_" + gameId;
+},
+
 async loadTileTexture(layer, textureName) {
   // Create a unique key for the cache
   const cacheKey = `${textureName}`;
@@ -727,7 +761,7 @@ async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
       const tilePlayer = tilePlayers[playerIndex];
       if (tilePlayer === null) continue;
       if(tilePlayer.Class_ID == (await models.Classes.findOne({where: {Class_Name: "Spy"}})).Class_ID && !allLayerSight) continue;
-      const playerImage = await this.loadTileTexture("players", tilePlayer.Discord_ID + "_" + gameId);
+      const playerImage = await this.loadTileTexture("players", this.playerIconName(tilePlayer.Discord_ID, gameId));
       let playerTilePositionX = canvasX;
       let playerTilePositionY = canvasY;
       logger150.debug({function: "GenerateGameGridImage"}, "playerTileWidth: " + playerTileWidth + ", playerTileHeight: " + playerTileHeight);
@@ -876,7 +910,7 @@ async  registerPlayer(gameId, playerId, playerIcon) {
     // places it on the board. Its return value was only ever read to pick the
     // icon filename per class, which no longer varies.
     await this.spawnPlayer(gameId, playerId);
-    const iconName = playerId + "_" + gameId;
+    const iconName = this.playerIconName(playerId, gameId);
     await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + iconName + ".png");
     return;
 },

@@ -75,6 +75,9 @@ async function run(input, deps = defaultDeps) {
 
   const playerClass = await models.Classes.findByPk(player.Class_ID);
   const playerTile = await models.Tiles.findByPk(player.Tile_ID);
+  // Tile_ID is null for a dead player (playerDeathLogic writes it), so this
+  // read returns null and every use below would be a TypeError
+  if (!playerTile) return { ok: false, reason: REJECTIONS.NOT_ON_BOARD };
 
   // db Layer_ID -> 1-based "common" layer number the players know
   const layerIds = (await models.Layers.findAll({ where: { Game_ID: gameId }, attributes: ['Layer_ID'] }))
@@ -84,6 +87,9 @@ async function run(input, deps = defaultDeps) {
   let secondBody = null;
   if (playerClass.Class_Name === 'Twin') {
     const playerTile2 = await models.Tiles.findByPk(player.Tile_ID2);
+    // Tile_ID is null for a dead player (playerDeathLogic writes it), so this
+    // read returns null and every use below would be a TypeError
+    if (!playerTile2) return { ok: false, reason: REJECTIONS.NOT_ON_BOARD };
     secondBody = {
       commonLayerId: `${layerIds.indexOf(playerTile2.Layer_ID) + 1}`,
       xPosition: playerTile2.X_Position,
@@ -122,6 +128,13 @@ async function run(input, deps = defaultDeps) {
       discordId: player.Discord_ID,
       secondBody,
       timestamp: new Date(deps.now()).toISOString(),
+      // Resolved here, not in present(): these become Discord attachments, and
+      // AttachmentBuilder does not read the file until send time, so a path
+      // that is not on disk fails as an unhandled error rather than a missing
+      // image. resolveTileTexturePath falls back to the layer default, and
+      // returns null only if that is missing too.
+      iconPath: deps.utils.resolveTileTexturePath('players', deps.utils.playerIconName(player.Discord_ID, player.Game_ID)),
+      tileThumbnailPath: deps.utils.resolveTileTexturePath('environment', playerTile.Tile_Type),
     },
   };
 }
@@ -193,14 +206,17 @@ function present(result) {
     footer: { text: 'Game ID: ' + d.gameId },
   };
 
-  return {
-    embeds: [embed],
-    // legacy attached the icon first, then the thumbnail
-    files: [
-      { path: `tiles/players/${d.discordId}.png`, name: 'icon.png' },
-      { path: `tiles/environment/${d.tileType}.png`, name: 'tileThumbnail.png' },
-    ],
-  };
+  // Only attach what actually exists, and only reference an attachment the
+  // embed will have. A null path means even the layer default is missing, so
+  // the embed drops that image rather than handing Discord a dead path.
+  const files = [];
+  if (d.iconPath) files.push({ path: d.iconPath, name: 'icon.png' });
+  else delete embed.image;
+  if (d.tileThumbnailPath) files.push({ path: d.tileThumbnailPath, name: 'tileThumbnail.png' });
+  else delete embed.thumbnail;
+
+  // legacy attached the icon first, then the thumbnail
+  return { embeds: [embed], files };
 }
 
 module.exports = { parse, run, present };

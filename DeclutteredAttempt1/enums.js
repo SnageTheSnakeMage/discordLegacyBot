@@ -101,6 +101,10 @@ const REJECTIONS = Object.freeze({
   NOT_DEV: "NOT_DEV",
   NOT_DEAD_OR_MEDIUM: "NOT_DEAD_OR_MEDIUM",
   ALREADY_REGISTERED: "ALREADY_REGISTERED",
+  // a player row whose Tile_ID is null - playerDeathLogic writes
+  // {Tile_ID: null, Dead: true}, so this is what a dead player looks like to
+  // any command that reads their tile
+  NOT_ON_BOARD: "NOT_ON_BOARD",
   NOT_SANDBOX: "NOT_SANDBOX",
   // target
   TARGET_NOT_IN_GAME: "TARGET_NOT_IN_GAME",

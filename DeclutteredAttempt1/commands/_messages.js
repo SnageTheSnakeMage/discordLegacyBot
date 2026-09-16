@@ -12,6 +12,14 @@
  */
 const { REJECTIONS } = require('../enums.js');
 
+/**
+ * Discord's hard limit on message content. It lives here rather than in
+ * _adapter.js because logic files need it too (databaseCall budgets its JSON
+ * block against it) and a logic file may not import _adapter.js - that is the
+ * one file allowed to require discord.js. One definition, both layers.
+ */
+const MAX_CONTENT = 2000;
+
 const MESSAGES = {
   [REJECTIONS.GAME_OVER]: () => "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.",
   [REJECTIONS.GAME_PAUSED]: () => "Game is paused! only the dev can use commands for this game at this time.",
@@ -26,6 +34,9 @@ const MESSAGES = {
   [REJECTIONS.NOT_DEV]: () => "Only the dev can use this command.",
   [REJECTIONS.NOT_DEAD_OR_MEDIUM]: () => "Only Dead or Medium can override a chaos council poll!",
   [REJECTIONS.ALREADY_REGISTERED]: () => "You are already registered for this game!",
+  [REJECTIONS.NOT_ON_BOARD]: (d) => ((d && d.role)
+    ? `The ${d.role} is not on the board - a dead player has no tile.`
+    : "You are not on the board - a dead player has no tile."),
   [REJECTIONS.NOT_SANDBOX]: (d) => `/sandbox only works on a game in the SANDBOX gamestate${d && d.gamestate ? ` - game ${d.gameId} is ${d.gamestate}` : ""}.`,
 
   [REJECTIONS.TARGET_NOT_IN_GAME]: (d) => `The ${(d && d.role) || "target"} is not in the game!`,
@@ -60,7 +71,9 @@ const MESSAGES = {
  * wording here; nothing asserts on the prose, only on the key.
  */
 const NOTICES = {
-  NO_GAMES: () => "There are no games yet! Ask the dev to run /create-game.",
+  NO_GAMES: (d) => ((d && d.gamestate && d.gamestate !== 'ALL')
+    ? `No games are in ${d.gamestate} right now. Try /listgames gamestate:All to see every game.`
+    : "There are no games yet! Ask the dev to run /create-game."),
 };
 
 /** Text for a NOTICES key. Unknown keys get a visible placeholder, never ''. */
@@ -79,4 +92,4 @@ function messageFor(reason, data) {
   return fmt(data);
 }
 
-module.exports = { messageFor, MESSAGES, noticeFor, NOTICES };
+module.exports = { messageFor, MESSAGES, noticeFor, NOTICES, MAX_CONTENT };

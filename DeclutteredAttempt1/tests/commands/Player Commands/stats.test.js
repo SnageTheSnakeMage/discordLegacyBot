@@ -172,6 +172,10 @@ describe('stats.run success', () => {
         discordId: ACTOR,
         secondBody: null,
         timestamp: NOW_ISO,
+        // the fake player has no icon file, so this is the default.png
+        // fallback resolveTileTexturePath exists to provide
+        iconPath: './tiles/players/default.png',
+        tileThumbnailPath: './tiles/environment/Blank1.png',
       },
     });
     expect(deps.models.Players.findOne).toHaveBeenCalledWith({
@@ -261,6 +265,10 @@ describe('stats.present', () => {
     discordId: ACTOR,
     secondBody: null,
     timestamp: NOW_ISO,
+    // run() resolves these through utils.resolveTileTexturePath, so by the
+    // time present() sees them they are paths that exist on disk
+    iconPath: `./tiles/players/${ACTOR}_1.png`,
+    tileThumbnailPath: './tiles/environment/Blank1.png',
   };
   const ok = (over = {}) => ({ ok: true, kind: 'stats', data: { ...data, ...over } });
   const fieldNames = (out) => out.embeds[0].fields.map((f) => f.name);
@@ -306,10 +314,37 @@ describe('stats.present', () => {
     ]);
     // legacy attachment order: icon first, then thumbnail; plain objects only
     expect(out.files).toEqual([
-      { path: `tiles/players/${ACTOR}.png`, name: 'icon.png' },
-      { path: 'tiles/environment/Blank1.png', name: 'tileThumbnail.png' },
+      { path: `./tiles/players/${ACTOR}_1.png`, name: 'icon.png' },
+      { path: './tiles/environment/Blank1.png', name: 'tileThumbnail.png' },
     ]);
     expect(out.files[0].constructor).toBe(Object);
+  });
+
+  // An AttachmentBuilder does not read its path until the message is sent, so
+  // a path that is not on disk used to fail at send time as an unhandled
+  // error - the player was told "There was an error while executing this
+  // command!" because their icon was missing. present() now only ever
+  // attaches a path run() resolved, and drops the embed reference with it.
+  it('drops the image rather than attaching an icon path that does not exist', () => {
+    const out = logic.present(ok({ iconPath: null }));
+    expect(out.files).toEqual([{ path: './tiles/environment/Blank1.png', name: 'tileThumbnail.png' }]);
+    expect(out.embeds[0].image).toBeUndefined();
+    // the thumbnail is unaffected
+    expect(out.embeds[0].thumbnail).toEqual({ url: 'attachment://tileThumbnail.png' });
+  });
+
+  it('drops the thumbnail rather than attaching a tile path that does not exist', () => {
+    const out = logic.present(ok({ tileThumbnailPath: null }));
+    expect(out.files).toEqual([{ path: `./tiles/players/${ACTOR}_1.png`, name: 'icon.png' }]);
+    expect(out.embeds[0].thumbnail).toBeUndefined();
+    expect(out.embeds[0].image).toEqual({ url: 'attachment://icon.png' });
+  });
+
+  it('never references an attachment it did not attach', () => {
+    const out = logic.present(ok({ iconPath: null, tileThumbnailPath: null }));
+    expect(out.files).toEqual([]);
+    expect(out.embeds[0].image).toBeUndefined();
+    expect(out.embeds[0].thumbnail).toBeUndefined();
   });
 
   it('omits the author icon when there is no avatar URL', () => {

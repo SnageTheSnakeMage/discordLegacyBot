@@ -57,7 +57,13 @@ async function run(input, deps = defaultDeps) {
   }
 
   const giverTile = await models.Tiles.findByPk(giver.Tile_ID);
+  // Tile_ID is null for a dead player (playerDeathLogic writes it), so this
+  // read returns null and every use below would be a TypeError
+  if (!giverTile) return { ok: false, reason: REJECTIONS.NOT_ON_BOARD };
   const receiverTile = await models.Tiles.findByPk(receiver.Tile_ID);
+  // Tile_ID is null for a dead player (playerDeathLogic writes it), so this
+  // read returns null and every use below would be a TypeError
+  if (!receiverTile) return { ok: false, reason: REJECTIONS.NOT_ON_BOARD, data: { role: 'receiver' }, };
   const distance = utils.getTileCordinatesOfLine(
     [giverTile.X_Position, giverTile.Y_Position],
     [receiverTile.X_Position, receiverTile.Y_Position],

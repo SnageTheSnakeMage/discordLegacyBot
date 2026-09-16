@@ -67,7 +67,24 @@ const COMMANDS = {
   },
 
   'listgames': {
-    description: 'lists all games',
+    description: 'lists games, by default the ones you can still register for',
+    options: {
+      'gamestate': {
+        kind: 'string',
+        description: 'which games to list, defaults to the ones open for registration',
+        choices: [
+          { name: 'Registration', value: 'REGISTRATION' },
+          { name: 'Active', value: 'ACTIVE' },
+          { name: 'Finale', value: 'FINALE' },
+          { name: 'TimeStopped', value: 'TIMESTOPPED' },
+          { name: 'DevPaused', value: 'DEV_PAUSED' },
+          { name: 'Over', value: 'OVER' },
+          { name: 'Finished', value: 'INACTIVE' },
+          { name: 'Sandbox', value: 'SANDBOX' },
+          { name: 'All', value: 'ALL' },
+        ],
+      },
+    },
   },
 
   'move': {

@@ -58,6 +58,9 @@ async function run(input, deps = defaultDeps) {
 
   const playerClass = await models.Classes.findByPk(player.Class_ID);
   const playerTile = await models.Tiles.findByPk(player.Tile_ID);
+  // Tile_ID is null for a dead player (playerDeathLogic writes it), so this
+  // read returns null and every use below would be a TypeError
+  if (!playerTile) return { ok: false, reason: REJECTIONS.NOT_ON_BOARD };
   const tileInRange = utils.getTileCordinatesOfLine(
     [playerTile.X_Position, playerTile.Y_Position],
     [input.x, input.y],
