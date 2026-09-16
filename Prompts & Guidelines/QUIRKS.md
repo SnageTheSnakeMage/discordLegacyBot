@@ -517,7 +517,11 @@ Each of these throws on **every single invocation**, before doing any work.
 
 ### `/listGames`
 
-- Zero games replies with an **empty string** as the message content.
+- ~~Zero games replies with an **empty string** as the message content.~~
+  **Fixed.** Discord refuses to send an empty message, so this was not
+  cosmetic: `/listgames` on an empty database died in the central handler and
+  the player saw "There was an error while executing this command!". It now
+  renders the `NO_GAMES` notice from `commands/_messages.js`.
 - A null winner renders as the literal text `null`.
 - A `CURR_CC_EVENT` missing from the `ChaosEvents` enum renders its description
   as the literal text `undefined`.

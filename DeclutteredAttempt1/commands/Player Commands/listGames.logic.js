@@ -6,13 +6,18 @@
  * The only thing dropped is the logger200 child logger, which was
  * assigned and never used.
  *
- * Preserved as-is: with zero games the reply content is the empty
- * string; a null winner renders as the literal text "null" and a chaos
- * event missing from the ChaosEvents enum renders its description as
- * "undefined" (plain string concatenation, exactly as before).
+ * Fixed: zero games used to render as the empty string, and Discord
+ * refuses to send an empty message, so the command died in the central
+ * handler and the player saw "There was an error while executing this
+ * command!" instead of "there are no games". It now renders the
+ * NO_GAMES notice; the wording lives in _messages.js.
+ *
+ * Preserved as-is: a null winner renders as the literal text "null" and
+ * a chaos event missing from the ChaosEvents enum renders its
+ * description as "undefined" (plain string concatenation, as before).
  */
 const { ChaosEvents } = require('../../enums.js');
-const { messageFor } = require('../_messages.js');
+const { messageFor, noticeFor } = require('../_messages.js');
 const defaultDeps = require('../_deps.js');
 
 // /listgames takes no options and ignores the actor
@@ -39,6 +44,8 @@ async function run(_input, deps = defaultDeps) {
 
 function present(result) {
   if (!result.ok) return { content: messageFor(result.reason, result.data) };
+  // Discord will not send an empty message, so an empty list needs words
+  if (result.data.games.length === 0) return { content: noticeFor('NO_GAMES') };
   let gameList = '';
   for (const g of result.data.games) {
     gameList += 'Game ID:' + g.gameId + ' - Game State: ' + g.gameState

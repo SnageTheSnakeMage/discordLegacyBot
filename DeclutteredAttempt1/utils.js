@@ -872,7 +872,10 @@ async  spawnPlayer(gameId, playerId) {
 
 //adds a player to a game and downloads their playerIcon to be used for GenerateGameGridImagewithSight
 async  registerPlayer(gameId, playerId, playerIcon) {
-    const SelectedClass = await this.spawnPlayer(gameId, playerId);
+    // spawnPlayer is called for its effect - it creates the player row and
+    // places it on the board. Its return value was only ever read to pick the
+    // icon filename per class, which no longer varies.
+    await this.spawnPlayer(gameId, playerId);
     const iconName = playerId + "_" + gameId;
     await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + iconName + ".png");
     return;

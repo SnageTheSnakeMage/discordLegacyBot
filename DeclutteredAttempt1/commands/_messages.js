@@ -3,6 +3,11 @@
  * copy edit touches one file and no test. messageFor(reason, data) formats
  * the text; data carries the parameterization (class names, amounts, ...).
  *
+ * NOTICES below is the same idea for text that is NOT a rejection: a command
+ * that succeeded but has nothing to say. Those still need words, because
+ * Discord rejects an empty message and the whole command then fails into
+ * "There was an error while executing this command!".
+ *
  * This file must never import discord.js.
  */
 const { REJECTIONS } = require('../enums.js');
@@ -50,6 +55,21 @@ const MESSAGES = {
   [REJECTIONS.BOARD_IN_USE]: (d) => `${(d && d.playerCount) ?? "Some"} players are standing on this game's board - move or remove them before replacing it.`,
 };
 
+/**
+ * Canned text for successful-but-empty results, keyed by NOTICES key. Edit the
+ * wording here; nothing asserts on the prose, only on the key.
+ */
+const NOTICES = {
+  NO_GAMES: () => "There are no games yet! Ask the dev to run /create-game.",
+};
+
+/** Text for a NOTICES key. Unknown keys get a visible placeholder, never ''. */
+function noticeFor(key, data) {
+  const fmt = NOTICES[key];
+  if (!fmt) return `Something went wrong! (unrecognised notice: ${key})`;
+  return fmt(data);
+}
+
 function messageFor(reason, data) {
   // a command may carry its exact legacy wording in data.message; codes stay
   // stable while the prose stays byte-identical to what players saw before
@@ -59,4 +79,4 @@ function messageFor(reason, data) {
   return fmt(data);
 }
 
-module.exports = { messageFor, MESSAGES };
+module.exports = { messageFor, MESSAGES, noticeFor, NOTICES };

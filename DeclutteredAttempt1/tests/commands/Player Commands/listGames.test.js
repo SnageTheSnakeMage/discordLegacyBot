@@ -5,6 +5,7 @@
 const logic = require('../../../commands/Player Commands/listGames.logic.js');
 const listGames = require('../../../commands/Player Commands/listGames.js');
 const { GAMESTATES } = require('../../../enums.js');
+const { noticeFor, NOTICES } = require('../../../commands/_messages.js');
 const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
 
 describe('listGames.parse', () => {
@@ -76,8 +77,25 @@ describe('listGames.present', () => {
     );
   });
 
-  it('preserves the old quirk: zero games renders as an empty string', () => {
-    expect(logic.present({ ok: true, kind: 'gameList', data: { games: [] } })).toEqual({ content: '' });
+  // was: "preserves the old quirk: zero games renders as an empty string".
+  // Discord refuses to send an empty message, so that quirk was not a
+  // cosmetic oddity - it took the whole command down into the central
+  // handler's "There was an error while executing this command!".
+  it('renders the NO_GAMES notice when there are no games, never an empty message', () => {
+    const out = logic.present({ ok: true, kind: 'gameList', data: { games: [] } });
+    expect(out.content).toBe(noticeFor('NO_GAMES'));
+    expect(out.content.length).toBeGreaterThan(0);
+  });
+
+  it('uses the wording configured in _messages.js rather than its own literal', () => {
+    // a copy edit to NOTICES.NO_GAMES must reach the player with no code change
+    const spy = jest.spyOn(NOTICES, 'NO_GAMES').mockReturnValue('nothing to see here');
+    try {
+      expect(logic.present({ ok: true, kind: 'gameList', data: { games: [] } }))
+        .toEqual({ content: 'nothing to see here' });
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('preserves the old quirk: an unknown chaos event renders its description as "undefined"', () => {

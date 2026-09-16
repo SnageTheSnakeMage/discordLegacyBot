@@ -75,7 +75,9 @@ time to learn, so it is written down rather than rediscovered.
   the old output instead of retyping it.
 - **Split a function without changing it.** `spawnPlayer` came out of
   `registerPlayer` carrying its quirks forward verbatim, including the icon
-  path bug below. Fixing behaviour inside a refactor hides both changes.
+  path bug. Fixing behaviour inside a refactor hides both changes. (That bug
+  was then fixed on its own, as its own commit — see the icon path section
+  below. That is the order to do it in, not a reason to preserve it again.)
 
 ### Traps in this codebase
 
@@ -96,13 +98,23 @@ time to learn, so it is written down rather than rediscovered.
   missing, so a player with no icon file silently renders as the default
   instead of erroring.
 
-### Known bug, not yet fixed
+### The player icon path — fixed, and the one place still out of step
 
-`registerPlayer` writes the player icon to `tiles/players/<Discord_ID>.png` on
-its non-Twin branch, but the renderer reads
-`tiles/players/<Discord_ID>_<gameId>.png` (`utils.js:726`). Only the Twin
-branch writes the path that is read, so **every non-Twin player renders as
-`default.png`**.
+`registerPlayer` used to write `tiles/players/<Discord_ID>.png` on its non-Twin
+branch while the renderer read `tiles/players/<Discord_ID>_<gameId>.png`, so
+every non-Twin player rendered as `default.png`. **This is fixed**:
+registration now always writes `<Discord_ID>_<gameId>.png`, matching the
+renderer. Do not "preserve" it in a refactor — it is no longer the behaviour.
+
+`<Discord_ID>_<gameId>.png` is the one true player-icon path. Two readers do
+*not* agree yet:
+
+- the renderer, `utils.js:730`, asks `loadTileTexture` for it and **falls back
+  to `default.png`** when it is absent, so a missing icon is cosmetic;
+- `stats.logic.js` attaches `tiles/players/<Discord_ID>.png` — the old,
+  unsuffixed path — **directly, with no fallback**. Every file in
+  `tiles/players/` carries the `_<gameId>` suffix, so that attachment does not
+  exist and `/stats` fails into the central error handler.
 
 ### Discord limits worth knowing before designing a command
 
