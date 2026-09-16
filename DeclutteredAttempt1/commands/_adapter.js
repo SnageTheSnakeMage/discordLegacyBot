@@ -5,6 +5,7 @@
  * This is the ONLY command-layer file allowed to import discord.js.
  */
 const { AttachmentBuilder } = require('discord.js');
+const { MAX_CONTENT } = require('./_messages.js');
 
 /**
  * Reads declared options off the interaction into a plain object.
@@ -53,6 +54,28 @@ function readActor(interaction) {
 }
 
 /**
+ * Discord rejects a message whose content is longer than 2000 characters, and
+ * rejects one whose content is empty. Both come back as an error from
+ * editReply, which lands in interactionCreate's catch, so the player is told
+ * "There was an error while executing this command!" with no idea why.
+ *
+ * Neither is a thing a command should have to remember, so the cap lives here,
+ * at the one boundary every reply passes through. A command that wants nicer
+ * truncation than a tail marker (databaseCall budgets its JSON block, for
+ * instance) still does its own - this only catches what would otherwise be
+ * rejected.
+ */
+const TRUNCATION_MARKER = '\n... (truncated)';
+
+function capContent(content) {
+  // present() descriptors are expected to carry a string; anything else is
+  // handed on untouched rather than coerced, so a bug stays visible
+  if (typeof content !== 'string') return content;
+  if (content.length <= MAX_CONTENT) return content;
+  return content.slice(0, MAX_CONTENT - TRUNCATION_MARKER.length) + TRUNCATION_MARKER;
+}
+
+/**
  * Turns a present() descriptor into what editReply expects. Descriptors are
  * plain objects: { content }, { embeds: [apiEmbed] }, and/or
  * { files: [{ buffer, name } | { path, name }] }. This is the only place
@@ -60,7 +83,7 @@ function readActor(interaction) {
  */
 function toDiscord(descriptor) {
   const reply = {};
-  if (descriptor.content !== undefined) reply.content = descriptor.content;
+  if (descriptor.content !== undefined) reply.content = capContent(descriptor.content);
   if (descriptor.embeds) reply.embeds = descriptor.embeds;
   if (descriptor.files) {
     reply.files = descriptor.files.map((f) =>
@@ -69,4 +92,4 @@ function toDiscord(descriptor) {
   return reply;
 }
 
-module.exports = { readOptions, readActor, toDiscord };
+module.exports = { readOptions, readActor, toDiscord, MAX_CONTENT };

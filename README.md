@@ -108,8 +108,10 @@ On the host:
 docker run --rm -v legacy-db:/data -v "$PWD":/backup alpine \
   cp /data/database.db /backup/database.$(date +%Y%m%d%H%M%S).db
 
-# 2. deploy by digest
-docker pull ghcr.io/<owner>/<repo>@sha256:<digest>
+# 2. deploy by digest - compose reads IMAGE_DIGEST, and refuses to start
+#    without it rather than running whatever image it finds
+export IMAGE_DIGEST=ghcr.io/<owner>/<repo>@sha256:<digest>
+docker pull "$IMAGE_DIGEST"
 docker compose up -d
 
 # 3. verify - the healthcheck reflects the Discord connection, not the process
@@ -117,14 +119,17 @@ watch docker inspect --format '{{.State.Health.Status}}' discord-bot
 
 # 4. roll back if unhealthy after ~2 minutes
 docker compose down
-docker pull ghcr.io/<owner>/<repo>@sha256:<previous-digest>
+export IMAGE_DIGEST=ghcr.io/<owner>/<repo>@sha256:<previous-digest>
+docker pull "$IMAGE_DIGEST"
 docker compose up -d   # then restore the backup into the volume if needed
 ```
 
 Game state lives in the `legacy-db` named volume and survives image rebuilds.
-Slash-command registration is rate-limited by Discord and does NOT run on boot;
-run the Deploy workflow manually with "register commands" checked when a
-command's definition changes (or `REGISTER_COMMANDS_ON_BOOT=1` for a one-off).
+Slash-command registration is rate-limited by Discord and does NOT run on boot.
+Run the Deploy workflow manually with "register commands" checked when a
+command's definition changes. There is no environment-variable shortcut: the
+workflow, or `node scripts/register-commands.js` with `DISCORD_TOKEN`,
+`CLIENT_ID` and `GUILD_ID` set, is the whole of it.
 
 ### Secrets
 

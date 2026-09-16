@@ -154,6 +154,10 @@ async function run(input, deps = defaultDeps) {
     const tile = await models.Tiles.findOne({
       where: { X_Position: px, Y_Position: py, Layer_ID: shootersTile.Layer_ID },
     });
+    // A coordinate on the line with no tile row behind it - a hole in the
+    // board. A snipe pierces walls and carries on anyway, so skip it; reading
+    // Tile_Type off null would end the whole command in the central handler.
+    if (!tile) continue;
 
     if (tile.Tile_Type == 'Wall') {
       // more than two shots blows the wall away outright
@@ -190,6 +194,11 @@ async function run(input, deps = defaultDeps) {
         const collateralPlayer = await models.Players.findOne({
           where: { Player_ID: occupant, Game_ID: game.Game_ID },
         });
+        // A tile slot naming a player row that is not in this game any more -
+        // stale after a reset or a destroy. Skip it rather than damaging null,
+        // which would abort the shot partway through and lose the events
+        // already collected.
+        if (!collateralPlayer) continue;
         // was: the HP write plus playerDeathLogic(collateralPlayer, player) -
         // the arguments reversed, so the SNIPER was checked for death and
         // the victim never was. damagePlayer takes (attacker, victim).

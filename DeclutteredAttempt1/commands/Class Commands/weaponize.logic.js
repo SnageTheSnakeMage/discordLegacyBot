@@ -79,6 +79,9 @@ async function run(input, deps = defaultDeps) {
   if (!player) return { ok: false, reason: REJECTIONS.NOT_IN_GAME };
 
   const playersTile = await models.Tiles.findOne({ where: { Tile_ID: player.Tile_ID } });
+  // Tile_ID is null for a dead player (playerDeathLogic writes it), so this
+  // read returns null and every use below would be a TypeError
+  if (!playersTile) return { ok: false, reason: REJECTIONS.NOT_ON_BOARD };
   const x = input.x ?? playersTile.X_Position;
   const y = input.y ?? playersTile.Y_Position;
 
