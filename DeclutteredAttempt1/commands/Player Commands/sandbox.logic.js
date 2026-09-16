@@ -14,18 +14,37 @@
  * player with no sandbox game would get the central error handler instead of
  * being told they have no sandbox game.
  *
- * This first set is read-only. Nothing here writes, which is why the gate
- * does not also check that the caller is registered in the game: looking up a
- * tile id or reading the chaos list changes nothing. The subcommands that
- * act on a player's own row check membership themselves.
+ * The gate itself does not check that the caller is registered in the game:
+ * the read-only subcommands (get-tile-id, get-classes, view-chaos) change
+ * nothing, so membership is irrelevant to them. The subcommands that write to
+ * a player's row - reset, set-stat, set-meta - call requirePlayer() for that,
+ * and only ever touch the caller's own row.
  */
 const path = require('path');
 const { GAMESTATES, REJECTIONS, ChaosEvents } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
+const { stepLogger } = require('../_logging.js');
 const defaultDeps = require('../_deps.js');
 
 // shipped with the repo, and the same file the seeder reads
 const CLASSES_CSV = path.join(__dirname, '..', '..', 'database', 'seed', 'classes.csv');
+
+// What set-stat and set-meta may write. Discord already restricts the option
+// to these names, but the allowlists are the real guard: they are what stops a
+// future catalogue edit from making Player_ID, Game_ID or Discord_ID settable
+// and letting a player rewrite whose row it is.
+//
+// The split is Discord's 25-choice limit, not a meaningful boundary: 29
+// columns are settable and they do not fit in one dropdown.
+const SETTABLE_STATS = Object.freeze([
+  'Action_Points', 'MAX_AP', 'MISSED_AP', 'Health_Points', 'MAX_HP', 'MISSED_HP', 'Health_Points2',
+  'Damage', 'MAX_DAMAGE', 'Damage2', 'DMG_BUFF', 'Range_', 'MAX_RANGE', 'Range2',
+  'Free_Move', 'Free_Move2', 'Kills', 'Meals', 'Pharoh_HP', 'cCOverides',
+]);
+const SETTABLE_META = Object.freeze([
+  'Class_ID', 'Tile_ID', 'Tile_ID2', 'Dead', 'MarkedForDeath', 'Hitman_Target',
+  'HP_COST', 'RANGE_COST', 'DAMAGE_COST',
+]);
 
 function parse(raw, actor) {
   return {
@@ -33,6 +52,9 @@ function parse(raw, actor) {
     x: raw.x ?? null,
     y: raw.y ?? null,
     layer: raw.layer ?? null,
+    // set-stat calls it stat, set-meta calls it field; one column name either way
+    column: raw.stat ?? raw.field ?? null,
+    value: raw.value ?? null,
     gameId: raw.game ?? null,
     discordId: actor.discordId,
   };
@@ -120,12 +142,96 @@ function viewChaos(game) {
   };
 }
 
+/** The caller's row in this game, or a rejection. Writers only. */
+async function requirePlayer(input, models, game) {
+  const player = await models.Players.findOne({
+    where: { Game_ID: game.Game_ID, Discord_ID: input.discordId },
+  });
+  if (!player) {
+    return {
+      ok: false,
+      reason: REJECTIONS.NOT_IN_GAME,
+      data: { message: `You are not registered in game ${game.Game_ID}. Register first, or pick a sandbox game you are in.` },
+    };
+  }
+  return { ok: true, player };
+}
+
+/** /sandbox set-stat and set-meta - write one column of the caller's own row. */
+async function setColumn(input, models, game, player, allowed, label, trace) {
+  if (!allowed.includes(input.column)) {
+    return {
+      ok: false,
+      reason: REJECTIONS.INVALID_AMOUNT,
+      data: { message: `"${input.column}" is not a ${label} you can set. Try one of: ${allowed.join(', ')}` },
+    };
+  }
+
+  const before = player[input.column];
+  // worth a line of its own: this is a player rewriting their own row, and
+  // "my stats went weird" is exactly the report this explains
+  trace('columnSet', { playerId: player.Player_ID, column: input.column, before, after: input.value });
+  // only ever the caller's own row, keyed by Player_ID
+  await models.Players.update({ [input.column]: input.value }, { where: { Player_ID: player.Player_ID } });
+
+  return {
+    ok: true,
+    kind: 'columnSet',
+    data: { column: input.column, before, after: input.value, gameId: game.Game_ID },
+  };
+}
+
+/**
+ * /sandbox reset - take the caller off the board, delete their row, and put
+ * them back through the spawn procedure.
+ *
+ * utils.spawnPlayer is registerPlayer without the icon download: a reset has
+ * no attachment to download from, and the player's icon is already on disk
+ * from when they registered, so it is left exactly where it is.
+ */
+async function reset(input, deps, game, player, trace) {
+  const { models, utils } = deps;
+
+  // vacate both bodies: clearPlayerFromBoard frees the tile's PlayerN slot as
+  // well as nulling the player's own column, so no tile is left naming a row
+  // that is about to be destroyed
+  trace('resetClearing', { playerId: player.Player_ID, tileId: player.Tile_ID, tileId2: player.Tile_ID2 });
+  await utils.clearPlayerFromBoard(player.Player_ID, player.Tile_ID, 'Tile_ID');
+  if (player.Tile_ID2 != null) {
+    await utils.clearPlayerFromBoard(player.Player_ID, player.Tile_ID2, 'Tile_ID2');
+  }
+
+  await models.Players.destroy({ where: { Player_ID: player.Player_ID } });
+  trace('resetDestroyed', { playerId: player.Player_ID });
+
+  const rolled = await utils.spawnPlayer(game.Game_ID, input.discordId);
+  trace('resetRespawned', { className: rolled && rolled.Class_Name });
+  const respawned = await models.Players.findOne({
+    where: { Game_ID: game.Game_ID, Discord_ID: input.discordId },
+  });
+
+  return {
+    ok: true,
+    kind: 'reset',
+    data: {
+      gameId: game.Game_ID,
+      oldPlayerId: player.Player_ID,
+      newPlayerId: respawned ? respawned.Player_ID : null,
+      className: rolled ? rolled.Class_Name : null,
+      tileId: respawned ? respawned.Tile_ID : null,
+      tileId2: respawned ? respawned.Tile_ID2 : null,
+    },
+  };
+}
+
 async function run(input, deps = defaultDeps) {
   const { models } = deps;
+  const trace = stepLogger('sandbox', deps);
 
   const gate = await resolveSandboxGame(input, models);
   if (!gate.ok) return gate;
   const { game } = gate;
+  trace('gate', { subcommand: input.subcommand, gameId: game.Game_ID });
 
   switch (input.subcommand) {
     case 'get-tile-id':
@@ -134,6 +240,17 @@ async function run(input, deps = defaultDeps) {
       return { ok: true, kind: 'classes', data: { filePath: CLASSES_CSV, gameId: game.Game_ID } };
     case 'view-chaos':
       return viewChaos(game);
+    case 'reset':
+    case 'set-stat':
+    case 'set-meta': {
+      const membership = await requirePlayer(input, models, game);
+      if (!membership.ok) return membership;
+      const { player } = membership;
+      if (input.subcommand === 'reset') return reset(input, deps, game, player, trace);
+      return input.subcommand === 'set-stat'
+        ? setColumn(input, models, game, player, SETTABLE_STATS, 'stat', trace)
+        : setColumn(input, models, game, player, SETTABLE_META, 'field', trace);
+    }
     default:
       // Discord will not send a subcommand that is not registered, so this is
       // a catalogue entry without a branch here rather than player input
@@ -156,6 +273,16 @@ function present(result) {
       return {
         content: `Every class in game ${d.gameId}. The id column is the Class_ID set-class takes.`,
         files: [{ path: d.filePath, name: 'classes.csv' }],
+      };
+    case 'columnSet':
+      return { content: `Game ${d.gameId}: **${d.column}** ${d.before} -> **${d.after}**` };
+    case 'reset':
+      return {
+        content: [
+          `Reset in game ${d.gameId}. Player_ID ${d.oldPlayerId} is gone; you are now Player_ID ${d.newPlayerId}.`,
+          `Rolled **${d.className}**, spawned on Tile_ID ${d.tileId}${d.tileId2 != null ? ` and ${d.tileId2}` : ''}.`,
+          'Your icon was left as it is - a reset has no upload to take a new one from.',
+        ].join('\n'),
       };
     case 'chaosList':
       return {

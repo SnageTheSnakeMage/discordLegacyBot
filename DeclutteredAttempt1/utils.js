@@ -764,8 +764,14 @@ async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
   return canvas.toBuffer();
 },
 
-//adds a player to a game and downloads their playerIcon to be used for GenerateGameGridImagewithSight 
-async  registerPlayer(gameId, playerId, playerIcon) {
+//Creates the Players row and puts the body (or both Twin bodies) on the
+//board. This is everything registerPlayer used to do except the icon
+//download, split out so /sandbox reset can respawn a player whose icon is
+//already on disk and who has no attachment to hand.
+//
+//Returns the class that was rolled, which is the one thing the caller needs
+//afterwards: the icon filename depends on whether it was a Twin.
+async  spawnPlayer(gameId, playerId) {
     var game = await models.Games.findByPk(gameId);
     var SelectedClass = await this.getRandomClass(game);
     logger150.debug({function: "registerPlayer"},"selected class: " + JSON.stringify(SelectedClass));
@@ -820,9 +826,8 @@ async  registerPlayer(gameId, playerId, playerIcon) {
       else if(spawn2.Player4 == null) {
         await models.Tiles.update({Player4: createdPlayer.Player_ID}, {where: {Tile_ID: spawn2.Tile_ID}});
       }
-      await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + "_" + gameId + ".png");
-      logger150.debug({function: "registerPlayer"}, "registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
-      return;
+      logger150.debug({function: "spawnPlayer"}, "registered player to game: " + gameId + " with random class: Twin and spawning body 1 at tile: " + JSON.stringify(spawn1) + " and spawning body 2 at tile: " + JSON.stringify(spawn2));
+      return SelectedClass;
     }
     var spawn = await this.getSpawnpointTile(gameId)
     await models.Players.create({
@@ -857,8 +862,20 @@ async  registerPlayer(gameId, playerId, playerIcon) {
       throw "selected spawn tile is full somehow???";
     }
     
-    await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + playerId + ".png");
-    logger150.debug({function: "registerPlayer"}, "registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + JSON.stringify(spawn) +  " for spawn");
+    logger150.debug({function: "spawnPlayer"}, "registering player: " + playerId + " with random class: " + SelectedClass.Class_Name + " and spawning at tile: " + JSON.stringify(spawn) +  " for spawn");
+    return SelectedClass;
+},
+
+//adds a player to a game and downloads their playerIcon to be used for GenerateGameGridImagewithSight
+async  registerPlayer(gameId, playerId, playerIcon) {
+    const SelectedClass = await this.spawnPlayer(gameId, playerId);
+    //Preserved exactly as it was: the Twin branch wrote <id>_<gameId>.png and
+    //every other class wrote <id>.png. Only the first of those is the path
+    //GenerateGameGridImage reads back (see loadTileTexture at the player
+    //draw), so a non-Twin registration has always rendered as default.png.
+    //Splitting the function does not change that either way.
+    const iconName = SelectedClass.Class_Name == "Twin" ? playerId + "_" + gameId : playerId;
+    await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + iconName + ".png");
     return;
 },
 
