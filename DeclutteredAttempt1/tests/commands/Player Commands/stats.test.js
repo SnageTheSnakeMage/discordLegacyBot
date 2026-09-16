@@ -161,6 +161,8 @@ describe('stats.run success', () => {
         maxDamage: 3,
         range: 3,
         maxRange: 5,
+        onBoard: true,
+        dead: false,
         tileType: 'Blank1',
         xPosition: 3,
         yPosition: 4,
@@ -182,6 +184,61 @@ describe('stats.run success', () => {
       where: { Game_ID: 1, Discord_ID: ACTOR },
     });
     assertNoWrites(deps);
+  });
+
+  // A dead player has Tile_ID null (playerDeathLogic writes it). Their final
+  // stats are exactly what someone wants to look up afterwards, so this is
+  // not a rejection - only the board-position fields go.
+  it('still returns stats for a dead player, minus the position fields', async () => {
+    const deps = happyDeps({
+      player: createFakePlayer({ Discord_ID: ACTOR, Tile_ID: null, Tile_ID2: null, Dead: true, Kills: 4 }),
+    });
+    deps.models.Tiles.findByPk = jest.fn(async () => null);
+    const result = await logic.run(INPUT, deps);
+
+    expect(result.ok).toBe(true);
+    expect(result.data).toMatchObject({
+      onBoard: false,
+      dead: true,
+      tileType: null,
+      xPosition: null,
+      yPosition: null,
+      commonLayerId: null,
+      tileThumbnailPath: null,
+      // the stats that do not depend on a tile survive
+      kills: 4,
+      className: 'Average',
+    });
+    assertNoWrites(deps);
+  });
+
+  it('does not ask for a tile texture it has no tile type for', async () => {
+    const deps = happyDeps({
+      player: createFakePlayer({ Discord_ID: ACTOR, Tile_ID: null, Dead: true }),
+    });
+    deps.models.Tiles.findByPk = jest.fn(async () => null);
+    deps.utils = { ...deps.utils, resolveTileTexturePath: jest.fn(() => './tiles/environment/default.png') };
+    const result = await logic.run(INPUT, deps);
+
+    expect(result.data.tileThumbnailPath).toBeNull();
+    // the player icon is still resolved - that does not depend on a tile
+    const layers = deps.utils.resolveTileTexturePath.mock.calls.map(([layer]) => layer);
+    expect(layers).toContain('players');
+    expect(layers).not.toContain('environment');
+  });
+
+  it('reports a Twin body that is off the board without losing the other', async () => {
+    const deps = happyDeps({
+      playerClass: createFakeClass({ Class_Name: 'Twin' }),
+      player: createFakePlayer({ Discord_ID: ACTOR, Tile_ID: 1, Tile_ID2: null }),
+    });
+    const tile1 = createFakeTile({ Tile_ID: 1, Layer_ID: 11, Tile_Type: 'Blank1', X_Position: 3, Y_Position: 4 });
+    deps.models.Tiles.findByPk = jest.fn(async (id) => (id === 1 ? tile1 : null));
+    const result = await logic.run(INPUT, deps);
+
+    expect(result.ok).toBe(true);
+    expect(result.data.onBoard).toBe(true);
+    expect(result.data.secondBody).toBeNull();
   });
 
   it('looks up an explicit target and uses their username', async () => {
@@ -254,6 +311,8 @@ describe('stats.present', () => {
     maxDamage: 3,
     range: 3,
     maxRange: 5,
+    onBoard: true,
+    dead: false,
     tileType: 'Blank1',
     xPosition: 3,
     yPosition: 4,
@@ -345,6 +404,46 @@ describe('stats.present', () => {
     expect(out.files).toEqual([]);
     expect(out.embeds[0].image).toBeUndefined();
     expect(out.embeds[0].thumbnail).toBeUndefined();
+  });
+
+  // the point of showing a dead player's stats at all: everything that does
+  // not describe a position on the board is still there
+  it('renders a dead player without the position fields, and says why', () => {
+    const out = logic.present(ok({
+      onBoard: false, dead: true, tileType: null, xPosition: null,
+      yPosition: null, commonLayerId: null, tileThumbnailPath: null,
+    }));
+    const names = fieldNames(out);
+    expect(names).not.toContain('X Position');
+    expect(names).not.toContain('Y Position');
+    expect(names).not.toContain('Layer');
+    // the stats worth looking up after a death are all still rendered
+    expect(names).toEqual(expect.arrayContaining([
+      'Class', 'Current/Max/Missed Health', 'Current/Max Damage', 'Kills',
+    ]));
+    // and the absence is stated rather than left as a gap
+    const tileField = out.embeds[0].fields.find((f) => f.name === 'Current Tile');
+    expect(tileField.value).toBe('Dead - off the board');
+    // no thumbnail is attached or referenced
+    expect(out.embeds[0].thumbnail).toBeUndefined();
+    expect(out.files.map((f) => f.name)).not.toContain('tileThumbnail.png');
+  });
+
+  it('distinguishes off-the-board-but-alive from dead', () => {
+    const out = logic.present(ok({
+      onBoard: false, dead: false, tileType: null, tileThumbnailPath: null,
+    }));
+    const tileField = out.embeds[0].fields.find((f) => f.name === 'Current Tile');
+    expect(tileField.value).toBe('Not on the board');
+  });
+
+  it('renders a Twin whose second body is gone without crashing on it', () => {
+    const out = logic.present(ok({ className: 'Twin', secondBody: null }));
+    const names = fieldNames(out);
+    expect(names).toContain('Second Body');
+    expect(names).not.toContain("Second Body's X Position");
+    const field = out.embeds[0].fields.find((f) => f.name === 'Second Body');
+    expect(field.value).toBe('Off the board');
   });
 
   it('omits the author icon when there is no avatar URL', () => {

@@ -125,9 +125,11 @@ docker compose up -d   # then restore the backup into the volume if needed
 ```
 
 Game state lives in the `legacy-db` named volume and survives image rebuilds.
-Slash-command registration is rate-limited by Discord and does NOT run on boot;
-run the Deploy workflow manually with "register commands" checked when a
-command's definition changes (or `REGISTER_COMMANDS_ON_BOOT=1` for a one-off).
+Slash-command registration is rate-limited by Discord and does NOT run on boot.
+Run the Deploy workflow manually with "register commands" checked when a
+command's definition changes. There is no environment-variable shortcut: the
+workflow, or `node scripts/register-commands.js` with `DISCORD_TOKEN`,
+`CLIENT_ID` and `GUILD_ID` set, is the whole of it.
 
 ### Secrets
 
