@@ -1,3 +1,19 @@
+# AI DISCLOSURE 
+I know that the culture around LLM assisted coding is controversial and that a big sticking point I agree with is that it should be a choice of the consumer, due to many of my friends caring deeply about this and myself caring about being transparent and integral as a person the following text summarizes how I used AI(mainly Claude) to develop this discord bot so that they can come to their own conclusions, and just due to the fact that my haphazard way of development does not make it easy to tell just what I did my hand and what came out of the trillion parameter statistical model known as Claude Code.
+-
+The development process of this discord bot started in November 2020, through a tool I bought and downloaded off of steam known as '[Discord Bot Studio](https://store.steampowered.com/app/1118380/Bot_Studio_for_Discord/)' after running into the frustration inducing sequence of attempting to port in proper database protocols into it through flowcharts I gave up on the tool and decided to just code it from a lower level for an easier development experience and more control.
+After which I read up on the documentation of [discordjs](https://discordjs.guide/), a node package that streamlines & types interactions with Discord's API in TypeScript/JavaScript. And after reading used LLM generated code(in this case I believe it was Claude sonnet 4?) for some examples to help get me started and generate the boilerplate. 
+After editing what it made I worked on the majority of the commands by hand until I thought it was complete, though unknown to my knowledge I would encounter a slew of bugs when attempting small playtests with a handful(3-5) of friends. 
+Which led me to implementing Jest and slowly adding automated unit testing to my codebase. Then around the June 1st 2025 I began using LLM assisted coding tools(Claude again) via cursor, Mostly using it for analysis and development advice. This continues up until the account I was borrowing moved off of the pro plan around Early September 2025. 
+I still used cursor as an IDE simply due to hating how VS code look and it suddenly deciding not to open on my laptop at one point. from there I used its line autocompletion feature but I did not prompt generation for large chunks of the codebase until around late August 2026. 
+At this point my development process moved from writing code with cursory line completion to prompting Claude opus 5 on a pro subscription I borrowed. I would have it make a PR, then I would review that PR, and merge it in. 
+I do occasionally do minute tiny changes where LLM coding tools would be overkill, but the majority of the code AFTER around August 15th 2026 is LLM generated, as the commit history shows.
+At first I used it mainly to add in the unit tests and refactor commands to be easier to make the unit tests for that I originally was slowly developing by hand because that part of the development process was like pulling teeth and I hated it but it was necessary for me to be able to efficiently refactor and bugfix the many problems my old code had. The reason it was so horrible to do was because the majority of it was coded by a version of me that did not understand how to properly create functions and avoid non-deterministic actions mixing with deterministic ones. Mainly the whole issue of a lot of the codebase partially depending on discordjs client & ineteraction object when it did not need to, seperating the logic of a command from its response was a huge thing that claude turned from about 2 months of work into a week. 
+This change has hidden most of the work I did by hand due to the logic I wrote being moved to new files for better encapsulation, thus I disclose it here. If you have any specific questions about how I use Claude code feel free to make an issue here or contact me directly @ the following:
+Email: 'firecardmaster+QA@gmail.com'
+Discord: 'snage.'
+and I'll add your question and answer here.
+
 # Legacy(v3.1.1) Discord Bot
  A discord bot for running the game legacy. Made this incase anyone was curious on progress/wanted to help. 
 
@@ -10,7 +26,7 @@ You eliminate others by spending a shareable currency given every 12 hours to sh
 Killers get +1 to their max stats,
 
 (Examples: 
-Player gets a kill and recieves the following increases to their maximums
+Player gets a kill and receives the following increases to their maximums
 max. AP 12 -> 13, 
 max. HP 10 -> 11, 
 max. Damage 2 -> 3)
