@@ -1,3 +1,27 @@
+> # NO LONGER IN USE
+>
+> **This document is not maintained and must not be treated as current.** It is
+> kept for history only.
+>
+> It describes the codebase as it stood during the `parse`/`run`/`present`
+> conversion. Much of it has since been fixed, and some entries were wrong when
+> written, so an entry here is evidence of what someone once observed — not of
+> how the code behaves now. Known examples:
+>
+> - the "Correction to §1.2" says `getOldestGameId` is defined twice and
+>   harmlessly returns `undefined`. There is now one definition
+>   (`utils.js:1229`) and it **throws**;
+> - `/listGames` no longer replies with an empty string when there are no
+>   games;
+> - the player icon path mismatch is fixed, in both `registerPlayer` and
+>   `stats.logic.js`.
+>
+> Check the code before acting on anything below. For behaviour that is
+> current and load-bearing, see `CLAUDE.md` and the tests, which are the only
+> descriptions kept honest by CI.
+
+---
+
 # Quirks and strange behaviours in `cursord`
 
 Everything below was found while converting the command layer to the

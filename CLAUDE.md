@@ -31,10 +31,11 @@ Commands are split into a thin adapter and a pure logic file, e.g.
   `interaction.client` — belongs here, not in the logic file.
 
 Every longer-form document lives in `Prompts & Guidelines/`: `TESTING.md`
-describes this split in full, `QUIRKS.md` records known broken and surprising
-behaviour that tests deliberately pin, `CI_CD_PROMPT.md` covers the pipeline
-and the container build, and `BOARDS.md` and `CHANGING_CLASSES.md` are the
-gameplay references.
+describes this split in full, `CI_CD_PROMPT.md` covers the pipeline and the
+container build, and `BOARDS.md` and `CHANGING_CLASSES.md` are the gameplay
+references. `QUIRKS.md` is **no longer in use** — it is kept for history, much
+of it is fixed, and some of it was wrong when written; check the code rather
+than trusting an entry there.
 
 Unit tests never touch the database. `utils.models.*` is stubbed with
 `jest.spyOn`; only the integration project seeds a real schema. If a unit test
@@ -106,15 +107,32 @@ every non-Twin player rendered as `default.png`. **This is fixed**:
 registration now always writes `<Discord_ID>_<gameId>.png`, matching the
 renderer. Do not "preserve" it in a refactor — it is no longer the behaviour.
 
-`<Discord_ID>_<gameId>.png` is the one true player-icon path. Two readers do
-*not* agree yet:
+`<Discord_ID>_<gameId>.png` is the one true player-icon path, and nothing
+spells it by hand any more: **`utils.playerIconName(discordId, gameId)`** is
+the single definition, used by the writer (`registerPlayer`) and by both
+readers.
 
-- the renderer, `utils.js:730`, asks `loadTileTexture` for it and **falls back
-  to `default.png`** when it is absent, so a missing icon is cosmetic;
-- `stats.logic.js` attaches `tiles/players/<Discord_ID>.png` — the old,
-  unsuffixed path — **directly, with no fallback**. Every file in
-  `tiles/players/` carries the `_<gameId>` suffix, so that attachment does not
-  exist and `/stats` fails into the central error handler.
+Both readers now survive a missing file, by different routes:
+
+- the renderer asks `loadTileTexture`, which **falls back to `default.png`**,
+  so a missing icon is cosmetic;
+- `stats.logic.js` goes through **`utils.resolveTileTexturePath(layer, name)`**
+  — `loadTileTexture` in path form, same fallback. It used to attach the old
+  unsuffixed path directly, and since `AttachmentBuilder` does not read the
+  file until send time, a missing icon took `/stats` into the central error
+  handler.
+
+**Never build an attachment path by hand.** A path that does not exist fails
+at send time as an unhandled error, not as a missing image, so the player is
+told "There was an error while executing this command!" for a cosmetic
+problem. `resolveTileTexturePath` returns `null` only when even the layer
+default is missing, and the caller is expected to drop the image rather than
+name an attachment it did not attach.
+
+Note it does **not** copy `loadTileTexture`'s transparent-for-null behaviour:
+a null name resolves to `default.png`, because an invisible texture is
+indistinguishable from a correctly transparent one and would hide a misspelt
+name.
 
 ### Discord limits worth knowing before designing a command
 

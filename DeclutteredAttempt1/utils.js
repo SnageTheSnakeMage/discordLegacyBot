@@ -531,9 +531,13 @@ async pollToResults(poll, game) {
  * plainly instead of attaching a path that cannot be uploaded.
  */
 resolveTileTexturePath(layer, textureName) {
-  const name = textureName == null ? 'transparent' : textureName;
-  const tilePath = "./tiles/" + layer + "/" + name + ".png";
-  if (fs.existsSync(tilePath)) return tilePath;
+  // Deliberately NOT loadTileTexture's transparent-for-null: an invisible
+  // texture is indistinguishable from a correctly transparent one, so a
+  // misspelt or absent name would render as nothing at all and look
+  // intentional. A null name falls through to default.png like any other name
+  // that does not resolve, which is visible and therefore reportable.
+  const tilePath = "./tiles/" + layer + "/" + textureName + ".png";
+  if (textureName != null && fs.existsSync(tilePath)) return tilePath;
 
   logger150.debug({function: "resolveTileTexturePath"}, `No texture ${tilePath}, falling back to the ${layer} default`);
   const defaultPath = "./tiles/" + layer + "/default.png";
