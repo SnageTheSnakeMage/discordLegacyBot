@@ -254,6 +254,14 @@ const COMMANDS = {
           'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
         },
       },
+      'summon-dummy': {
+        description: 'put a fake player on a tile, to have something to shoot at',
+        options: {
+          'tile-id': { kind: 'integer', description: 'Tile_ID to stand it on - get-tile-id finds one', required: true },
+          'class-id': { kind: 'integer', description: 'Class_ID to give it - get-classes lists them', required: true },
+          'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
+        },
+      },
       'view-chaos': {
         description: 'list the chaos events set-chaos will accept, and the current one',
         options: {

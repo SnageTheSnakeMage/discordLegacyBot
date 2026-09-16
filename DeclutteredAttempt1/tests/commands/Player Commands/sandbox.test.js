@@ -8,7 +8,7 @@ const fs = require('fs');
 const logic = require('../../../commands/Player Commands/sandbox.logic.js');
 const sandbox = require('../../../commands/Player Commands/sandbox.js');
 const { GAMESTATES, REJECTIONS, ChaosEvents } = require('../../../enums.js');
-const { createDeps, createFakeGame, createFakePlayer, createFakeTile, createFakeLayer } = require('../../helpers/mockModels.js');
+const { createDeps, createFakeGame, createFakePlayer, createFakeTile, createFakeLayer, createFakeClass } = require('../../helpers/mockModels.js');
 
 const PLAYER = '123';
 
@@ -39,12 +39,12 @@ const input = (over = {}) => ({
 describe('sandbox.parse', () => {
   it('carries the subcommand and the options through', () => {
     expect(logic.parse({ subcommand: 'get-tile-id', x: 1, y: 2, layer: 3, game: 4 }, { discordId: PLAYER }))
-      .toEqual({ subcommand: 'get-tile-id', x: 1, y: 2, layer: 3, gameId: 4, column: null, value: null, minutes: null, times: null, event: null, discordId: PLAYER });
+      .toEqual({ subcommand: 'get-tile-id', x: 1, y: 2, layer: 3, gameId: 4, column: null, value: null, tileId: null, classId: null, minutes: null, times: null, event: null, discordId: PLAYER });
   });
 
   it('nulls every absent option rather than leaving it undefined', () => {
     expect(logic.parse({ subcommand: 'view-chaos' }, { discordId: PLAYER }))
-      .toEqual({ subcommand: 'view-chaos', x: null, y: null, layer: null, gameId: null, column: null, value: null, minutes: null, times: null, event: null, discordId: PLAYER });
+      .toEqual({ subcommand: 'view-chaos', x: null, y: null, layer: null, gameId: null, column: null, value: null, tileId: null, classId: null, minutes: null, times: null, event: null, discordId: PLAYER });
   });
 
   it('folds set-stat\'s stat and set-meta\'s field into one column name', () => {
@@ -329,12 +329,109 @@ describe('sandbox ap-tick', () => {
   });
 });
 
+describe('sandbox summon-dummy', () => {
+  function dummyDeps(over = {}) {
+    const deps = happyDeps(over);
+    const tile = 'dummyTile' in over ? over.dummyTile
+      : createFakeTile({ Tile_ID: 99, Layer_ID: 11, Player1: null, Player2: null, Player3: null, Player4: null });
+    deps.models.Tiles.findByPk = jest.fn(async () => tile);
+    deps.models.Layers.findByPk = jest.fn(async () => ('layer' in over ? over.layer : createFakeLayer({ Layer_ID: 11, Game_ID: 7 })));
+    deps.models.Classes.findByPk = jest.fn(async () => ('dummyClass' in over ? over.dummyClass
+      : createFakeClass({ Class_ID: 4, Class_Name: 'Average', Start_HP: 10, Start_AP: 4 })));
+    deps.models.Players.findAll = jest.fn(async () => (over.existing || []));
+    deps.models.Players.findOne = jest.fn(async ({ where }) => (
+      String(where.Discord_ID).startsWith('dummy-')
+        ? createFakePlayer({ Player_ID: 30, Discord_ID: where.Discord_ID, Game_ID: 7 })
+        : createFakePlayer({ Player_ID: 5, Game_ID: 7, Discord_ID: PLAYER })
+    ));
+    return deps;
+  }
+
+  const summon = (over = {}) => input({ subcommand: 'summon-dummy', tileId: 99, classId: 4, ...over });
+
+  it('creates the row with the class\'s starting stats and a synthetic id', async () => {
+    const deps = dummyDeps();
+    const result = await logic.run(summon(), deps);
+
+    const [row] = deps.models.Players.create.mock.calls[0];
+    expect(row).toMatchObject({ Class_ID: 4, Game_ID: 7, Tile_ID: 99, Health_Points: 10, Action_Points: 4 });
+    // not a snowflake: real ids are all digits, so this can never collide
+    expect(row.Discord_ID).toBe('dummy-7-1');
+    expect(/^\d+$/.test(row.Discord_ID)).toBe(false);
+    expect(result).toMatchObject({ ok: true, kind: 'dummy', data: { className: 'Average', tileId: 99 } });
+  });
+
+  it('numbers each dummy after the ones already in the game', async () => {
+    const deps = dummyDeps({
+      existing: [
+        createFakePlayer({ Discord_ID: 'dummy-7-1' }),
+        createFakePlayer({ Discord_ID: '123456789' }),
+        createFakePlayer({ Discord_ID: 'dummy-7-2' }),
+      ],
+    });
+    await logic.run(summon(), deps);
+    expect(deps.models.Players.create.mock.calls[0][0].Discord_ID).toBe('dummy-7-3');
+  });
+
+  it('points the tile back at the dummy, not just the dummy at the tile', async () => {
+    const deps = dummyDeps();
+    await logic.run(summon(), deps);
+    expect(deps.models.Tiles.update).toHaveBeenCalledWith({ Player1: 30 }, { where: { Tile_ID: 99 } });
+  });
+
+  it('uses the first free slot on a partly occupied tile', async () => {
+    const deps = dummyDeps({
+      dummyTile: createFakeTile({ Tile_ID: 99, Layer_ID: 11, Player1: 1, Player2: 2, Player3: null, Player4: null }),
+    });
+    await logic.run(summon(), deps);
+    expect(deps.models.Tiles.update).toHaveBeenCalledWith({ Player3: 30 }, { where: { Tile_ID: 99 } });
+  });
+
+  it('refuses a full tile rather than letting claimTileSlot throw', async () => {
+    const deps = dummyDeps({
+      dummyTile: createFakeTile({ Tile_ID: 99, Layer_ID: 11, Player1: 1, Player2: 2, Player3: 3, Player4: 4 }),
+    });
+    const result = await logic.run(summon(), deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TILE_FULL });
+    expect(deps.models.Players.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a tile that belongs to another game', async () => {
+    const deps = dummyDeps({ layer: createFakeLayer({ Layer_ID: 11, Game_ID: 99 }) });
+    const result = await logic.run(summon(), deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_TILE });
+    expect(logic.present(result).content).toContain("game 7's board");
+    expect(deps.models.Players.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a tile that does not exist', async () => {
+    const deps = dummyDeps();
+    deps.models.Tiles.findByPk = jest.fn(async () => null);
+    expect((await logic.run(summon(), deps)).reason).toBe(REJECTIONS.NO_SUCH_TILE);
+  });
+
+  it('refuses a Class_ID that does not exist, pointing at get-classes', async () => {
+    const deps = dummyDeps({ dummyClass: null });
+    const result = await logic.run(summon({ classId: 999 }), deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.INVALID_AMOUNT });
+    expect(logic.present(result).content).toContain('get-classes');
+    expect(deps.models.Players.create).not.toHaveBeenCalled();
+  });
+
+  it('still needs the caller to be in the game', async () => {
+    const deps = dummyDeps();
+    deps.models.Players.findOne = jest.fn(async () => null);
+    expect((await logic.run(summon(), deps)).reason).toBe(REJECTIONS.NOT_IN_GAME);
+  });
+});
+
 describe('sandbox adapter', () => {
   it('registers as /sandbox with the three subcommands', () => {
     const json = sandbox.data.toJSON();
     expect(json.name).toBe('sandbox');
     expect(json.options.map((o) => o.name)).toEqual([
-      'get-tile-id', 'get-classes', 'reset', 'set-stat', 'set-meta', 'ap-time', 'ap-tick', 'set-chaos', 'view-chaos',
+      'get-tile-id', 'get-classes', 'reset', 'set-stat', 'set-meta', 'ap-time', 'ap-tick', 'set-chaos',
+      'summon-dummy', 'view-chaos',
     ]);
     expect(json.options.every((o) => o.type === 1)).toBe(true);
     expect(typeof sandbox.execute).toBe('function');
