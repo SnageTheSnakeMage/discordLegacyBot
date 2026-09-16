@@ -873,12 +873,7 @@ async  spawnPlayer(gameId, playerId) {
 //adds a player to a game and downloads their playerIcon to be used for GenerateGameGridImagewithSight
 async  registerPlayer(gameId, playerId, playerIcon) {
     const SelectedClass = await this.spawnPlayer(gameId, playerId);
-    //Preserved exactly as it was: the Twin branch wrote <id>_<gameId>.png and
-    //every other class wrote <id>.png. Only the first of those is the path
-    //GenerateGameGridImage reads back (see loadTileTexture at the player
-    //draw), so a non-Twin registration has always rendered as default.png.
-    //Splitting the function does not change that either way.
-    const iconName = SelectedClass.Class_Name == "Twin" ? playerId + "_" + gameId : playerId;
+    const iconName = playerId + "_" + gameId;
     await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + iconName + ".png");
     return;
 },
