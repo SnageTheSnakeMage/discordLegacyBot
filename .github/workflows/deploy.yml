@@ -74,7 +74,7 @@ jobs:
             echo "which backs up, pulls, brings compose up, verifies health and rolls back."
             exit 0
           fi
-          bash DeclutteredAttempt1/scripts/deploy.sh "$IMAGE_DIGEST"
+          sh DeclutteredAttempt1/scripts/deploy.sh "$IMAGE_DIGEST"
 
   register-commands:
     # manual, rate-limited side effect - never part of a container boot

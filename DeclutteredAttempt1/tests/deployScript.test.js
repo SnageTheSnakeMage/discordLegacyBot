@@ -18,7 +18,7 @@ const DIGEST = 'ghcr.io/owner/repo@sha256:aaaa';
 const OLD_DIGEST = 'ghcr.io/owner/repo@sha256:bbbb';
 
 /** a `docker` that logs its arguments and answers from env knobs */
-const FAKE_DOCKER = `#!/usr/bin/env bash
+const FAKE_DOCKER = `#!/bin/sh
 echo "$* | IMAGE_DIGEST=\${IMAGE_DIGEST:-}" >> "$FAKE_LOG"
 case "$*" in
   "compose ps -q bot")
@@ -62,7 +62,9 @@ function runDeploy({
   const healthFile = path.join(dir, 'health');
   if (health) fs.writeFileSync(healthFile, `${health.join('\n')}\n`);
 
-  const result = spawnSync('bash', [SCRIPT, digest], {
+  // sh, not bash: the CI image (node:24-alpine) has no bash, and spawning a
+  // missing binary fails silently enough to look like nine broken assertions
+  const result = spawnSync('sh', [SCRIPT, digest], {
     encoding: 'utf8',
     env: {
       ...process.env,
@@ -77,6 +79,11 @@ function runDeploy({
       ...(health ? { FAKE_HEALTH_FILE: healthFile } : {}),
     },
   });
+
+  // a missing interpreter comes back as error + undefined output, which
+  // reads downstream as nine unrelated assertion failures rather than one
+  // cause. Say the cause instead.
+  if (result.error) throw new Error(`could not run ${SCRIPT}: ${result.error.message}`);
 
   const calls = fs.existsSync(logFile)
     ? fs.readFileSync(logFile, 'utf8').trim().split('\n').filter(Boolean) : [];
