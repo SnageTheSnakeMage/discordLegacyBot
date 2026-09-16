@@ -12,7 +12,7 @@ const logic = require('../../../commands/Class Commands/punish.logic.js');
 const punish = require('../../../commands/Class Commands/punish.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
+  createDeps,
   createFakeGame,
   createFakePlayer,
   createFakeTile,
@@ -48,15 +48,15 @@ function happyDeps(over = {}) {
       Tile_ID: 42, X_Position: where.X_Position, Y_Position: where.Y_Position, Layer_ID: where.Layer_ID,
     });
 
-  const deps = createActorDeps({
-    game,
-    tiles: {
-      findByPk: async () => attackersTile,
-      findOne: findTile,
-    },
+  const deps = createDeps({
     models: {
+      Games: { findByPk: async () => game },
       Players: {
         findOne: async ({ where }) => (where.Discord_ID === ATTACKER ? player : where.Discord_ID === TARGET ? targetPlayer : null),
+      },
+      Tiles: {
+        findByPk: async () => attackersTile,
+        findOne: findTile,
       },
     },
   });

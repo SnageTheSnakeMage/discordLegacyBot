@@ -6,11 +6,7 @@ const logic = require('../../../commands/Class Commands/swap.logic.js');
 const swap = require('../../../commands/Class Commands/swap.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps,
-  createFakeGame,
-  createFakePlayer,
-  createFakeClass,
-  createFakeTile,
+  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
 } = require('../../helpers/mockModels.js');
 
 const ACTOR = '123';

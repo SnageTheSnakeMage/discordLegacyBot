@@ -6,7 +6,7 @@ const logic = require('../../../commands/Class Commands/build.logic.js');
 const build = require('../../../commands/Class Commands/build.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
+  createDeps,
   createFakeGame,
   createFakePlayer,
   createFakeClass,
@@ -27,15 +27,15 @@ function happyDeps(over = {}) {
   // targetTile: null means "no tile at those coordinates"
   const targetTile = 'targetTile' in over ? over.targetTile
     : createFakeTile({ Tile_ID: 2, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1' });
-  const deps = createActorDeps({
-    game,
-    playerClass,
-    tiles: {
-      findByPk: async () => playerTile,
-      findOne: async () => targetTile,
-    },
+  const deps = createDeps({
     models: {
+      Games: { findByPk: async () => game },
       Players: { findOne: async ({ where }) => (where.Discord_ID === BUILDER ? player : null) },
+      Classes: { findByPk: async () => playerClass },
+      Tiles: {
+        findByPk: async () => playerTile,
+        findOne: async () => targetTile,
+      },
     },
   });
   return { deps, player, game, targetTile };

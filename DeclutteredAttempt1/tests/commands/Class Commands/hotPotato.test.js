@@ -8,11 +8,7 @@ const logic = require('../../../commands/Class Commands/hotPotato.logic.js');
 const hotPotato = require('../../../commands/Class Commands/hotPotato.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
-  createFakeGame,
-  createFakePlayer,
-  createFakeClass,
-  createFakeTile,
+  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
 } = require('../../helpers/mockModels.js');
 
 const ACTOR = '123';
@@ -46,18 +42,18 @@ function happyDeps(over = {}) {
   const victimTile = 'victimTile' in over ? over.victimTile
     : createFakeTile({ Tile_ID: 2, X_Position: 3, Y_Position: 1, Layer_ID: 1 });
 
-  const deps = createActorDeps({
-    game,
-    playerClass,
-    tiles: {
-      findByPk: async () => playerTile,
-      findOne: async () => victimTile,
-    },
+  const deps = createDeps({
     models: {
+      Games: { findByPk: async () => game },
       Players: {
         findOne: async ({ where }) => (
           where.Discord_ID === ACTOR ? player : where.Discord_ID === VICTIM ? victim : null
         ),
+      },
+      Classes: { findByPk: async () => playerClass },
+      Tiles: {
+        findByPk: async () => playerTile,
+        findOne: async () => victimTile,
       },
     },
   });

@@ -6,12 +6,7 @@ const logic = require('../../../commands/Player Commands/board.logic.js');
 const board = require('../../../commands/Player Commands/board.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
-  createFakeGame,
-  createFakePlayer,
-  createFakeClass,
-  createFakeTile,
-  createFakeLayer,
+  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
 } = require('../../helpers/mockModels.js');
 
 const FAKE_PNG = Buffer.from('not-a-real-png');
@@ -20,14 +15,14 @@ function happyDeps(over = {}) {
   const player = over.player || createFakePlayer({ Discord_ID: '123', Tile_ID: 1, Tile_ID2: 2 });
   const game = over.game || createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE });
   const playerClass = over.playerClass || createFakeClass({ Class_Name: 'Average' });
-  const deps = createActorDeps({
-    game,
-    player,
-    playerClass,
-    tiles: { findByPk: async (id) => (id === 1
-    ? createFakeTile({ Tile_ID: 1, Layer_ID: 11 })
-    : createFakeTile({ Tile_ID: 2, Layer_ID: 22 })) },
+  const deps = createDeps({
     models: {
+      Games: { findByPk: async () => game },
+      Players: { findOne: async () => player },
+      Classes: { findByPk: async () => playerClass },
+      Tiles: { findByPk: async (id) => (id === 1
+        ? createFakeTile({ Tile_ID: 1, Layer_ID: 11 })
+        : createFakeTile({ Tile_ID: 2, Layer_ID: 22 })) },
       Layers: { findAll: async () => [createFakeLayer({ Layer_ID: 11 }), createFakeLayer({ Layer_ID: 22 })] },
     },
   });

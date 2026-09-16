@@ -10,11 +10,7 @@ const logic = require('../../../commands/Player Commands/trace.logic.js');
 const trace = require('../../../commands/Player Commands/trace.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createDeps,
-  createFakeGame,
-  createFakePlayer,
-  createFakeClass,
-  createFakeTile,
+  createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
 } = require('../../helpers/mockModels.js');
 
 const SHOOTER = { x: 1, y: 1 };

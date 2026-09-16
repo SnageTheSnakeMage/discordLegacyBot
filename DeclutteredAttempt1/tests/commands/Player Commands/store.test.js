@@ -7,7 +7,7 @@ const logic = require('../../../commands/Player Commands/store.logic.js');
 const store = require('../../../commands/Player Commands/store.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
-  createActorDeps,
+  createDeps,
   createFakeGame,
   createFakePlayer,
   createFakeTile,
@@ -22,10 +22,12 @@ function happyDeps(over = {}) {
   const game = over.game || createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, CHEST_AMOUNT: 10 });
   const player = over.player || createFakePlayer({ Player_ID: 1, Discord_ID: ACTOR, Action_Points: 5, Tile_ID: 1 });
   const tile = over.tile || createFakeTile({ Tile_ID: 1, Tile_Type: 'Chest' });
-  const deps = createActorDeps({
-    game,
-    player,
-    tiles: { findByPk: async () => tile },
+  const deps = createDeps({
+    models: {
+      Games: { findByPk: async () => game },
+      Players: { findOne: async () => player },
+      Tiles: { findByPk: async () => tile },
+    },
   });
   return { deps, game, player, tile };
 }
