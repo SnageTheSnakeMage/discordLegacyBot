@@ -120,9 +120,12 @@ IMAGE_DIGEST=ghcr.io/<owner>/<repo>@sha256:<digest> \
   DeclutteredAttempt1/scripts/deploy.sh
 ```
 
-It reads `~/legacy-bot` (override with `LEGACY_DEPLOY_DIR`), which holds the
-bot's `.env`, the `backups/` directory and `current-digest` — the digest it
-rolls back to. A deploy that never goes healthy leaves `current-digest`
+It reads `~/legacy-bot`, which holds the bot's `.env`, the `backups/`
+directory and `current-digest` — the digest it rolls back to. To keep that
+state somewhere else, set the repository variable `LEGACY_DEPLOY_DIR` to an
+absolute path; the workflow passes it through. Put the host's path there
+rather than editing the script — a path in the script names one machine and
+is not covered by the tests. A deploy that never goes healthy leaves `current-digest`
 untouched, so the last known-good digest survives a failed attempt.
 
 <details>

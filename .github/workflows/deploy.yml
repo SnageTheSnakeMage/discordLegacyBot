@@ -65,6 +65,11 @@ jobs:
         env:
           IMAGE_DIGEST: ${{ needs.publish.outputs.digest }}
           RUNNER_LABEL: ${{ vars.DEPLOY_RUNNER_LABEL || '' }}
+          # The host's own path for .env, backups and current-digest. A
+          # machine-specific path belongs in repository config, not in a
+          # versioned script - the script defaults to $HOME/legacy-bot when
+          # this is unset, and nothing in the repo names one host.
+          LEGACY_DEPLOY_DIR: ${{ vars.LEGACY_DEPLOY_DIR }}
         run: |
           if [ -z "$RUNNER_LABEL" ]; then
             echo "No host runner configured (repository variable DEPLOY_RUNNER_LABEL is unset)."

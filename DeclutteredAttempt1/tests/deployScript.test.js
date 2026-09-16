@@ -47,10 +47,12 @@ esac
  */
 function runDeploy({
   digest = DIGEST, env: withEnv = true, previous = null, health = null,
-  backupExit = 0, cid = 'cafe1234',
+  backupExit = 0, cid = 'cafe1234', fromEnv = true,
 } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'deploy-'));
   const binDir = path.join(dir, 'bin');
+  // the fixture's HOME is `dir`, so $HOME/legacy-bot IS this path - which is
+  // what lets `fromEnv: false` exercise the built-in default
   const deployDir = path.join(dir, 'legacy-bot');
   fs.mkdirSync(binDir);
   fs.mkdirSync(deployDir);
@@ -70,7 +72,7 @@ function runDeploy({
       ...process.env,
       PATH: `${binDir}:${process.env.PATH}`,
       HOME: dir,
-      LEGACY_DEPLOY_DIR: deployDir,
+      ...(fromEnv ? { LEGACY_DEPLOY_DIR: deployDir } : { LEGACY_DEPLOY_DIR: undefined }),
       LEGACY_HEALTH_TRIES: '3',
       LEGACY_HEALTH_DELAY: '0',
       FAKE_LOG: logFile,
@@ -140,6 +142,20 @@ describe('deploy.sh - the happy path', () => {
     const backup = calls.find((c) => c.startsWith('run --rm'));
     expect(backup).toContain('legacy_legacy-db:/data');
     expect(backup).not.toContain(' legacy-db:/data');
+  });
+
+  // This line was `${LEGACY_DEPLOY_DIR:/Users/.../legacy-deployed}` for one
+  // commit - `:` instead of `:-`, which is bash substring expansion rather
+  // than a default, and evaluates the path as arithmetic. DEPLOY_DIR came out
+  // EMPTY and the deploy died with "deploy:  does not exist". Nothing covered
+  // the fallback, so the suite stayed green while the only host could not
+  // deploy. The path itself belongs in a repository variable, which the
+  // workflow now passes in - the script names no host.
+  it('falls back to $HOME/legacy-bot when LEGACY_DEPLOY_DIR is unset', () => {
+    const { code, calls, recorded } = runDeploy({ fromEnv: false });
+    expect(code).toBe(0);
+    expect(calls.some((c) => c.startsWith('compose up'))).toBe(true);
+    expect(recorded).toBe(DIGEST);
   });
 
   it('skips the backup on a first deploy, when there is no container yet', () => {
