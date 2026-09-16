@@ -21,6 +21,9 @@ beforeEach(() => {
   jest.spyOn(utils.models.Tiles, 'findOne').mockResolvedValue(
     createFakeTile({ Tile_ID: 7, Layer_ID: 1, X_Position: 3, Y_Position: 3 }),
   );
+  // placePlayerOnBoard claims the tile's PlayerN slot through Tiles.update,
+  // so a revive writes here too - without this stub it reaches real SQLite
+  jest.spyOn(utils.models.Tiles, 'update').mockResolvedValue([1]);
 });
 
 function stubClasses({ killerClass = 'Average', victimClass = 'Average' } = {}) {
@@ -113,7 +116,7 @@ describe('playerDeathLogic - twin bodies', () => {
     expect(update).toHaveBeenCalledWith({ Tile_ID2: null }, { where: { Player_ID: 20 } });
   });
 
-  it('one body down: a body clears but the player is not dead (current behaviour clears the OTHER body - see failing test below)', async () => {
+  it('one body down: a body clears but the player is not dead', async () => {
     stubClasses({ victimClass: 'Twin' });
     stubBoringGame();
     const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
@@ -121,17 +124,144 @@ describe('playerDeathLogic - twin bodies', () => {
     expect(update).not.toHaveBeenCalledWith({ Dead: true }, expect.anything());
   });
 
-  // Health_Points/Tile_ID and Health_Points2/Tile_ID2 are paired columns,
-  // but the branch for 'body 1 dead, body 2 alive' nulls Tile_ID2 - the
-  // LIVING body's tile. Flagged on PR #92 as a suspected body swap; this
-  // stays failing until the game rule is decided (issue #63 territory).
-  test.failing('the body that died is the one whose tile clears', async () => {
+  // Health_Points/Tile_ID and Health_Points2/Tile_ID2 are paired columns, and
+  // the branch for 'body 1 dead, body 2 alive' used to null Tile_ID2 - the
+  // LIVING body's tile, leaving the corpse standing. Flagged on PR #92 as a
+  // suspected body swap; the rule is now decided, so this passes.
+  it('the body that died is the one whose tile clears', async () => {
     stubClasses({ victimClass: 'Twin' });
     stubBoringGame();
     const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
     await utils.playerDeathLogic(killer(), victim({ Health_Points: 0, Health_Points2: 5, Tile_ID2: 8 }));
     expect(update).toHaveBeenCalledWith({ Tile_ID: null }, { where: { Player_ID: 20 } });
-    expect(update).not.toHaveBeenCalledWith({ Tile_ID2: null }, expect.anything());
+  });
+
+  // The rule: whichever body is lost, the survivor ends up in body 1 and the
+  // body-2 columns are nulled. hotPotatoSwap's Twin case takes Tile_ID2 /
+  // Health_Points2 / Damage2 / Range2 wholesale, so a survivor left in body 2
+  // would have the wrong body taken off it.
+  it('body 1 lost: the surviving body moves into body 1 and body 2 is nulled', async () => {
+    stubClasses({ victimClass: 'Twin' });
+    stubBoringGame();
+    const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
+    await utils.playerDeathLogic(killer(), victim({
+      Health_Points: 0, Health_Points2: 5, Tile_ID2: 8, Damage2: 3, Range2: 4, Free_Move2: 1,
+    }));
+
+    expect(update).toHaveBeenCalledWith({
+      Tile_ID: 8, Health_Points: 5, Damage: 3, Range_: 4, Free_Move: 1,
+      Tile_ID2: null, Health_Points2: 0, Damage2: 0, Range2: 0, Free_Move2: 0,
+    }, { where: { Player_ID: 20 } });
+    expect(update).not.toHaveBeenCalledWith({ Dead: true }, expect.anything());
+  });
+
+  it('body 2 lost: body 1 stays put and only body 2 is nulled', async () => {
+    stubClasses({ victimClass: 'Twin' });
+    stubBoringGame();
+    const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
+    await utils.playerDeathLogic(killer(), victim({ Health_Points: 5, Health_Points2: 0, Tile_ID2: 8 }));
+
+    expect(update).toHaveBeenCalledWith(
+      { Tile_ID2: null, Health_Points2: 0, Damage2: 0, Range2: 0, Free_Move2: 0 },
+      { where: { Player_ID: 20 } },
+    );
+    // the surviving body must NOT be taken off the board - the old code
+    // cleared Tile_ID here, which is body 1, the one still alive
+    expect(update).not.toHaveBeenCalledWith({ Tile_ID: null }, expect.anything());
+    expect(update).not.toHaveBeenCalledWith({ Dead: true }, expect.anything());
+  });
+
+  // a Twin that already lost body 2 has Tile_ID2 null, so it is a one-bodied
+  // player: losing that body is a real death, not another consolidation
+  it('a one-bodied Twin that loses its last body dies', async () => {
+    stubClasses({ victimClass: 'Twin' });
+    stubBoringGame();
+    const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
+    await utils.playerDeathLogic(killer(), victim({ Health_Points: 0, Health_Points2: 0, Tile_ID2: null }));
+    expect(update).toHaveBeenCalledWith({ Dead: true }, { where: { Player_ID: 20 } });
+  });
+
+  // playerDeathLogic runs after every point of damage, so a one-bodied Twin
+  // who is merely hurt must not keep re-nulling a body that is already gone
+  it('does not rewrite body 2 for a one-bodied Twin that survived the hit', async () => {
+    stubClasses({ victimClass: 'Twin' });
+    stubBoringGame();
+    const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
+    await utils.playerDeathLogic(killer(), victim({ Health_Points: 5, Health_Points2: 0, Tile_ID2: null }));
+    expect(update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ Tile_ID2: null }), expect.anything(),
+    );
+    expect(update).not.toHaveBeenCalledWith({ Dead: true }, expect.anything());
+  });
+});
+
+describe('playerDeathLogic - twin revive HP', () => {
+  const spawn = () => {
+    const spawnTile = createFakeTile({ Tile_ID: 99 });
+    jest.spyOn(utils, 'getSpawnpointTile').mockResolvedValue(spawnTile);
+    return spawnTile;
+  };
+
+  // Weird death case #0 tests `Health_Points <= 0 && Pharoh_HP > 0` with no
+  // Twin exclusion and RETURNS, so it swallows every Twin revive where body 1
+  // is the one that went down - the both-bodies-down case included. This pins
+  // that shadowing rather than pretending the Twin block handles it: it is
+  // why there is no such branch there, and moving it is a separate decision
+  // (case #0 also pays the kill credit, which the switch below does not).
+  it('body 1 down with revive HP never reaches the twin block - case #0 takes it', async () => {
+    stubClasses({ victimClass: 'Twin' });
+    stubBoringGame();
+    spawn();
+    const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
+    await utils.playerDeathLogic(killer(), victim({
+      Health_Points: 0, Health_Points2: 5, Tile_ID2: 8, Pharoh_HP: 3,
+    }));
+
+    // case #0's single write: body 1 to a spawnpoint, revive hp spent
+    expect(update).toHaveBeenCalledWith(
+      { Tile_ID: 99, Health_Points: 3, Pharoh_HP: 0 }, { where: { Player_ID: 20 } },
+    );
+    // and nothing from the twin block: body 2 is neither consolidated nor nulled
+    expect(update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ Tile_ID2: null }), expect.anything(),
+    );
+  });
+
+  it('body 2 died: revive HP brings body 2 back, not the living body 1', async () => {
+    stubClasses({ victimClass: 'Twin' });
+    stubBoringGame();
+    spawn();
+    const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
+    await utils.playerDeathLogic(killer(), victim({
+      Health_Points: 5, Health_Points2: 0, Tile_ID2: 8, Pharoh_HP: 3,
+    }));
+
+    expect(update).toHaveBeenCalledWith({ Health_Points2: 3, Pharoh_HP: 0 }, { where: { Player_ID: 20 } });
+    expect(update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ Health_Points: 3 }), expect.anything(),
+    );
+  });
+
+  // the revive used to be undone: six sequential ifs all read the same stale
+  // victim, so a clear branch below still saw the pre-revive hp and fired.
+  // The chain is else-if now, so exactly one outcome happens per death.
+  it('a revive is not immediately undone by a clear branch below it', async () => {
+    stubClasses({ victimClass: 'Twin' });
+    stubBoringGame();
+    spawn();
+    const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
+    await utils.playerDeathLogic(killer(), victim({
+      Health_Points: 5, Health_Points2: 0, Tile_ID2: 8, Pharoh_HP: 3,
+    }));
+
+    // Vacating the old tile does null Tile_ID2 - that is the clear half of
+    // clear-then-place. What must not happen is the reverse order, which is
+    // what the stale-victim `if` chain used to produce: a revive written and
+    // then undone. So assert on the LAST write to Tile_ID2.
+    const tileWrites = update.mock.calls
+      .map(([payload]) => payload)
+      .filter((p) => Object.prototype.hasOwnProperty.call(p, 'Tile_ID2'));
+    expect(tileWrites.at(-1)).toMatchObject({ Tile_ID2: 99 });
   });
 });
 

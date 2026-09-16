@@ -80,18 +80,37 @@ describe('death', () => {
     const { game, layer } = await board();
     const killer = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Kills: 0 });
     const twin = await seedPlayer(game.Game_ID, {
-      discordId: '2', x: 2, y: 1, layerId: layer.Layer_ID, className: 'Twin', Health_Points: 3, Health_Points2: 3,
+      discordId: '2', x: 2, y: 1, layerId: layer.Layer_ID, className: 'Twin',
+      Health_Points: 3, Health_Points2: 3,
+      // a real Twin stands on two tiles; without the second one this fixture
+      // describes a player who has already lost a body
+      secondBody: { x: 4, y: 4 },
     });
+    const secondBodyTile = twin.Tile_ID2;
+    expect(secondBodyTile).not.toBeNull();
 
     // first body down: still alive, because the second one is standing
     await utils.damagePlayer(killer, twin, 5, 1);
-    expect((await reload(twin)).Dead).toBeFalsy();
+    const oneBodied = await reload(twin);
+    expect(oneBodied.Dead).toBeFalsy();
 
-    // second body down too
-    await utils.damagePlayer(killer, await reload(twin), 5, 2);
+    // and the survivor has moved INTO body 1, leaving body 2 nulled, so a
+    // one-bodied Twin always looks the same way round whichever body it lost
+    expect(oneBodied.Tile_ID).toBe(secondBodyTile);
+    expect(oneBodied.Health_Points).toBe(3);
+    expect(oneBodied.Tile_ID2).toBeNull();
+    expect(oneBodied.Health_Points2).toBe(0);
+    // the board still agrees with the player rows after the consolidation
+    await assertBoardConsistent(game.Game_ID);
+
+    // the last body down too. It is body 1 now, which is also the body a real
+    // caller would pick: shoot and snipe choose the body by which tile the
+    // target is standing on, and the survivor's tile is in Tile_ID.
+    await utils.damagePlayer(killer, oneBodied, 5, 1);
     const dead = await reload(twin);
     expect(dead.Dead).toBeTruthy();
     expect(dead.Tile_ID).toBeNull();
+    await assertBoardConsistent(game.Game_ID);
   });
 
   it('the environment can kill with no killer to credit', async () => {

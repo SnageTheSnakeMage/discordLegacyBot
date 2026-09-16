@@ -109,6 +109,39 @@ the board. Its test looked right only because the fixture gave a dead player a
 non-null `Tile_ID`, a state the game never produces. **Build fake rows that
 match what the writers actually write.**
 
+### A Twin's two bodies, and which one survives
+
+Body 1 is `Health_Points`/`Tile_ID`/`Damage`/`Range_`/`Free_Move`; body 2 is
+the same columns suffixed `2`. `damagePlayer(attacker, victim, damage, body)`
+picks between them by body number, so the pairing is fixed.
+
+**Whichever body is lost, the survivor ends up in body 1** and the body-2
+columns are nulled (`Tile_ID2: null`, the rest `0`). That is not cosmetic:
+`hotPotatoSwap`'s Twin case takes `Tile_ID2`/`Health_Points2`/`Damage2`/
+`Range2` wholesale, so a survivor left sitting in body 2 would have the wrong
+body taken off it. With this rule, taking an already-lost second body is a
+no-op on nulls.
+
+Two consequences worth knowing:
+
+- **"Has a second body" is `Tile_ID2 != null`, not `Health_Points2 > 0`.**
+  `Health_Points2` is 0 both for a body that just died and for one that was
+  never there, so it cannot tell "lost a body" from "down to nothing".
+- **After a consolidation the survivor is body 1**, so a caller that remembered
+  "body 2" is now pointing at nothing. Real callers are fine: `shoot` and
+  `snipe` choose the body by which tile the target is standing on, and the
+  survivor's tile is in `Tile_ID`.
+
+`playerDeathLogic`'s Twin branches are an **else-if chain** for a reason. They
+were six sequential `if`s all reading the same stale `victim`, so a revive was
+immediately undone by a clear branch below it that still saw the pre-revive hp.
+
+Note that **weird death case #0 shadows Twin revives**: it tests
+`Health_Points <= 0 && Pharoh_HP > 0` with no Twin exclusion and returns, so
+every Twin revive where body 1 went down is handled there, not in the Twin
+block. Moving it is a real decision, not a tidy-up - case #0 also pays the
+kill credit, and the killer-class switch pays none for an ordinary killer.
+
 ### Traps in this codebase
 
 - **`getRandomInt(max)` is inclusive of `max`.** Index a collection with
