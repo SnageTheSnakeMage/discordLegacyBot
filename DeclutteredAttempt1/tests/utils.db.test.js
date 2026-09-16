@@ -182,3 +182,69 @@ describe('isClockwatcher', () => {
     expect(await utils.isClockwatcher(m, createFakePlayer({ Class_ID: 99 }))).toBe(false);
   });
 });
+
+/**
+ * placePlayerOnBoard is the one writer of the "on the board and alive" state.
+ * The two columns it touches are only meaningful as a pair: playerDeathLogic
+ * writes {Tile_ID: null, Dead: true}, so a tile without clearing Dead is a
+ * corpse standing on the board, and Dead cleared without a tile is a live
+ * player nowhere - invisible to the renderer and refused by every command
+ * that needs a tile. /resurrect used to produce exactly that second state.
+ */
+describe('placePlayerOnBoard', () => {
+  const freshDb = () => ({
+    Tiles: { update: jest.fn().mockResolvedValue([1]) },
+    Players: { update: jest.fn().mockResolvedValue([1]) },
+  });
+
+  it('writes both halves of the position and clears Dead together', async () => {
+    const db = freshDb();
+    const tile = createFakeTile({ Tile_ID: 42 });
+    await utils.placePlayerOnBoard(7, tile, { db });
+
+    // the tile names the player
+    expect(db.Tiles.update).toHaveBeenCalledWith({ Player1: 7 }, { where: { Tile_ID: 42 } });
+    // and the player names the tile, alive, in one write
+    expect(db.Players.update).toHaveBeenCalledWith(
+      { Tile_ID: 42, Dead: 0 }, { where: { Player_ID: 7 } },
+    );
+  });
+
+  it('never clears Dead without also setting a tile', async () => {
+    const db = freshDb();
+    await utils.placePlayerOnBoard(7, createFakeTile({ Tile_ID: 42 }), { db });
+    for (const [payload] of db.Players.update.mock.calls) {
+      if (payload.Dead === 0) expect(payload.Tile_ID).not.toBeNull();
+    }
+  });
+
+  it('takes the first free slot rather than assuming Player1', async () => {
+    const db = freshDb();
+    const tile = createFakeTile({ Tile_ID: 42, Player1: 1, Player2: 2 });
+    await utils.placePlayerOnBoard(7, tile, { db });
+    expect(db.Tiles.update).toHaveBeenCalledWith({ Player3: 7 }, { where: { Tile_ID: 42 } });
+  });
+
+  it('places a second body in its own column without disturbing the first', async () => {
+    const db = freshDb();
+    await utils.placePlayerOnBoard(7, createFakeTile({ Tile_ID: 42 }), { db, column: 'Tile_ID2' });
+    expect(db.Players.update).toHaveBeenCalledWith(
+      { Tile_ID2: 42, Dead: 0 }, { where: { Player_ID: 7 } },
+    );
+  });
+
+  it('throws on a full tile and writes nothing at all', async () => {
+    const db = freshDb();
+    const full = createFakeTile({ Tile_ID: 42, Player1: 1, Player2: 2, Player3: 3, Player4: 4 });
+    await expect(utils.placePlayerOnBoard(7, full, { db })).rejects.toBe('tile is full');
+    // a half-applied placement is worse than none: neither side may be written
+    expect(db.Tiles.update).not.toHaveBeenCalled();
+    expect(db.Players.update).not.toHaveBeenCalled();
+  });
+
+  it('throws on a missing tile rather than writing a null position', async () => {
+    const db = freshDb();
+    await expect(utils.placePlayerOnBoard(7, null, { db })).rejects.toThrow('no tile');
+    expect(db.Players.update).not.toHaveBeenCalled();
+  });
+});

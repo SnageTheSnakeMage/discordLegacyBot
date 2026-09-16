@@ -35,12 +35,18 @@
  *   silently falls back to the caster's own layer rather than rejecting
  * - `resurrectee.Dead === 0` is a strict integer compare (Dead is an INTEGER
  *   column defaulting to 0)
- * - the tile write claims the Player1 slot of the resurrectee's OLD tile
- *   (`where: { Tile_ID: resurrectee.Tile_ID }`), not the inputted tile, and
- *   Players.Tile_ID is never repointed - so the body lands back where it died
  * - `{ Dead: 0 }` is written as the number 0, not false
  * - rejection order: gamestate, class, tile, target-in-game, target-dead, AP,
  *   tile type, tile occupancy
+ *
+ * Fixed here: the tile write claimed the Player1 slot of the resurrectee's
+ * OLD tile (`where: { Tile_ID: resurrectee.Tile_ID }`) and never repointed
+ * Players.Tile_ID. The comment said the body "lands back where it died", but
+ * a dead player's Tile_ID is null - playerDeathLogic nulls it - so the
+ * where-clause matched no row at all and the resurrectee came back alive and
+ * off the board: invisible to the renderer, and refused by every command that
+ * needs a tile. utils.placePlayerOnBoard now writes both halves of the
+ * position and clears Dead together, onto the tile the caster asked for.
  */
 const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
@@ -128,10 +134,14 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.TILE_OCCUPIED, data: { message: 'You cannot resurrect to that tile!' } };
   }
 
-  await models.Players.update({ Dead: 0 }, { where: { Player_ID: resurrectee.Player_ID } });
-  // the old code claimed a slot on the RESURRECTEE'S OWN tile, not the
-  // inputted one, and never repointed Players.Tile_ID; kept
-  await models.Tiles.update({ Player1: resurrectee.Player_ID }, { where: { Tile_ID: resurrectee.Tile_ID } });
+  // Both halves of the position, and Dead, in one helper. The old code wrote
+  // { Dead: 0 } and then claimed a slot on `resurrectee.Tile_ID` - the
+  // resurrectee's OWN tile - without ever repointing Players.Tile_ID. A dead
+  // player's Tile_ID is null, so that where-clause matched no row: the
+  // resurrectee came back alive and off the board, invisible to the renderer
+  // and refused by every command that needs a tile. The tile the caster
+  // actually asked for is the one they land on.
+  await utils.placePlayerOnBoard(resurrectee.Player_ID, inputtedTile, { db: models });
   await models.Players.update(
     { Action_Points: player.Action_Points - RESURRECT_COST },
     { where: { Player_ID: player.Player_ID } },

@@ -73,7 +73,7 @@ async function seedClass(className, overrides = {}) {
  * sides of the position invariant (#78) true from the start.
  */
 async function seedPlayer(gameId, {
-  discordId, x, y, layerId, className = 'Average', ...stats
+  discordId, x, y, layerId, className = 'Average', secondBody = null, ...stats
 } = {}) {
   const klass = await seedClass(className);
   const tile = await models.Tiles.findOne({ where: { Layer_ID: layerId, X_Position: x, Y_Position: y } });
@@ -113,6 +113,21 @@ async function seedPlayer(gameId, {
         : tile.Player4 == null ? 'Player4' : null;
   if (!slot) throw new Error(`seedPlayer: tile (${x},${y}) is full`);
   await tile.update({ [slot]: player.Player_ID });
+
+  // A Twin's second body is a tile of its own, claimed the same way. Without
+  // this a "Twin" fixture has Health_Points2 but Tile_ID2 null - a state
+  // spawnPlayer never produces, and one that reads as a player who has
+  // already lost a body.
+  if (secondBody) {
+    const tile2 = await models.Tiles.findOne({
+      where: { Layer_ID: secondBody.layerId ?? layerId, X_Position: secondBody.x, Y_Position: secondBody.y },
+    });
+    if (!tile2) throw new Error(`seedPlayer: no second-body tile at (${secondBody.x},${secondBody.y})`);
+    const slot2 = ['Player1', 'Player2', 'Player3', 'Player4'].find((s) => tile2[s] == null);
+    if (!slot2) throw new Error(`seedPlayer: second-body tile (${secondBody.x},${secondBody.y}) is full`);
+    await tile2.update({ [slot2]: player.Player_ID });
+    await player.update({ Tile_ID2: tile2.Tile_ID });
+  }
   return player;
 }
 

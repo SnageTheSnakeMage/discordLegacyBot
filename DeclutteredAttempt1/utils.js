@@ -1355,6 +1355,42 @@ async setPlayerToTile(playerId, layer, x, y) {
   await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
 },
 
+/**
+ * The mirror of clearPlayerFromBoard: put a player onto a tile, writing BOTH
+ * halves of the position invariant and clearing Dead in the same breath.
+ *
+ * Those three writes belong together because the game treats "alive" and "on
+ * the board" as one state. playerDeathLogic nulls the tile when it sets Dead,
+ * so the two columns are only ever meaningful as a pair:
+ *
+ * - a tile set without clearing Dead is a corpse standing on the board;
+ * - Dead cleared without setting a tile is a live player nowhere - invisible
+ *   to the renderer, and refused by every command that needs a tile;
+ * - a Players.Tile_ID naming a tile that does not name the player back is
+ *   unreachable by anything that looks players up by tile.
+ *
+ * Callers check occupancy themselves and reject with TILE_FULL; this throws
+ * rather than returning, matching claimTileSlot. Tiles.update is used instead
+ * of claimTileSlot because that calls tile.save() on a model instance and so
+ * cannot run against a plain row.
+ *
+ * `db` defaults to the module-level models, and a logic file passes its own
+ * deps.models - so the invariant is written once and still exercised by the
+ * unit tests rather than stubbed out of them.
+ */
+async placePlayerOnBoard(playerId, tile, { column = 'Tile_ID', db = models } = {}) {
+  // takes the row, not an id: every caller has already fetched the tile to
+  // check whether it is free, so re-reading it here would be a second query
+  // for a row we were just handed
+  if (!tile) throw new Error('placePlayerOnBoard: no tile');
+
+  const slot = ['Player1', 'Player2', 'Player3', 'Player4'].find((s) => tile[s] == null);
+  if (!slot) throw "tile is full";
+
+  await db.Tiles.update({[slot]: playerId}, {where: {Tile_ID: tile.Tile_ID}});
+  await db.Players.update({[column]: tile.Tile_ID, Dead: 0}, {where: {Player_ID: playerId}});
+},
+
 //Takes one body off the board: vacates the tile's PlayerN slot AND clears
 //the player's own Tile_ID/Tile_ID2. Every death branch used to null only
 //the player side, leaving the tile still naming a corpse (#78).
@@ -1478,37 +1514,79 @@ async playerDeathLogic(killer, victim) {
   //We need to make sure to remove both twins tiles and only one if only 1 twin dies
   //WARN: ONLY HANDLES THE VICTIM SIDE OF THE DEATH
   if(victimClass.Class_Name == "Twin"){
-    //Both twins are at 0 hp and the player doesnt have any pharoh hp so run the normal death logic and remove both twins tiles
-    if(victim.Health_Points <= 0 
-      && victim.Health_Points2 <= 0 
-      && victim.Pharoh_HP <= 0 )
+    //Body 1 is Health_Points/Tile_ID/Damage/Range_/Free_Move; body 2 is the
+    //same columns suffixed with 2. damagePlayer picks between them by body
+    //number, so the pairing is fixed and every branch here has to respect it.
+    //
+    //A Twin that has already lost a body has Tile_ID2 null, so "does this
+    //player still have a second body" is that, not Health_Points2 - which is
+    //0 both for a body that just died and for one that was never there.
+    const hasSecondBody = victim.Tile_ID2 != null;
+    const firstDown = victim.Health_Points <= 0;
+    const secondDown = hasSecondBody && victim.Health_Points2 <= 0;
+    const allDown = hasSecondBody ? (firstDown && secondDown) : firstDown;
+    const hasRevive = victim.Pharoh_HP > 0;
+
+    //The shape of "this player has no second body", matching what removing
+    //the Twin class writes: the tile nulled, the stats zeroed.
+    const noSecondBody = {Tile_ID2: null, Health_Points2: 0, Damage2: 0, Range2: 0, Free_Move2: 0};
+
+    //These were six sequential `if`s reading the same stale `victim`, so a
+    //Pharaoh revive was immediately undone by a clear branch below it that
+    //still saw the pre-revive hp. One else-if chain: exactly one outcome.
+    if(allDown && !hasRevive)
     {
+      //every body is down and there is no revive hp left - the player dies
       await models.Players.update({Dead: true}, {where: {Player_ID: victim.Player_ID}});
       await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID, 'Tile_ID');
       await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID2, 'Tile_ID2');
     }
-    //Both twins are at 0 hp but the player has some pharaoh hp so revive them on a random tile with their pharaoh hp as their health and reset their pharaoh hp
-    if(victim.Health_Points <= 0 
-      && victim.Health_Points2 <= 0 
-      && victim.Pharoh_HP > 0 )
+    //NOTE: there is no branch here for "body 1 is down and there is revive
+    //hp". There cannot be one that runs: weird death case #0 above tests
+    //`victim.Health_Points <= 0 && victim.Pharoh_HP > 0` with no Twin
+    //exclusion and RETURNS, so it swallows every Twin revive where body 1 is
+    //the body that went down - including the both-bodies-down case. It
+    //revives body 1 at a spawnpoint without vacating either corpse's tile or
+    //claiming the new one, and without touching body 2. Any branch written
+    //for that case here would be dead code, so none is. See the PR for why
+    //moving it is a separate decision: case #0 also pays the kill credit,
+    //and the switch below pays none for an ordinary killer.
+    else if(secondDown && hasRevive)
     {
-      await models.Players.update({Tile_ID: (await this.getSpawnpointTile(victim.Game_ID)).Tile_ID, Health_Points: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
-    }
-    //One twin is at 0 hp but the player has some pharaoh hp so revive the dead clone on a random tile with their pharaoh hp as their health and reset their pharaoh hp
-    if(victim.Health_Points <= 0 && victim.Health_Points2 > 0 && victim.Pharoh_HP > 0)
-    {
-      await models.Players.update({Tile_ID2: (await this.getSpawnpointTile(victim.Game_ID)).Tile_ID, Health_Points2: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
-    }
-    if(victim.Health_Points > 0 && victim.Health_Points2 <= 0 && victim.Pharoh_HP > 0)
-    {
-      await models.Players.update({Tile_ID: (await this.getSpawnpointTile(victim.Game_ID)).Tile_ID, Health_Points: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
-    }
-    //One twin is at 0 hp so kill it but dont mark the player as dead
-    if(victim.Health_Points <= 0 && victim.Health_Points2 > 0){
+      //same swap the other way round: body 2 died, so body 2 comes back
       await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID2, 'Tile_ID2');
+      await this.placePlayerOnBoard(victim.Player_ID, await this.getSpawnpointTile(victim.Game_ID), {column: 'Tile_ID2'});
+      await models.Players.update({Health_Points2: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
     }
-    if(victim.Health_Points > 0 && victim.Health_Points2 <= 0){
+    else if(firstDown)
+    {
+      //Body 1 is gone and body 2 lives on. The survivor moves INTO body 1 so
+      //that a one-bodied Twin always looks the same way round, whichever body
+      //it lost. hotPotatoSwap's Twin case takes Tile_ID2/Health_Points2/
+      //Damage2/Range2 wholesale, so a survivor left sitting in body 2 would
+      //have the wrong body taken off it; with the survivor always in body 1,
+      //taking an already-lost second body is a no-op on nulls.
+      //
+      //Only body 1's tile is vacated. The tile body 2 stands on already names
+      //this Player_ID and the survivor does not move, so pointing Tile_ID at
+      //it is the whole of the change on the player side.
       await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID, 'Tile_ID');
+      await models.Players.update({
+        Tile_ID: victim.Tile_ID2,
+        Health_Points: victim.Health_Points2,
+        Damage: victim.Damage2,
+        Range_: victim.Range2,
+        Free_Move: victim.Free_Move2,
+        ...noSecondBody,
+      }, {where: {Player_ID: victim.Player_ID}});
+    }
+    else if(secondDown)
+    {
+      //body 2 is gone and body 1 lives - already the right way round, so the
+      //second body is just nulled. The old code cleared Tile_ID here, taking
+      //the SURVIVING body off the board and leaving the corpse on it.
+      await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID2, 'Tile_ID2');
+      await models.Players.update(noSecondBody, {where: {Player_ID: victim.Player_ID}});
     }
   }
   //kill the victim if they have 0 hp arent a twin and dont have pharaoh hp
