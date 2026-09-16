@@ -24,7 +24,7 @@ PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 DIGEST="${1:-${IMAGE_DIGEST:-}}"
 # Where the host keeps the things that are NOT in git: .env, the backups and
 # the record of what is currently live.
-DEPLOY_DIR="${LEGACY_DEPLOY_DIR:/Users/chrisanderson/Desktop/legacy-deployed}"
+DEPLOY_DIR="${LEGACY_DEPLOY_DIR:-$HOME/legacy-bot}"
 HEALTH_TRIES="${LEGACY_HEALTH_TRIES:-24}"   # x5s = ~2 minutes, as the README says
 HEALTH_DELAY="${LEGACY_HEALTH_DELAY:-5}"
 CONTAINER=discord-bot
