@@ -16,13 +16,7 @@ At this point my development process moved from writing code with cursory line c
 I do occasionally do minute tiny changes where LLM coding tools would be overkill, but the majority of the code AFTER around August 15th 2026 is LLM generated, as the commit history shows.
 At first I used it mainly to add in the unit tests and refactor commands to be easier to make the unit tests for that I originally was slowly developing by hand because that part of the development process was like pulling teeth and I hated it but it was necessary for me to be able to efficiently refactor and bugfix the many problems my old code had. The reason it was so horrible to do was because the majority of it was coded by a version of me that did not understand how to properly create functions and avoid non-deterministic actions mixing with deterministic ones. Mainly the whole issue of a lot of the codebase partially depending on discordjs client & ineteraction object when it did not need to, seperating the logic of a command from its response was a huge thing that claude turned from about 2 months of work into a week. 
 
-This change has hidden most of the work I did by hand due to the logic I wrote being moved to new files for better encapsulation, thus I disclose it here. If you have any specific questions about how I use Claude code feel free to make an issue here or contact me directly @ the following:
-
-Email: 'firecardmaster+QA@gmail.com'
-
-Discord: 'snage.'
-
-and I'll add your question and answer here.
+This change has hidden most of the work I did by hand due to the logic I wrote being moved to new files for better encapsulation, thus I disclose it here. If you have any specific questions about how I use Claude code feel free to make an issue here and I'll add your question and answer here.
 
 # Legacy(v3.1.1) Discord Bot
  A discord bot for running the game legacy. Made this incase anyone was curious on progress/wanted to help. 
