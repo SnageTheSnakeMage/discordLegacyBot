@@ -179,6 +179,15 @@ async chaosGust(game, player, classes, dx, dy) {
   if (!tile) return;
   const canStand = (candidate) => {
     if (!candidate) return false;
+    //A full tile is as unstandable as a wall, and not even a Cloudborn can
+    //make a fifth slot. This used to check the tile TYPE only, so a gust
+    //blew a player into a tile with four players on it, claimTileSlot threw
+    //"tile is full", and the throw came out of distributeAP: everyone after
+    //that player in the loop got no AP, the doomsday and timestop never
+    //ticked, and game.save() never ran. Being unstandable instead means the
+    //half step below is tried, and if that is full too the gust does nothing
+    //- which is what a gust into a crowd should do.
+    if (!this.tileHasRoom(candidate)) return false;
     const blocked = ["Wall", "Wall_Damaged", "Ice", "Void"].includes(candidate.Tile_Type);
     const cloudborn = classes.cloudborn && player.Class_ID == classes.cloudborn.Class_ID;
     return !blocked || cloudborn;
@@ -1448,9 +1457,17 @@ async getAllPlayersOnTile(tileID, tile) {
 //TODO Should be called whenever we change a players Tile_ID or a Tiles Player1,Player2,Player3, or Player4 will keep this in utils as chaos events will use it
 async setPlayerToTile(playerId, layer, x, y) {
   var currentPlayer = await models.Players.findByPk(playerId)
-  var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
-  await this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
   const tile = await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
+  //Check the destination FIRST. This used to vacate the old tile and then
+  //call claimTileSlot, so a full destination threw after the player had
+  //already been removed - leaving them alive and on no tile at all, the #78
+  //state /resurrect used to produce. Five callers move players this way and
+  //only the gust checked anything beforehand.
+  if (!this.tileHasRoom(tile)) throw "tile is full";
+  var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
+  if (currentTile) {
+    await this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
+  }
   await this.claimTileSlot(tile, playerId);
   await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
 },
@@ -1500,6 +1517,15 @@ async clearPlayerFromBoard(playerId, tileId, column) {
     if (tile) await this.removePlayerFromTile(playerId, tile.Layer_ID, tile.X_Position, tile.Y_Position);
   }
   await models.Players.update({[column]: null}, {where: {Player_ID: playerId}});
+},
+
+//Four players to a tile, so "can anyone else stand here" is a question with
+//one answer and it lives here. claimTileSlot THROWS when the answer is no,
+//which is right for a caller that has already checked and wrong as a way of
+//finding out.
+tileHasRoom(tile) {
+  if (!tile) return false;
+  return ['Player1', 'Player2', 'Player3', 'Player4'].some((slot) => tile[slot] == null);
 },
 
 //puts a player into the first free PlayerN slot on a tile row. Callers are

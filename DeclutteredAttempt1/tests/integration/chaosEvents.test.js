@@ -24,7 +24,7 @@ describe('chaos events', () => {
     for (const n of ['Cloudborn', 'Doctor']) await seedClass(n);
     const game = await seedGame({ CURR_CC_EVENT: event, APAmount: 2, AP_INTERVAL_MIN: 720, ...gameOver });
     const layer = await seedLayer(game.Game_ID, { width: 7, height: 7 });
-    await populateGame(game);
+    await populateGame(game, layer);
     return { game, layer };
   }
   const reload = (p) => models.Players.findByPk(p.Player_ID);
@@ -160,6 +160,56 @@ describe('chaos events', () => {
 
     expect([(await tileOf(normal)).X_Position, (await tileOf(normal)).Y_Position]).toEqual([3, 2]);
     expect([(await tileOf(cloud)).X_Position, (await tileOf(cloud)).Y_Position]).toEqual([4, 5]);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
+  // A gust used to check the tile TYPE and not whether anyone was standing
+  // there, so it blew players into a tile that already held four. That threw
+  // "tile is full" out of claimTileSlot, out of chaosGust, and out of
+  // distributeAP itself - so it was never "that player does not move": every
+  // player after them in the loop got no AP, the doomsday and the timestop
+  // never ticked, and game.save() never ran. The player was left alive and on
+  // no tile at all, because setPlayerToTile vacated the old one first.
+  it('a gust into a full tile takes the half step instead', async () => {
+    const { game, layer } = await board('Eastern Gust');
+    // (7,y) is the east edge: these four cannot be gusted anywhere themselves,
+    // so the tile stays full for the player arriving behind them
+    for (let i = 0; i < 4; i++) {
+      await seedPlayer(game.Game_ID, { discordId: `full${i}`, x: 7, y: 2, layerId: layer.Layer_ID });
+    }
+    const blown = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 5, y: 2, layerId: layer.Layer_ID, Action_Points: 0,
+    });
+
+    await utils.distributeAP(game, 1, CLIENT);
+
+    // (5,2) + 2 east is the full tile, so the half step (6,2) takes them
+    expect([(await tileOf(blown)).X_Position, (await tileOf(blown)).Y_Position]).toEqual([6, 2]);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
+  it('a gust with nowhere to put a player leaves them, and pays everyone', async () => {
+    const { game, layer } = await board('Eastern Gust');
+    for (let i = 0; i < 4; i++) {
+      await seedPlayer(game.Game_ID, { discordId: `far${i}`, x: 7, y: 2, layerId: layer.Layer_ID });
+    }
+    for (let i = 0; i < 4; i++) {
+      await seedPlayer(game.Game_ID, { discordId: `near${i}`, x: 6, y: 2, layerId: layer.Layer_ID });
+    }
+    const stuck = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 5, y: 2, layerId: layer.Layer_ID, Action_Points: 0,
+    });
+    // seeded last, so it is only paid if the distribution survives the gust
+    const behind = await seedPlayer(game.Game_ID, {
+      discordId: '2', x: 1, y: 6, layerId: layer.Layer_ID, Action_Points: 0,
+    });
+
+    await utils.distributeAP(game, 1, CLIENT);
+
+    expect([(await tileOf(stuck)).X_Position, (await tileOf(stuck)).Y_Position]).toEqual([5, 2]);
+    expect((await reload(stuck)).Action_Points).toBe(2);
+    expect((await reload(behind)).Action_Points).toBe(2);
+    expect((await models.Games.findByPk(game.Game_ID)).immutableDoomsday).toBe(31);
     await assertBoardConsistent(game.Game_ID);
   });
 
