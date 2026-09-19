@@ -1,0 +1,11 @@
+Classes to add for sucessful hands off playtest 2
+Diplomat - "Can with with up to 3 other players with the /team-up command, if the whole team is alive and the only remaining players they win"
+Philanthropist - "For every 4 AP you give to another player you get +1 AP, HP, Range, & Damage, at the cost of reduced starting maxes"
+Cowboy - "Can pull a player in range to them with /lasso for 4AP"
+Grappler - "Can pull themselves to a player's tile in range with /grapple for 4AP"
+Blank - "Class Abilities(/hot-potato, /swap, /lasso, immutable being invulnerable to /shoot, etc) do not work on you"
+Extrovert - "If you are on a full tile during AP distribution you get an extra distribution"
+Hermit - "If you are the only player on your tile and the tiles around you during AP distribution you get an extra distribution"
+Charmer - "You cannot take damage from players on the same tile as you"
+Reaper - "For 16AP instantly kill someone in range negating any revives with /reap"
+Petrifying Spirit - "Get 200 free movements, but once you run out you cannot move. Can make someone in range unable to move for 16AP with /petrify"
