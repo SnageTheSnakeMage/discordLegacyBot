@@ -10,6 +10,7 @@
 const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
 const {
   seedGame, seedLayer, seedPlayer, seedClass, assertBoardConsistent,
+  populateGame,
 } = require('./helpers/seed.js');
 
 const CLIENT = { channels: { fetch: async () => null } };
@@ -23,6 +24,7 @@ describe('chaos events', () => {
     for (const n of ['Cloudborn', 'Doctor']) await seedClass(n);
     const game = await seedGame({ CURR_CC_EVENT: event, APAmount: 2, AP_INTERVAL_MIN: 720, ...gameOver });
     const layer = await seedLayer(game.Game_ID, { width: 7, height: 7 });
+    populateGame(game, layer)
     return { game, layer };
   }
   const reload = (p) => models.Players.findByPk(p.Player_ID);

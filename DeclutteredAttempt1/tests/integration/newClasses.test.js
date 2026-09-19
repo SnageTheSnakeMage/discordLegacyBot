@@ -6,7 +6,7 @@
  */
 const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
 const {
-  seedGame, seedLayer, seedPlayer, seedClass, assertBoardConsistent,
+  seedGame, seedLayer, seedPlayer, seedClass, assertBoardConsistent, populateGame
 } = require('./helpers/seed.js');
 const shoveLogic = require('../../commands/Class Commands/shove.logic.js');
 const punishLogic = require('../../commands/Class Commands/punish.logic.js');
@@ -26,6 +26,7 @@ describe('new classes', () => {
     await seedClass('Speedster');
     const game = await seedGame({ CURR_CC_EVENT: 'BOOOORRRINNNG', APAmount: 2 });
     const layer = await seedLayer(game.Game_ID, { width: 5, height: 5 });
+    populateGame(game, layer)
     const speedster = await seedPlayer(game.Game_ID, {
       discordId: '1', x: 2, y: 2, layerId: layer.Layer_ID, className: 'Speedster', Free_Move: 0,
     });

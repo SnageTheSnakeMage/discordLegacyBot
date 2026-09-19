@@ -10,7 +10,7 @@
  *   environmental damage is the lava-diver shared-tile burn, tested below.
  */
 const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
-const { seedGame, seedLayer, seedPlayer, assertBoardConsistent } = require('./helpers/seed.js');
+const { seedGame, seedLayer, seedPlayer, assertBoardConsistent, populateGame } = require('./helpers/seed.js');
 const { GAMESTATES } = require('../../enums.js');
 
 const FAKE_CLIENT = {};
@@ -98,8 +98,9 @@ describe('distributeAP', () => {
   });
 
   it('a timestop ticks down and reactivates the game at zero', async () => {
-    const game = await seedGame({ GAME_STATE: GAMESTATES.TIMESTOPPED, timestopTurns: 1 });
-    await seedLayer(game.Game_ID);
+    const game = await seedGame({ GAME_STATE: GAMESTATES.TIMESTOPPED, timestopTurns: 1});
+    const layer = await seedLayer(game.Game_ID);
+    populateGame(game, layer)
 
     await utils.distributeAP(game, 1, FAKE_CLIENT);
 

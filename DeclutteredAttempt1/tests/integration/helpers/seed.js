@@ -131,6 +131,34 @@ async function seedPlayer(gameId, {
   return player;
 }
 
+async function populateGame(game, layer){
+  var x = 0
+  var y = 0
+  var currentTileCapacity = 0
+  var maximumTileCapacity = 4
+  for(let i = 0; i < game.finaleThreshold+1; i++){
+    currentTileCapacity++;
+    if(Math.round(currentTileCapacity / maximumTileCapacity) >= 1){
+      Math.min(layer.X_Bound - 1, x++);
+      if(x == layer.X_Bound - 1) Math.min(layer.Y_Bound - 1, y++);
+      currentTileCapacity = 0;
+    }
+    await seedPlayer(game.Game_ID, {discordId: `${i}`, x: layer.X_Bound - x, y: layer.Y_Bound - y, layerId: layer.Layer_ID})
+  }
+  
+}
+
+async function seedPopulatedGame(overrides ={}) {
+  var game = await seedGame(overrides)
+  var layer = await seedLayer(game.Game_ID)
+  await populateGame()
+  return
+  {
+    game,
+    layer
+  }
+}
+
 /**
  * The #78 invariant, asserted after every integration test: every living,
  * placed player is referenced by exactly one tile slot, and that tile is
@@ -186,4 +214,4 @@ async function boardAscii(layerId) {
   return [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r.join(' ')).join('\n');
 }
 
-module.exports = { seedGame, seedLayer, seedClass, seedPlayer, assertBoardConsistent, boardAscii };
+module.exports = { seedGame, seedLayer, seedClass, seedPlayer, assertBoardConsistent, boardAscii, populateGame, seedPopulatedGame };
