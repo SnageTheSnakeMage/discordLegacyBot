@@ -39,62 +39,106 @@ And you can use AP to....
     - +1 Range (4 -> 5 -> 7 -> 10 AP)
     - +1 HP (4 -> 5 -> 7 -> 10 AP)
     - +1 Damage (12 -> 14 -> 16 AP)
+Some classes have special abilities that cost AP aswell.(see Classes section)
 
 ## Stats
 In legacy each player has the following stats, the starting stats my change based upon a players class
-
 but generally most players start with the following:
 
 - AP 0/12 - see section above
-- HP 6/10 - your health, if this hits zero you are off the board but not completely out of the game(see **Chaos Council** below)
+- HP 6/10 - your health, if this hits zero you are off the board but not completely out of the game(see Chaos Council section)
 - Range 1/6 - how many squares away you can give AP to and damage other players
-- Damage 1/2 - how much health a player loses when you choose to shoot/damage them
-- Tile "___" - the type of tile you are currently on(*see below section*)
+- Damage 1/2 - how much health a player loses when you choose to shoot them
+- Tile Type - the type of tile you are currently standing on(see Tiles section)
 
 ## Tiles
 ```
-Blank - nothing happens when you stand on it, can be stood on
-Void - You cant move onto this tile, but can shoot over it with the exception of cloudborns
+Blank - nothing happens when you stand on it, can be stood on, comes in two colors
 
+Void - You cant move onto this tile, but can shoot over it(with the exception of Cloudborns, see Classes section)
 Fire - -1HP every time you move on or off this tile
 Ice - upon moving onto an ice tile you must move again before another action may be done, this movement does not cost AP
-Storm - puts you in a random surrounding square if you move onto it
-Smoke - becomes a blank tile when someone moves off of it(with the exception of gateway and locked gateway tile which will stay the same), anyone outside of the tile cannot see who is on this tile with the exception of the oracles
+Storm - puts you on a random surrounding(including diagonals) square upon moving onto it
+Smoke - becomes a blank tile when someone moves off of it(with the exception of gateway and locked gateway tile which will stay the same), anyone outside of the tile cannot see who is on this tile with the exception of the oracles(see Classes section)
 Mine - Upon stepping onto this tile lose 1 HP then it becomes a blank tile(with the exception of gateway and locked gateway tile which will stay the same). Can look like any tile to everyone except minesweepers or oracles who will see a flag ontop of the tile. 
 Bush - attacks on people on this tile and from people on this tile have a 1/2 chance of missing, with the exception of hunters.
-Wall - You cant move onto this tile with the exception of cloudborns, If shot twice it will be destroyed, when destroyed leaves behind a blank tile(with the exception of gateway and locked gateway tile which will stay the same). Blocks shots
-Chest - Anyone can store AP and take out AP here, all chests pull from the same storage
-Heal - players on this tile receive 1 HP with their twice a day AP
+Wall - You cant move onto this tile (with the exception of people with the Cloudborn class, see Classes section), If shot twice it will be destroyed, when destroyed leaves behind a blank tile(with the exception of gateway and locked gateway tile which will stay the same). Blocks shots 
+Chest - Anyone can store/take AP here, all chests pull from the same storage of AP
+Heal - players on this tile receive 1 HP when AP is distributed
 
-Gateway - while on this you can warp up or down a layer, can only be changed by guardian
-Locked Gateway - acts as a blank tile, unless unlocked by a guardian. players can warp from another layer and end up on it but unless unlocked the cannot warp again.
-
-
+Gateway - while on this you can warp up or down a layer(can only be changed by Guardian, see Classes section)
+Locked Gateway - acts as a blank tile(unless unlocked by a Guardian, see Classes section). players can warp from another layer and end up on it but unless unlocked the cannot warp again.
 ```
+
 ## Chaos Council
-When a player dies they join the chaos council, and every 24 hours the council receives a poll to decide a random event that will affect all players. Each council member gets 1 override which can simply choose the event, an override can be used on an override to negate it.
+When a player dies they join the chaos council, and every time AP is distributed the council receives a poll to decide a random event that will affect all players next AP distribution. Each council member gets 1 override which can simply choose the event, an override can be overidden by another override.
 
 ## Classes
-Each player gets a class that gives them a special ability and they're starting stats. There can only be 2 of each class in a game(meaning each game *currently* has a player max of 74) . Classes are given randomly during setup of the game.
+Each player gets a class that gives them a special ability and they're starting stats. Each game has a limit to how many duplicates of a single class there can be(usually 2) this caps how many people can play in that game. Classes are given randomly during setup of the game, but some classes have the ability to force others to lose or change their class.
 
-there is a list of all the clasees and their abilities here: https://docs.google.com/spreadsheets/d/1-Wn2_q8c1k2TmlVb-KDunRGIuzC5yuqH3L4XcIIy4G4/edit?usp=sharing
+Here is a list of all the clasees and their abilities here:
+
+|id |class              |ap |max_ap|hp |max_hp|range|max_range|damage|max_damage|color |description                                                                                                                                                                                                                |
+|---|-------------------|---|------|---|------|-----|---------|------|----------|------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|1  |Vampyr             |0  |12    |6  |12    |1    |6        |1     |2         |CB0000|Gains 2 HP on Kill                                                                                                                                                                                                         |
+|2  |Dimensional Hopper |0  |12    |6  |12    |1    |6        |1     |2         |352895|Can Move Up/Down Layers by spending 2AP with the >warp up & >warp down commands                                                                                                                                            |
+|3  |Lava Diver         |0  |12    |6  |12    |1    |6        |1     |2         |FC482E|You are immune to fire tiles, people on the same tile as you during AP distribution take 1 Damage                                                                                                                          |
+|4  |Switchmate         |0  |12    |6  |12    |1    |6        |1     |2         |844B9C|Can swap places with any player for 4AP with the >swap @mention command                                                                                                                                                    |
+|5  |Mailman            |0  |12    |6  |12    |1    |6        |1     |2         |F7F7F2|Can gift/receive AP to/from anyone or chest regardless of range or current tile with the >deliver @mention command                                                                                                         |
+|6  |Cloudborn          |0  |12    |6  |12    |1    |6        |1     |2         |A8DDFF|Can move on void and wall tiles, gaining 1 range on walls and losing one on void, uneffected by ice tiles.                                                                                                                 |
+|7  |Oracle             |0  |12    |6  |12    |1    |6        |1     |2         |320051|Can see: all layers, players in smoke tiles, trapped tiles, and spies                                                                                                                                                      |
+|8  |Necromancer        |0  |12    |6  |12    |1    |6        |1     |2         |632271|Can bring someone back to life placing them in range for 12AP with the >resurrect @mention <layer> <x> <y> command                                                                                                         |
+|9  |Hot Potato         |0  |12    |6  |12    |1    |6        |1     |2         |D3986C|Can swap classes with someone in range for 12AP with the >hotpotato layer, x, y command, taking their starting max buffs and debuffs along with their ability                                                              |
+|10 |Hitman             |0  |12    |6  |12    |1    |6        |1     |2         |AD2424|Gains 4AP for killing a target, recieves a new target upon the death of the current one                                                                                                                                    |
+|11 |Smoker             |0  |12    |6  |12    |1    |6        |1     |2         |797772|Can turn a blank tile in range into a smoke tile for 1AP with the >smoke layer, x, y command                                                                                                                               |
+|12 |Construction Worker|0  |12    |6  |12    |1    |6        |1     |2         |FF9F0F|Can turn any non-gateway tile in range into a wall or chest tile in range for 3AP with the >build wall/chest layer, x, y command                                                                                           |
+|13 |Pharoh             |0  |12    |6  |12    |1    |6        |1     |2         |D3C461|If the Pharoh attempts to get more than 12HP they instead gain an extra life that starts at that overflow HP to a maximum of 12HP on revival, upon death they instead are put on a random tile                             |
+|14 |Gravedigger        |0  |12    |6  |12    |1    |6        |1     |2         |83716B|Can turn any empty non-gateway tile  in range into a void tile for 4AP with the >dig layer, x, y command, can move on void tiles                                                                                           |
+|15 |Stormchaser        |0  |12    |6  |12    |1    |6        |1     |2         |6821C0|Every time you enter a storm tile gain 1d4-2 AP                                                                                                                                                                            |
+|16 |Pyromainiac        |0  |12    |6  |12    |1    |6        |1     |2         |EE3271|Can turn any non-gateway tile in range into a fire tile for 5AP with the >burn layer, x, y command                                                                                                                         |
+|17 |Doctor             |0  |12    |6  |12    |1    |6        |1     |2         |C6FF6C|Can turn any non-gateway tile in range into a heal tile for 5AP with the >heal layer, x, y command                                                                                                                         |
+|18 |Guardian           |0  |12    |6  |12    |1    |6        |1     |2         |473B86|Can lock or unlock a gateway tile in range for 2AP with the >lock layer, x, y command. Can lock all gates on a layer unless they are one of the last 3 players then they must leave one open at all times                  |
+|19 |Robot              |0  |12    |6  |14    |1    |6        |1     |2         |899DA3|Every time you enter a storm tile gain 1HP, increased max HP                                                                                                                                                               |
+|20 |Druid              |0  |12    |6  |12    |1    |6        |1     |2         |426836|Can turn any non-gateway tile in range into a storm tile for 5AP with the >conjure layer, x, y command                                                                                                                     |
+|21 |Chef               |0  |12    |6  |12    |1    |6        |1     |2         |DA8968|Can give another player in range 2AP & 1 HP and recieve 1 AP with the >cook layer, x, y command, you can do this for each AP distribution. See your meals stat for how many times you can currently use this.              |
+|22 |Minesweeper        |0  |12    |6  |12    |1    |6        |1     |2         |4E4E4E|Can plant an invisible mine on tiles in range for 1AP with the >arm layer, x, y command, immune to mine damage                                                                                                             |
+|23 |Clockwatcher       |0  |12    |6  |12    |1    |6        |1     |2         |FFFFFF|Can make everyone except Clockwatchers unable to do anything for 12AP with the >timestop command. This lasts for 4 AP distributions                                                                                        |
+|24 |Blacksmith         |0  |12    |6  |12    |1    |6        |1     |2         |D38E9F|Can give a double damage buff to anyone's next attack in range (including themselves) for 6AP with the >weaponize layer, x, y command, this buff can stack. But one's damage cannot go over their max                      |
+|25 |Medium             |0  |12    |6  |12    |1    |6        |1     |2         |D53EFF|Can speak with the dead and influence the chaos council votes. They get an extra override and can use them while alive.                                                                                                    |
+|26 |Snowman            |0  |12    |6  |12    |1    |6        |1     |2         |0181E6|Can turn any non-gateway tile in range into ice tiles for 2AP with the >freeze x, y command, unnaffected by ice tiles                                                                                                      |
+|27 |Fencer             |0  |12    |6  |12    |1    |6        |1     |2         |9fc2cd|Can deal double damage(up to maximum damage) for 1 AP to anyone on the same tile as them with the >stab layer, x, y command                                                                                                |
+|28 |Twin               |0  |12    |3  |12    |1    |6        |1     |2         |8FE2C6|Controls 2 separate bodies each start with half hp                                                                                                                                                                         |
+|29 |Glutton            |-2 |10    |6  |10    |1    |4        |1     |1         |D37A3B|Gains double AP every AP distribution, at the cost of reduced starting stat maxes, the debuff of movement costing 2AP and -2 starting AP                                                                                   |
+|30 |Sniper             |0  |12    |4  |12    |3    |6        |1     |2         |FFFF00|Can use the >snipe command to pierce and hit anyone in the path of attack, pierces wall tiles. Starts with 3 range but 4HP                                                                                                 |
+|31 |Cannibal           |0  |10    |4  |12    |1    |6        |1     |2         |D38E9F|Gains 1 AP on ALL kills, if you kill someone with max AP gain an extra 5AP on top of that, starts with reduced HP and reduced max AP                                                                                       |
+|32 |Hoarder            |6  |12    |6  |12    |0    |6        |1     |2         |7B8D69|Starts with 6AP but starts with 0Range                                                                                                                                                                                     |
+|33 |Protagonist        |4  |16    |4  |16    |1    |10       |1     |4         |efc266|Starts with less hp but has high starting maximum stats, and 4 AP                                                                                                                                                          |
+|34 |Exorcist           |0  |12    |6  |12    |1    |6        |1     |2         |00efff|Can turn any non-gateway tile in range into a blank tile for 3AP with the >exorcize layer, x, y command, and can remove a players class for 16 AP with the >exorcise @mention, layer, x, y command                         |
+|35 |Hunter             |0  |12    |6  |12    |4    |6        |1     |2         |274e13|Can turn any non-gateway tile in range into a bush tile for 5AP with the >hide layer, x, y command. Attacks made from inside and on people inside a bush tile do not have a 50% chance to miss                             |
+|36 |Immutable          |0  |12    |6  |12    |4    |6        |1     |2         |B0B0B0|You cannot take damage from the >shoot command, but will die after 4 * Total Player Count AP has been distributed, cannot be revived once this threshold is hit                                                            |
+|37 |Average            |0  |12    |6  |12    |1    |6        |1     |2         |ffe2c5|(ONLY ACCESSIBLE VIA EXORCIST) You are a normal person with no class ability                                                                                                                                               |
+|38 |Spy                |0  |12    |6  |12    |1    |6        |1     |2         |2b2b2b|Only visible to Oracle class                                                                                                                                                                                               |
+|39 |Speedster          |0  |12    |6  |8     |1    |6        |1     |2         |ff3a3a|You get 2 free movements every AP distribution, use it or lose it                                                                                                                                                          |
+|40 |Bully              |0  |12    |6  |12    |1    |6        |1     |2         |ffa7a7|Can force another player next to you one tile away for 1AP with the >shove @mention left/back/right command. Turn to face them: back shoves them straight ahead, left and right shove them 45 degrees to your left or right|
+|41 |Punisher           |0  |12    |6  |12    |1    |6        |1     |2         |5b5b5b|Can spend 4AP to deal damage equal to a target's missed AP + missed HP with the >punish x, y @mention command                                                                                                              |
+
 
 ## The Board
-The board is different for each game but will always be a square board, each square can hold to a max of 4 players before that tile is inaccessible to all other players. 
+The board is different for each game but will always be a square board, each square can hold to a max of 4 players before that tile is 'Full' and inaccessible to all other players. 
 
 The board is made up of multiple "layers", a player can only leave a layer with either a special class ability or a gateway tile.
 
 ## Game Finale & Winner
-Once the game reaches the final four players, 
-- AP will go from +2 AP twice a day to +4 AP twice a day
+Once the game reaches a certain amount of remaining players the game will go into its FINALE causing: 
+- AP distributions to give double AP
 - Additional gateway tiles will be placed
 - Fire tiles will begin spreading to adjacent squares and will take -1HP from anyone who is standing on one when AP is given.
 Last one standing wins 
 
 ## Setup 
-Each player is given a random layer, position, and class and then once all players are in them the game starts at the next AP drop interval.
+Each player is given a random layer, position, and class and then once all players are on the board the game can be started by the dev setting the start of the AP distribution interval.
 
-## CI/CD
+# CI/CD
 
 CI (`.github/workflows/ci.yml`) runs on every PR and on pushes to `main`/`cursord`:
 lint, unit tests, integration tests (in-memory SQLite), an `npm audit` advisory,
@@ -103,7 +147,7 @@ test that proves the runtime image boots to a Discord login attempt, and a Trivy
 CVE scan. Fork PRs get no secrets; the workflow token is read-only; every action
 is pinned to a commit SHA.
 
-### Releasing
+## Releasing
 
 1. Tag: `git tag v0.x.y && git push origin v0.x.y`
 2. The Deploy workflow builds and publishes `ghcr.io/<owner>/<repo>:<tag>` and
@@ -112,7 +156,7 @@ is pinned to a commit SHA.
    required reviewer under Settings → Environments → production).
 4. Approve it, and the host deploys itself — see below.
 
-### Deploying / rolling back
+## Deploying / rolling back
 
 Approving the gated `deploy` job runs
 `DeclutteredAttempt1/scripts/deploy.sh` **on the host**, which backs the
@@ -182,7 +226,7 @@ command's definition changes. There is no environment-variable shortcut: the
 workflow, or `node scripts/register-commands.js` with `DISCORD_TOKEN`,
 `CLIENT_ID` and `GUILD_ID` set, is the whole of it.
 
-### A command in the picker that the bot does not have
+## A command in the picker that the bot does not have
 
 Registration PUTs the whole **guild** command set, so a command that no longer
 exists in the code disappears the next time it runs. **Global** commands are a
@@ -202,13 +246,13 @@ changes take up to an hour to reach clients, so still seeing it straight
 afterwards is propagation, not a failed delete — confirm with the listing, not
 the picker.
 
-### Host setup
+## Host setup
 
 The current host is a **Mac mini**. Most deployment writing on the internet -
 and most of what an assistant will hand you - assumes a Linux server, so the
 differences are written down here rather than rediscovered.
 
-#### Linux
+### Linux
 
 The usual shape: a dedicated unprivileged user in the `docker` group, because
 `dockerd` is a system daemon whose socket is group-readable.
@@ -221,7 +265,7 @@ sudo usermod -aG docker deploy
 Being in the `docker` group is root-equivalent, which is why that user should
 do nothing else.
 
-#### macOS (the Mac mini)
+### macOS (the Mac mini)
 
 **None of the above works, and the design does not port either.** Expect:
 
@@ -244,7 +288,7 @@ so a GitHub-hosted runner could not reach it without port forwarding or a
 tunnel; a registered runner makes an *outbound* connection instead and needs
 neither.
 
-##### Registering the runner
+#### Registering the runner
 
 Under Settings → Actions → Runners → **New self-hosted runner** → macOS, run
 the commands GitHub shows you (they embed a one-time registration token), then
@@ -284,7 +328,7 @@ directory on it, so a deploy fails with `docker: command not found` even though
 `docker` works in your own shell. `scripts/deploy.sh` prepends
 `/opt/homebrew/bin` and `/usr/local/bin` for exactly this reason.
 
-##### Keeping it actually always-on
+#### Keeping it actually always-on
 
 A Mac mini will happily sleep through the night and drop the gateway
 connection. Three settings, none optional for a permanent host:
@@ -309,7 +353,7 @@ If you stay on Docker Desktop instead, enable automatic login *and* Docker
 Desktop's "Start Docker Desktop when you sign in", or a reboot leaves the bot
 down until you are physically there.
 
-### Secrets
+## Secrets
 
 `DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, `DEV_ID` live in the `production`
 environment, not repository secrets. If the token ever appears in a log,
