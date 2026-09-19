@@ -23,22 +23,14 @@ This change has hidden most of the work I did by hand due to the logic I wrote b
 
 # Legacy Season 4 Explanation Draft
 ## Summary
-Legacy is a Social RTS  Battle Royale game where people move on a grid and fight to be the last. one. standing.
+Legacy is a Social RTS Battle Royale game where people move on a grid and fight to be the last. one. standing.
+Each player gets a special class that gives them certain exceptions or abilities,
+You eliminate others by spending a shareable currency given out at certain intervals to everyone at the same time to damage others within range until their HP is 0. 
+Killers get +1 to their max stats. Once someone dies they can vote on chaotic events that affect those still alive.
 
-You eliminate others by spending a shareable currency given every 12 hours to shoot someone once they are 
-<range> squares away until their HP is 0. 
-Killers get +1 to their max stats,
-
-(Examples: 
-Player gets a kill and receives the following increases to their maximums
-max. AP 12 -> 13, 
-max. HP 10 -> 11, 
-max. Damage 2 -> 3)
-
-## AP
-This currency is known as AP, you get 2 AP @ 12 PM UTC & 12AM UTC(To balance time zones difference).  
-
-You can have a maximum of 12 AP. And you can use AP to....
+## Action Points (AP)
+This shareable currency is known as AP, it is distributed at regular intervals, usually 2 AP/12 hours. But this can change game to game.
+And you can use AP to....
 
   - Move in any of the 8 directions (1 AP)
   - Give X AP to any player in your range(X AP)
