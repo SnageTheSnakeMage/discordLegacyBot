@@ -26,7 +26,7 @@ describe('new classes', () => {
     await seedClass('Speedster');
     const game = await seedGame({ CURR_CC_EVENT: 'BOOOORRRINNNG', APAmount: 2 });
     const layer = await seedLayer(game.Game_ID, { width: 5, height: 5 });
-    await populateGame(game);
+    await populateGame(game, layer);
     const speedster = await seedPlayer(game.Game_ID, {
       discordId: '1', x: 2, y: 2, layerId: layer.Layer_ID, className: 'Speedster', Free_Move: 0,
     });

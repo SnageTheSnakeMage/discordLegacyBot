@@ -27,6 +27,30 @@ describe('movement', () => {
     return { game, layer };
   }
 
+  // setPlayerToTile is how five different things move a player - a move, a
+  // shove, a warp, a storm displacement and a chaos gust - and only the gust
+  // checked the destination first. It vacated the old tile and THEN called
+  // claimTileSlot, which throws on a full tile, so a failed move left the
+  // player alive and on no tile at all: the #78 state /resurrect used to
+  // produce, reached from the other direction.
+  it('a move onto a full tile refuses without taking the player off the board', async () => {
+    const { game, layer } = await board();
+    for (let i = 0; i < 4; i++) {
+      await seedPlayer(game.Game_ID, { discordId: `full${i}`, x: 3, y: 3, layerId: layer.Layer_ID });
+    }
+    const mover = await seedPlayer(game.Game_ID, { discordId: '9', x: 2, y: 3, layerId: layer.Layer_ID });
+    const startTile = mover.Tile_ID;
+
+    await expect(utils.setPlayerToTile(mover.Player_ID, layer.Layer_ID, 3, 3)).rejects.toBe('tile is full');
+
+    // both halves of the invariant still name each other
+    const after = await models.Players.findByPk(mover.Player_ID);
+    expect(after.Tile_ID).toBe(startTile);
+    const tile = await models.Tiles.findByPk(startTile);
+    expect([tile.Player1, tile.Player2, tile.Player3, tile.Player4]).toContain(mover.Player_ID);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
   it('a move relocates the player and keeps both sides of the invariant', async () => {
     const { game, layer } = await board();
     const walker = await seedPlayer(game.Game_ID, {
