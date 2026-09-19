@@ -131,32 +131,50 @@ async function seedPlayer(gameId, {
   return player;
 }
 
-async function populateGame(game, layer){
-  var x = 0
-  var y = 0
-  var currentTileCapacity = 0
-  var maximumTileCapacity = 4
-  for(let i = 0; i < game.finaleThreshold+1; i++){
-    currentTileCapacity++;
-    if(Math.round(currentTileCapacity / maximumTileCapacity) >= 1){
-      Math.min(layer.X_Bound - 1, x++);
-      if(x == layer.X_Bound - 1) Math.min(layer.Y_Bound - 1, y++);
-      currentTileCapacity = 0;
+/**
+ * Fills a game with enough LIVING players that distributeAP does not trip the
+ * finale gate, and returns them.
+ *
+ * distributeAP transitions to FINALE when `living <= game.finaleThreshold`,
+ * and seedGame's default threshold is 4 - so a test that seeds one or two
+ * players and distributes AP is testing the finale whether it means to or
+ * not. One player above the threshold is the cheapest way to stay out of it.
+ *
+ * They go on a LAYER OF THEIR OWN, one per tile. Putting them on the test's
+ * board made them participants: an Eastern Gust blew the four sharing the far
+ * corner into each other and the distribution died with "tile is full". The
+ * living count is game-wide, so a separate layer keeps them counted and out
+ * of the way. Ids start at 900 so they cannot collide with the '1' and '2' a
+ * test seeds for itself - two players sharing a Discord_ID in one game makes
+ * `findOne` return whichever the database hands back first.
+ */
+async function populateGame(game, { idFrom = 900 } = {}) {
+  const needed = game.finaleThreshold + 1;
+  const side = Math.ceil(Math.sqrt(needed));
+  const layer = await seedLayer(game.Game_ID, { width: side, height: side });
+  const players = [];
+  for (let y = 1; y <= side && players.length < needed; y++) {
+    for (let x = 1; x <= side && players.length < needed; x++) {
+      players.push(await seedPlayer(game.Game_ID, {
+        discordId: `${idFrom + players.length}`, x, y, layerId: layer.Layer_ID,
+      }));
     }
-    await seedPlayer(game.Game_ID, {discordId: `${i}`, x: layer.X_Bound - x, y: layer.Y_Bound - y, layerId: layer.Layer_ID})
   }
-  
+  return { players, layer };
 }
 
-async function seedPopulatedGame(overrides ={}) {
-  var game = await seedGame(overrides)
-  var layer = await seedLayer(game.Game_ID)
-  await populateGame()
-  return
-  {
-    game,
-    layer
-  }
+/**
+ * seedGame + seedLayer + populateGame, for a test that wants a game whose
+ * distributions behave ordinarily. The returned `layer` is the test's own
+ * board; the filler players are elsewhere.
+ */
+async function seedPopulatedGame(overrides = {}, layerOptions = {}) {
+  const game = await seedGame(overrides);
+  const layer = await seedLayer(game.Game_ID, layerOptions);
+  const { players } = await populateGame(game);
+  // one line, deliberately: `return` with the object on the NEXT line is a
+  // semicolon insertion away from returning undefined
+  return { game, layer, players };
 }
 
 /**
