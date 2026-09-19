@@ -299,6 +299,10 @@ stopAPCheckInterval(gameId){
 //poll, then opening the next one). It defaults to true, so the AP check
 //interval and every other caller behave exactly as before.
 async distributeAP(game, times, client, { runChaosPoll = true } = {}){
+  logger150.debug({function: "distributeAP"}, `distributing AP for game ${game.Game_ID} with times ${times}`)
+  var areThereDeadPlayers = await models.Players.count({where: {Game_ID: game.Game_ID, Dead: true}}) > 0;
+  var livingPlayersAmount = await models.Players.count({where: {Game_ID: game.Game_ID, Dead: false}});
+  var timeForFinaleTranstion = livingPlayersAmount <= game.finaleThreshold;
   var lavaDiverClass = await models.Classes.findOne({where: {Class_Name: "Lava Diver"}});
   var gluttonClass = await models.Classes.findOne({where: {Class_Name: "Glutton"}});
   var immutableClass = await models.Classes.findOne({where: {Class_Name: "Immutable"}});
@@ -325,31 +329,19 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   //(it is client.guilds), .messages.fetch(...) returns a promise so .poll on
   //it was undefined, and pollToResults was never awaited so CURR_CC_EVENT
   //would have been written a Promise.
-  if (runChaosPoll && game.chaosCouncilBool && game.currentChaosPollMsgId && game.deadChatChannelId) {
+  if (runChaosPoll && game.chaosCouncilBool && game.currentChaosPollMsgId && game.deadChatChannelId && areThereDeadPlayers == true) {
     const winner = await this.readChaosCouncilPoll(game, client);
     if (winner) await models.Games.update({CURR_CC_EVENT: winner}, {where: {Game_ID: game.Game_ID}});
     await models.Games.update({currentChaosPollMsgId: null}, {where: {Game_ID: game.Game_ID}});
   }
 
-  //   //find the player(s) with the most missed AP
-  // if(playersWithMostMissedAP.length > 0 && game.CURR_CC_EVENT == "Inactives Punishment"){
-  //   //find the player(s) with missed AP
-  //   var Inactives = await models.Players.findAll({where: {Game_ID: game.Game_ID, MISSED_AP: { [Op.gt]: 0 }}});
-  //   var mostMissedAP = 0;
-  //   var playerIDsWithMostMissedAP = [];
-  //   //find largest number of missed AP
-  //   for(const inactive of Inactives){
-  //     if(inactive.MISSED_AP > mostMissedAP){
-  //       mostMissedAP = inactive.MISSED_AP;
-  //     }
-  //   }
-  //   //get the IDs of the players with the most missed AP
-  //   for(const inactive of Inactives){
-  //     if(inactive.MISSED_AP == mostMissedAP){
-  //       playerIDsWithMostMissedAP.push(inactive.Player_ID);
-  //     }
-  //   }
-  // }
+  if(timeForFinaleTranstion){
+    await this.finaleTransition(game, chaosTimes);
+  }
+  if(game.GAME_STATE == GAMESTATES.FINALE){
+    await this.finaleTick(game, chaosTimes);
+  }
+
   //get all alive players in the game and give them as much AP as the game gives per interval multiplied by times
   const livingPlayers = await models.Players.findAll({where: {Game_ID: game.Game_ID, Dead: false}});
   for (const player of livingPlayers) {
@@ -417,6 +409,58 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
     await this.postChaosCouncilPoll(game, client);
   }
   await game.save();
+},
+
+async finaleTransition(game, chaosTimes){
+  game.GAME_STATE = GAMESTATES.FINALE;
+  chaosTimes *= 2;
+  const additionalGatewayTilesPerLayer = 4
+  var layers = await models.Layers.findAll({where: {Game_ID: game.Game_ID}});
+  for(const layer of layers){
+    const tiles = await models.Tiles.findAll({where: {Game_ID: game.Game_ID, Layer_ID: layer.Layer_ID, Tile_Type: { [Op.notIn]: ["Gateway_Open", "Gateway_Closed"] }}});
+    var randomTiles = [];
+    for(let i = 0; i < additionalGatewayTilesPerLayer; i++){
+      randomTiles.push(this.getRandomItemInCollection(tiles));
+    }
+    for(const tile of randomTiles){
+      tile.Tile_Type = "Gateway_Open";
+      await tile.save();
+    }
+  }
+  await this.spreadEachFireTileToSurroundingOrthoginalTiles(game.Game_ID);
+  return chaosTimes;
+},
+
+async finaleTick(gameId, chaosTimes){
+  chaosTimes *= 2;
+  await this.spreadEachFireTileToSurroundingOrthoginalTiles(gameId);
+  var playersOnFireTiles = await this.getAllPlayersOnTileType(gameId, "Fire")
+  for(const player in playersOnFireTiles){
+    this.hpGain(player, -1)
+  }
+  return chaosTimes;
+},
+
+async getAllPlayersOnTileType(gameId, tileType){
+  var tilesOfType = await models.Tiles({where: {Game_ID: gameId, Tile_Type: tileType}});
+  var players = []
+  for(const tile in tilesOfType){
+    players.push(await this.getAllPlayersOnTile(tile.Tile_ID))
+  }
+  return players
+},
+
+async spreadEachFireTileToSurroundingOrthoginalTiles(gameId){
+  const currentFireTiles = await models.Tiles.findAll({where: {Game_ID: gameId, Tile_Type: "Fire"}});
+  for(const tile of currentFireTiles){
+    var surroundingTiles = await this.getSurroundingOrthoginalTiles(null, tile.Tile_ID);
+    for(const surroundingTile of surroundingTiles){
+      if(surroundingTile.Tile_Type !== "Fire"){
+        surroundingTile.Tile_Type = "Fire";
+        await surroundingTile.save();
+      }
+    }
+  }
 },
 
 //Fetches the open council poll and returns the winning event, or null.
