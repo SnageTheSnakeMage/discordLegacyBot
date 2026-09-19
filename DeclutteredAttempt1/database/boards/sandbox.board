@@ -8,19 +8,19 @@ description: small two-layer sandbox board
 layer Arena
 .........
 .~~...FF.
-.~G...F..
+.~G...FC.
 .........
 ..#.+.#..
 .........
-..S..GB..
+.CS..GB..
 .SS..BB..
 .........
 vvvvvvvvv
 layer Vault
 #######
 #..G..#
-#.,...#
-#..+..#
-#...C.#
+#.,,,.#
+#.,+,.#
+#.,,,.#
 #..G..#
 #######
