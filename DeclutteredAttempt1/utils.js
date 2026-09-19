@@ -31,6 +31,15 @@ const DISCORD_MESSAGE_LIMIT = 2000;
 //without this a game accumulated a duplicate 30s timer per call and no timer
 //was ever cleared when a game stopped being ACTIVE.
 const apIntervals = new Map();
+//Tile types the finale's fire spread leaves alone: two nobody can stand on,
+//and the gateways. Smoke and mine tiles already make that gateway exception
+//(see the tile rules in the README) - a Guardian's locked gateway is a game
+//object, not scenery to burn.
+const FIRE_SPREAD_EXEMPT = ["Void", "Wall", "Gateway_Open", "Gateway_Locked", "Fire"];
+//...and the ones the finale will not convert INTO a new gateway, because they
+//are already one. "Gateway_Closed" is not a tile type this codebase has; the
+//locked one is spelt Gateway_Locked everywhere else.
+const FINALE_GATEWAY_EXEMPT = ["Gateway_Open", "Gateway_Locked"];
 var logger150 = globalThis.topLogger.child({file: 'utils.js'})
 //#endregion BOILERPLATE
 module.exports = {
@@ -321,8 +330,10 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
     snowman: snowmanClass, cloudborn: cloudbornClass, doctor: doctorClass,
   };
   //"Time Acceleration!" runs the whole distribution three times over, which
-  //is one multiplier rather than an extra additive write off a stale row
-  const chaosTimes = game.CURR_CC_EVENT === "Time Acceleration!" ? times * 3 : times;
+  //is one multiplier rather than an extra additive write off a stale row.
+  //`let`, because the finale doubles it - and the doubling only counts if the
+  //value the finale returns is kept, which it was not.
+  let chaosTimes = game.CURR_CC_EVENT === "Time Acceleration!" ? times * 3 : times;
 
   //Close out the chaos council poll from the last interval, if there is one.
   //The old commented version could not have run: client.guild does not exist
@@ -335,11 +346,22 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
     await models.Games.update({currentChaosPollMsgId: null}, {where: {Game_ID: game.Game_ID}});
   }
 
-  if(timeForFinaleTranstion){
-    await this.finaleTransition(game, chaosTimes);
+  //The finale is entered ONCE, and only from ACTIVE.
+  //
+  //`timeForFinaleTranstion` stays true for the rest of the game - the living
+  //count only goes down - so running the transition on every distribution
+  //added four more gateways per layer each time, and spread fire twice in the
+  //same interval (transition, then tick). Two separate `if`s made that the
+  //default on the very first finale distribution.
+  //
+  //A TIMESTOPPED game waits for its timestop to run out first: overwriting
+  //the state with FINALE loses the Clockwatcher's remaining turns, along with
+  //the tick-down at the bottom of this function that reactivates the game.
+  if(timeForFinaleTranstion && game.GAME_STATE == GAMESTATES.ACTIVE){
+    chaosTimes = await this.finaleTransition(game, chaosTimes);
   }
-  if(game.GAME_STATE == GAMESTATES.FINALE){
-    await this.finaleTick(game, chaosTimes);
+  else if(game.GAME_STATE == GAMESTATES.FINALE){
+    chaosTimes = await this.finaleTick(game, chaosTimes);
   }
 
   //get all alive players in the game and give them as much AP as the game gives per interval multiplied by times
@@ -411,54 +433,88 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   await game.save();
 },
 
+//Every Tile_ID in a game, by way of its layers. There is NO Tiles.Game_ID
+//column - tiles hang off Layer_ID and the layer holds the game - so a
+//`where: {Game_ID}` on Tiles is not a wrong answer, it is
+//`SQLITE_ERROR: no such column: Tiles.Game_ID`. Three of the finale's
+//queries were written that way, and the first one runs before any AP is
+//granted, so a game reaching the threshold stopped being paid entirely.
+async getGameLayerIds(gameId){
+  const layers = await models.Layers.findAll({where: {Game_ID: gameId}});
+  return layers.map((layer) => layer.Layer_ID);
+},
+
+//The one-time move into the finale: extra gateways, a first fire spread, and
+//double AP from here on. Returns the multiplier - the caller has to keep it.
 async finaleTransition(game, chaosTimes){
   game.GAME_STATE = GAMESTATES.FINALE;
-  chaosTimes *= 2;
   const additionalGatewayTilesPerLayer = 4
   var layers = await models.Layers.findAll({where: {Game_ID: game.Game_ID}});
   for(const layer of layers){
-    const tiles = await models.Tiles.findAll({where: {Game_ID: game.Game_ID, Layer_ID: layer.Layer_ID, Tile_Type: { [Op.notIn]: ["Gateway_Open", "Gateway_Closed"] }}});
-    var randomTiles = [];
-    for(let i = 0; i < additionalGatewayTilesPerLayer; i++){
-      randomTiles.push(this.getRandomItemInCollection(tiles));
-    }
-    for(const tile of randomTiles){
+    const tiles = await models.Tiles.findAll({where: {Layer_ID: layer.Layer_ID, Tile_Type: { [Op.notIn]: FINALE_GATEWAY_EXEMPT }}});
+    //draw WITHOUT replacement: four independent random picks from the same
+    //pool can land on one tile, which quietly gave a layer fewer than four
+    //new gateways. Splicing also handles a layer with fewer spare tiles than
+    //gateways to place, instead of writing undefined.Tile_Type.
+    const pool = [...tiles];
+    for(let i = 0; i < additionalGatewayTilesPerLayer && pool.length > 0; i++){
+      const [tile] = pool.splice(this.getRandomInt(pool.length - 1), 1);
       tile.Tile_Type = "Gateway_Open";
       await tile.save();
     }
   }
   await this.spreadEachFireTileToSurroundingOrthoginalTiles(game.Game_ID);
-  return chaosTimes;
+  return chaosTimes * 2;
 },
 
-async finaleTick(gameId, chaosTimes){
-  chaosTimes *= 2;
-  await this.spreadEachFireTileToSurroundingOrthoginalTiles(gameId);
-  var playersOnFireTiles = await this.getAllPlayersOnTileType(gameId, "Fire")
-  for(const player in playersOnFireTiles){
-    this.hpGain(player, -1)
+//Every distribution after the transition: the fire creeps one ring further
+//and burns whoever is standing in it.
+async finaleTick(game, chaosTimes){
+  await this.spreadEachFireTileToSurroundingOrthoginalTiles(game.Game_ID);
+  const playersOnFireTiles = await this.getAllPlayersOnTileType(game.Game_ID, "Fire");
+  for(const player of playersOnFireTiles){
+    //damagePlayer, not hpGain: hpGain only BUILDS an update payload (see the
+    //Medkit Airdrop case), so calling it on its own wrote nothing at all and
+    //the finale's fire was cosmetic. damagePlayer writes the damage and runs
+    //the death check off the re-read row, so finale fire can kill - with a
+    //null attacker, which is the environmental-death path.
+    await this.damagePlayer(null, player, game.fireDmg);
   }
-  return chaosTimes;
+  return chaosTimes * 2;
 },
 
 async getAllPlayersOnTileType(gameId, tileType){
-  var tilesOfType = await models.Tiles({where: {Game_ID: gameId, Tile_Type: tileType}});
-  var players = []
-  for(const tile in tilesOfType){
-    players.push(await this.getAllPlayersOnTile(tile.Tile_ID))
+  const layerIds = await this.getGameLayerIds(gameId);
+  //`models.Tiles({...})` - the model called as a function - was a TypeError
+  //waiting behind the Game_ID error above.
+  const tilesOfType = await models.Tiles.findAll({where: {
+    Layer_ID: { [Op.in]: layerIds }, Tile_Type: tileType,
+  }});
+  const players = []
+  //`for (const tile in tilesOfType)` iterates the INDICES of an array, so
+  //`tile` was the string "0" and tile.Tile_ID was undefined; every lookup
+  //logged "could not find tile" and returned nothing.
+  for(const tile of tilesOfType){
+    players.push(...await this.getAllPlayersOnTile(tile.Tile_ID))
   }
   return players
 },
 
 async spreadEachFireTileToSurroundingOrthoginalTiles(gameId){
-  const currentFireTiles = await models.Tiles.findAll({where: {Game_ID: gameId, Tile_Type: "Fire"}});
+  const layerIds = await this.getGameLayerIds(gameId);
+  //fetched once on purpose: fire spreads exactly one ring per call, rather
+  //than cascading across the whole layer in a single interval
+  const currentFireTiles = await models.Tiles.findAll({where: {Layer_ID: { [Op.in]: layerIds }, Tile_Type: "Fire"}});
   for(const tile of currentFireTiles){
     var surroundingTiles = await this.getSurroundingOrthoginalTiles(null, tile.Tile_ID);
     for(const surroundingTile of surroundingTiles){
-      if(surroundingTile.Tile_Type !== "Fire"){
-        surroundingTile.Tile_Type = "Fire";
-        await surroundingTile.save();
-      }
+      //getSurroundingOrthoginalTiles returns the CENTRE tile first and null
+      //for every neighbour off the edge of the layer, so every fire tile
+      //touching an edge used to throw on surroundingTile.Tile_Type
+      if(!surroundingTile || surroundingTile.Tile_ID == tile.Tile_ID) continue;
+      if(FIRE_SPREAD_EXEMPT.includes(surroundingTile.Tile_Type)) continue;
+      surroundingTile.Tile_Type = "Fire";
+      await surroundingTile.save();
     }
   }
 },

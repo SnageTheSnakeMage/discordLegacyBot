@@ -10,7 +10,9 @@
  *   environmental damage is the lava-diver shared-tile burn, tested below.
  */
 const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
-const { seedGame, seedLayer, seedPlayer, assertBoardConsistent, populateGame } = require('./helpers/seed.js');
+const {
+  seedPlayer, assertBoardConsistent, seedPopulatedGame,
+} = require('./helpers/seed.js');
 const { GAMESTATES } = require('../../enums.js');
 
 const FAKE_CLIENT = {};
@@ -24,8 +26,7 @@ describe('distributeAP', () => {
   }
 
   it('grants APAmount x times, capped at MAX_AP with the overflow kept as MISSED_AP', async () => {
-    const game = await seedGame({ APAmount: 4 });
-    const layer = await seedLayer(game.Game_ID);
+    const { game, layer } = await seedPopulatedGame({ APAmount: 4 });
     const poor = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 2, MAX_AP: 10 });
     const rich = await seedPlayer(game.Game_ID, { discordId: '2', x: 3, y: 3, layerId: layer.Layer_ID, Action_Points: 9, MAX_AP: 10 });
 
@@ -42,8 +43,7 @@ describe('distributeAP', () => {
   });
 
   it('dead players get nothing', async () => {
-    const game = await seedGame({ APAmount: 4 });
-    const layer = await seedLayer(game.Game_ID);
+    const { game, layer } = await seedPopulatedGame({ APAmount: 4 });
     const dead = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 2, Dead: true });
 
     await utils.distributeAP(game, 1, FAKE_CLIENT);
@@ -54,8 +54,7 @@ describe('distributeAP', () => {
   // was two writes off the same stale row, so the second stored what the
   // first did and the glutton's double did nothing
   it('a Glutton gets the grant twice', async () => {
-    const game = await seedGame({ APAmount: 4 });
-    const layer = await seedLayer(game.Game_ID);
+    const { game, layer } = await seedPopulatedGame({ APAmount: 4 });
     const glutton = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, className: 'Glutton', Action_Points: 0 });
 
     await utils.distributeAP(game, 1, FAKE_CLIENT);
@@ -64,8 +63,7 @@ describe('distributeAP', () => {
   });
 
   it('everyone sharing a Lava Diver tile takes 1 damage; the diver does not', async () => {
-    const game = await seedGame();
-    const layer = await seedLayer(game.Game_ID);
+    const { game, layer } = await seedPopulatedGame();
     const diver = await seedPlayer(game.Game_ID, { discordId: '1', x: 2, y: 2, layerId: layer.Layer_ID, className: 'Lava Diver', Health_Points: 10 });
     const scalded = await seedPlayer(game.Game_ID, { discordId: '2', x: 2, y: 2, layerId: layer.Layer_ID, Health_Points: 6 });
     const elsewhere = await seedPlayer(game.Game_ID, { discordId: '3', x: 4, y: 4, layerId: layer.Layer_ID, Health_Points: 6 });
@@ -79,8 +77,7 @@ describe('distributeAP', () => {
   });
 
   it('a Chef gains a meal each distribution', async () => {
-    const game = await seedGame();
-    const layer = await seedLayer(game.Game_ID);
+    const { game, layer } = await seedPopulatedGame();
     const chef = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, className: 'Chef', Meals: 0 });
 
     await utils.distributeAP(game, 1, FAKE_CLIENT);
@@ -89,8 +86,7 @@ describe('distributeAP', () => {
   });
 
   it('ticks the immutable doomsday counter down and persists it', async () => {
-    const game = await seedGame({ immutableDoomsday: 5 });
-    await seedLayer(game.Game_ID);
+    const { game } = await seedPopulatedGame({ immutableDoomsday: 5 });
 
     await utils.distributeAP(game, 1, FAKE_CLIENT);
 
@@ -98,9 +94,7 @@ describe('distributeAP', () => {
   });
 
   it('a timestop ticks down and reactivates the game at zero', async () => {
-    const game = await seedGame({ GAME_STATE: GAMESTATES.TIMESTOPPED, timestopTurns: 1});
-    const layer = await seedLayer(game.Game_ID);
-    populateGame(game, layer)
+    const { game } = await seedPopulatedGame({ GAME_STATE: GAMESTATES.TIMESTOPPED, timestopTurns: 1 });
 
     await utils.distributeAP(game, 1, FAKE_CLIENT);
 
