@@ -23,6 +23,10 @@ services:
     environment:
       NODE_ENV: production
       LEGACY_DB_STORAGE: /data/database.db
+      # player icons are uploaded at registration, so they are state, not
+      # artwork: written into the same volume as the database rather than
+      # into the image, where every deploy threw them away
+      LEGACY_PLAYER_TILES_DIR: /data/player-tiles
     volumes:
       # named volume: game state survives image rebuilds. The old bind mount
       # (./data) pointed at a path the bot never wrote; the database lived

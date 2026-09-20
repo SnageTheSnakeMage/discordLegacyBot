@@ -52,7 +52,7 @@ COPY --chown=bot:bot . .
 RUN rm -rf tests jest.config.js eslint.config.js Dockerfile* docker-compose.yml
 
 # the database lives on a volume; LEGACY_DB_STORAGE points into it
-RUN mkdir -p /data /app/Logs /app/tiles/players && chown -R bot:bot /data /app/Logs /app/tiles
+RUN mkdir -p /data/player-tiles /app/Logs /app/tiles/players && chown -R bot:bot /data /app/Logs /app/tiles
 ENV LEGACY_DB_STORAGE=/data/database.db
 VOLUME ["/data"]
 
