@@ -219,7 +219,22 @@ docker compose up -d   # then restore the backup into the volume if needed
 
 </details>
 
-Game state lives in the `legacy_legacy-db` named volume and survives image rebuilds.
+Game state lives in the `legacy_legacy-db` named volume and survives image
+rebuilds: the database at `/data/database.db`, and the player icons uploaded
+at registration at `/data/player-tiles` (`LEGACY_PLAYER_TILES_DIR`). Tile
+artwork is *not* state - it ships in the image and updates with a deploy.
+
+Icons written before this existed went into the image, so they were lost on
+every deploy. To carry across any that survive in the running container:
+
+```bash
+docker cp discord-bot:/app/tiles/players/. /tmp/player-tiles
+docker run --rm -v legacy_legacy-db:/data -v /tmp/player-tiles:/in alpine \
+  sh -c 'mkdir -p /data/player-tiles && cp /in/*_*.png /data/player-tiles/ 2>/dev/null; true'
+```
+
+`*_*.png` picks up the `<discordId>_<gameId>.png` uploads and leaves
+`default.png` in the image, where it belongs.
 Slash-command registration is rate-limited by Discord and does NOT run on boot.
 Run the Deploy workflow manually with "register commands" checked when a
 command's definition changes. There is no environment-variable shortcut: the

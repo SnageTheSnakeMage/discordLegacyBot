@@ -639,20 +639,49 @@ async pollToResults(poll, game) {
  * checkout rather than a missing player icon, and the caller should say so
  * plainly instead of attaching a path that cannot be uploaded.
  */
+//Where a player's uploaded icon is WRITTEN. Everything else under tiles/ is
+//artwork that ships in the image, but these arrive at registration and have
+//to outlive the container: a deploy replaces the image, and every icon
+//written into it since the last one went with it. In the container this
+//points inside the /data volume, beside the database.
+playerTilesDir() {
+  return process.env.LEGACY_PLAYER_TILES_DIR || "./tiles/players";
+},
+
+//Where a layer's textures are READ from, in order.
+//
+//Player icons have two homes and the writable one wins: uploads live in the
+//volume, while default.png and the icons committed to the repo stay in the
+//image. Mounting the volume over ./tiles/players instead would have hidden
+//both - a fresh volume would leave the renderer with no default.png at all,
+//and new artwork in a later image would never be seen again.
+tileSearchDirs(layer) {
+  if (layer !== "players") return ["./tiles/" + layer];
+  const writable = this.playerTilesDir();
+  return writable === "./tiles/players" ? [writable] : [writable, "./tiles/players"];
+},
+
 resolveTileTexturePath(layer, textureName) {
   // Deliberately NOT loadTileTexture's transparent-for-null: an invisible
   // texture is indistinguishable from a correctly transparent one, so a
   // misspelt or absent name would render as nothing at all and look
   // intentional. A null name falls through to default.png like any other name
   // that does not resolve, which is visible and therefore reportable.
-  const tilePath = "./tiles/" + layer + "/" + textureName + ".png";
-  if (textureName != null && fs.existsSync(tilePath)) return tilePath;
+  const dirs = this.tileSearchDirs(layer);
+  if (textureName != null) {
+    for (const dir of dirs) {
+      const tilePath = dir + "/" + textureName + ".png";
+      if (fs.existsSync(tilePath)) return tilePath;
+    }
+  }
 
-  logger150.debug({function: "resolveTileTexturePath"}, `No texture ${tilePath}, falling back to the ${layer} default`);
-  const defaultPath = "./tiles/" + layer + "/default.png";
-  if (fs.existsSync(defaultPath)) return defaultPath;
+  logger150.debug({function: "resolveTileTexturePath"}, `No texture ${textureName} in ${dirs.join(", ")}, falling back to the ${layer} default`);
+  for (const dir of dirs) {
+    const defaultPath = dir + "/default.png";
+    if (fs.existsSync(defaultPath)) return defaultPath;
+  }
 
-  logger150.error({function: "resolveTileTexturePath"}, `Neither ${tilePath} nor ${defaultPath} exists`);
+  logger150.error({function: "resolveTileTexturePath"}, `Neither ${textureName} nor a default exists in ${dirs.join(", ")}`);
   return null;
 },
 
@@ -676,10 +705,19 @@ async loadTileTexture(layer, textureName) {
     textureName = 'transparent';
   }
 
-  // Path to tile textures folder (organized by layer)
-  const tilePath =  "./tiles/" + layer + "/" + textureName + ".png";
+  //resolveTileTexturePath already knows where a layer's textures live, and
+  //for players that is two directories rather than one. It also picks the
+  //default itself, so the old `catch` that loaded "./tiles/<layer>/default.png"
+  //blind - and threw out of the catch when that was missing too - is gone.
+  const tilePath = this.resolveTileTexturePath(layer, textureName);
+  if (tilePath == null) {
+    //neither the texture nor the layer's default is anywhere: a broken
+    //install rather than a missing icon, and saying so beats handing the
+    //renderer a null that fails later as "Image or Canvas expected"
+    throw new Error(`loadTileTexture: no ${textureName} and no default for layer ${layer}`);
+  }
   logger150.debug({function: "loadTileTexture"}, "Loading tile texture:", tilePath);
-  
+
   try {
     // Load the image
     const image = await Canvas.loadImage(tilePath);
@@ -688,10 +726,11 @@ async loadTileTexture(layer, textureName) {
     
     return image;
   } catch (error) {
-    logger150.error({function: "loadTileTexture"}, `Failed to load tile texture ${textureName}: ${error}`);
-    // Return a default texture or placeholder for the appropriate layer  
-    const defaultTile = await Canvas.loadImage("./tiles/" + layer + "/default.png");
-    return defaultTile;
+    logger150.error({function: "loadTileTexture"}, `Failed to load tile texture ${textureName} from ${tilePath}: ${error}`);
+    // a file that exists but will not decode still falls back to the default
+    const defaultPath = this.resolveTileTexturePath(layer, null);
+    if (defaultPath == null || defaultPath === tilePath) throw error;
+    return await Canvas.loadImage(defaultPath);
   }
 },
 
@@ -1024,7 +1063,10 @@ async  registerPlayer(gameId, playerId, playerIcon) {
     // icon filename per class, which no longer varies.
     await this.spawnPlayer(gameId, playerId);
     const iconName = this.playerIconName(playerId, gameId);
-    await this.downloadImageWithFetch(playerIcon.url, "./tiles/players/" + iconName + ".png");
+    //the volume directory does not exist until something writes to it
+    const dir = this.playerTilesDir();
+    fs.mkdirSync(dir, { recursive: true });
+    await this.downloadImageWithFetch(playerIcon.url, dir + "/" + iconName + ".png");
     return;
 },
 

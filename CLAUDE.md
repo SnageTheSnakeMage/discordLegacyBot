@@ -175,6 +175,18 @@ spells it by hand any more: **`utils.playerIconName(discordId, gameId)`** is
 the single definition, used by the writer (`registerPlayer`) and by both
 readers.
 
+**A player icon is state, not artwork.** It arrives at registration, so it is
+written to `utils.playerTilesDir()` - `LEGACY_PLAYER_TILES_DIR`, which points
+into the `/data` volume in the container and at `./tiles/players` everywhere
+else. Written into the image it lived exactly as long as the container, and
+every deploy wiped every icon uploaded since the previous one.
+
+That makes the players layer the one with TWO directories, which
+`utils.tileSearchDirs(layer)` answers: the writable one first, then the image.
+Do not "simplify" it by mounting the volume over `./tiles/players` - that
+hides the baked `default.png` behind an empty volume on a fresh host, and
+freezes the committed icons at whatever the first deploy seeded.
+
 Both readers now survive a missing file, by different routes:
 
 - the renderer asks `loadTileTexture`, which **falls back to `default.png`**,
