@@ -356,17 +356,14 @@ describe('stats.present', () => {
     expect(embed.footer).toEqual({ text: 'Game ID: 1' });
     expect(embed.fields).toEqual([
       { name: 'Class', value: 'Average', inline: true },
-      { name: 'Class Description', value: 'Basic class', inline: true },
+      { name: 'Class Description', value: 'Basic class' },
       { name: '\u200B', value: '\u200B' },
-      { name: 'Current/Max/Missed Health', value: '9/10/1', inline: true },
-      // the space after the first slash is the legacy wording, byte-identical
-      { name: 'Current/Max/Missed Action Points', value: '5/ 10/2', inline: true },
+      { name: 'Current/Max/Missed...', value: 'Health: 9/10/1\nAction Points: 5/10/2', inline: true },
       // current damage is Damage * (DMG_BUFF + 1): 2 * 2 = 4
-      { name: 'Current/Max Damage', value: '4/3' },
-      { name: 'Current/Max Range', value: '3/5' },
+      { name: 'Current/Max...', value: 'Damage: 4/3\nRange: 3/5' },
       { name: '\u200B', value: '\u200B' },
-      { name: 'Current Tile', value: 'Blank1', inline: true },
       { name: 'Kills', value: '6', inline: true },
+      { name: 'Current Tile', value: 'Blank1', inline: true },
       { name: 'X Position', value: '3', inline: true },
       { name: 'Y Position', value: '4', inline: true },
       { name: 'Layer', value: '1', inline: true },
@@ -419,7 +416,7 @@ describe('stats.present', () => {
     expect(names).not.toContain('Layer');
     // the stats worth looking up after a death are all still rendered
     expect(names).toEqual(expect.arrayContaining([
-      'Class', 'Current/Max/Missed Health', 'Current/Max Damage', 'Kills',
+      'Class', 'Current/Max/Missed...', 'Current/Max...', 'Kills',
     ]));
     // and the absence is stated rather than left as a gap
     const tileField = out.embeds[0].fields.find((f) => f.name === 'Current Tile');
