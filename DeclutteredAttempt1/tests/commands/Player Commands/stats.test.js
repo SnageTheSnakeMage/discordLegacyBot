@@ -255,12 +255,17 @@ describe('stats.run success', () => {
     });
   });
 
-  it('resolves the default game via getOldestGameId (not the active-only variant)', async () => {
+  it('resolves the default game via getOldestActiveGameId, not the any-state variant', async () => {
     const deps = happyDeps();
-    deps.utils = { ...deps.utils, getOldestGameId: jest.fn(async () => 1) };
+    deps.utils = {
+      ...deps.utils,
+      getOldestActiveGameId: jest.fn(async () => 1),
+      getOldestGameId: jest.fn(async () => 1),
+    };
     const result = await logic.run({ ...INPUT, gameId: null }, deps);
     expect(result.ok).toBe(true);
-    expect(deps.utils.getOldestGameId).toHaveBeenCalledWith(ACTOR);
+    expect(deps.utils.getOldestActiveGameId).toHaveBeenCalledWith(ACTOR);
+    expect(deps.utils.getOldestGameId).not.toHaveBeenCalled();
   });
 
   it('maps the tile Layer_ID to the 1-based common layer number as a string', async () => {
