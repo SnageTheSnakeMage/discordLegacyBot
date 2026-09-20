@@ -153,16 +153,13 @@ function present(result) {
 
   const fields = [
     { name: 'Class', value: d.className, inline: true },
-    { name: 'Class Description', value: d.classDescription, inline: true },
+    { name: 'Class Description', value: d.classDescription },
     { name: '\u200B', value: '\u200B' },
-    { name: 'Current/Max/Missed Health', value: `${d.healthPoints.toString()}/${d.maxHp.toString()}/${d.missedHp.toString()}`, inline: true },
-    // the space after the first slash is legacy wording, kept byte-identical
-    { name: 'Current/Max/Missed Action Points', value: `${d.actionPoints.toString()}/ ${d.maxAp.toString()}/${d.missedAp.toString()}`, inline: true },
-    { name: 'Current/Max Damage', value: `${(d.damage * (d.dmgBuff + 1)).toString()}/${d.maxDamage.toString()}` },
-    { name: 'Current/Max Range', value: `${d.range.toString()}/${d.maxRange.toString()}` },
+    { name: 'Current/Max/Missed...', value: `Health: ${d.healthPoints.toString()}/${d.maxHp.toString()}/${d.missedHp.toString()}\nAction Points: ${d.actionPoints.toString()}/ ${d.maxAp.toString()}/${d.missedAp.toString()}`, inline: true },
+    { name: 'Current/Max...', value: `Damage: ${(d.damage * (d.dmgBuff + 1)).toString()}/${d.maxDamage.toString()}\nRange: ${d.range.toString()}/${d.maxRange.toString()}` },
     { name: '\u200B', value: '\u200B' },
   ];
-
+  fields.push({ name: 'Kills', value: d.kills.toString(), inline: true });
   // A player off the board has no tile to describe. Say so once, in place of
   // the position fields, rather than dropping them and leaving the reader to
   // wonder whether the command half-worked.
@@ -171,7 +168,6 @@ function present(result) {
   } else {
     fields.push({ name: 'Current Tile', value: d.dead ? 'Dead - off the board' : 'Not on the board', inline: true });
   }
-  fields.push({ name: 'Kills', value: d.kills.toString(), inline: true });
 
   if (d.onBoard && d.className !== 'Spy' && d.className !== 'Twin') {
     fields.push(
