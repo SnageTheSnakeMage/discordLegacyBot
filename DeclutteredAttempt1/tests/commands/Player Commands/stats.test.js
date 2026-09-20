@@ -362,12 +362,10 @@ describe('stats.present', () => {
     expect(embed.fields).toEqual([
       { name: 'Class', value: 'Average', inline: true },
       { name: 'Class Description', value: 'Basic class' },
-      { name: '\u200B', value: '\u200B' },
       { name: 'Current/Max/Missed...', value: 'Health: 9/10/1\nAction Points: 5/10/2', inline: true },
       // current damage is Damage * (DMG_BUFF + 1): 2 * 2 = 4
-      { name: 'Current/Max...', value: 'Damage: 4/3\nRange: 3/5' },
-      { name: '\u200B', value: '\u200B' },
-      { name: 'Kills', value: '6', inline: true },
+      { name: 'Current/Max...', value: 'Damage: 4/3\nRange: 3/5', inline: true },
+      { name: 'Kills', value: '6' },
       { name: 'Current Tile', value: 'Blank1', inline: true },
       { name: 'X Position', value: '3', inline: true },
       { name: 'Y Position', value: '4', inline: true },

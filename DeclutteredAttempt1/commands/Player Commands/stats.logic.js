@@ -154,12 +154,10 @@ function present(result) {
   const fields = [
     { name: 'Class', value: d.className, inline: true },
     { name: 'Class Description', value: d.classDescription },
-    { name: '\u200B', value: '\u200B' },
     { name: 'Current/Max/Missed...', value: `Health: ${d.healthPoints.toString()}/${d.maxHp.toString()}/${d.missedHp.toString()}\nAction Points: ${d.actionPoints.toString()}/${d.maxAp.toString()}/${d.missedAp.toString()}`, inline: true },
-    { name: 'Current/Max...', value: `Damage: ${(d.damage * (d.dmgBuff + 1)).toString()}/${d.maxDamage.toString()}\nRange: ${d.range.toString()}/${d.maxRange.toString()}` },
-    { name: '\u200B', value: '\u200B' },
+    { name: 'Current/Max...', value: `Damage: ${(d.damage * (d.dmgBuff + 1)).toString()}/${d.maxDamage.toString()}\nRange: ${d.range.toString()}/${d.maxRange.toString()}`, inline: true },
   ];
-  fields.push({ name: 'Kills', value: d.kills.toString(), inline: true });
+  fields.push({ name: 'Kills', value: d.kills.toString() });
   // A player off the board has no tile to describe. Say so once, in place of
   // the position fields, rather than dropping them and leaving the reader to
   // wonder whether the command half-worked.
