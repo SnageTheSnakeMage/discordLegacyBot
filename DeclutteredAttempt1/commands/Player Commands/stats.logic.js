@@ -46,7 +46,7 @@ function parse(raw, actor) {
 async function run(input, deps = defaultDeps) {
   const { models, utils } = deps;
 
-  const gameId = input.gameId ?? await utils.getOldestGameId(input.discordId);
+  const gameId = input.gameId ?? await utils.getOldestActiveGameId(input.discordId);
   const targetDiscordId = input.targetDiscordId ?? input.discordId;
   const targetUsername = input.targetDiscordId ? input.targetUsername : input.username;
 
