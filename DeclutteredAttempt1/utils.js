@@ -61,7 +61,7 @@ async timeCheck(client){
   const runningIds = new Set(games.map((game) => game.Game_ID));
   //stop the intervals of games that are no longer running
   for (const gameId of [...apIntervals.keys()]) {
-    if (!runningIds.has(gameId)) this.stopExistingAPCheckIntervals(gameId);
+    if (!runningIds.has(gameId)) this.stopExistingAPCheckInterval(gameId);
   }
   //start apcheckinterval for each active game
   for (const game of games) {
@@ -283,7 +283,7 @@ tallyChaosVotes(votes, eligible, overriderDiscordId) {
 
 startAPCheckInterval(game, client){
   game = await models.Games.findByPk(game.Game_ID)
-  this.stopExistingAPCheckIntervals(game.Game_ID);
+  this.stopExistingAPCheckInterval(game.Game_ID);
   //every 30 seconds check if AP needs to be distributed if your behind distribute it multiple times for each interval you are behind on
   const intervalId = setInterval( async() => {
     logger150.debug({function: "startAPCheckInterval"},  "started an ap check interval!")
@@ -303,7 +303,7 @@ startAPCheckInterval(game, client){
 },
 
 //clears the AP check interval of a game that should no longer have one
-stopExistingAPCheckIntervals(gameId){
+stopExistingAPCheckInterval(gameId){
   const existing = apIntervals.get(gameId);
   if (existing) {
     clearInterval(existing);
