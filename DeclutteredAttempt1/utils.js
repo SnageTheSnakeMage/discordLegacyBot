@@ -61,7 +61,7 @@ async timeCheck(client){
   const runningIds = new Set(games.map((game) => game.Game_ID));
   //stop the intervals of games that are no longer running
   for (const gameId of [...apIntervals.keys()]) {
-    if (!runningIds.has(gameId)) this.stopAPCheckInterval(gameId);
+    if (!runningIds.has(gameId)) this.stopExistingAPCheckIntervals(gameId);
   }
   //start apcheckinterval for each active game
   for (const game of games) {
@@ -282,9 +282,8 @@ tallyChaosVotes(votes, eligible, overriderDiscordId) {
 },
 
 startAPCheckInterval(game, client){
-  //one interval per game: replace any interval this game already has rather
-  //than stacking a second one on top of it
-  this.stopAPCheckInterval(game.Game_ID);
+  game = await models.Games.findByPk(game.Game_ID)
+  this.stopExistingAPCheckIntervals(game.Game_ID);
   //every 30 seconds check if AP needs to be distributed if your behind distribute it multiple times for each interval you are behind on
   const intervalId = setInterval( async() => {
     logger150.debug({function: "startAPCheckInterval"},  "started an ap check interval!")
@@ -304,7 +303,7 @@ startAPCheckInterval(game, client){
 },
 
 //clears the AP check interval of a game that should no longer have one
-stopAPCheckInterval(gameId){
+stopExistingAPCheckIntervals(gameId){
   const existing = apIntervals.get(gameId);
   if (existing) {
     clearInterval(existing);
@@ -349,7 +348,7 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   //(it is client.guilds), .messages.fetch(...) returns a promise so .poll on
   //it was undefined, and pollToResults was never awaited so CURR_CC_EVENT
   //would have been written a Promise.
-  if (runChaosPoll && game.chaosCouncilBool && game.currentChaosPollMsgId && game.deadChatChannelId && areThereDeadPlayers == true) {
+  if (runChaosPoll && game.chaosCouncilBool && game.currentChaosPollMsgId && game.deadChatChannelId && areThereDeadPlayers == true && ( game.GAME_STATE == GAMESTATES.ACTIVE || game.GAME_STATE == GAMESTATES.FINALE || game.GAME_STATE == GAMESTATES.SANDBOX || game.GAME_STATE == GAMESTATES.TIMESTOPPED)) {
     const winner = await this.readChaosCouncilPoll(game, client);
     if (winner) await models.Games.update({CURR_CC_EVENT: winner}, {where: {Game_ID: game.Game_ID}});
     await models.Games.update({currentChaosPollMsgId: null}, {where: {Game_ID: game.Game_ID}});
