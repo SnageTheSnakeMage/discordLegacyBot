@@ -342,7 +342,7 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   if(timeForFinaleTranstion && game.GAME_STATE == GAMESTATES.ACTIVE){
     chaosTimes = await this.finaleTransition(game, chaosTimes);
   }
-  if(game.GAME_STATE == GAMESTATES.FINALE){
+  else if(game.GAME_STATE == GAMESTATES.FINALE){
     chaosTimes = await this.finaleTick(game, chaosTimes);
   }
   //Close out the chaos council poll from the last interval, if there is one.
