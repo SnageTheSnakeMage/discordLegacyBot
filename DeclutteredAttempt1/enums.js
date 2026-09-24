@@ -9,36 +9,6 @@ const GAMESTATES = Object.freeze({
   SANDBOX: "SANDBOX"
 })
 
-//Higher priority
-//TODO: add twin functionality to Tile movement check in utils(Line 827)
-//TODO update gust implementation
-//TODO create proper tests
-//TODO rewrite commands for better testing <--- CURRENT TASK
-
-//Medium priority
-//task has been current place at Index@Line 68
-//TODO fix logging and make proper logs and errors
-
-//Lower Priority
-//TODO MAKE SURE ALL INSTANCES OF A PLAYERS TILE BIENG SET WE ALSO SET A TILE.PLAYERX to THE PLAYERS ID
-//TODO make sure there are no PlayerID in db calls
-//TODO check each function that is async is bieng called with await
-//TODO ensure any changes to Tile_ID cascade to the tile itself aswell with either
-    // a Tiles db call 
-    // or a utils removePlayerFromTile call
-//TODO Check all DB calls to make sure they are using the right names for variables
-
-//TODO NERF ROBOT, make movement cost 2 for robot
-//TODO EDIT LAVA DIVER DESCRIPTION
-//TODO REWRITE LAVA DIVER AP DISTRIB DAMAGE IN UTILS(line 227)
-//TODO ADD SPEEDSTER CLASS
-//TODO:FINISH PUNISH CLASS IMPLEMENTATION
-        //TODO: finish punish command
-        //TODO: add punish class to DB
-        //TODO: review class code to make sure 39 classes do not break anything
-        //TODO: review punish command to ensure leftover shoot command code doesnt not cause bugs
-        //TODO: write down steps and review what it takes to make a new class
-//TODO make poll handler in utils & finished override command
 
 const ChaosEvents = Object.freeze({
 
