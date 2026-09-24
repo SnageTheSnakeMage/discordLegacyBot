@@ -339,7 +339,12 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   //is one multiplier rather than an extra additive write off a stale row.
   //`let`, because the finale doubles it
   let chaosTimes = game.CURR_CC_EVENT === "Time Acceleration!" ? times * 3 : times;
-
+  if(timeForFinaleTranstion && game.GAME_STATE == GAMESTATES.ACTIVE){
+    chaosTimes = await this.finaleTransition(game, chaosTimes);
+  }
+  if(game.GAME_STATE == GAMESTATES.FINALE){
+    chaosTimes = await this.finaleTick(game, chaosTimes);
+  }
   //Close out the chaos council poll from the last interval, if there is one.
   if (runChaosPoll && game.chaosCouncilBool && game.currentChaosPollMsgId && game.deadChatChannelId ) {
     const winner = await this.readChaosCouncilPoll(game, client);
@@ -403,13 +408,6 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
     if(game.timestopTurns == 0){
       game.GAME_STATE = GAMESTATES.ACTIVE;
     }
-  }
-
-  if(timeForFinaleTranstion && game.GAME_STATE == GAMESTATES.ACTIVE){
-    chaosTimes = await this.finaleTransition(game, chaosTimes);
-  }
-  else if(game.GAME_STATE == GAMESTATES.FINALE){
-    chaosTimes = await this.finaleTick(game, chaosTimes);
   }
 
   //Open the next council poll. Same story: client.channel.cache does not
