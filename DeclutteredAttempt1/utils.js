@@ -291,7 +291,7 @@ startAPCheckInterval(game, client){
     var apInterval = game.AP_INTERVAL_MIN *  60000
     //how long it has been since the last AP distribution in milliseconds
     var lastDistrib = Date.now() - game.lastAPDistributionTimestampInMS;
-    if(lastDistrib > apInterval){
+    if(lastDistrib > apInterval && ( game.GAME_STATE != GAMESTATES.DEV_PAUSED || game.GAME_STATE != GAMESTATES.INACTIVE || game.GAME_STATE != GAMESTATES.OVER || game.GAME_STATE != GAMESTATES.REGISTRATION)){
       //amount of times ap should have been distributed
       var times = Math.floor(lastDistrib / apInterval);
       logger150.debug({function: "startAPCheckInterval"}, `calculated ${times.toString()} AP distributions (lastDitrib: ${lastDistrib}, apInterval: ${apInterval}, times: ${times})`)
@@ -415,8 +415,7 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   //Open the next council poll. Same story: client.channel.cache does not
   //exist (it is client.channels.cache), and the id was assigned to the
   //in-memory row inside a .then, after the save below had already run.
-  if (runChaosPoll && game.chaosCouncilBool && game.deadChatChannelId && areThereDeadPlayers == true 
-    && ( game.GAME_STATE == GAMESTATES.ACTIVE || game.GAME_STATE == GAMESTATES.FINALE || game.GAME_STATE == GAMESTATES.SANDBOX || game.GAME_STATE == GAMESTATES.TIMESTOPPED)) {
+  if (runChaosPoll && game.chaosCouncilBool && game.deadChatChannelId && areThereDeadPlayers == true ) {
     await this.postChaosCouncilPoll(game, client);
   }
   await game.save();
