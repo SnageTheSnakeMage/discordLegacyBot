@@ -65,7 +65,7 @@ async timeCheck(client){
   }
   //start apcheckinterval for each active game
   for (const game of games) {
-    this.startAPCheckInterval(game, client);
+    await this.startAPCheckInterval(game, client);
   }
 },
 
@@ -281,7 +281,7 @@ tallyChaosVotes(votes, eligible, overriderDiscordId) {
   return winner && winner.voters.length > 0 ? winner.text : null;
 },
 
-startAPCheckInterval(game, client){
+async startAPCheckInterval(game, client){
   game = await models.Games.findByPk(game.Game_ID)
   this.stopExistingAPCheckInterval(game.Game_ID);
   //every 30 seconds check if AP needs to be distributed if your behind distribute it multiple times for each interval you are behind on
