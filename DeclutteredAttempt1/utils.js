@@ -347,24 +347,6 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
     await models.Games.update({currentChaosPollMsgId: null}, {where: {Game_ID: game.Game_ID}});
   }
 
-  //The finale is entered ONCE, and only from ACTIVE.
-  //
-  //`timeForFinaleTranstion` stays true for the rest of the game - the living
-  //count only goes down - so running the transition on every distribution
-  //added four more gateways per layer each time, and spread fire twice in the
-  //same interval (transition, then tick). Two separate `if`s made that the
-  //default on the very first finale distribution.
-  //
-  //A TIMESTOPPED game waits for its timestop to run out first: overwriting
-  //the state with FINALE loses the Clockwatcher's remaining turns, along with
-  //the tick-down at the bottom of this function that reactivates the game.
-  if(timeForFinaleTranstion && game.GAME_STATE == GAMESTATES.ACTIVE){
-    chaosTimes = await this.finaleTransition(game, chaosTimes);
-  }
-  else if(game.GAME_STATE == GAMESTATES.FINALE){
-    chaosTimes = await this.finaleTick(game, chaosTimes);
-  }
-
   //get all alive players in the game and give them as much AP as the game gives per interval multiplied by times
   const livingPlayers = await models.Players.findAll({where: {Game_ID: game.Game_ID, Dead: false}});
   for (const player of livingPlayers) {
@@ -423,7 +405,12 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
     }
   }
 
-
+  if(timeForFinaleTranstion && game.GAME_STATE == GAMESTATES.ACTIVE){
+    chaosTimes = await this.finaleTransition(game, chaosTimes);
+  }
+  else if(game.GAME_STATE == GAMESTATES.FINALE){
+    chaosTimes = await this.finaleTick(game, chaosTimes);
+  }
 
   //Open the next council poll. Same story: client.channel.cache does not
   //exist (it is client.channels.cache), and the id was assigned to the
