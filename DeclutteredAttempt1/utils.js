@@ -327,8 +327,6 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   var hitmanClass = await models.Classes.findOne({where: {Class_Name: "Hitman"}});
   var pyromainiacClass = await models.Classes.findOne({where: {Class_Name: "Pyromainiac"}});
   var snowmanClass = await models.Classes.findOne({where: {Class_Name: "Snowman"}});
-  //needed by the chaos events; cloudbornClass was referenced by the old
-  //commented gust code without ever being declared
   var cloudbornClass = await models.Classes.findOne({where: {Class_Name: "Cloudborn"}});
   var doctorClass = await models.Classes.findOne({where: {Class_Name: "Doctor"}});
   var speedsterClass = await models.Classes.findOne({where: {Class_Name: "Speedster"}});
@@ -339,16 +337,11 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   };
   //"Time Acceleration!" runs the whole distribution three times over, which
   //is one multiplier rather than an extra additive write off a stale row.
-  //`let`, because the finale doubles it - and the doubling only counts if the
-  //value the finale returns is kept, which it was not.
+  //`let`, because the finale doubles it
   let chaosTimes = game.CURR_CC_EVENT === "Time Acceleration!" ? times * 3 : times;
 
   //Close out the chaos council poll from the last interval, if there is one.
-  //The old commented version could not have run: client.guild does not exist
-  //(it is client.guilds), .messages.fetch(...) returns a promise so .poll on
-  //it was undefined, and pollToResults was never awaited so CURR_CC_EVENT
-  //would have been written a Promise.
-  if (runChaosPoll && game.chaosCouncilBool && game.currentChaosPollMsgId && game.deadChatChannelId && areThereDeadPlayers == true && ( game.GAME_STATE == GAMESTATES.ACTIVE || game.GAME_STATE == GAMESTATES.FINALE || game.GAME_STATE == GAMESTATES.SANDBOX || game.GAME_STATE == GAMESTATES.TIMESTOPPED)) {
+  if (runChaosPoll && game.chaosCouncilBool && game.currentChaosPollMsgId && game.deadChatChannelId ) {
     const winner = await this.readChaosCouncilPoll(game, client);
     if (winner) await models.Games.update({CURR_CC_EVENT: winner}, {where: {Game_ID: game.Game_ID}});
     await models.Games.update({currentChaosPollMsgId: null}, {where: {Game_ID: game.Game_ID}});
@@ -435,7 +428,8 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   //Open the next council poll. Same story: client.channel.cache does not
   //exist (it is client.channels.cache), and the id was assigned to the
   //in-memory row inside a .then, after the save below had already run.
-  if (runChaosPoll && game.chaosCouncilBool && game.deadChatChannelId) {
+  if (runChaosPoll && game.chaosCouncilBool && game.deadChatChannelId && areThereDeadPlayers == true 
+    && ( game.GAME_STATE == GAMESTATES.ACTIVE || game.GAME_STATE == GAMESTATES.FINALE || game.GAME_STATE == GAMESTATES.SANDBOX || game.GAME_STATE == GAMESTATES.TIMESTOPPED)) {
     await this.postChaosCouncilPoll(game, client);
   }
   await game.save();
