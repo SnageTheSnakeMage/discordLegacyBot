@@ -10,10 +10,23 @@
  * - the dead gamestate switch (PAUSED and OVER, neither of which exists /
  *   matched) is replaced by the shared checkGameState gate
  *
- * Preserved as-is: any player may pass an explicit layer (the old code
- * never enforced Oracle for that, despite the option description), and an
- * Oracle with no layer input renders with a null layer id, exactly as
- * before.
+ * Preserved as-is: an Oracle with no layer input renders with a null layer
+ * id, exactly as before.
+ *
+ * #148: the Oracle rule was enforced, but by GenerateGameGridImage THROWING a
+ * bare string mid-render. Nothing caught it, so the player got
+ * "There was an error while executing this command!" instead of being told
+ * what the rule is. The rule is checked here now, before anything renders,
+ * and comes back as NOT_ORACLE like every other refusal. The renderer keeps
+ * its throw as a backstop for its other callers.
+ *
+ * Who may look at another layer is the renderer's own list, not a new rule:
+ * an Oracle (allLayerSight), and a dead player, who gets allLayerSight
+ * because there is nothing left to hide from them. Everyone else is held to
+ * the layers their own bodies are standing on - both of them, for a Twin,
+ * which is also what fixes `/board body:2` for a Twin whose bodies are on
+ * different layers: that used to hit the same throw, because the renderer
+ * only ever compared against body 1's tile.
  */
 const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
@@ -50,6 +63,16 @@ async function run(input, deps = defaultDeps) {
       .map((l) => l.Layer_ID);
     layerId = layerIds[input.layer - 1];
     if (layerId === undefined) return { ok: false, reason: REJECTIONS.NO_SUCH_LAYER };
+
+    if (playerClass.Class_Name !== 'Oracle' && !player.Dead) {
+      const ownLayers = [];
+      for (const tileId of [player.Tile_ID, player.Tile_ID2]) {
+        if (tileId == null) continue;
+        const ownTile = await models.Tiles.findByPk(tileId);
+        if (ownTile) ownLayers.push(ownTile.Layer_ID);
+      }
+      if (!ownLayers.includes(layerId)) return { ok: false, reason: REJECTIONS.NOT_ORACLE };
+    }
   } else if (input.body === 2) {
     const tile = await models.Tiles.findByPk(player.Tile_ID2);
     if (!tile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE };

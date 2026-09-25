@@ -87,11 +87,61 @@ describe('board.run', () => {
     expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, 22, 1);
   });
 
+  // an Oracle, so this covers the mapping and nothing else - a non-Oracle
+  // asking for a layer it is not on is the NOT_ORACLE case below
   it('maps an explicit common layer number to the game Layer_ID (this path used to throw ReferenceError)', async () => {
-    const deps = happyDeps();
+    const deps = happyDeps({ playerClass: createFakeClass({ Class_Name: 'Oracle' }) });
     const result = await logic.run({ ...INPUT, layer: 2 }, deps);
     expect(result.ok).toBe(true);
     expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, 22, 1);
+  });
+
+  // #148. The rule existed, but GenerateGameGridImage enforced it by throwing
+  // a bare string mid-render, which nothing caught: the player was told
+  // "There was an error while executing this command!" and learnt nothing.
+  // These rows are the rule as a rejection, decided before anything renders.
+  describe('#148 who may look at another layer', () => {
+    // one body, on layer 11 - what a non-Twin actually looks like
+    const oneBody = () => createFakePlayer({ Player_ID: 1, Discord_ID: '123', Tile_ID: 1, Tile_ID2: null });
+
+    it('refuses a non-Oracle asking for a layer it is not standing on', async () => {
+      const deps = happyDeps({ player: oneBody() });
+      expect(await logic.run({ ...INPUT, layer: 2 }, deps))
+        .toMatchObject({ ok: false, reason: REJECTIONS.NOT_ORACLE });
+      expect(deps.utils.GenerateGameGridImage).not.toHaveBeenCalled();
+    });
+
+    it('says so in words rather than in the central error handler', () => {
+      const content = logic.present({ ok: false, reason: REJECTIONS.NOT_ORACLE }).content;
+      expect(content).toMatch(/Oracle/);
+      expect(content).not.toMatch(/There was an error/);
+    });
+
+    it('allows a non-Oracle to name the layer it is already on', async () => {
+      const deps = happyDeps({ player: oneBody() });
+      const result = await logic.run({ ...INPUT, layer: 1 }, deps);
+      expect(result.ok).toBe(true);
+      expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, 11, 1);
+    });
+
+    it('allows a dead player any layer, as the renderer already did', async () => {
+      const deps = happyDeps({
+        player: createFakePlayer({ Player_ID: 1, Discord_ID: '123', Tile_ID: null, Tile_ID2: null, Dead: true }),
+      });
+      expect(await logic.run({ ...INPUT, layer: 2 }, deps)).toMatchObject({ ok: true });
+    });
+
+    // the second half of the same throw: the renderer only ever compared
+    // against body 1's tile, so a Twin naming the layer its OTHER body stands
+    // on was refused for standing somewhere it was standing
+    it('allows a Twin the layer of either of its bodies', async () => {
+      const deps = happyDeps({
+        player: createFakePlayer({ Player_ID: 1, Discord_ID: '123', Tile_ID: 1, Tile_ID2: 2 }),
+        playerClass: createFakeClass({ Class_Name: 'Twin' }),
+      });
+      expect(await logic.run({ ...INPUT, layer: 1 }, deps)).toMatchObject({ ok: true });
+      expect(await logic.run({ ...INPUT, layer: 2 }, deps)).toMatchObject({ ok: true });
+    });
   });
 
   it('rejects a common layer number beyond the game layers', async () => {

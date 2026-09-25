@@ -76,6 +76,33 @@ describe('GenerateGameGridImage', () => {
       .rejects.toMatch(/only view the layer you are currently on/);
   });
 
+  // #148's other half. The refusal above compared the requested layer against
+  // ONE tile - body 1's - so a Twin asking for the layer its second body was
+  // standing on was refused for standing where it stood, and the raw string
+  // came out of /board as "There was an error while executing this command!".
+  it('shows a Twin the layer of its second body', async () => {
+    const { game, layers } = await seedBoard();
+    const twin = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 1, layerId: layers[0].Layer_ID, className: 'Twin',
+      secondBody: { x: 2, y: 2, layerId: layers[1].Layer_ID },
+    });
+    const buffer = await utils.GenerateGameGridImage(game.Game_ID, layers[1].Layer_ID, twin.Player_ID);
+    expect(buffer.subarray(1, 4).toString()).toBe('PNG');
+  });
+
+  it('still refuses a Twin a layer neither of its bodies is on', async () => {
+    const { game, layers } = await seedBoard();
+    const twin = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 1, layerId: layers[0].Layer_ID, className: 'Twin',
+      secondBody: { x: 2, y: 2, layerId: layers[1].Layer_ID },
+    });
+    // a third layer of the same game, which neither body stands on. It needs
+    // no tiles: the refusal is decided before any tile is drawn.
+    const foreign = await models.Layers.create({ Game_ID: game.Game_ID, X_Bound: 1, Y_Bound: 1 });
+    await expect(utils.GenerateGameGridImage(game.Game_ID, foreign.Layer_ID, twin.Player_ID))
+      .rejects.toMatch(/only view the layer you are currently on/);
+  });
+
   it('draws a mine on a trapped tile', async () => {
     const { game, layers } = await seedBoard();
     const tile = await models.Tiles.findOne({

@@ -58,6 +58,7 @@ const MESSAGES = {
 
   [REJECTIONS.NO_SUCH_TILE]: (d) => (d && d.action ? `Could not find tile to ${d.action} at the given coordinates.` : "That tile is not on the board!"),
   [REJECTIONS.NO_SUCH_LAYER]: () => "That layer does not exist in this game!",
+  [REJECTIONS.NOT_ORACLE]: () => "You can only look at the layer you are standing on! Only an Oracle can look at another layer.",
   [REJECTIONS.WRONG_TILE_TYPE]: (d) => (d && d.message) || "You can't do that to this tile!",
   [REJECTIONS.TILE_OCCUPIED]: () => "There is a player on that tile!",
   [REJECTIONS.TILE_FULL]: () => "That tile is full!",
