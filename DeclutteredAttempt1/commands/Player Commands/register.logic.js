@@ -34,10 +34,21 @@ const { GAMESTATES, REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
 const defaultDeps = require('../_deps.js');
 
+/**
+ * #144: the icon used to have to be exactly 80x80 and exactly a PNG. The
+ * renderer scales whatever it is given into a quadrant of a tile, so the size
+ * never mattered - only the shape, because a non-square icon is what comes
+ * out stretched. Any square image is fine.
+ *
+ * FORMATS is not "any image/*", which is the one thing the issue's wording
+ * would allow and the renderer cannot: node-canvas here is built against
+ * libpng and libjpeg only (see the Dockerfile's apk line), so a WebP or an
+ * AVIF would upload happily, fail to decode, and fall back to default.png -
+ * a player with no face and no error. An icon that cannot be drawn is
+ * refused at registration instead, while it can still be explained.
+ */
 const ICON_REQUIREMENTS = {
-  WIDTH: 80,
-  HEIGHT: 80,
-  FORMAT: 'image/png',
+  FORMATS: ['image/png', 'image/jpeg'],
 };
 
 function parse(raw, actor) {
@@ -72,11 +83,11 @@ async function run(input, deps = defaultDeps) {
   }
 
   const icon = input.icon;
-  if (icon.contentType !== ICON_REQUIREMENTS.FORMAT) {
-    return { ok: false, reason: REJECTIONS.WRONG_TILE_TYPE, data: { message: 'The file is a ' + icon.contentType + ' file. Player icon must be a PNG file' } };
+  if (!ICON_REQUIREMENTS.FORMATS.includes(icon.contentType)) {
+    return { ok: false, reason: REJECTIONS.WRONG_TILE_TYPE, data: { message: 'The file is a ' + icon.contentType + ' file. Player icon must be a PNG or JPEG image' } };
   }
-  if (icon.width !== ICON_REQUIREMENTS.WIDTH || icon.height !== ICON_REQUIREMENTS.HEIGHT) {
-    return { ok: false, reason: REJECTIONS.INVALID_AMOUNT, data: { message: `Player icon must be exactly ${ICON_REQUIREMENTS.WIDTH}x${ICON_REQUIREMENTS.HEIGHT} pixels` } };
+  if (icon.width !== icon.height) {
+    return { ok: false, reason: REJECTIONS.INVALID_AMOUNT, data: { message: `Player icon must be square - that one is ${icon.width}x${icon.height}. Any size is fine, it gets scaled to the tile.` } };
   }
 
   let existingPlayer;

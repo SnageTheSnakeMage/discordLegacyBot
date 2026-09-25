@@ -130,7 +130,7 @@ const COMMANDS = {
     options: {
       'icon': {
         kind: 'attachment',
-        description: 'represents your position on the game board, must be a 80x80 pixel png',
+        description: 'represents your position on the game board, must be a square png or jpeg',
         required: true,
       },
       'game': { kind: 'integer', description: 'which game, defaults to oldest registering game' },

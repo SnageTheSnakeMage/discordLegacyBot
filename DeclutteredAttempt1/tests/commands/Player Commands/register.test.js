@@ -113,34 +113,56 @@ describe('register.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a non-PNG icon with the legacy message and writes nothing', async () => {
+  // #144. Accepting anything image/* is what the issue's wording allows and
+  // the renderer cannot honour: node-canvas here is built against libpng and
+  // libjpeg only, so a WebP would upload, fail to decode, and quietly render
+  // as default.png. Refusing it at registration is the only point at which
+  // the player can be told why.
+  it.each(['image/webp', 'image/avif', 'image/gif', 'video/mp4', 'application/pdf'])(
+    'rejects a %s icon and writes nothing',
+    async (contentType) => {
+      const { deps } = happyDeps();
+      const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, contentType } }, deps);
+      expect(result).toMatchObject({
+        ok: false,
+        reason: REJECTIONS.WRONG_TILE_TYPE,
+        data: { message: `The file is a ${contentType} file. Player icon must be a PNG or JPEG image` },
+      });
+      expectNoWrites(deps);
+    },
+  );
+
+  it('accepts a JPEG now that the format is not PNG-only', async () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, contentType: 'image/jpeg' } }, deps);
-    expect(result).toMatchObject({
-      ok: false,
-      reason: REJECTIONS.WRONG_TILE_TYPE,
-      data: { message: 'The file is a image/jpeg file. Player icon must be a PNG file' },
-    });
-    expectNoWrites(deps);
+    expect(result.ok).toBe(true);
   });
 
-  // boundary: exactly 80x80 passes (success suite); one pixel off either
-  // axis fails
-  it.each([
-    [80, 79],
-    [79, 80],
-    [81, 80],
-    [160, 160],
-  ])('rejects a %dx%d icon', async (width, height) => {
-    const { deps } = happyDeps();
-    const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, width, height } }, deps);
-    expect(result).toMatchObject({
-      ok: false,
-      reason: REJECTIONS.INVALID_AMOUNT,
-      data: { message: 'Player icon must be exactly 80x80 pixels' },
-    });
-    expectNoWrites(deps);
-  });
+  // the size requirement is gone: the renderer scales the icon into a
+  // quadrant of a tile, so only the shape can be wrong
+  it.each([[16, 16], [80, 80], [512, 512], [1024, 1024]])(
+    'accepts a square %dx%d icon',
+    async (width, height) => {
+      const { deps } = happyDeps();
+      const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, width, height } }, deps);
+      expect(result.ok).toBe(true);
+      expect(deps.utils.registerPlayer).toHaveBeenCalled();
+    },
+  );
+
+  it.each([[80, 79], [79, 80], [160, 80], [1, 1000]])(
+    'rejects a %dx%d icon for not being square',
+    async (width, height) => {
+      const { deps } = happyDeps();
+      const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, width, height } }, deps);
+      expect(result).toMatchObject({
+        ok: false,
+        reason: REJECTIONS.INVALID_AMOUNT,
+        data: { message: `Player icon must be square - that one is ${width}x${height}. Any size is fine, it gets scaled to the tile.` },
+      });
+      expectNoWrites(deps);
+    },
+  );
 
   it('rejects an already registered player with the legacy message', async () => {
     const { deps } = happyDeps({ existingPlayer: createFakePlayer({ Discord_ID: ACTOR, Game_ID: 1 }) });
