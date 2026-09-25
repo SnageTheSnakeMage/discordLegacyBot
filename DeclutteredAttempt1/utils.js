@@ -845,7 +845,18 @@ async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
       trapSight = true;
     }
     if(!allLayerSight) {
-      if (databaseLayerID != playersTile.Layer_ID) {
+      //both bodies, not just body 1: a Twin asking for the layer its SECOND
+      //body stands on was refused here, which is what took `/board body:2`
+      //into the central error handler for a Twin whose bodies are on
+      //different layers. /board checks this rule itself now and returns
+      //NOT_ORACLE (#148); this stays as the backstop for other callers.
+      const playersSecondTile = playerSeeing.Tile_ID2 != null
+        ? await models.Tiles.findByPk(playerSeeing.Tile_ID2)
+        : null;
+      const ownLayers = [playersTile, playersSecondTile]
+        .filter((tile) => tile != null)
+        .map((tile) => tile.Layer_ID);
+      if (!ownLayers.includes(databaseLayerID)) {
         throw "You can only view the layer you are currently on, unless you are an oracle";
       }
     }
