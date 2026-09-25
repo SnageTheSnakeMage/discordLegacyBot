@@ -31,6 +31,17 @@ const DISCORD_MESSAGE_LIMIT = 2000;
 //without this a game accumulated a duplicate 30s timer per call and no timer
 //was ever cleared when a game stopped being ACTIVE.
 const apIntervals = new Map();
+//The gamestates an AP distribution may run in - the same three timeCheck
+//starts an interval for, so "has an interval" and "may be paid" cannot drift
+//apart. A whitelist, because the blacklist this replaced read
+//`state != DEV_PAUSED || state != INACTIVE || state != OVER ||
+//state != REGISTRATION`, which is TRUE for every possible value: any state
+//differs from at least one of the other three, so the guard never guarded
+//anything. (Same shape as the `id != a || id != b` class exemptions in
+//applyChaosEventToPlayer, and it is why a DEV_PAUSED game kept paying AP and
+//posting council polls.) SANDBOX is deliberately absent: no interval is ever
+//created for a sandbox game, and /sandbox ap-tick is its manual path.
+const AP_DISTRIBUTION_STATES = [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE];
 //Tile types the finale's fire spread leaves alone: two nobody can stand on,
 //and the gateways. Smoke and mine tiles already make that gateway exception
 //(see the tile rules in the README) - a Guardian's locked gateway is a game
@@ -57,7 +68,7 @@ module.exports = {
  * a GAME_STATE can just call this afterwards.
  */
 async timeCheck(client){ 
-  const games = await models.Games.findAll({where: {GAME_STATE: {[Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE ]}}});
+  const games = await models.Games.findAll({where: {GAME_STATE: {[Op.or]: AP_DISTRIBUTION_STATES}}});
   const runningIds = new Set(games.map((game) => game.Game_ID));
   //stop the intervals of games that are no longer running
   for (const gameId of [...apIntervals.keys()]) {
@@ -281,25 +292,54 @@ tallyChaosVotes(votes, eligible, overriderDiscordId) {
   return winner && winner.voters.length > 0 ? winner.text : null;
 },
 
+//One pass of the AP check: everything the 30s interval does, as a function
+//that can be called (and tested) on its own.
+//
+//It re-reads the game row EVERY pass, which is the other half of the guard
+//below. The row used to be read once, when the interval was created, and the
+//timestamp written back with models.Games.update - which does not touch that
+//in-memory object. So `lastDistrib` was measured from a frozen timestamp and
+//grew without bound: with a 60 minute interval, 1x at T+1h, 1x again at
+//T+1h30m, 2x at T+2h, and climbing, because nothing ever refreshed what it
+//compared against. A stale GAME_STATE is the same bug wearing a different
+//hat: a game paused after the interval started still looked ACTIVE here.
+async apCheckTick(gameId, client){
+  const game = await models.Games.findByPk(gameId);
+  //the game row is gone: nothing left to pay, and nothing to re-check
+  if(!game){
+    this.stopExistingAPCheckInterval(gameId);
+    return;
+  }
+  //Not stopped, just skipped. An unpause is then picked up by the next pass
+  //on its own, instead of waiting for something to call timeCheck.
+  if(!AP_DISTRIBUTION_STATES.includes(game.GAME_STATE)){
+    logger150.debug({function: "apCheckTick"}, `game ${gameId} is ${game.GAME_STATE}, no AP distributed`);
+    return;
+  }
+  //how often AP is distributed for the game in milliseconds
+  const apInterval = game.AP_INTERVAL_MIN * 60000;
+  //how long it has been since the last AP distribution in milliseconds
+  const lastDistrib = Date.now() - game.lastAPDistributionTimestampInMS;
+  if(lastDistrib <= apInterval) return;
+  //amount of times ap should have been distributed
+  const times = Math.floor(lastDistrib / apInterval);
+  logger150.debug({function: "apCheckTick"}, `calculated ${times.toString()} AP distributions (lastDistrib: ${lastDistrib}, apInterval: ${apInterval}, times: ${times})`)
+  await this.distributeAP(game, times, client);
+  await models.Games.update({lastAPDistributionTimestampInMS: Date.now()}, {where: {Game_ID: gameId}});
+},
+
+//still async: timeCheck awaits it, and the signature is not this fix's
+//business to change
 async startAPCheckInterval(game, client){
-  game = await models.Games.findByPk(game.Game_ID)
-  this.stopExistingAPCheckInterval(game.Game_ID);
-  //every 30 seconds check if AP needs to be distributed if your behind distribute it multiple times for each interval you are behind on
-  const intervalId = setInterval( async() => {
-    logger150.debug({function: "startAPCheckInterval"},  "started an ap check interval!")
-    //how often AP is distributed for the game in milliseconds
-    var apInterval = game.AP_INTERVAL_MIN *  60000
-    //how long it has been since the last AP distribution in milliseconds
-    var lastDistrib = Date.now() - game.lastAPDistributionTimestampInMS;
-    if(lastDistrib > apInterval && ( game.GAME_STATE != GAMESTATES.DEV_PAUSED || game.GAME_STATE != GAMESTATES.INACTIVE || game.GAME_STATE != GAMESTATES.OVER || game.GAME_STATE != GAMESTATES.REGISTRATION)){
-      //amount of times ap should have been distributed
-      var times = Math.floor(lastDistrib / apInterval);
-      logger150.debug({function: "startAPCheckInterval"}, `calculated ${times.toString()} AP distributions (lastDitrib: ${lastDistrib}, apInterval: ${apInterval}, times: ${times})`)
-      await this.distributeAP(game, times, client);
-      if(times >= 1){await models.Games.update({lastAPDistributionTimestampInMS: Date.now()}, {where: {Game_ID: game.Game_ID}});}
-    }
+  const gameId = game.Game_ID;
+  this.stopExistingAPCheckInterval(gameId);
+  //every 30 seconds check if AP needs to be distributed; if the game is
+  //behind, distribute for each interval it is behind on
+  const intervalId = setInterval(() => {
+    //the id, not the row: apCheckTick fetches the row itself every pass
+    this.apCheckTick(gameId, client);
   }, APCHECKINTERVAL_SECONDS * 1000)
-  apIntervals.set(game.Game_ID, intervalId);
+  apIntervals.set(gameId, intervalId);
 },
 
 //clears the AP check interval of a game that should no longer have one
