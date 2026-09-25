@@ -63,6 +63,15 @@ describe('board.run', () => {
     expect(deps.utils.GenerateGameGridImage).not.toHaveBeenCalled();
   });
 
+  // /board only looks, so the two "nothing to act on yet" states stay open to
+  // it while #145 closes them for every command that acts. Seeing the grid of
+  // a game you are waiting to start is the point of the exemption.
+  it.each([GAMESTATES.REGISTRATION, GAMESTATES.INACTIVE])('gamestate %s still renders', async (state) => {
+    const deps = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
+    expect(await logic.run(INPUT, deps)).toMatchObject({ ok: true });
+    expect(deps.utils.GenerateGameGridImage).toHaveBeenCalled();
+  });
+
   it('renders the layer of body 1 by default', async () => {
     const deps = happyDeps();
     const result = await logic.run(INPUT, deps);

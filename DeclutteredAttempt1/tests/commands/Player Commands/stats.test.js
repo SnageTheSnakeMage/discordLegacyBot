@@ -112,6 +112,11 @@ describe('stats.run rejections', () => {
   // isClockwatcher argument this command passes) cover it here.
   it.each([
     [GAMESTATES.ACTIVE, null],
+    // #145 blocks these two for anything that acts; /stats reads, so it asks
+    // the gate with readOnly and they pass. This is the row that fails if the
+    // readOnly argument is dropped at this call site.
+    [GAMESTATES.REGISTRATION, null],
+    [GAMESTATES.INACTIVE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ])('gamestate %s -> %s', async (state, reason) => {
@@ -255,17 +260,21 @@ describe('stats.run success', () => {
     });
   });
 
-  it('resolves the default game via getOldestActiveGameId, not the any-state variant', async () => {
+  // #143: any gamestate, not the active-only variant. /stats is read-only, so
+  // it is exempt from the gate's registration block and can show a roster
+  // before the game starts - resolving only ACTIVE games would put the game
+  // the player is waiting on out of reach.
+  it('resolves the default game via getOldestGameId, not the active-only variant', async () => {
     const deps = happyDeps();
     deps.utils = {
       ...deps.utils,
-      getOldestActiveGameId: jest.fn(async () => 1),
       getOldestGameId: jest.fn(async () => 1),
+      getOldestActiveGameId: jest.fn(async () => 1),
     };
     const result = await logic.run({ ...INPUT, gameId: null }, deps);
     expect(result.ok).toBe(true);
-    expect(deps.utils.getOldestActiveGameId).toHaveBeenCalledWith(ACTOR);
-    expect(deps.utils.getOldestGameId).not.toHaveBeenCalled();
+    expect(deps.utils.getOldestGameId).toHaveBeenCalledWith(ACTOR);
+    expect(deps.utils.getOldestActiveGameId).not.toHaveBeenCalled();
   });
 
   it('maps the tile Layer_ID to the 1-based common layer number as a string', async () => {

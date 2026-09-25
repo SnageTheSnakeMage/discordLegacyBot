@@ -91,16 +91,14 @@ describe('trap.run rejections', () => {
   });
 
   // Rows dropped where they only re-ran utils.checkGameState's shared table,
-  // which tests/utils.pure.test.js walks in full. The REGISTRATION row stays:
-  // that one is this command's own behaviour, not the shared gate's.
-  //
-  // The old command called
-  // checkGameStateAndReply(state, false, interaction), which blocked only
-  // OVER, DEV_PAUSED and TIMESTOPPED - REGISTRATION passes, unlike most
-  // other class commands.
+  // which tests/utils.pure.test.js walks in full. The REGISTRATION row stays
+  // because it used to be this command's odd one out: the old
+  // checkGameStateAndReply blocked only OVER, DEV_PAUSED and TIMESTOPPED, so
+  // trapping a game that had not started was allowed. #145 closed that at the
+  // gate, and this row is what says so.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.REGISTRATION, null],
+    [GAMESTATES.REGISTRATION, REJECTIONS.GAME_IN_REGISTRATION],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
     [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
   ])('gamestate %s -> %s', async (state, reason) => {
@@ -339,8 +337,8 @@ describe('trap.present', () => {
   it.each([
     [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],
     [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! only the dev can use commands for this game at this time.'],
+    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.NO_SUCH_TILE, { action: 'trap' }, 'Could not find tile to trap at the given coordinates.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Minesweeper' }, 'You are not a Minesweeper!'],
