@@ -259,8 +259,8 @@ describe('burn.present', () => {
   it.each([
     [REJECTIONS.NO_SUCH_TILE, { action: 'burn' }, 'Could not find tile to burn at the given coordinates.'],
     [REJECTIONS.PLAYER_DEAD, undefined, "Dead players can't use this command."],
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! only the dev can use commands for this game at this time.'],
+    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Pyromainiac' }, 'You are not a Pyromainiac!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'burn a tile' }, 'You dont have enough AP to burn a tile!'],

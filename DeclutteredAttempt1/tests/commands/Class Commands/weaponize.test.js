@@ -317,8 +317,8 @@ describe('weaponize.present', () => {
     [REJECTIONS.OUT_OF_RANGE, undefined, 'Your target is not in range!'],
     [REJECTIONS.WRONG_CLASS, { className: 'Blacksmith' }, 'You are not a Blacksmith!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'weaponize' }, 'You dont have enough AP to weaponize!'],
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! only the dev can use commands for this game at this time.'],
+    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
   ])('renders %s as its player-facing message', (reason, data, text) => {
     expect(logic.present({ ok: false, reason, data })).toEqual({ content: text });

@@ -271,8 +271,8 @@ describe('freeze.present', () => {
   // every rejection freeze can return renders as its exact legacy string
   it.each([
     [REJECTIONS.NO_SUCH_TILE, { action: 'freeze' }, 'Could not find tile to freeze at the given coordinates.'],
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! only the dev can use commands for this game at this time.'],
+    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.WRONG_CLASS, { className: 'Snowman' }, 'You are not a Snowman!'],
     [REJECTIONS.NOT_ENOUGH_AP, { action: 'freeze a tile' }, 'You dont have enough AP to freeze a tile!'],
