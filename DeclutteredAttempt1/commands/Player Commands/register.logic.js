@@ -35,17 +35,14 @@ const { messageFor } = require('../_messages.js');
 const defaultDeps = require('../_deps.js');
 
 /**
- * #144: the icon used to have to be exactly 80x80 and exactly a PNG. The
- * renderer scales whatever it is given into a quadrant of a tile, so the size
- * never mattered - only the shape, because a non-square icon is what comes
- * out stretched. Any square image is fine.
+ * Any square image: the renderer scales an icon into a quadrant of a tile, so
+ * only the shape matters - a non-square one comes out stretched.
  *
- * FORMATS is not "any image/*", which is the one thing the issue's wording
- * would allow and the renderer cannot: node-canvas here is built against
- * libpng and libjpeg only (see the Dockerfile's apk line), so a WebP or an
- * AVIF would upload happily, fail to decode, and fall back to default.png -
- * a player with no face and no error. An icon that cannot be drawn is
- * refused at registration instead, while it can still be explained.
+ * FORMATS is narrower than "any image" because node-canvas here is built
+ * against libpng and libjpeg only (the Dockerfile's apk line). A WebP or an
+ * AVIF would upload, fail to decode, and fall back to default.png: a player
+ * with no face and nothing in the logs. Registration is the last point at
+ * which that can be explained, so it is refused here.
  */
 const ICON_REQUIREMENTS = {
   FORMATS: ['image/png', 'image/jpeg'],
