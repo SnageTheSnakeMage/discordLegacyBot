@@ -31,16 +31,12 @@ const DISCORD_MESSAGE_LIMIT = 2000;
 //without this a game accumulated a duplicate 30s timer per call and no timer
 //was ever cleared when a game stopped being ACTIVE.
 const apIntervals = new Map();
-//The gamestates an AP distribution may run in - the same three timeCheck
+//The gamestates an AP distribution may run in: the same three timeCheck
 //starts an interval for, so "has an interval" and "may be paid" cannot drift
-//apart. A whitelist, because the blacklist this replaced read
-//`state != DEV_PAUSED || state != INACTIVE || state != OVER ||
-//state != REGISTRATION`, which is TRUE for every possible value: any state
-//differs from at least one of the other three, so the guard never guarded
-//anything. (Same shape as the `id != a || id != b` class exemptions in
-//applyChaosEventToPlayer, and it is why a DEV_PAUSED game kept paying AP and
-//posting council polls.) SANDBOX is deliberately absent: no interval is ever
-//created for a sandbox game, and /sandbox ap-tick is its manual path.
+//apart. A whitelist, so a state added to the enum is excluded until it is
+//decided rather than included by accident. SANDBOX is absent because no
+//interval is ever created for a sandbox game - /sandbox ap-tick is its
+//manual path.
 const AP_DISTRIBUTION_STATES = [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE];
 //Tile types the finale's fire spread leaves alone: two nobody can stand on,
 //and the gateways. Smoke and mine tiles already make that gateway exception
@@ -295,14 +291,11 @@ tallyChaosVotes(votes, eligible, overriderDiscordId) {
 //One pass of the AP check: everything the 30s interval does, as a function
 //that can be called (and tested) on its own.
 //
-//It re-reads the game row EVERY pass, which is the other half of the guard
-//below. The row used to be read once, when the interval was created, and the
-//timestamp written back with models.Games.update - which does not touch that
-//in-memory object. So `lastDistrib` was measured from a frozen timestamp and
-//grew without bound: with a 60 minute interval, 1x at T+1h, 1x again at
-//T+1h30m, 2x at T+2h, and climbing, because nothing ever refreshed what it
-//compared against. A stale GAME_STATE is the same bug wearing a different
-//hat: a game paused after the interval started still looked ACTIVE here.
+//The row is read fresh every pass, because both things the pass decides on
+//move underneath it. The timestamp is written with models.Games.update, which
+//does not touch an in-memory copy, so a copy held across passes would measure
+//`lastDistrib` from a frozen value and pay more each time; GAME_STATE changes
+//while the interval is live, so a copy would keep paying a paused game.
 async apCheckTick(gameId, client){
   const game = await models.Games.findByPk(gameId);
   //the game row is gone: nothing left to pay, and nothing to re-check
@@ -328,8 +321,6 @@ async apCheckTick(gameId, client){
   await models.Games.update({lastAPDistributionTimestampInMS: Date.now()}, {where: {Game_ID: gameId}});
 },
 
-//still async: timeCheck awaits it, and the signature is not this fix's
-//business to change
 async startAPCheckInterval(game, client){
   const gameId = game.Game_ID;
   this.stopExistingAPCheckInterval(gameId);

@@ -2,23 +2,14 @@
  * utils.apCheckTick and utils.startAPCheckInterval - the 30 second AP check,
  * against a real seeded game.
  *
- * Two bugs live here, and both are invisible to a test that only calls
- * distributeAP directly:
+ * Two things are pinned here that calling distributeAP directly cannot reach:
+ * a pass pays a game exactly as many intervals as it is behind and no more,
+ * and a pass reads the gamestate freshly enough to see a pause that landed
+ * after the interval started.
  *
- * - the tick used to read the game row ONCE, when the interval was created,
- *   and write the new timestamp with models.Games.update, which does not
- *   touch that in-memory object. Every pass then measured `lastDistrib` from
- *   a timestamp frozen at interval-creation time, so `times` climbed forever:
- *   the "AP calculation ran way too many times" report.
- * - the gamestate guard read
- *   `state != DEV_PAUSED || state != INACTIVE || state != OVER ||
- *    state != REGISTRATION`, which is true for EVERY state (any value differs
- *   from at least one of the other three), so a paused game kept being paid
- *   and kept posting council polls.
- *
- * The tick is exercised directly rather than through fake timers: what the
- * bugs were about is what one pass reads and writes, not when it fires. The
- * scheduling itself is one test at the bottom, with a spy.
+ * The tick is exercised directly rather than through fake timers, since both
+ * are about what one pass reads and writes rather than when it fires. The
+ * scheduling has one test of its own at the bottom, with a spy.
  */
 const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
 const { seedPlayer, seedPopulatedGame } = require('./helpers/seed.js');
@@ -72,7 +63,7 @@ describe('apCheckTick', () => {
     await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
     expect(await apOf(player)).toBe(4);
 
-    // the pass that used to pay again, off the timestamp it never refreshed
+    // a second pass with nothing further owed
     await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
     expect(await apOf(player)).toBe(4);
   });
@@ -96,8 +87,7 @@ describe('apCheckTick', () => {
   });
 
   // the state is read fresh every pass, so a pause that lands after the
-  // interval started is seen. This is what the || chain could not do even
-  // once it was an &&.
+  // interval started is seen by the next one
   it.each([GAMESTATES.DEV_PAUSED, GAMESTATES.INACTIVE, GAMESTATES.OVER, GAMESTATES.REGISTRATION])(
     'pays nothing while the game is %s',
     async (state) => {
@@ -158,9 +148,8 @@ describe('apCheckTick', () => {
     expect((await models.Games.findByPk(game.Game_ID)).currentChaosPollMsgId).toBe('999');
   });
 
-  // the row can go while the interval is still live (a game deleted by hand
-  // on the host). The old tick read AP_INTERVAL_MIN straight off the row it
-  // captured, so there was nothing here to be null.
+  // the row can go while the interval is still live - a game deleted by hand
+  // on the host - and the pass reads it, so it has to handle the absence
   it('clears its own interval when the game row is gone, without throwing', async () => {
     const stop = jest.spyOn(utils, 'stopExistingAPCheckInterval');
     await expect(utils.apCheckTick(999999, FAKE_CLIENT)).resolves.toBeUndefined();
