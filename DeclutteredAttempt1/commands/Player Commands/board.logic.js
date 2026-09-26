@@ -12,7 +12,8 @@
  * them, so a Twin split across layers can look at either, with or without the
  * layer option.
  *
- * An Oracle with no layer input renders with a null layer id.
+ * With no layer named, every player - Oracle included - gets the layer of the
+ * body they asked about.
  */
 const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
@@ -59,17 +60,12 @@ async function run(input, deps = defaultDeps) {
       }
       if (!ownLayers.includes(layerId)) return { ok: false, reason: REJECTIONS.NOT_ORACLE };
     }
-  } else if (input.body === 2) {
-    const tile = await models.Tiles.findByPk(player.Tile_ID2);
-    if (!tile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE };
-    layerId = tile.Layer_ID;
-  } else if (playerClass.Class_Name !== 'Oracle') {
-    const tile = await models.Tiles.findByPk(player.Tile_ID);
-    if (!tile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE };
-    layerId = tile.Layer_ID;
   } else {
-    // old behaviour: an Oracle with no layer input renders with a null layer
-    layerId = null;
+    //No layer named: the layer of the body asked about, for everyone. An
+    //Oracle may look anywhere, but only when it says where.
+    const tile = await models.Tiles.findByPk(input.body === 2 ? player.Tile_ID2 : player.Tile_ID);
+    if (!tile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE };
+    layerId = tile.Layer_ID;
   }
 
   const buffer = await utils.GenerateGameGridImage(gameId, layerId, player.Player_ID);
