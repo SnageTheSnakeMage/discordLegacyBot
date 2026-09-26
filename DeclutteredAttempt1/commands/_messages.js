@@ -21,11 +21,6 @@ const { REJECTIONS } = require('../enums.js');
 const MAX_CONTENT = 2000;
 
 const MESSAGES = {
-  // No "only the dev can use commands" here: the gate has no idea who the dev
-  // is (DEV_ID is read in the adapters), so these three used to promise an
-  // exemption that does not exist and left the dev reading it too - issue
-  // #166. Developer Commands do not call this gate at all, which is where the
-  // dev's actual freedom to act on a paused game comes from.
   [REJECTIONS.GAME_OVER]: () => "Game is over!\n Please register on a new game.",
   [REJECTIONS.GAME_PAUSED]: () => "Game is paused! No one can use commands for this game until it is unpaused.",
   [REJECTIONS.TIME_STOPPED]: () => "Time is stopped! only Clockwatchers can use commands at this time.",
