@@ -5,17 +5,32 @@
 const logic = require('../../../commands/Developer Commands/changeGamestate.logic.js');
 const changeGamestate = require('../../../commands/Developer Commands/changeGamestate.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
-const { createDeps } = require('../../helpers/mockModels.js');
+const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
+
+/**
+ * deps whose Games.findByPk finds a game. The command needs one to exist:
+ * utils.setGameState reads the row to decide what the clock may do, and
+ * answers null for a game that is not there.
+ */
+function devDeps(over = {}, game = {}) {
+  return createDeps({
+    ...over,
+    models: {
+      Games: { findByPk: async (id) => createFakeGame({ Game_ID: id, ...game }) },
+      ...(over.models || {}),
+    },
+  });
+}
 
 const DEV_INPUT = { gameId: 1, gamestate: GAMESTATES.ACTIVE, isDev: true, discordId: '123' };
 
 describe('change-gamestate parse', () => {
   it('maps raw options and the dev flag', () => {
     const input = logic.parse(
-      { game: 2, gamestate: 'FINALE' },
+      { game: 2, gamestate: 'OVER' },
       { discordId: '123', username: 'snage', isDev: true },
     );
-    expect(input).toEqual({ gameId: 2, gamestate: 'FINALE', isDev: true, discordId: '123' });
+    expect(input).toEqual({ gameId: 2, gamestate: 'OVER', isDev: true, discordId: '123' });
   });
 
   it('turns absent options into null and a missing dev flag into false', () => {
@@ -46,63 +61,58 @@ describe('change-gamestate run rejections', () => {
 });
 
 describe('change-gamestate run success', () => {
-  it('writes the chosen gamestate with the exact update payload', async () => {
-    const deps = createDeps();
+  it('writes the chosen gamestate and starts the clock', async () => {
+    const deps = devDeps({}, { GAME_STATE: GAMESTATES.REGISTRATION, gameActive: false });
     const result = await logic.run(DEV_INPUT, deps);
     expect(result).toEqual({
       ok: true,
       kind: 'gamestateChanged',
-      data: { gameId: 1, gamestate: GAMESTATES.ACTIVE },
+      data: { gameId: 1, gamestate: GAMESTATES.ACTIVE, gameActive: true },
     });
+    // starting the clock resets the AP timestamp, so the game is not paid for
+    // the time it spent stopped
     expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: GAMESTATES.ACTIVE },
+      {
+        GAME_STATE: GAMESTATES.ACTIVE,
+        gameActive: true,
+        lastAPDistributionTimestampInMS: expect.any(Number),
+      },
       { where: { Game_ID: 1 } },
     );
     expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
   });
 
-  // the gamestate table: every state in the enum is writable, and is written
-  // verbatim. Adding a state without deciding whether the dev can set it
-  // breaks this test.
-  it.each(Object.values(GAMESTATES))('writes gamestate %s verbatim', async (state) => {
-    const deps = createDeps();
+  // every state in the enum is writable by the dev, and the clock follows it:
+  // a game being played runs, and nothing else does
+  it.each(Object.values(GAMESTATES))('writes %s, with the clock following it', async (state) => {
+    const deps = devDeps({}, { GAME_STATE: GAMESTATES.REGISTRATION, gameActive: false });
     const result = await logic.run({ ...DEV_INPUT, gamestate: state }, deps);
     expect(result.ok).toBe(true);
     expect(result.data.gamestate).toBe(state);
     expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: state },
+      expect.objectContaining({ GAME_STATE: state, gameActive: state === GAMESTATES.ACTIVE }),
       { where: { Game_ID: 1 } },
     );
   });
 
-  // QUIRK (preserved): the "Finished" choice's value is the mixed-case
-  // 'Inactive', which is not GAMESTATES.INACTIVE. The choice list lives in
-  // the command's unchanged `data`, so the value is written as given.
-  it("writes the Finished choice's 'Inactive' value verbatim, not GAMESTATES.INACTIVE", async () => {
-    const deps = createDeps();
-    const result = await logic.run({ ...DEV_INPUT, gamestate: 'Inactive' }, deps);
-    expect(result.ok).toBe(true);
-    expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: 'Inactive' },
-      { where: { Game_ID: 1 } },
-    );
-    expect(GAMESTATES.INACTIVE).toBe('INACTIVE');
+  // a value the choice list cannot produce would otherwise be written into a
+  // not-null column that nothing else understands
+  it('throws on a gamestate outside the enum rather than writing it', async () => {
+    const deps = devDeps();
+    await expect(logic.run({ ...DEV_INPUT, gamestate: 'Inactive' }, deps))
+      .rejects.toContain('Gamestate out of enum');
+    expect(deps.models.Games.update).not.toHaveBeenCalled();
   });
 
-  // QUIRK (preserved): no existence check - a Game_ID matching no row still
-  // reports success, exactly as the old .then(...) reply did.
-  it('reports success even when the update matched no rows', async () => {
-    const deps = createDeps({ models: { Games: { update: async () => [0] } } });
+  it('rejects a game id that matches no row', async () => {
+    const deps = createDeps({ models: { Games: { findByPk: async () => null } } });
     const result = await logic.run({ ...DEV_INPUT, gameId: 999 }, deps);
     expect(result).toEqual({
-      ok: true,
-      kind: 'gamestateChanged',
-      data: { gameId: 999, gamestate: GAMESTATES.ACTIVE },
+      ok: false,
+      reason: REJECTIONS.NO_SUCH_GAME,
+      data: { gameId: 999 },
     });
-    expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: GAMESTATES.ACTIVE },
-      { where: { Game_ID: 999 } },
-    );
+    expect(deps.models.Games.update).not.toHaveBeenCalled();
   });
 });
 
@@ -120,9 +130,9 @@ describe('change-gamestate present', () => {
     const out = logic.present({
       ok: true,
       kind: 'gamestateChanged',
-      data: { gameId: 3, gamestate: 'DEV_PAUSED' },
+      data: { gameId: 3, gamestate: 'DEV_PAUSED', gameActive: false },
     });
-    expect(out).toEqual({ content: 'Game 3 has been changed to DEV_PAUSED!' });
+    expect(out).toEqual({ content: 'Game 3 has been changed to DEV_PAUSED! (the clock is stopped)' });
   });
 
   it('renders a rejection with no data through the shared message table', () => {

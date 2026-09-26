@@ -21,7 +21,7 @@
  * and only ever touch the caller's own row.
  */
 const path = require('path');
-const { GAMESTATES, REJECTIONS, ChaosEvents } = require('../../enums.js');
+const { REJECTIONS, ChaosEvents } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
 const { stepLogger } = require('../_logging.js');
 const defaultDeps = require('../_deps.js');
@@ -79,13 +79,13 @@ async function resolveSandboxGame(input, models) {
     });
     const gameIds = membership.map((row) => row.Game_ID);
     const sandboxes = gameIds.length
-      ? await models.Games.findAll({ where: { Game_ID: gameIds, GAME_STATE: GAMESTATES.SANDBOX } })
+      ? await models.Games.findAll({ where: { Game_ID: gameIds, sandbox: true } })
       : [];
     if (sandboxes.length === 0) {
       return {
         ok: false,
         reason: REJECTIONS.NO_SUCH_GAME,
-        data: { message: 'You are not in a sandbox game. Pass a game id, or ask a dev to put a game in the SANDBOX gamestate.' },
+        data: { message: 'You are not in a sandbox game. Pass a game id, or ask a dev to set the sandbox flag on one with /gameflags.' },
       };
     }
     const oldest = sandboxes.reduce((a, b) => (a.Game_ID <= b.Game_ID ? a : b));
@@ -95,7 +95,9 @@ async function resolveSandboxGame(input, models) {
 
   const game = await models.Games.findByPk(gameId);
   if (!game) return { ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId } };
-  if (game.GAME_STATE !== GAMESTATES.SANDBOX) {
+  //sandbox is a flag, so a sandbox game is in a normal gamestate and shows up
+  //everywhere a game should; being a sandbox is not where it is in its life
+  if (!game.sandbox) {
     return { ok: false, reason: REJECTIONS.NOT_SANDBOX, data: { gameId, gamestate: game.GAME_STATE } };
   }
   return { ok: true, game };

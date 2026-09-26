@@ -48,6 +48,14 @@ async function run(input, deps = defaultDeps) {
       games: games.map((g) => ({
         gameId: g.Game_ID,
         gameState: g.GAME_STATE,
+        //the flags are listed because the gamestate no longer tells you any of
+        //this: a game in the finale, or with time stopped, reads as ACTIVE
+        flags: [
+          g.gameActive ? 'clock running' : 'clock stopped',
+          g.timeStopped ? 'time stopped' : null,
+          g.finale ? 'finale' : null,
+          g.sandbox ? 'sandbox' : null,
+        ].filter((flag) => flag !== null),
         chaosEvent: g.CURR_CC_EVENT,
         winner: g.winner,
       })),
@@ -65,6 +73,7 @@ function present(result) {
   let gameList = '';
   for (const g of result.data.games) {
     gameList += 'Game ID:' + g.gameId + ' - Game State: ' + g.gameState
+      + ((g.flags && g.flags.length) ? ' (' + g.flags.join(', ') + ')' : '')
       + '\n Current Chaos Council Event: ' + g.chaosEvent + ' - ' + ChaosEvents[g.chaosEvent]
       + ',\n Winner: ' + g.winner + '\n--------\n';
   }

@@ -69,7 +69,7 @@ async function run(input, deps = defaultDeps) {
   // a Clockwatcher acts through a timestop. Every call site used to
   // hard-code false here, so the class's whole ability did nothing.
   const verdict = utils.checkGameState(
-    game.GAME_STATE, await utils.isClockwatcher(models, player), { readOnly: true },
+    game, await utils.isClockwatcher(models, player), { readOnly: true },
   );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 

@@ -72,26 +72,18 @@ describe('checkGameState - the full gamestate table', () => {
     // a game that has not started is not playable, so the gate refuses rather
     // than leaving it to whatever the command checks next
     [GAMESTATES.REGISTRATION]: { blocked: true, reason: REJECTIONS.GAME_IN_REGISTRATION },
-    [GAMESTATES.INACTIVE]: { blocked: true, reason: REJECTIONS.GAME_INACTIVE },
-    [GAMESTATES.SANDBOX]: { blocked: false },
-    [GAMESTATES.FINALE]: { blocked: false },
     [GAMESTATES.OVER]: { blocked: true, reason: REJECTIONS.GAME_OVER },
     [GAMESTATES.DEV_PAUSED]: { blocked: true, reason: REJECTIONS.GAME_PAUSED },
-    [GAMESTATES.TIMESTOPPED]: { blocked: true, reason: REJECTIONS.TIME_STOPPED },
   };
 
-  // readOnly is the /stats and /board exemption: it opens the two states that
-  // mean "there is nothing to act on yet", and no others. Every state is
+  // readOnly is the /stats and /board exemption: it opens the one state that
+  // means "there is nothing to act on yet", and no others. Every state is
   // listed again rather than only the differences so a new one fails here too.
   const expectedReadOnly = {
     [GAMESTATES.ACTIVE]: { blocked: false },
     [GAMESTATES.REGISTRATION]: { blocked: false },
-    [GAMESTATES.INACTIVE]: { blocked: false },
-    [GAMESTATES.SANDBOX]: { blocked: false },
-    [GAMESTATES.FINALE]: { blocked: false },
     [GAMESTATES.OVER]: { blocked: true, reason: REJECTIONS.GAME_OVER },
     [GAMESTATES.DEV_PAUSED]: { blocked: true, reason: REJECTIONS.GAME_PAUSED },
-    [GAMESTATES.TIMESTOPPED]: { blocked: true, reason: REJECTIONS.TIME_STOPPED },
   };
 
   it('covers every declared gamestate', () => {
@@ -99,7 +91,7 @@ describe('checkGameState - the full gamestate table', () => {
   });
 
   it.each(Object.entries(expected))('%s (non-clockwatcher)', (state, verdict) => {
-    expect(utils.checkGameState(state, false)).toEqual(verdict);
+    expect(utils.checkGameState({ GAME_STATE: state }, false)).toEqual(verdict);
   });
 
   it('covers every declared gamestate for a read-only caller too', () => {
@@ -107,15 +99,131 @@ describe('checkGameState - the full gamestate table', () => {
   });
 
   it.each(Object.entries(expectedReadOnly))('%s (read-only)', (state, verdict) => {
-    expect(utils.checkGameState(state, false, { readOnly: true })).toEqual(verdict);
-  });
-
-  it('a Clockwatcher passes through a timestop', () => {
-    expect(utils.checkGameState(GAMESTATES.TIMESTOPPED, true)).toEqual({ blocked: false });
+    expect(utils.checkGameState({ GAME_STATE: state }, false, { readOnly: true })).toEqual(verdict);
   });
 
   it('throws on a gamestate outside the enum', () => {
-    expect(() => utils.checkGameState('NOT_A_STATE', false)).toThrow(/out of enum/);
+    expect(() => utils.checkGameState({ GAME_STATE: 'NOT_A_STATE' }, false)).toThrow(/out of enum/);
+  });
+
+  // the flags: a timestop is the only one the gate has an opinion about, and it
+  // is a condition on a game being played rather than one of its states
+  describe('the flags', () => {
+    const playing = (flags) => ({ GAME_STATE: GAMESTATES.ACTIVE, ...flags });
+
+    it('a timestop blocks anyone who is not a Clockwatcher', () => {
+      expect(utils.checkGameState(playing({ timeStopped: true }), false))
+        .toEqual({ blocked: true, reason: REJECTIONS.TIME_STOPPED });
+    });
+
+    it('a Clockwatcher acts through a timestop', () => {
+      expect(utils.checkGameState(playing({ timeStopped: true }), true)).toEqual({ blocked: false });
+    });
+
+    // a timestop withholds the answer on purpose, so readOnly is no exemption
+    // from it - but the Clockwatcher's is, for reading as much as for acting
+    it('a timestop blocks a read-only caller unless they are a Clockwatcher', () => {
+      expect(utils.checkGameState(playing({ timeStopped: true }), false, { readOnly: true }))
+        .toEqual({ blocked: true, reason: REJECTIONS.TIME_STOPPED });
+      expect(utils.checkGameState(playing({ timeStopped: true }), true, { readOnly: true }))
+        .toEqual({ blocked: false });
+    });
+
+    // the finale, sandbox mode and the clock are not the gate's business: they
+    // change what the game does, not who may act in it
+    it.each([{ finale: true }, { sandbox: true }, { gameActive: false }, { gameActive: true }])(
+      '%o does not block', (flags) => {
+        expect(utils.checkGameState(playing(flags), false)).toEqual({ blocked: false });
+      },
+    );
+
+    // every combination of the three non-clock flags, with the timestop
+    // deciding on its own each time
+    it.each([true, false])('timeStopped %s decides regardless of the others', (timeStopped) => {
+      for (const finale of [true, false]) {
+        for (const sandbox of [true, false]) {
+          const verdict = utils.checkGameState(playing({ timeStopped, finale, sandbox }), false);
+          expect(verdict).toEqual(timeStopped
+            ? { blocked: true, reason: REJECTIONS.TIME_STOPPED }
+            : { blocked: false });
+        }
+      }
+    });
+  });
+});
+
+describe('setGameState', () => {
+  // the invariant: a game that has not started or has finished cannot have a
+  // running clock, whatever the caller asks for
+  const fakeDb = (game) => {
+    const updates = [];
+    return {
+      updates,
+      db: {
+        Games: {
+          findByPk: async () => game,
+          update: async (fields) => { updates.push(fields); return [1]; },
+        },
+      },
+    };
+  };
+
+  it.each([
+    [GAMESTATES.REGISTRATION, false],
+    [GAMESTATES.OVER, false],
+    [GAMESTATES.ACTIVE, true],
+    [GAMESTATES.DEV_PAUSED, true],
+  ])('%s: an asked-for running clock is granted = %s', async (state, granted) => {
+    const { db, updates } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, gameActive: false });
+    const changes = await utils.setGameState(1, state, { gameActive: true, db });
+    expect(changes.GAME_STATE).toBe(state);
+    expect(changes.gameActive).toBe(granted);
+    expect(updates[0].gameActive).toBe(granted);
+  });
+
+  it('leaves the clock alone when gameActive is not passed', async () => {
+    const { db } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, gameActive: true });
+    const changes = await utils.setGameState(1, GAMESTATES.DEV_PAUSED, { db });
+    expect(changes).toEqual({ GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: true });
+  });
+
+  it('keeps the state when only the clock is moving', async () => {
+    const { db } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false });
+    const changes = await utils.setGameState(1, null, { gameActive: true, db });
+    expect(changes.GAME_STATE).toBe(GAMESTATES.DEV_PAUSED);
+    expect(changes.gameActive).toBe(true);
+  });
+
+  // apCheckTick measures catch-up from this timestamp, so a clock that starts
+  // after an hour off would otherwise pay for the whole hour
+  it('resets the AP timestamp when the clock starts', async () => {
+    const { db } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false });
+    const changes = await utils.setGameState(1, GAMESTATES.ACTIVE, { gameActive: true, db });
+    expect(changes.lastAPDistributionTimestampInMS).toEqual(expect.any(Number));
+  });
+
+  it('leaves the AP timestamp alone when the clock was already running', async () => {
+    const { db } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, gameActive: true });
+    const changes = await utils.setGameState(1, GAMESTATES.ACTIVE, { gameActive: true, db });
+    expect(changes).not.toHaveProperty('lastAPDistributionTimestampInMS');
+  });
+
+  it('leaves the AP timestamp alone when the clock stops', async () => {
+    const { db } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, gameActive: true });
+    const changes = await utils.setGameState(1, GAMESTATES.DEV_PAUSED, { gameActive: false, db });
+    expect(changes).not.toHaveProperty('lastAPDistributionTimestampInMS');
+  });
+
+  it('answers null for a game that is not there, and writes nothing', async () => {
+    const { db, updates } = fakeDb(null);
+    expect(await utils.setGameState(999, GAMESTATES.ACTIVE, { db })).toBeNull();
+    expect(updates).toEqual([]);
+  });
+
+  it('throws on a gamestate outside the enum rather than writing it', async () => {
+    const { db, updates } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, gameActive: true });
+    await expect(utils.setGameState(1, 'Inactive', { db })).rejects.toContain('out of enum');
+    expect(updates).toEqual([]);
   });
 });
 

@@ -25,7 +25,6 @@ const MESSAGES = {
   [REJECTIONS.GAME_PAUSED]: () => "Game is paused! No one can use commands for this game until it is unpaused.",
   [REJECTIONS.TIME_STOPPED]: () => "Time is stopped! only Clockwatchers can use commands at this time.",
   [REJECTIONS.GAME_IN_REGISTRATION]: () => "Game is in registration phase!\n Please wait for the game to start.",
-  [REJECTIONS.GAME_INACTIVE]: () => "This game isn't active!",
   [REJECTIONS.GAME_NOT_IN_REGISTRATION]: () => "This game is not accepting registrations right now.",
 
   [REJECTIONS.NO_SUCH_GAME]: (d) => `Could not find game${d && d.gameId != null ? ` #${d.gameId}` : ""}!`,
@@ -38,7 +37,13 @@ const MESSAGES = {
   [REJECTIONS.NOT_ON_BOARD]: (d) => ((d && d.role)
     ? `The ${d.role} is not on the board - a dead player has no tile.`
     : "You are not on the board - a dead player has no tile."),
-  [REJECTIONS.NOT_SANDBOX]: (d) => `/sandbox only works on a game in the SANDBOX gamestate${d && d.gamestate ? ` - game ${d.gameId} is ${d.gamestate}` : ""}.`,
+  [REJECTIONS.NOT_SANDBOX]: (d) => "That only works on a game with the sandbox flag set"
+    + (d && d.gameId ? ` - game ${d.gameId}${d.gamestate ? ` is ${d.gamestate} and` : ''} does not have it` : "") + ".",
+  [REJECTIONS.CLOCK_NOT_ALLOWED]: (d) => "The clock only runs on a game that is being played or dev-paused"
+    + (d && d.gameId ? ` - game ${d.gameId} is ${d.gamestate}` : "") + ".",
+  [REJECTIONS.NO_SUCH_FLAG]: (d) => (d && d.flag
+    ? `There is no game flag called ${d.flag}.`
+    : "That is not one of the game flags."),
 
   [REJECTIONS.TARGET_NOT_IN_GAME]: (d) => `The ${(d && d.role) || "target"} is not in the game!`,
   [REJECTIONS.TARGET_NOT_ON_TILE]: (d) => `The ${(d && d.role) || "target"} is not on the tile provided!`,

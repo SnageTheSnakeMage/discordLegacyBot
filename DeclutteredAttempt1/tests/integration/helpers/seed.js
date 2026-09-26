@@ -13,6 +13,10 @@ async function seedGame(overrides = {}) {
   for (const name of CORE_CLASSES) await seedClass(name);
   return models.Games.create({
     GAME_STATE: GAMESTATES.ACTIVE,
+    gameActive: true,
+    timeStopped: false,
+    finale: false,
+    sandbox: false,
     AP_INTERVAL_MIN: 720,
     CHEST_AMOUNT: 0,
     CURR_CC_EVENT: 'BOOOORRRINNNG',

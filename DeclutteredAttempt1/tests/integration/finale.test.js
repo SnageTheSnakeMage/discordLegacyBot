@@ -70,7 +70,7 @@ describe('finale', () => {
 
       await utils.distributeAP(game, 1, CLIENT);
 
-      expect((await fresh(game)).GAME_STATE).toBe(GAMESTATES.FINALE);
+      expect((await fresh(game)).finale).toBeTruthy();
       expect(await gateways(layer)).toBe(4);
       // APAmount 4, doubled by the finale. The doubling is the return value of
       // finaleTransition, which both callers used to discard.
@@ -103,20 +103,44 @@ describe('finale', () => {
       expect(await gateways(layer)).toBe(4);
     });
 
-    // a timestop is the Clockwatcher's whole ability; overwriting the state
-    // with FINALE loses the remaining turns AND the tick-down that ends it
-    it('waits for a timestop to run out before starting', async () => {
-      const { game } = await board({
-        game: { GAME_STATE: GAMESTATES.TIMESTOPPED, timestopTurns: 1 },
+    // A timestop and the finale are both conditions on a game being played, so
+    // they hold at once: the game enters its finale and the timestop keeps
+    // counting down to its own end.
+    it('happens during a timestop without disturbing its remaining turns', async () => {
+      const { game, layer } = await board({
+        game: { GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, timestopTurns: 2 },
       });
 
       await utils.distributeAP(game, 1, CLIENT);
-      const afterTimestop = await fresh(game);
-      expect(afterTimestop.timestopTurns).toBe(0);
-      expect(afterTimestop.GAME_STATE).toBe(GAMESTATES.ACTIVE);
 
-      await utils.distributeAP(afterTimestop, 1, CLIENT);
-      expect((await fresh(game)).GAME_STATE).toBe(GAMESTATES.FINALE);
+      const after = await fresh(game);
+      expect(after.finale).toBeTruthy();
+      expect(after.timeStopped).toBeTruthy();
+      expect(after.timestopTurns).toBe(1);
+      expect(after.GAME_STATE).toBe(GAMESTATES.ACTIVE);
+      expect(await gateways(layer)).toBe(4);
+    });
+
+    // The reason the finale is a flag. As a gamestate it was overwritten by
+    // TIMESTOPPED, so nothing recorded that the transition had happened: the
+    // timestop ended by writing ACTIVE, the threshold was still met, and the
+    // game transitioned all over again - four more gateways every time.
+    it('does not happen a second time when a timestop ends', async () => {
+      const { game, layer } = await board({
+        game: { GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, timestopTurns: 1 },
+      });
+
+      // the pass that transitions, and ends the timestop
+      await utils.distributeAP(game, 1, CLIENT);
+      expect((await fresh(game)).timeStopped).toBeFalsy();
+      expect(await gateways(layer)).toBe(4);
+
+      // and the passes after it, with the timestop gone and the threshold
+      // still met
+      await utils.distributeAP(await fresh(game), 1, CLIENT);
+      await utils.distributeAP(await fresh(game), 1, CLIENT);
+
+      expect(await gateways(layer)).toBe(4);
     });
 
     // Four independent draws from the same pool can return one tile four
