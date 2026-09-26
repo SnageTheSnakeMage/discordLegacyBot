@@ -313,3 +313,150 @@ Four merges landed during this session. Before opening a PR, re-fetch; before
 claiming CI is green, check the run for the head sha you actually pushed
 rather than the newest run in the list, which may be someone else's push to
 `main`.
+
+## THINGS AGENT #3 FOUND HELPFUL
+
+Notes from the session that persisted the player icons, fixed the AP check's
+gamestate guard, and worked the playtest-1 thread (issue #142). Some of these
+correct entries above; where they do, they say so.
+
+### Comments say why the code is the way it is — not what it replaced
+
+House rule, set on PR #168: a comment explains the code in front of you.
+Mentions of the previous implementation, the error message it produced, or the
+issue number that changed it are noise, and so are test names like
+`old code crashed on game.shootCost` or `preserves the old Oracle default`.
+Write the rule (`an Oracle may look at any layer, but only when it names
+one`), not its history.
+
+Much of `utils.js` and the older test files predate this and still read as
+changelogs. Leave them unless you are already editing that code — but do not
+add more.
+
+### A blacklist of `!=` joined by `||` is always true
+
+This trap has now appeared three times in three different shapes:
+
+- `id != lavaDiver || id != pyromainiac` — nobody was ever exempt from a chaos
+  event;
+- `state != DEV_PAUSED || state != INACTIVE || state != OVER ||
+  state != REGISTRATION` — the AP check's gamestate guard never guarded
+  anything, so a paused game kept paying AP and posting council polls;
+- the `/resurrect` where-clause, in spirit.
+
+Any value differs from at least one member of a list of two or more, so the
+whole chain is `true`. **Write a whitelist instead**: `AP_DISTRIBUTION_STATES`
+and `applyChaosEventToPlayer`'s `isNot` helper are the two worked examples. A
+whitelist also fails closed when a new state joins the enum, instead of
+silently including it.
+
+### A row captured outside a loop or an interval is a stale row
+
+`models.X.update(...)` writes the table; it does not touch any instance you
+are holding. So a row read once and then consulted repeatedly reports values
+from the moment it was read, forever:
+
+- `startAPCheckInterval` read the game row when the interval was created. The
+  timestamp it compared against never moved, so `times` climbed every pass —
+  1x at T+1h, 1x again at T+1h30m, 2x at T+2h — which is the "AP calculation
+  ran way too many times" report. The same staleness hid every pause: a
+  `DEV_PAUSED` game looked `ACTIVE` to the guard until the bot restarted.
+- `playerDeathLogic`'s sequential `if`s, already described above.
+
+The fix in both cases is the same: read the row where the decision is made.
+`utils.apCheckTick(gameId, client)` exists so that one pass is a function that
+re-reads and can be tested without fake timers.
+
+### The gamestate gate now refuses REGISTRATION and INACTIVE
+
+`checkGameState(state, isClockwatcher, { readOnly })`:
+
+| state | acting | reading |
+|---|---|---|
+| `ACTIVE`, `SANDBOX`, `FINALE` | allowed | allowed |
+| `REGISTRATION` | `GAME_IN_REGISTRATION` | allowed |
+| `INACTIVE` | `GAME_INACTIVE` | allowed |
+| `OVER`, `DEV_PAUSED` | refused | refused |
+| `TIMESTOPPED` | Clockwatchers only | refused |
+
+`readOnly: true` is passed by `/stats` and `/board` and nothing else: those two
+only look, and a game you are waiting to start is exactly what you want to
+look at. Before this, both states were `blocked: false`, so a command's own
+checks answered first — which is why `/move` on a registration game complained
+about action points (#145).
+
+`/stats` resolves its default game with `getOldestGameId` (any state) on
+purpose (#143); an active-only resolver cannot return the registration game
+the readOnly exemption exists for.
+
+The gate has no idea who the dev is — `DEV_ID` is read in the adapters — so
+its messages no longer claim "only the dev can use commands" (#166). The dev's
+freedom on a paused game comes from Developer Commands not calling the gate.
+
+### "There was an error while executing this command!" now names the fault
+
+`events/interactionCreate.js` appends the thrown detail to that reply, capped
+at Discord's 2000 characters: an `Error`'s `message`, or the string itself for
+the bare strings `utils` throws. The section above about that string being a
+symptom still holds for *finding* the cause, but the player's report will now
+carry it.
+
+The known throwers are worth recognising: `"tile is full"` from
+`placePlayerOnBoard`, `"You can only view the layer you are currently on..."`
+from the renderer, and `Cannot read properties of null` from a row read one
+line too early.
+
+### `/board`, layers, and the null layer id
+
+- An Oracle may look at **any** layer, but only when it names one. With no
+  layer argument every player, Oracle included, gets the layer of the body it
+  asked about. This replaces the old "Oracle with no layer renders a null
+  layer id" behaviour, which was not a feature: `GenerateGameGridImage` looks
+  the layer up by id and reads `X_Bound`/`Y_Bound` off the result, so a null
+  id was a TypeError mid-render.
+- A dead player may look anywhere (the renderer gives them `allLayerSight`).
+  With no tile and no layer named they get `NO_SUCH_TILE`.
+- The renderer's own-layer check considers **both** Twin bodies. It compared
+  against body 1 only, so `/board body:2` for a Twin split across layers threw.
+
+### Player icons are state, and a root `docker run` poisons the directory
+
+The icon rules are in the icon-path section above; two things it does not say:
+
+- **Any square PNG or JPEG is accepted** (#144). Not "any image": node-canvas
+  in this image is built against libpng and libjpeg only — see the Dockerfile's
+  `apk add` — so a WebP uploads, fails to decode, and renders as `default.png`
+  with nothing in the logs. Size never mattered, the renderer scales into a
+  quadrant of a tile; only the shape does.
+- A `docker run --rm -v legacy_legacy-db:/data alpine ...` runs as **root**, so
+  anything it creates under `/data` is root-owned and the `bot` user cannot
+  write there. That is what the one-off icon migration did, and registration
+  then failed with `EACCES`. Fix: `docker exec -u 0 discord-bot chown -R
+  bot:bot /data/<dir>`; and prefer `docker exec` over a root container when the
+  files must stay writable.
+
+### The AP path logs nothing in production
+
+`index.js` builds pino with no `level`, so the default `info` applies and
+**every `logger.debug` line is dropped** — which is all of the AP check,
+`distributeAP` and the chaos events. pino reads no environment variable on its
+own, so there is no way to turn it up on the host: it needs
+`level: process.env.LOG_LEVEL || 'info'` in `index.js` first. Nothing in the
+AP path logs at `info` or above. Not yet fixed.
+
+`docker logs discord-bot` is the only copy of anything — no log file is
+written inside the container — and `docker-compose.yml` caps it at 5 x 10 MB.
+A deploy replaces the container and starts the log over.
+
+### `Blockade` is in the chaos enum under `//DONE` and is not implemented
+
+Only three places read `CURR_CC_EVENT` for effects:
+`applyChaosEventToPlayer`, `distributeAP`'s Time Acceleration multiplier and
+`ChaosEventDeathCheck`. None mentions `Blockade`, and `shoot.logic.js` damages
+a `Wall` unconditionally. The other 13 live entries are wired up.
+
+### Stacked PRs need retargeting when the base merges
+
+A PR opened against another PR's branch keeps pointing at that branch after it
+merges. Retarget it to `main` (`update_pull_request`), then merge `main` into
+the head and re-validate: CI on the old base proves nothing about the new one.
