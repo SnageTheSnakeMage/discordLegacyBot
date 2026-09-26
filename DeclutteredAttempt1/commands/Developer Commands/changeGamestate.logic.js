@@ -46,7 +46,7 @@ async function run(input, deps = defaultDeps) {
     };
   }
   
-  if(input.gamestate == GAMESTATES.ACTIVE && currentGameState == GAMESTATES.REGISTRATION) {
+  if(input.gamestate == GAMESTATES.ACTIVE && currentGameState?.GAME_STATE == GAMESTATES.REGISTRATION) {
     await models.Games.update(
     { GAME_STATE: input.gamestate, lastAPDistributionTimestampInMS: Date.now() },
     { where: { Game_ID: input.gameId } },
