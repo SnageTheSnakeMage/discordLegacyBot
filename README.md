@@ -235,6 +235,24 @@ docker run --rm -v legacy_legacy-db:/data -v /tmp/player-tiles:/in alpine \
 
 `*_*.png` picks up the `<discordId>_<gameId>.png` uploads and leaves
 `default.png` in the image, where it belongs.
+
+## Logs
+
+`docker logs discord-bot` is the only copy - nothing is written to a file
+outside the container, and compose caps the json-file driver at 5 x 10 MB, so a
+deploy starts the log over.
+
+Almost everything the bot logs is at `debug`, including the whole AP
+distribution and chaos event path, and pino keeps nothing below its level. The
+level comes from `LOG_LEVEL` and defaults to `info`, which means the default is
+close to silent. To see the AP and chaos lines, put `LOG_LEVEL=debug` in the
+host's `.env` and recreate the container:
+
+```bash
+cd ~/legacy-bot && docker compose up -d
+docker logs -f --since 10m discord-bot
+```
+
 Slash-command registration is rate-limited by Discord and does NOT run on boot.
 Run the Deploy workflow manually with "register commands" checked when a
 command's definition changes. There is no environment-variable shortcut: the

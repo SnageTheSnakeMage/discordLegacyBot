@@ -5,8 +5,19 @@ const path = require('path');
 const dotenv = require('dotenv');
 const pino = require('pino')
 const prettyPino = require('pino-pretty')
+
+// Load environment variables
+// Read before the logger is built: LOG_LEVEL decides what the logger keeps,
+// so a value set in .env has to be in process.env by then.
+dotenv.config();
+
+// pino defaults to 'info' and reads no environment variable of its own, so
+// without this every logger.debug line in the codebase is unreachable on a
+// deployed host - including the whole AP distribution and chaos event path,
+// which logs at nothing else.
 var logger100 = pino(
   {
+  level: process.env.LOG_LEVEL || 'info',
   transport: {
     target: 'pino-pretty',
     options: {
@@ -15,9 +26,7 @@ var logger100 = pino(
   }
  })
 
-// Load environment variables
 globalThis.topLogger = logger100
-dotenv.config();
 logger100.debug({file: 'index.js', function: 'null(Top Level)'}, "Loaded enviorment variables.")
 // Create a new client instance
 const client = new Client({

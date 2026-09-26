@@ -4,7 +4,10 @@ const path = require('path')
 const fs = require('fs')
 const logDir = path.join(__dirname, '..', 'Logs')
 fs.mkdirSync(logDir, { recursive: true })
+// The transport targets accept trace, but the logger itself gates first: with
+// pino's default level the per-command debug lines never reach either of them.
 const commandExecutionLogger = pino({
+		level: process.env.LOG_LEVEL || 'info',
 		transport: {
 		targets: [
 			{ target: 'pino-pretty', options: { colorize: true }, level: 'trace' },
