@@ -185,7 +185,15 @@ SELECT Player_ID FROM Players
 
 -- a gamestate nothing will accept
 SELECT Game_ID, GAME_STATE FROM Games WHERE GAME_STATE NOT IN
- ('ACTIVE','DEV_PAUSED','OVER','TIMESTOPPED','FINALE','REGISTRATION','INACTIVE','SANDBOX');
+ ('REGISTRATION','ACTIVE','DEV_PAUSED','OVER');
+
+-- a running clock on a game that cannot have one
+SELECT Game_ID, GAME_STATE FROM Games
+ WHERE gameActive = 1 AND GAME_STATE NOT IN ('ACTIVE','DEV_PAUSED');
+
+-- a timestop with no turns left to end it, which never lifts on its own
+SELECT Game_ID FROM Games
+ WHERE timeStopped = 1 AND (timestopTurns IS NULL OR timestopTurns <= 0);
 
 -- a player whose class no longer exists. Only reachable if something wrote
 -- with foreign keys off - which the sqlite3 CLI does by default
@@ -203,10 +211,8 @@ docker start discord-bot
 docker logs -f --tail 50 discord-bot
 ```
 
-A game whose `GAME_STATE` you changed by hand is picked up by the AP check
-within 30 seconds — the tick re-reads the row every pass. Before that fix ships
-(PR #170), a restart is what makes the change visible, which the stop/start
-above already did.
+A game whose `GAME_STATE` or `gameActive` you changed by hand is picked up by
+the AP check within 30 seconds — the tick re-reads the row every pass.
 
 ---
 
@@ -234,12 +240,78 @@ These are the ones SQL will happily break.
   forward suppresses the next distribution; setting it far back makes the next
   tick pay every interval since, all at once. To pay a game now, set it to
   `now - AP_INTERVAL_MIN * 60000 - 1000`.
-- **`GAME_STATE` is a string from the enum** in the query above, and only
-  `ACTIVE`, `TIMESTOPPED` and `FINALE` get AP.
+- **`GAME_STATE` is where a game is in its life, and nothing else** — one of
+  `REGISTRATION`, `ACTIVE`, `DEV_PAUSED`, `OVER`. Time stop, the finale and
+  sandbox mode are separate boolean columns, because a game can be in any
+  combination of them while being played.
+- **`gameActive` is the game clock**: AP distribution and the chaos council
+  poll, and nothing else. It is the only column that decides whether a game is
+  paid — not the gamestate, and not `timeStopped` or `finale`. A game may be
+  `ACTIVE` with the clock stopped (nobody is paid, everybody can still act) or
+  `DEV_PAUSED` with it running (nobody can act, AP piles up). `REGISTRATION` and
+  `OVER` must have it 0; the bot's own writer forces that, and the query above
+  finds a hand edit that did not.
+- **Starting the clock by hand needs the AP timestamp moved with it.** The bot's
+  writer resets `lastAPDistributionTimestampInMS` when the clock starts, so the
+  game is not immediately paid for the hours it spent stopped. SQL does not:
+  set both, or the first tick pays every interval since.
+  ```sql
+  UPDATE Games SET gameActive = 1,
+    lastAPDistributionTimestampInMS = CAST(strftime('%s','now') AS INTEGER) * 1000
+   WHERE Game_ID = 1;
+  ```
+- **`timeStopped` only decides who may act** — Clockwatchers only. It does not
+  stop AP, and `timestopTurns` is what ends it, one per distribution.
+- **`finale` is set once and never cleared.** It records that the one-time
+  transition already happened; clearing it makes the next distribution run that
+  transition again, opening four more gateways per layer.
 
 ---
 
-## 5. Restoring
+## 5. The flag columns, and the one-time migration
+
+`gameActive`, `timeStopped`, `finale` and `sandbox` were added when
+`TIMESTOPPED`, `FINALE`, `SANDBOX` and `INACTIVE` stopped being gamestates.
+**`node scripts/bootstrap-db.js` does this itself on every container start**, so
+a normal deploy needs nothing from you: it adds the columns when they are
+missing and rewrites the old states, and does nothing at all once they exist.
+
+It is written out here so you can see what it will do, or do it by hand on a
+copy first. Same rules as everything else in this document — stop the bot, take
+a backup — and it maps the four states that went away:
+
+```sql
+PRAGMA foreign_keys = ON;
+
+ALTER TABLE Games ADD COLUMN gameActive  INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE Games ADD COLUMN timeStopped INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE Games ADD COLUMN finale      INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE Games ADD COLUMN sandbox     INTEGER NOT NULL DEFAULT 0;
+
+-- the games that were already ACTIVE get their clock FIRST: the three
+-- rewrites below land on 'ACTIVE' themselves, and a blanket rule afterwards
+-- would hand a sandbox game the clock the line below withholds
+UPDATE Games SET gameActive = 1 WHERE GAME_STATE = 'ACTIVE';
+
+UPDATE Games SET GAME_STATE = 'ACTIVE', timeStopped = 1, gameActive = 1 WHERE GAME_STATE = 'TIMESTOPPED';
+UPDATE Games SET GAME_STATE = 'ACTIVE', finale      = 1, gameActive = 1 WHERE GAME_STATE = 'FINALE';
+UPDATE Games SET GAME_STATE = 'ACTIVE', sandbox     = 1, gameActive = 0 WHERE GAME_STATE = 'SANDBOX';
+UPDATE Games SET GAME_STATE = 'OVER',                    gameActive = 0 WHERE GAME_STATE = 'INACTIVE';
+
+SELECT Game_ID, GAME_STATE, gameActive, timeStopped, finale, sandbox FROM Games;
+```
+
+`INACTIVE` meant "finished", so it becomes `OVER` with a stopped clock. The
+clock column reproduces exactly which games used to be paid — AP ran in
+`ACTIVE`, `TIMESTOPPED` and `FINALE`, and never for a sandbox game, whose ticks
+come from `/sandbox ap-tick` by hand.
+
+Run the verification queries in section 3 afterwards: the gamestate query and
+the new clock query both return nothing on a migrated database.
+
+---
+
+## 6. Restoring
 
 ```bash
 docker stop discord-bot
@@ -254,7 +326,7 @@ leaves them alone, which is what you want.
 
 ---
 
-## 6. Do not
+## 7. Do not
 
 - Edit while the container runs.
 - Copy `database.db` out, leave the bot running, and copy it back later — that

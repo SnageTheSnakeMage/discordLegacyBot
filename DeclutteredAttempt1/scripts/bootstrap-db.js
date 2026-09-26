@@ -106,6 +106,72 @@ function readSeed() {
   });
 }
 
+/**
+ * Adds the Games flag columns and rewrites the gamestates that became them.
+ *
+ * Runs on every container start and is idempotent, because the whole thing is
+ * gated on the columns being absent: once they exist the database has already
+ * been migrated, and a second pass would undo whatever has happened since -
+ * it would restart the clock on a game whose clock was deliberately stopped.
+ *
+ * The mapping. TIMESTOPPED, FINALE and SANDBOX all described a game that was
+ * being played, so they all become GAME_STATE ACTIVE plus their flag, and
+ * INACTIVE (which meant "finished") becomes OVER:
+ *
+ *   TIMESTOPPED  -> ACTIVE, timeStopped=1, clock on
+ *   FINALE       -> ACTIVE, finale=1,      clock on
+ *   SANDBOX      -> ACTIVE, sandbox=1,     clock OFF (ap-tick drives it)
+ *   ACTIVE       -> ACTIVE,                clock on
+ *   INACTIVE     -> OVER,                  clock off
+ *   REGISTRATION -> unchanged,             clock off
+ *   DEV_PAUSED   -> unchanged,             clock off
+ *   OVER         -> unchanged,             clock off
+ *
+ * The clock column reproduces exactly which games used to be paid: AP ran in
+ * ACTIVE, TIMESTOPPED and FINALE, and never for a sandbox game.
+ */
+async function migrateGameFlags({ sequelize, models }) {
+  const queryInterface = sequelize.getQueryInterface();
+  const columns = await queryInterface.describeTable('Games');
+  const missing = ['gameActive', 'timeStopped', 'finale', 'sandbox'].filter((c) => !(c in columns));
+  if (missing.length === 0) {
+    console.log('[bootstrap] Games flag columns already present, no migration needed');
+    return { migrated: false, added: [], rows: 0 };
+  }
+
+  for (const column of missing) {
+    // NOT NULL DEFAULT 0 matches the model; SQLite is happy to add that to a
+    // populated table because every existing row takes the default
+    await queryInterface.addColumn('Games', column, {
+      type: Sequelize.INTEGER, allowNull: false, defaultValue: 0,
+    });
+    console.log(`[bootstrap] added Games.${column}`);
+  }
+
+  // The games that were already ACTIVE are given their clock FIRST. Three of
+  // the rewrites below land on GAME_STATE 'ACTIVE' themselves, so a blanket
+  // "ACTIVE means the clock runs" afterwards would catch them too - and hand a
+  // sandbox game the interval the line above it just withheld.
+  const rewrites = [
+    "UPDATE Games SET gameActive = 1 WHERE GAME_STATE = 'ACTIVE'",
+    "UPDATE Games SET GAME_STATE = 'ACTIVE', timeStopped = 1, gameActive = 1 WHERE GAME_STATE = 'TIMESTOPPED'",
+    "UPDATE Games SET GAME_STATE = 'ACTIVE', finale = 1, gameActive = 1 WHERE GAME_STATE = 'FINALE'",
+    "UPDATE Games SET GAME_STATE = 'ACTIVE', sandbox = 1, gameActive = 0 WHERE GAME_STATE = 'SANDBOX'",
+    "UPDATE Games SET GAME_STATE = 'OVER', gameActive = 0 WHERE GAME_STATE = 'INACTIVE'",
+  ];
+  for (const sql of rewrites) await sequelize.query(sql);
+
+  const rows = await models.Games.count();
+  const states = await models.Games.findAll({ attributes: ['Game_ID', 'GAME_STATE', 'gameActive', 'timeStopped', 'finale', 'sandbox'] });
+  for (const game of states) {
+    console.log(`[bootstrap] game ${game.Game_ID}: ${game.GAME_STATE}`
+      + ` gameActive=${game.gameActive} timeStopped=${game.timeStopped}`
+      + ` finale=${game.finale} sandbox=${game.sandbox}`);
+  }
+  console.log(`[bootstrap] migrated ${rows} game(s) onto the flag columns`);
+  return { migrated: true, added: missing, rows };
+}
+
 async function bootstrap() {
   const storage = process.env.LEGACY_DB_STORAGE || './database/database.db';
   const sequelize = new Sequelize({
@@ -119,6 +185,9 @@ async function bootstrap() {
     // creates any table that does not exist; never alters or drops one that
     // does, so an existing volume keeps its data untouched
     await sequelize.sync();
+    // sync() never alters an existing table, so a volume from before the flag
+    // columns existed needs them added by hand
+    await migrateGameFlags({ sequelize, models });
 
     const existing = await models.Classes.count();
     if (existing > 0) {
@@ -188,7 +257,7 @@ async function syncClasses({ dryRun = false, models: injected = null } = {}) {
   }
 }
 
-module.exports = { parseCsv, readSeed, syncClasses };
+module.exports = { parseCsv, readSeed, syncClasses, migrateGameFlags };
 
 if (require.main === module) {
   const argv = process.argv.slice(2);

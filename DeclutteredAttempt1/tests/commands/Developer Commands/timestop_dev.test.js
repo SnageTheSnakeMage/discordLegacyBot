@@ -9,11 +9,11 @@ const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
 
 const DEV_INPUT = { gameId: 1, isDev: true, discordId: '123' };
 
-/** deps whose Games.findByPk returns a game in the given state */
-function depsForState(state, over = {}) {
+/** deps whose Games.findByPk returns a game with the given fields */
+function depsForState(condition, over = {}) {
   return createDeps({
     models: {
-      Games: { findByPk: async () => createFakeGame({ Game_ID: 1, GAME_STATE: state }) },
+      Games: { findByPk: async () => createFakeGame({ Game_ID: 1, ...condition }) },
       ...(over.models || {}),
     },
     ...(over.utils ? { utils: over.utils } : {}),
@@ -76,24 +76,29 @@ describe('timestop-dev run rejections', () => {
 });
 
 describe('timestop-dev run gamestate table', () => {
-  // Every state has a defined outcome: DEV_PAUSED unpauses, everything else
-  // pauses. There is deliberately no gamestate gate here (dev command), so
-  // adding a state without deciding its outcome breaks this test.
-  it.each([
+  // Every state in the enum has a defined outcome: DEV_PAUSED unpauses,
+  // everything else pauses. There is deliberately no gamestate gate here (dev
+  // command), so a state added without deciding its outcome fails the coverage
+  // assertion below rather than passing unnoticed.
+  const outcomes = [
     [GAMESTATES.ACTIVE, 'paused', GAMESTATES.DEV_PAUSED],
     [GAMESTATES.DEV_PAUSED, 'unpaused', GAMESTATES.ACTIVE],
     [GAMESTATES.OVER, 'paused', GAMESTATES.DEV_PAUSED],
-    [GAMESTATES.TIMESTOPPED, 'paused', GAMESTATES.DEV_PAUSED],
-    [GAMESTATES.FINALE, 'paused', GAMESTATES.DEV_PAUSED],
     [GAMESTATES.REGISTRATION, 'paused', GAMESTATES.DEV_PAUSED],
-    [GAMESTATES.INACTIVE, 'paused', GAMESTATES.DEV_PAUSED],
-    [GAMESTATES.SANDBOX, 'paused', GAMESTATES.DEV_PAUSED],
-  ])('gamestate %s -> %s', async (state, kind, written) => {
-    const deps = depsForState(state);
+  ];
+
+  it('decides an outcome for every state in the enum', () => {
+    expect(outcomes.map(([state]) => state).sort()).toEqual(Object.values(GAMESTATES).sort());
+  });
+
+  it.each(outcomes)('%s -> %s', async (state, kind, written) => {
+    const deps = depsForState({ GAME_STATE: state });
     const result = await logic.run(DEV_INPUT, deps);
     expect(result).toEqual({ ok: true, kind, data: { gameId: 1 } });
+    // the clock travels with the state, and REGISTRATION and OVER cannot have
+    // one running whatever is asked for
     expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: written },
+      expect.objectContaining({ GAME_STATE: written, gameActive: kind === 'unpaused' }),
       { where: { Game_ID: 1 } },
     );
     expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
@@ -102,22 +107,28 @@ describe('timestop-dev run gamestate table', () => {
 });
 
 describe('timestop-dev run success', () => {
-  it('pauses an active game with the exact update payload', async () => {
-    const deps = depsForState(GAMESTATES.ACTIVE);
+  it('pauses an active game, stopping its clock', async () => {
+    const deps = depsForState({ GAME_STATE: GAMESTATES.ACTIVE, gameActive: true });
     const result = await logic.run(DEV_INPUT, deps);
     expect(result).toEqual({ ok: true, kind: 'paused', data: { gameId: 1 } });
     expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: GAMESTATES.DEV_PAUSED },
+      { GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false },
       { where: { Game_ID: 1 } },
     );
   });
 
-  it('unpauses a dev-paused game with the exact update payload', async () => {
-    const deps = depsForState(GAMESTATES.DEV_PAUSED);
+  // the AP timestamp is reset on the way back, so an hour of being paused is
+  // not paid out in one lump the moment the game resumes
+  it('unpauses a dev-paused game, starting its clock and resetting the AP timestamp', async () => {
+    const deps = depsForState({ GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false });
     const result = await logic.run(DEV_INPUT, deps);
     expect(result).toEqual({ ok: true, kind: 'unpaused', data: { gameId: 1 } });
     expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: GAMESTATES.ACTIVE },
+      {
+        GAME_STATE: GAMESTATES.ACTIVE,
+        gameActive: true,
+        lastAPDistributionTimestampInMS: expect.any(Number),
+      },
       { where: { Game_ID: 1 } },
     );
   });
@@ -139,7 +150,7 @@ describe('timestop-dev run success', () => {
     expect(result).toEqual({ ok: true, kind: 'paused', data: { gameId: 4 } });
     expect(getOldestActiveGameId).toHaveBeenCalledWith();
     expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: GAMESTATES.DEV_PAUSED },
+      { GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false },
       { where: { Game_ID: 4 } },
     );
   });

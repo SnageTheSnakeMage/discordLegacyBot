@@ -161,11 +161,11 @@ describe('warp.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   it.each([
-    [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-  ])('gamestate %s -> %s', async (state, reason) => {
-    const { deps } = setup({ game: createFakeGame({ GAME_STATE: state }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+  ])('game %o -> %s', async (condition, reason) => {
+    const { deps } = setup({ game: createFakeGame({ ...condition }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
       expect(result.ok).toBe(true);
@@ -179,7 +179,7 @@ describe('warp.run rejections', () => {
   // Clockwatcher is blocked by a timestop like everyone else
   it('does not exempt a Clockwatcher from a timestop', async () => {
     const { deps } = setup({
-      game: createFakeGame({ GAME_STATE: GAMESTATES.TIMESTOPPED }),
+      game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
       player: createFakePlayer({ Discord_ID: DISCORD, Class_ID: 9, Tile_ID: 1 }),
       hopperClass: createFakeClass({ Class_ID: 9, Class_Name: 'Clockwatcher' }),
     });

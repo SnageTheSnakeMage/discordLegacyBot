@@ -155,7 +155,7 @@ describe('call-db run success', () => {
   // loads "the" game, it dumps a table - so the table asserts exactly that:
   // every state in the enum reads back unchanged and none of them blocks the
   // command. A new state cannot be added without this test being reconsidered.
-  it.each([GAMESTATES.ACTIVE, GAMESTATES.OVER])('gamestate %s neither blocks nor alters the read', async (state) => {
+  it.each(Object.values(GAMESTATES))('%s neither blocks nor alters the read', async (state) => {
     const game = createFakeGame({ GAME_STATE: state });
     const deps = createDeps({ models: { Games: { findAll: async () => [game] } } });
     const result = await logic.run(DEV_INPUT, deps);

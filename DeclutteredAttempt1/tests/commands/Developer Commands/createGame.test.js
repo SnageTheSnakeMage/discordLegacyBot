@@ -27,6 +27,10 @@ const DEFAULT_INPUT = logic.parse({ isDev: true }, { discordId: DEV, username: '
 /** the Games row the defaults produce - column names from database/Models/Games.js */
 const DEFAULT_ROW = {
   GAME_STATE: GAMESTATES.REGISTRATION,
+  gameActive: false,
+  timeStopped: false,
+  finale: false,
+  sandbox: false,
   AP_INTERVAL_MIN: 720,
   CHEST_AMOUNT: 0,
   LAST_CHEST_GIVER: null,
@@ -162,10 +166,10 @@ describe('createGame.run gamestate', () => {
   // mint a new REGISTRATION game. The table below pins that - whatever state
   // any existing game is in, the command still creates a REGISTRATION game
   // and is never blocked. A new GAMESTATES value fails here if that changes.
-  it.each(Object.values(GAMESTATES))('is not gated by an existing game in %s', async (state) => {
+  it.each(Object.values(GAMESTATES))('is not gated by an existing game in %s', async (condition) => {
     const deps = happyDeps();
-    deps.models.Games.findByPk = jest.fn(async () => createFakeGame({ GAME_STATE: state }));
-    deps.models.Games.findAll = jest.fn(async () => [createFakeGame({ GAME_STATE: state })]);
+    deps.models.Games.findByPk = jest.fn(async () => createFakeGame({ ...condition }));
+    deps.models.Games.findAll = jest.fn(async () => [createFakeGame({ ...condition })]);
 
     const result = await logic.run(DEFAULT_INPUT, deps);
 
@@ -210,6 +214,10 @@ describe('createGame.run success', () => {
     expect(result.ok).toBe(true);
     expect(deps.models.Games.create).toHaveBeenCalledWith({
       GAME_STATE: GAMESTATES.REGISTRATION,
+      gameActive: false,
+      timeStopped: false,
+      finale: false,
+      sandbox: false,
       AP_INTERVAL_MIN: 60,
       CHEST_AMOUNT: 12,
       LAST_CHEST_GIVER: null,

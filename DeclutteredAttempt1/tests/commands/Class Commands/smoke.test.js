@@ -111,12 +111,12 @@ describe('smoke.run rejections', () => {
   // (really OVER) and REGISTRATION, with no Clockwatcher exemption -
   // preserved.
   it.each([
-    [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-    [GAMESTATES.REGISTRATION, REJECTIONS.GAME_IN_REGISTRATION],
-  ])('gamestate %s -> %s', async (state, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    [{ GAME_STATE: GAMESTATES.REGISTRATION }, REJECTIONS.GAME_IN_REGISTRATION],
+  ])('game %o -> %s', async (condition, reason) => {
+    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
       expect(result.ok).toBe(true);
@@ -128,7 +128,7 @@ describe('smoke.run rejections', () => {
 
   it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
-      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED }),
+      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
       playerClass: createFakeClass({ Class_ID: 9, Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);

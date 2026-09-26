@@ -94,7 +94,7 @@ describe('distributeAP', () => {
   });
 
   it('a timestop ticks down and reactivates the game at zero', async () => {
-    const { game } = await seedPopulatedGame({ GAME_STATE: GAMESTATES.TIMESTOPPED, timestopTurns: 1 });
+    const { game } = await seedPopulatedGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, timestopTurns: 1 });
 
     await utils.distributeAP(game, 1, FAKE_CLIENT);
 

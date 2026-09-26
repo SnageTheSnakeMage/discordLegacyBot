@@ -1,25 +1,18 @@
 /**
- * /change-gamestate - dev-only: set a game's GAME_STATE.
+ * /change-gamestate - dev-only: move a game through its life.
  *
  * parse/run/present per TESTING.md Part 1. run() takes plain data and a deps
  * bundle and returns a CommandResult; it never sees an interaction. The
- * process.env.DEV_ID gate stays in the adapter and arrives here as
- * input.isDev (Part 1, order-of-work item 6).
+ * process.env.DEV_ID gate stays in the adapter and arrives here as input.isDev.
  *
- * Ported from the old execute with one fix, which was a dead write before:
- * - the update wrote `GAMESTATES.gamestateNonEnum` - a literal property
- *   lookup of a key that does not exist on the enum - so every invocation
- *   wrote GAME_STATE: undefined (a not-null column) while still replying
- *   "has been changed to X!". The selected value is now written.
+ * The four GAMESTATES are the only thing this command sets. Time stop, the
+ * finale, sandbox mode and the game clock are flags on the row, and /gameflags
+ * is what sets those.
  *
- * Preserved as-is:
- * - the value is written verbatim, exactly as the option's choice list
- *   supplies it. The "Finished" choice's value is the mixed-case 'Inactive',
- *   which is NOT GAMESTATES.INACTIVE; the choice list lives in the command's
- *   `data` and is out of scope for this conversion, so 'Inactive' is written
- *   as given.
- * - no existence check on the game: updating a Game_ID that matches no row
- *   still reports success, exactly as the old .then(...) reply did.
+ * The clock follows the state here: a game being played runs, and anything else
+ * does not. utils.setGameState is what writes both, so the pair cannot end up
+ * disagreeing, and it resets the AP timestamp when the clock starts so an
+ * unpaused game is not immediately paid for the time it spent stopped.
  */
 const { REJECTIONS, GAMESTATES } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
@@ -35,8 +28,7 @@ function parse(raw, actor) {
 }
 
 async function run(input, deps = defaultDeps) {
-  const { models } = deps;
-  const currentGameState = await models.Games.findByPk(input.gameId, { attributes: ['GAME_STATE'] })
+  const { models, utils } = deps;
 
   if (!input.isDev) {
     return {
@@ -45,31 +37,27 @@ async function run(input, deps = defaultDeps) {
       data: { message: 'You must be a dev to use this command!' },
     };
   }
-  
-  if(input.gamestate == GAMESTATES.ACTIVE && currentGameState == GAMESTATES.REGISTRATION) {
-    await models.Games.update(
-    { GAME_STATE: input.gamestate, lastAPDistributionTimestampInMS: Date.now() },
-    { where: { Game_ID: input.gameId } },
-  );
-  }
-  else {
-  await models.Games.update(
-    { GAME_STATE: input.gamestate },
-    { where: { Game_ID: input.gameId } },
-  );
+
+  const changes = await utils.setGameState(input.gameId, input.gamestate, {
+    gameActive: input.gamestate === GAMESTATES.ACTIVE,
+    db: models,
+  });
+  if (!changes) {
+    return { ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId: input.gameId } };
   }
 
   return {
     ok: true,
     kind: 'gamestateChanged',
-    data: { gameId: input.gameId, gamestate: input.gamestate },
+    data: { gameId: input.gameId, gamestate: changes.GAME_STATE, gameActive: changes.gameActive },
   };
 }
 
 function present(result) {
   if (!result.ok) return { content: messageFor(result.reason, result.data) };
   const d = result.data;
-  return { content: `Game ${d.gameId} has been changed to ${d.gamestate}!` };
+  const clock = d.gameActive ? 'AP is being distributed' : 'the clock is stopped';
+  return { content: `Game ${d.gameId} has been changed to ${d.gamestate}! (${clock})` };
 }
 
 module.exports = { parse, run, present };

@@ -190,20 +190,16 @@ describe('hotPotato.run gamestate gate', () => {
   const OUTCOMES = {
     [GAMESTATES.ACTIVE]: null,
     [GAMESTATES.REGISTRATION]: REJECTIONS.GAME_IN_REGISTRATION,
-    [GAMESTATES.INACTIVE]: REJECTIONS.GAME_INACTIVE,
-    [GAMESTATES.SANDBOX]: null,
-    [GAMESTATES.FINALE]: null,
     [GAMESTATES.OVER]: REJECTIONS.GAME_OVER,
     [GAMESTATES.DEV_PAUSED]: REJECTIONS.GAME_PAUSED,
-    [GAMESTATES.TIMESTOPPED]: REJECTIONS.TIME_STOPPED,
   };
 
-  it('decides an outcome for all 8 gamestates', () => {
+  it('decides an outcome for every gamestate', () => {
     expect(Object.keys(OUTCOMES).sort()).toEqual(Object.values(GAMESTATES).sort());
   });
 
   it.each(Object.values(GAMESTATES).map((state) => [state, OUTCOMES[state]]))(
-    'gamestate %s -> %s', async (state, reason) => {
+    '%s -> %s', async (state, reason) => {
       const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
       const result = await logic.run(INPUT, deps);
       if (reason === null) {
@@ -215,8 +211,28 @@ describe('hotPotato.run gamestate gate', () => {
     },
   );
 
+  // a timestop is a condition on a game being played, so it blocks on top of
+  // the state rather than as one of its values
+  it('a timestop blocks it', async () => {
+    const { deps } = happyDeps({
+      game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
+    });
+    expect(await logic.run(INPUT, deps)).toMatchObject({ ok: false, reason: REJECTIONS.TIME_STOPPED });
+    expect(deps.models.Players.update).not.toHaveBeenCalled();
+  });
+
+  // the other flags are not the gate's business at all
+  it.each([{ finale: true }, { sandbox: true }, { gameActive: false }])(
+    'passes with %o', async (flags) => {
+      const { deps } = happyDeps({
+        game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, ...flags }),
+      });
+      expect((await logic.run(INPUT, deps)).ok).toBe(true);
+    },
+  );
+
   it('blocks a timestop even though the actor is a Hot Potato (isClockwatcher is always false here)', async () => {
-    const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: GAMESTATES.TIMESTOPPED }) });
+    const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }) });
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.TIME_STOPPED);
   });
