@@ -21,7 +21,7 @@
  * - no existence check on the game: updating a Game_ID that matches no row
  *   still reports success, exactly as the old .then(...) reply did.
  */
-const { REJECTIONS } = require('../../enums.js');
+const { REJECTIONS, GAMESTATES } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
 const defaultDeps = require('../_deps.js');
 
@@ -36,6 +36,7 @@ function parse(raw, actor) {
 
 async function run(input, deps = defaultDeps) {
   const { models } = deps;
+  const currentGameState = await models.Games.findByPk(input.gameId, { attributes: ['GAME_STATE'] })
 
   if (!input.isDev) {
     return {
@@ -44,11 +45,19 @@ async function run(input, deps = defaultDeps) {
       data: { message: 'You must be a dev to use this command!' },
     };
   }
-
+  
+  if(input.gamestate == GAMESTATES.ACTIVE && currentGameState == GAMESTATES.REGISTRATION) {
+    await models.Games.update(
+    { GAME_STATE: input.gamestate, lastAPDistributionTimestampInMS: Date.now() },
+    { where: { Game_ID: input.gameId } },
+  );
+  }
+  else {
   await models.Games.update(
     { GAME_STATE: input.gamestate },
     { where: { Game_ID: input.gameId } },
   );
+  }
 
   return {
     ok: true,
