@@ -76,10 +76,8 @@ describe('GenerateGameGridImage', () => {
       .rejects.toMatch(/only view the layer you are currently on/);
   });
 
-  // #148's other half. The refusal above compared the requested layer against
-  // ONE tile - body 1's - so a Twin asking for the layer its second body was
-  // standing on was refused for standing where it stood, and the raw string
-  // came out of /board as "There was an error while executing this command!".
+  // A Twin stands on two layers and the refusal above compares against both,
+  // so the layer under its second body is one it may see.
   it('shows a Twin the layer of its second body', async () => {
     const { game, layers } = await seedBoard();
     const twin = await seedPlayer(game.Game_ID, {
@@ -90,7 +88,7 @@ describe('GenerateGameGridImage', () => {
     expect(buffer.subarray(1, 4).toString()).toBe('PNG');
   });
 
-  it('still refuses a Twin a layer neither of its bodies is on', async () => {
+  it('refuses a Twin a layer neither of its bodies is on', async () => {
     const { game, layers } = await seedBoard();
     const twin = await seedPlayer(game.Game_ID, {
       discordId: '1', x: 1, y: 1, layerId: layers[0].Layer_ID, className: 'Twin',

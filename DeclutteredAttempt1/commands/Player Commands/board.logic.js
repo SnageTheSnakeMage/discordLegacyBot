@@ -1,32 +1,18 @@
 /**
  * /board - render the grid the player is on (or a chosen layer) as an image.
  *
- * Ported from the old execute/inputValidation/logic with these fixes:
- * - a missing player now returns NOT_IN_GAME instead of crashing on
- *   player.Class_ID
- * - the layer-conversion helper referenced logger200 out of scope, so
- *   providing a layer crashed with ReferenceError; the conversion is now
- *   done inline against deps.models.Layers
- * - the dead gamestate switch (PAUSED and OVER, neither of which exists /
- *   matched) is replaced by the shared checkGameState gate
+ * Who may look at a layer they are not standing on is the renderer's sight
+ * list: an Oracle (allLayerSight) and a dead player, who has nothing left to
+ * hide from. The rule is checked here, before anything renders, so it comes
+ * back as a NOT_ORACLE rejection the player can read rather than a throw out
+ * of the middle of a render; the renderer keeps its own check as a backstop
+ * for its other callers.
  *
- * Preserved as-is: an Oracle with no layer input renders with a null layer
- * id, exactly as before.
+ * Everyone else is held to the layers their own bodies stand on - both of
+ * them, so a Twin split across layers can look at either, with or without the
+ * layer option.
  *
- * #148: the Oracle rule was enforced, but by GenerateGameGridImage THROWING a
- * bare string mid-render. Nothing caught it, so the player got
- * "There was an error while executing this command!" instead of being told
- * what the rule is. The rule is checked here now, before anything renders,
- * and comes back as NOT_ORACLE like every other refusal. The renderer keeps
- * its throw as a backstop for its other callers.
- *
- * Who may look at another layer is the renderer's own list, not a new rule:
- * an Oracle (allLayerSight), and a dead player, who gets allLayerSight
- * because there is nothing left to hide from them. Everyone else is held to
- * the layers their own bodies are standing on - both of them, for a Twin,
- * which is also what fixes `/board body:2` for a Twin whose bodies are on
- * different layers: that used to hit the same throw, because the renderer
- * only ever compared against body 1's tile.
+ * An Oracle with no layer input renders with a null layer id.
  */
 const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
