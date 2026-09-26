@@ -293,18 +293,15 @@ describe('move.run rejections', () => {
     }
   });
 
-  // The reported symptom of #145: a registration game answered "does not have
-  // enough action points for movement requested" - the gate passed the state
-  // through and the AP check was the first thing to object, so the player was
-  // told the wrong thing about a game that had not started. The message, not
-  // just the reason code, is what was wrong, so it is asserted here.
+  // The gate answers before the AP check, so a player in a game that has not
+  // started is told that and not something about action points - which is why
+  // the message is asserted here and not just the reason code.
   it.each([
     [GAMESTATES.REGISTRATION, REJECTIONS.GAME_IN_REGISTRATION],
     [GAMESTATES.INACTIVE, REJECTIONS.GAME_INACTIVE],
   ])('%s is refused by the gate, not by the AP check', async (state, reason) => {
     const { deps } = makeDeps({
-      // plenty of AP: the point is that the gate answers first, so the old
-      // "not enough action points" reply cannot be what comes back
+      // plenty of AP, so an AP complaint cannot be what comes back
       player: createFakePlayer({
         Player_ID: 1, Class_ID: 1, Game_ID: 1, Discord_ID: DISCORD_ID,
         Action_Points: 99, Health_Points: 10, Free_Move: 0, Tile_ID: 11, Tile_ID2: null,

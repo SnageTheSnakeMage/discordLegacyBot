@@ -112,9 +112,8 @@ describe('stats.run rejections', () => {
   // isClockwatcher argument this command passes) cover it here.
   it.each([
     [GAMESTATES.ACTIVE, null],
-    // #145 blocks these two for anything that acts; /stats reads, so it asks
-    // the gate with readOnly and they pass. This is the row that fails if the
-    // readOnly argument is dropped at this call site.
+    // blocked for anything that acts; /stats reads, so it passes readOnly and
+    // these two are open to it. These rows fail if that argument is dropped.
     [GAMESTATES.REGISTRATION, null],
     [GAMESTATES.INACTIVE, null],
     [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
@@ -260,10 +259,9 @@ describe('stats.run success', () => {
     });
   });
 
-  // #143: any gamestate, not the active-only variant. /stats is read-only, so
-  // it is exempt from the gate's registration block and can show a roster
-  // before the game starts - resolving only ACTIVE games would put the game
-  // the player is waiting on out of reach.
+  // Any gamestate, not the active-only variant: /stats is read-only and exempt
+  // from the gate's registration block, so the game a player is waiting on has
+  // to be resolvable.
   it('resolves the default game via getOldestGameId, not the active-only variant', async () => {
     const deps = happyDeps();
     deps.utils = {

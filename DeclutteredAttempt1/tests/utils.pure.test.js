@@ -69,9 +69,8 @@ describe('checkGameState - the full gamestate table', () => {
   // state without deciding its gate makes this test fail
   const expected = {
     [GAMESTATES.ACTIVE]: { blocked: false },
-    // a game that has not started is not playable: acting in one used to fall
-    // through to whatever the command checked next, which is how /move
-    // answered "not enough action points" for a registration game (#145)
+    // a game that has not started is not playable, so the gate refuses rather
+    // than leaving it to whatever the command checks next
     [GAMESTATES.REGISTRATION]: { blocked: true, reason: REJECTIONS.GAME_IN_REGISTRATION },
     [GAMESTATES.INACTIVE]: { blocked: true, reason: REJECTIONS.GAME_INACTIVE },
     [GAMESTATES.SANDBOX]: { blocked: false },
@@ -81,10 +80,9 @@ describe('checkGameState - the full gamestate table', () => {
     [GAMESTATES.TIMESTOPPED]: { blocked: true, reason: REJECTIONS.TIME_STOPPED },
   };
 
-  // readOnly is the /stats/board exemption: the two states that mean "there
-  // is nothing to act on yet" are the two it opens, and no others. Listing
-  // every state again rather than only the differences is what makes a new
-  // state fail here too.
+  // readOnly is the /stats and /board exemption: it opens the two states that
+  // mean "there is nothing to act on yet", and no others. Every state is
+  // listed again rather than only the differences so a new one fails here too.
   const expectedReadOnly = {
     [GAMESTATES.ACTIVE]: { blocked: false },
     [GAMESTATES.REGISTRATION]: { blocked: false },
