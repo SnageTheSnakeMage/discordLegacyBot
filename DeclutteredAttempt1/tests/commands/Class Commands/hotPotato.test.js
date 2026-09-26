@@ -189,8 +189,6 @@ describe('hotPotato.run gamestate gate', () => {
   // its gate fails the coverage test below
   const OUTCOMES = {
     [GAMESTATES.ACTIVE]: null,
-    // #145: neither state is playable, so the gate refuses instead of letting
-    // the command fall through to its own checks
     [GAMESTATES.REGISTRATION]: REJECTIONS.GAME_IN_REGISTRATION,
     [GAMESTATES.INACTIVE]: REJECTIONS.GAME_INACTIVE,
     [GAMESTATES.SANDBOX]: null,

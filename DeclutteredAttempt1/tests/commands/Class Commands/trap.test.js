@@ -90,12 +90,8 @@ describe('trap.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // Rows dropped where they only re-ran utils.checkGameState's shared table,
-  // which tests/utils.pure.test.js walks in full. The REGISTRATION row stays
-  // because it used to be this command's odd one out: the old
-  // checkGameStateAndReply blocked only OVER, DEV_PAUSED and TIMESTOPPED, so
-  // trapping a game that had not started was allowed. #145 closed that at the
-  // gate, and this row is what says so.
+  // One row per outcome this command's own gate call can produce; the full
+  // state table belongs to utils.checkGameState and tests/utils.pure.test.js.
   it.each([
     [GAMESTATES.ACTIVE, null],
     [GAMESTATES.REGISTRATION, REJECTIONS.GAME_IN_REGISTRATION],
