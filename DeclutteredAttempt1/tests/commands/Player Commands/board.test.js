@@ -144,11 +144,31 @@ describe('board.run', () => {
     expect(await logic.run({ ...INPUT, layer: 3 }, deps)).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_LAYER });
   });
 
-  it('renders with a null layer id for an Oracle who names no layer', async () => {
+  // an Oracle naming no layer is a player asking about its own position, so it
+  // gets its own layer like anyone else - a null layer id has no grid to draw
+  it('renders an Oracle its own layer when it names none', async () => {
     const deps = happyDeps({ playerClass: createFakeClass({ Class_Name: 'Oracle' }) });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
-    expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, null, 1);
+    expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, 11, 1);
+  });
+
+  it('renders an Oracle the layer of body 2 when it asks for body 2 and names none', async () => {
+    const deps = happyDeps({ playerClass: createFakeClass({ Class_Name: 'Oracle' }) });
+    const result = await logic.run({ ...INPUT, body: 2 }, deps);
+    expect(result.ok).toBe(true);
+    expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, 22, 1);
+  });
+
+  it('refuses an Oracle with no tile and no layer named, rather than a null layer', async () => {
+    const deps = happyDeps({
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: '123', Tile_ID: null, Tile_ID2: null, Dead: true }),
+      playerClass: createFakeClass({ Class_Name: 'Oracle' }),
+    });
+    // the shared fake answers every id; a player off the board has none
+    deps.models.Tiles.findByPk = jest.fn(async () => null);
+    expect(await logic.run(INPUT, deps)).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_TILE });
+    expect(deps.utils.GenerateGameGridImage).not.toHaveBeenCalled();
   });
 });
 
