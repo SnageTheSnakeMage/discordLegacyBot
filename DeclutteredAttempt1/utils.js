@@ -845,11 +845,9 @@ async  GenerateGameGridImage(gameId, databaseLayerID, playerID) {
       trapSight = true;
     }
     if(!allLayerSight) {
-      //both bodies, not just body 1: a Twin asking for the layer its SECOND
-      //body stands on was refused here, which is what took `/board body:2`
-      //into the central error handler for a Twin whose bodies are on
-      //different layers. /board checks this rule itself now and returns
-      //NOT_ORACLE (#148); this stays as the backstop for other callers.
+      //Both bodies: a Twin stands on two layers and may see either of them.
+      ///board decides this rule itself and rejects with NOT_ORACLE, so this
+      //throw is the backstop for the renderer's other callers.
       const playersSecondTile = playerSeeing.Tile_ID2 != null
         ? await models.Tiles.findByPk(playerSeeing.Tile_ID2)
         : null;

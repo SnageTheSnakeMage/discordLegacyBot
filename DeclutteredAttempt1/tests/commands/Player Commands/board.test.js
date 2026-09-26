@@ -47,7 +47,7 @@ describe('board.run', () => {
     expect(await logic.run(INPUT, deps)).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_GAME });
   });
 
-  it('rejects a player who is not in the game (the old code crashed here)', async () => {
+  it('rejects a player who is not in the game', async () => {
     const deps = happyDeps();
     deps.models.Players.findOne = jest.fn(async () => null);
     expect(await logic.run(INPUT, deps)).toMatchObject({ ok: false, reason: REJECTIONS.NOT_IN_GAME });
@@ -87,20 +87,18 @@ describe('board.run', () => {
     expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, 22, 1);
   });
 
-  // an Oracle, so this covers the mapping and nothing else - a non-Oracle
-  // asking for a layer it is not on is the NOT_ORACLE case below
-  it('maps an explicit common layer number to the game Layer_ID (this path used to throw ReferenceError)', async () => {
+  // an Oracle, so this covers the 1-based number -> Layer_ID mapping and
+  // nothing else; a non-Oracle asking for a layer it is not on is NOT_ORACLE
+  it('maps an explicit common layer number to the game Layer_ID', async () => {
     const deps = happyDeps({ playerClass: createFakeClass({ Class_Name: 'Oracle' }) });
     const result = await logic.run({ ...INPUT, layer: 2 }, deps);
     expect(result.ok).toBe(true);
     expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, 22, 1);
   });
 
-  // #148. The rule existed, but GenerateGameGridImage enforced it by throwing
-  // a bare string mid-render, which nothing caught: the player was told
-  // "There was an error while executing this command!" and learnt nothing.
-  // These rows are the rule as a rejection, decided before anything renders.
-  describe('#148 who may look at another layer', () => {
+  // The rule as a rejection, decided before anything renders, so a player who
+  // breaks it is told which rule they broke.
+  describe('who may look at another layer', () => {
     // one body, on layer 11 - what a non-Twin actually looks like
     const oneBody = () => createFakePlayer({ Player_ID: 1, Discord_ID: '123', Tile_ID: 1, Tile_ID2: null });
 
@@ -111,7 +109,7 @@ describe('board.run', () => {
       expect(deps.utils.GenerateGameGridImage).not.toHaveBeenCalled();
     });
 
-    it('says so in words rather than in the central error handler', () => {
+    it('says so in words a player can act on', () => {
       const content = logic.present({ ok: false, reason: REJECTIONS.NOT_ORACLE }).content;
       expect(content).toMatch(/Oracle/);
       expect(content).not.toMatch(/There was an error/);
@@ -124,16 +122,14 @@ describe('board.run', () => {
       expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith(1, 11, 1);
     });
 
-    it('allows a dead player any layer, as the renderer already did', async () => {
+    it('allows a dead player any layer', async () => {
       const deps = happyDeps({
         player: createFakePlayer({ Player_ID: 1, Discord_ID: '123', Tile_ID: null, Tile_ID2: null, Dead: true }),
       });
       expect(await logic.run({ ...INPUT, layer: 2 }, deps)).toMatchObject({ ok: true });
     });
 
-    // the second half of the same throw: the renderer only ever compared
-    // against body 1's tile, so a Twin naming the layer its OTHER body stands
-    // on was refused for standing somewhere it was standing
+    // a Twin stands on two layers, so neither of them is "another layer"
     it('allows a Twin the layer of either of its bodies', async () => {
       const deps = happyDeps({
         player: createFakePlayer({ Player_ID: 1, Discord_ID: '123', Tile_ID: 1, Tile_ID2: 2 }),
@@ -149,7 +145,7 @@ describe('board.run', () => {
     expect(await logic.run({ ...INPUT, layer: 3 }, deps)).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_LAYER });
   });
 
-  it('preserves the old Oracle default: no layer input renders with a null layer id', async () => {
+  it('renders with a null layer id for an Oracle who names no layer', async () => {
     const deps = happyDeps({ playerClass: createFakeClass({ Class_Name: 'Oracle' }) });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
