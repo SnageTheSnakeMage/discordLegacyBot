@@ -69,6 +69,24 @@ describe('checkGameState - the full gamestate table', () => {
   // state without deciding its gate makes this test fail
   const expected = {
     [GAMESTATES.ACTIVE]: { blocked: false },
+    // a game that has not started is not playable: acting in one used to fall
+    // through to whatever the command checked next, which is how /move
+    // answered "not enough action points" for a registration game (#145)
+    [GAMESTATES.REGISTRATION]: { blocked: true, reason: REJECTIONS.GAME_IN_REGISTRATION },
+    [GAMESTATES.INACTIVE]: { blocked: true, reason: REJECTIONS.GAME_INACTIVE },
+    [GAMESTATES.SANDBOX]: { blocked: false },
+    [GAMESTATES.FINALE]: { blocked: false },
+    [GAMESTATES.OVER]: { blocked: true, reason: REJECTIONS.GAME_OVER },
+    [GAMESTATES.DEV_PAUSED]: { blocked: true, reason: REJECTIONS.GAME_PAUSED },
+    [GAMESTATES.TIMESTOPPED]: { blocked: true, reason: REJECTIONS.TIME_STOPPED },
+  };
+
+  // readOnly is the /stats/board exemption: the two states that mean "there
+  // is nothing to act on yet" are the two it opens, and no others. Listing
+  // every state again rather than only the differences is what makes a new
+  // state fail here too.
+  const expectedReadOnly = {
+    [GAMESTATES.ACTIVE]: { blocked: false },
     [GAMESTATES.REGISTRATION]: { blocked: false },
     [GAMESTATES.INACTIVE]: { blocked: false },
     [GAMESTATES.SANDBOX]: { blocked: false },
@@ -84,6 +102,14 @@ describe('checkGameState - the full gamestate table', () => {
 
   it.each(Object.entries(expected))('%s (non-clockwatcher)', (state, verdict) => {
     expect(utils.checkGameState(state, false)).toEqual(verdict);
+  });
+
+  it('covers every declared gamestate for a read-only caller too', () => {
+    expect(Object.keys(expectedReadOnly).sort()).toEqual(Object.values(GAMESTATES).sort());
+  });
+
+  it.each(Object.entries(expectedReadOnly))('%s (read-only)', (state, verdict) => {
+    expect(utils.checkGameState(state, false, { readOnly: true })).toEqual(verdict);
   });
 
   it('a Clockwatcher passes through a timestop', () => {

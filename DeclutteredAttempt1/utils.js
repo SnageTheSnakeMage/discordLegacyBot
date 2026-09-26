@@ -1349,8 +1349,15 @@ async isClockwatcher(models, player) {
   return !!playerClass && playerClass.Class_Name === 'Clockwatcher';
 },
 
-checkGameState(gamestate, isClockwatcher) {
-  logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate );
+//`readOnly` is for the commands that only LOOK at a game - /stats and
+///board. A game in REGISTRATION or INACTIVE is not playable, so acting in
+//one is refused (issue #145: /move used to fall through this gate and report
+//"not enough action points" for a game that had not started), but looking at
+//it is fine and is the only way to see a roster before the game begins.
+//OVER, DEV_PAUSED and TIMESTOPPED still block a read: those are states where
+//the answer is deliberately withheld, not states where there is nothing yet.
+checkGameState(gamestate, isClockwatcher, { readOnly = false } = {}) {
+  logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate + ", readOnly: " + readOnly );
   switch(gamestate) {
     case GAMESTATES.OVER:
       return { blocked: true, reason: REJECTIONS.GAME_OVER };
@@ -1362,8 +1369,12 @@ checkGameState(gamestate, isClockwatcher) {
       }
       return { blocked: false };
     case GAMESTATES.REGISTRATION:
-    case GAMESTATES.ACTIVE:
+      if (readOnly) return { blocked: false };
+      return { blocked: true, reason: REJECTIONS.GAME_IN_REGISTRATION };
     case GAMESTATES.INACTIVE:
+      if (readOnly) return { blocked: false };
+      return { blocked: true, reason: REJECTIONS.GAME_INACTIVE };
+    case GAMESTATES.ACTIVE:
     case GAMESTATES.SANDBOX:
     case GAMESTATES.FINALE:
       return { blocked: false };

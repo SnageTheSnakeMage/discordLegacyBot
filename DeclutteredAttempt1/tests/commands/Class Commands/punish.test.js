@@ -260,8 +260,8 @@ describe('punish.present', () => {
     [REJECTIONS.WRONG_CLASS, { className: 'Punisher' }, 'You are not a Punisher!'],
     [REJECTIONS.NO_SUCH_TILE, undefined, 'That tile is not on the board!'],
     [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
-    [REJECTIONS.GAME_OVER, undefined, "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game."],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! only the dev can use commands for this game at this time.'],
+    [REJECTIONS.GAME_OVER, undefined, "Game is over!\n Please register on a new game."],
+    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
     [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
     [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],
   ])('renders %s with the legacy wording', (reason, data, expected) => {
