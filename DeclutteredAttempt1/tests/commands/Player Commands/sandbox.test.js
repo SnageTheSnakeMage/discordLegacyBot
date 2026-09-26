@@ -13,14 +13,14 @@ const { createDeps, createFakeGame, createFakePlayer, createFakeTile, createFake
 const PLAYER = '123';
 
 function happyDeps(over = {}) {
-  const game = over.game || createFakeGame({ Game_ID: 7, GAME_STATE: GAMESTATES.SANDBOX, CURR_CC_EVENT: 'Blockade' });
+  const game = over.game || createFakeGame({ Game_ID: 7, GAME_STATE: GAMESTATES.ACTIVE, sandbox: true, CURR_CC_EVENT: 'Blockade' });
   const layers = over.layers || [createFakeLayer({ Layer_ID: 11 }), createFakeLayer({ Layer_ID: 22 })];
   const tile = 'tile' in over ? over.tile : createFakeTile({ Tile_ID: 99, Layer_ID: 11, X_Position: 3, Y_Position: 4, Tile_Type: 'Blank1' });
   return createDeps({
     models: {
       Games: {
         findByPk: async () => game,
-        findAll: async () => (game.GAME_STATE === GAMESTATES.SANDBOX ? [game] : []),
+        findAll: async () => (game.sandbox ? [game] : []),
       },
       Players: {
         findAll: async () => (over.membership || [createFakePlayer({ Game_ID: 7, Discord_ID: PLAYER })]),
@@ -78,8 +78,8 @@ describe('the sandbox gate', () => {
   });
 
   it('defaults to the oldest sandbox game the player is in', async () => {
-    const older = createFakeGame({ Game_ID: 2, GAME_STATE: GAMESTATES.SANDBOX });
-    const newer = createFakeGame({ Game_ID: 9, GAME_STATE: GAMESTATES.SANDBOX });
+    const older = createFakeGame({ Game_ID: 2, GAME_STATE: GAMESTATES.ACTIVE, sandbox: true });
+    const newer = createFakeGame({ Game_ID: 9, GAME_STATE: GAMESTATES.ACTIVE, sandbox: true });
     const deps = happyDeps();
     deps.models.Games.findAll = jest.fn(async () => [newer, older]);
     const result = await logic.run(input({ gameId: null, subcommand: 'view-chaos' }), deps);

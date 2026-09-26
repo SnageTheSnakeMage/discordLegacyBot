@@ -127,11 +127,11 @@ describe('punish.run rejections', () => {
   // Passing the gate lands on the unimplemented-class rejection, because
   // punish has no success path.
   it.each([
-    [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-  ])('gamestate %s -> %s', async (state, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+  ])('game %o -> %s', async (condition, reason) => {
+    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(false);
     expect(result.reason).toBe(reason === null ? REJECTIONS.WRONG_CLASS : reason);
@@ -139,7 +139,7 @@ describe('punish.run rejections', () => {
   });
 
   it('does not block a Clockwatcher during a timestop', async () => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED }) });
+    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }) });
     // the actor really is a Clockwatcher: this fixture had no Classes
     // mock, so the gate saw no class and blocked them
     deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Clockwatcher' }));

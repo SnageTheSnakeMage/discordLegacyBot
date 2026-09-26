@@ -75,12 +75,8 @@ const COMMANDS = {
         choices: [
           { name: 'Registration', value: 'REGISTRATION' },
           { name: 'Active', value: 'ACTIVE' },
-          { name: 'Finale', value: 'FINALE' },
-          { name: 'TimeStopped', value: 'TIMESTOPPED' },
           { name: 'DevPaused', value: 'DEV_PAUSED' },
           { name: 'Over', value: 'OVER' },
-          { name: 'Finished', value: 'INACTIVE' },
-          { name: 'Sandbox', value: 'SANDBOX' },
           { name: 'All', value: 'ALL' },
         ],
       },
@@ -197,11 +193,11 @@ const COMMANDS = {
     },
   },
 
-  // /sandbox - debug powers for a game in the SANDBOX gamestate. Each
+  // /sandbox - debug powers for a game with the sandbox flag set. Each
   // subcommand is its own key; Discord forbids mixing subcommands with
   // top-level options, so the game option is repeated on each one.
   'sandbox': {
-    description: 'debug tools for a game in the SANDBOX gamestate',
+    description: 'debug tools for a game with the sandbox flag set',
     subcommands: {
       'get-tile-id': {
         description: 'look up the Tile_ID of a tile by its position',
@@ -626,7 +622,48 @@ const COMMANDS = {
         kind: 'string',
         description: 'which gamestate to change it to',
         required: true,
-        choices: [{ name: 'Registration', value: 'REGISTRATION' }, { name: 'Active', value: 'ACTIVE' }, { name: 'Over', value: 'OVER' }, { name: 'TimeStopped', value: 'TIMESTOPPED' }, { name: 'DevPaused', value: 'DEV_PAUSED' }, { name: 'Finale', value: 'FINALE' }, { name: 'Finished', value: 'INACTIVE' }],
+        choices: [{ name: 'Registration', value: 'REGISTRATION' }, { name: 'Active', value: 'ACTIVE' }, { name: 'DevPaused', value: 'DEV_PAUSED' }, { name: 'Over', value: 'OVER' }],
+      },
+    },
+  },
+
+  // /gameflags - the four booleans that are not points in a game's life.
+  // `set` is the dev's, on any game; `sandbox` is for players in a sandbox
+  // game, who need the same switches on the game they are testing in.
+  'gameflags': {
+    description: 'set the flags that are not gamestates: the clock, time stop, the finale, sandbox mode',
+    subcommands: {
+      'set': {
+        description: 'dev only: set one flag on any game',
+        options: {
+          'flag': {
+            kind: 'string',
+            description: 'which flag to set',
+            required: true,
+            choices: [{ name: 'gameActive (the clock: AP and chaos polls)', value: 'gameActive' }, { name: 'timeStopped (only Clockwatchers may act)', value: 'timeStopped' }, { name: 'finale', value: 'finale' }, { name: 'sandbox', value: 'sandbox' }],
+          },
+          'value': { kind: 'boolean', description: 'what to set it to', required: true },
+          'game': { kind: 'integer', description: 'which game to change, defaults to the oldest being played' },
+        },
+      },
+      'sandbox': {
+        description: 'set a flag on a sandbox game you are in',
+        options: {
+          'flag': {
+            kind: 'string',
+            description: 'which flag to set',
+            required: true,
+            choices: [{ name: 'gameActive (the clock: AP and chaos polls)', value: 'gameActive' }, { name: 'timeStopped (only Clockwatchers may act)', value: 'timeStopped' }, { name: 'finale', value: 'finale' }],
+          },
+          'value': { kind: 'boolean', description: 'what to set it to', required: true },
+          'game': { kind: 'integer', description: 'which sandbox game, defaults to your oldest one' },
+        },
+      },
+      'show': {
+        description: 'show a game\'s state and flags',
+        options: {
+          'game': { kind: 'integer', description: 'which game, defaults to the oldest being played' },
+        },
       },
     },
   },

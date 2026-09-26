@@ -61,16 +61,11 @@ describe('register.run rejections', () => {
 
   // the gamestate table: register does NOT use checkGameState - it requires
   // REGISTRATION and turns every other state away itself
-  it.each([
-    [GAMESTATES.REGISTRATION, null],
-    [GAMESTATES.ACTIVE, REJECTIONS.GAME_NOT_IN_REGISTRATION],
-    [GAMESTATES.INACTIVE, REJECTIONS.GAME_NOT_IN_REGISTRATION],
-    [GAMESTATES.SANDBOX, REJECTIONS.GAME_NOT_IN_REGISTRATION],
-    [GAMESTATES.FINALE, REJECTIONS.GAME_NOT_IN_REGISTRATION],
-    [GAMESTATES.OVER, REJECTIONS.GAME_NOT_IN_REGISTRATION],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_NOT_IN_REGISTRATION],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.GAME_NOT_IN_REGISTRATION],
-  ])('gamestate %s -> %s', async (state, reason) => {
+  const outcomes = Object.values(GAMESTATES).map((state) => [
+    state, state === GAMESTATES.REGISTRATION ? null : REJECTIONS.GAME_NOT_IN_REGISTRATION,
+  ]);
+
+  it.each(outcomes)('%s -> %s', async (state, reason) => {
     const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
@@ -85,8 +80,11 @@ describe('register.run rejections', () => {
     }
   });
 
+  // the table is built from the enum, so this only has to say that the enum is
+  // the four states registration is deciding between
   it('covers every GAMESTATES value in the table above', () => {
-    expect(Object.values(GAMESTATES)).toHaveLength(8);
+    expect(outcomes).toHaveLength(Object.values(GAMESTATES).length);
+    expect(Object.values(GAMESTATES)).toHaveLength(4);
   });
 
   // preserved quirk: the "game is full" gate reads game.playerMax, which is

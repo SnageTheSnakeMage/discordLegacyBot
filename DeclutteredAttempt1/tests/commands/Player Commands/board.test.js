@@ -54,19 +54,19 @@ describe('board.run', () => {
   });
 
   it.each([
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.DEV_PAUSED, REJECTIONS.GAME_PAUSED],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-  ])('gamestate %s blocks with %s', async (state, reason) => {
-    const deps = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.DEV_PAUSED }, REJECTIONS.GAME_PAUSED],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+  ])('game %o blocks with %s', async (condition, reason) => {
+    const deps = happyDeps({ game: createFakeGame({ ...condition }) });
     expect(await logic.run(INPUT, deps)).toMatchObject({ ok: false, reason });
     expect(deps.utils.GenerateGameGridImage).not.toHaveBeenCalled();
   });
 
-  // /board only looks, so the two states that mean "nothing to act on yet"
-  // stay open to it: seeing the grid of a game you are waiting to start.
-  it.each([GAMESTATES.REGISTRATION, GAMESTATES.INACTIVE])('gamestate %s still renders', async (state) => {
-    const deps = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
+  // /board only looks, so the state that means "nothing to act on yet" stays
+  // open to it: seeing the grid of a game you are waiting to start.
+  it('a game in registration still renders', async () => {
+    const deps = happyDeps({ game: createFakeGame({ GAME_STATE: GAMESTATES.REGISTRATION }) });
     expect(await logic.run(INPUT, deps)).toMatchObject({ ok: true });
     expect(deps.utils.GenerateGameGridImage).toHaveBeenCalled();
   });

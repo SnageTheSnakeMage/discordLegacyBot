@@ -278,11 +278,11 @@ describe('move.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   it.each([
-    [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-  ])('gamestate %s -> %s', async (state, reason) => {
-    const { deps } = makeDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state, moveCost: 1 }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+  ])('game %o -> %s', async (condition, reason) => {
+    const { deps } = makeDeps({ game: createFakeGame({ Game_ID: 1, ...condition, moveCost: 1 }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
       expect(result.ok).toBe(true);
@@ -297,16 +297,15 @@ describe('move.run rejections', () => {
   // started is told that and not something about action points - which is why
   // the message is asserted here and not just the reason code.
   it.each([
-    [GAMESTATES.REGISTRATION, REJECTIONS.GAME_IN_REGISTRATION],
-    [GAMESTATES.INACTIVE, REJECTIONS.GAME_INACTIVE],
-  ])('%s is refused by the gate, not by the AP check', async (state, reason) => {
+    [{ GAME_STATE: GAMESTATES.REGISTRATION }, REJECTIONS.GAME_IN_REGISTRATION],
+  ])('%s is refused by the gate, not by the AP check', async (condition, reason) => {
     const { deps } = makeDeps({
       // plenty of AP, so an AP complaint cannot be what comes back
       player: createFakePlayer({
         Player_ID: 1, Class_ID: 1, Game_ID: 1, Discord_ID: DISCORD_ID,
         Action_Points: 99, Health_Points: 10, Free_Move: 0, Tile_ID: 11, Tile_ID2: null,
       }),
-      game: createFakeGame({ Game_ID: 1, GAME_STATE: state, moveCost: 1 }),
+      game: createFakeGame({ Game_ID: 1, ...condition, moveCost: 1 }),
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toEqual({ ok: false, reason });
@@ -316,7 +315,7 @@ describe('move.run rejections', () => {
 
   it('lets a Clockwatcher move during a timestop', async () => {
     const { deps } = makeDeps({
-      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED, moveCost: 1 }),
+      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, moveCost: 1 }),
       playerClass: createFakeClass({ Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);

@@ -93,12 +93,12 @@ describe('trap.run rejections', () => {
   // One row per outcome this command's own gate call can produce; the full
   // state table belongs to utils.checkGameState and tests/utils.pure.test.js.
   it.each([
-    [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.REGISTRATION, REJECTIONS.GAME_IN_REGISTRATION],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-  ])('gamestate %s -> %s', async (state, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+    [{ GAME_STATE: GAMESTATES.REGISTRATION }, REJECTIONS.GAME_IN_REGISTRATION],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+  ])('game %o -> %s', async (condition, reason) => {
+    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
       expect(result.ok).toBe(true);
@@ -110,7 +110,7 @@ describe('trap.run rejections', () => {
 
   it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
-      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED }),
+      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
       playerClass: createFakeClass({ Class_ID: 7, Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);

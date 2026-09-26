@@ -92,13 +92,13 @@ describe('upgrade.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   const GAMESTATE_TABLE = [
-    [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
   ];
 
-  it.each(GAMESTATE_TABLE)('gamestate %s -> %s', async (state, reason) => {
-    const deps = makeDeps({ game: createFakeGame({ GAME_STATE: state }) });
+  it.each(GAMESTATE_TABLE)('game %o -> %s', async (condition, reason) => {
+    const deps = makeDeps({ game: createFakeGame({ ...condition }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
       expect(result.ok).toBe(true);
@@ -271,7 +271,7 @@ describe('upgrade.run preserved quirks', () => {
   });
 
   it('does not block a Clockwatcher during a timestop', async () => {
-    const deps = makeDeps({ game: createFakeGame({ GAME_STATE: GAMESTATES.TIMESTOPPED }) });
+    const deps = makeDeps({ game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }) });
     // the actor really is a Clockwatcher: this fixture had no Classes
     // mock, so the gate saw no class and blocked them
     deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Clockwatcher' }));

@@ -31,13 +31,6 @@ const DISCORD_MESSAGE_LIMIT = 2000;
 //without this a game accumulated a duplicate 30s timer per call and no timer
 //was ever cleared when a game stopped being ACTIVE.
 const apIntervals = new Map();
-//The gamestates an AP distribution may run in: the same three timeCheck
-//starts an interval for, so "has an interval" and "may be paid" cannot drift
-//apart. A whitelist, so a state added to the enum is excluded until it is
-//decided rather than included by accident. SANDBOX is absent because no
-//interval is ever created for a sandbox game - /sandbox ap-tick is its
-//manual path.
-const AP_DISTRIBUTION_STATES = [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE];
 //Tile types the finale's fire spread leaves alone: two nobody can stand on,
 //and the gateways. Smoke and mine tiles already make that gateway exception
 //(see the tile rules in the README) - a Guardian's locked gateway is a game
@@ -58,13 +51,17 @@ module.exports = {
 
 /**
  * Reconciles the running AP check intervals against the games that should
- * have one: every game in a running state ends up with exactly one interval,
- * and every game that left those states has its interval cleared. Safe to
- * call as often as you like, so any code path that creates a game or changes
- * a GAME_STATE can just call this afterwards.
+ * have one: every game whose clock is running ends up with exactly one
+ * interval, and every game whose clock stopped has its interval cleared. Safe
+ * to call as often as you like, so any code path that creates a game or moves
+ * a game's clock can just call this afterwards.
+ *
+ * gameActive is the whole question here, which is why setGameState is the one
+ * writer for it: a game is paid if and only if its clock is running, so "has
+ * an interval" and "may be paid" cannot drift apart.
  */
 async timeCheck(client){ 
-  const games = await models.Games.findAll({where: {GAME_STATE: {[Op.or]: AP_DISTRIBUTION_STATES}}});
+  const games = await models.Games.findAll({where: {gameActive: true}});
   const runningIds = new Set(games.map((game) => game.Game_ID));
   //stop the intervals of games that are no longer running
   for (const gameId of [...apIntervals.keys()]) {
@@ -294,8 +291,8 @@ tallyChaosVotes(votes, eligible, overriderDiscordId) {
 //The row is read fresh every pass, because both things the pass decides on
 //move underneath it. The timestamp is written with models.Games.update, which
 //does not touch an in-memory copy, so a copy held across passes would measure
-//`lastDistrib` from a frozen value and pay more each time; GAME_STATE changes
-//while the interval is live, so a copy would keep paying a paused game.
+//`lastDistrib` from a frozen value and pay more each time; gameActive changes
+//while the interval is live, so a copy would keep paying a stopped game.
 async apCheckTick(gameId, client){
   const game = await models.Games.findByPk(gameId);
   //the game row is gone: nothing left to pay, and nothing to re-check
@@ -305,8 +302,8 @@ async apCheckTick(gameId, client){
   }
   //Not stopped, just skipped. An unpause is then picked up by the next pass
   //on its own, instead of waiting for something to call timeCheck.
-  if(!AP_DISTRIBUTION_STATES.includes(game.GAME_STATE)){
-    logger150.debug({function: "apCheckTick"}, `game ${gameId} is ${game.GAME_STATE}, no AP distributed`);
+  if(!game.gameActive){
+    logger150.debug({function: "apCheckTick"}, `game ${gameId} has a stopped clock (GAME_STATE ${game.GAME_STATE}), no AP distributed`);
     return;
   }
   //how often AP is distributed for the game in milliseconds
@@ -370,10 +367,12 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   //is one multiplier rather than an extra additive write off a stale row.
   //`let`, because the finale doubles it
   let chaosTimes = game.CURR_CC_EVENT === "Time Acceleration!" ? times * 3 : times;
-  if(timeForFinaleTranstion && game.GAME_STATE == GAMESTATES.ACTIVE){
+  //`finale` is a flag rather than a state, so "already in the finale" survives
+  //a timestop: the transition is the one pass where the flag is not yet set.
+  if(timeForFinaleTranstion && !game.finale){
     chaosTimes = await this.finaleTransition(game, chaosTimes);
   }
-  else if(game.GAME_STATE == GAMESTATES.FINALE){
+  else if(game.finale){
     chaosTimes = await this.finaleTick(game, chaosTimes);
   }
   //Close out the chaos council poll from the last interval, if there is one.
@@ -433,11 +432,13 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   //tick down doomsday for immutables
   game.immutableDoomsday--;
 
-  //tick down clockwatcher timestop if the game is timestopped
-  if(game.GAME_STATE == GAMESTATES.TIMESTOPPED){
+  //tick down clockwatcher timestop if the game is timestopped. Clearing the
+  //flag leaves the rest of the game exactly as it was, so a timestop over a
+  //finale game no longer ends by throwing the finale away.
+  if(game.timeStopped){
     game.timestopTurns--;
     if(game.timestopTurns == 0){
-      game.GAME_STATE = GAMESTATES.ACTIVE;
+      game.timeStopped = false;
     }
   }
 
@@ -464,7 +465,7 @@ async getGameLayerIds(gameId){
 //The one-time move into the finale: extra gateways, a first fire spread, and
 //double AP from here on. Returns the multiplier - the caller has to keep it.
 async finaleTransition(game, chaosTimes){
-  game.GAME_STATE = GAMESTATES.FINALE;
+  game.finale = true;
   const additionalGatewayTilesPerLayer = 4
   var layers = await models.Layers.findAll({where: {Game_ID: game.Game_ID}});
   for(const layer of layers){
@@ -1346,20 +1347,16 @@ getTileCordinatesOfLine(tileCord1, tileCord2) {
 async  getOldestActiveGameId(playerDiscordID) {
   if (playerDiscordID) {
     logger150.debug({function: `getOldestActiveGameId`}, `game id was not inputted taking in player discord id: ${playerDiscordID}` +
-       `and finding the oldest game they are in that is in gamestate: ACTIVE, TIMESTOPPED, or FINALE`)
+       `and finding the oldest game they are in that is being played`)
     var players = await models.Players.findAll({where: {Discord_ID: playerDiscordID}, attributes: ["Game_ID"]});
   var games = await models.Games.findAll({where: {
-    GAME_STATE: {
-      [Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE]
-    },
+    GAME_STATE: GAMESTATES.ACTIVE,
     Game_ID: players}});
   }
   else {
-    logger150.debug({function: `getOldestActiveGameId`}, `game id was not inputted, finding the oldest game they are in that is in gamestate: ACTIVE, TIMESTOPPED, or FINALE`)
+    logger150.debug({function: `getOldestActiveGameId`}, `game id was not inputted, finding the oldest game being played`)
     var games = await models.Games.findAll({where: {
-      GAME_STATE: {
-        [Op.or]: [GAMESTATES.ACTIVE, GAMESTATES.TIMESTOPPED, GAMESTATES.FINALE]
-      }}});
+      GAME_STATE: GAMESTATES.ACTIVE}});
   }
   logger150.debug({function: `getOldestActiveGameId`}, `found the following games: ${JSON.stringify(games)} determining which is the oldest via lowest Game_ID`)
   //set oldestGameId to newest Id
@@ -1389,61 +1386,76 @@ async isClockwatcher(models, player) {
   return !!playerClass && playerClass.Class_Name === 'Clockwatcher';
 },
 
+//The one writer for GAME_STATE and gameActive, because the two have to agree:
+//a game that has not started or has finished cannot have a running clock, so
+//REGISTRATION and OVER force gameActive false. ACTIVE and DEV_PAUSED are free
+//either way - a dev pause that leaves the clock running is a deliberate
+//choice, and AP that carries on through a Clockwatcher's timestop is the
+//rule.
+//
+//Starting the clock also resets lastAPDistributionTimestampInMS, because
+//apCheckTick measures catch-up from it: a game whose clock was stopped for
+//three hours would otherwise be paid for all three the moment it started
+//again. The stopped time is not owed - that is the point of stopping.
+//
+//`gameActive` left undefined means "leave the clock as it is"; pass it to move
+//the clock, with or without a state change. Returns the fields it wrote, or
+//null if there is no such game. Takes an injectable db so a logic file can
+//pass deps.models and still exercise this rather than stubbing it.
+async setGameState(gameId, gamestate, { gameActive, db = models } = {}) {
+  const game = await db.Games.findByPk(gameId);
+  if (!game) return null;
+  if (gamestate != null && !Object.values(GAMESTATES).includes(gamestate)) {
+    throw "Gamestate out of enum, gamestate: " + gamestate + ".";
+  }
+  const nextState = gamestate == null ? game.GAME_STATE : gamestate;
+  const clockMayRun = nextState === GAMESTATES.ACTIVE || nextState === GAMESTATES.DEV_PAUSED;
+  let nextActive = gameActive === undefined ? !!game.gameActive : !!gameActive;
+  if (!clockMayRun) nextActive = false;
+  const changes = { GAME_STATE: nextState, gameActive: nextActive };
+  if (nextActive && !game.gameActive) changes.lastAPDistributionTimestampInMS = Date.now();
+  logger150.debug({function: "setGameState"}, `game ${gameId}: ${game.GAME_STATE} -> ${nextState}, clock ${!!game.gameActive} -> ${nextActive}`);
+  await db.Games.update(changes, {where: {Game_ID: gameId}});
+  return changes;
+},
+
+//Pure gamestate gate. Takes the game ROW, not one column: where a game is in
+//its life and whether time is stopped are two separate answers now, and both
+//can block.
+//
 //`readOnly` is for the commands that only LOOK at a game - /stats and
-///board. A game in REGISTRATION or INACTIVE is not playable, so acting in
-//one is refused (issue #145: /move used to fall through this gate and report
-//"not enough action points" for a game that had not started), but looking at
-//it is fine and is the only way to see a roster before the game begins.
-//OVER, DEV_PAUSED and TIMESTOPPED still block a read: those are states where
-//the answer is deliberately withheld, not states where there is nothing yet.
-checkGameState(gamestate, isClockwatcher, { readOnly = false } = {}) {
-  logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate + ", readOnly: " + readOnly );
+///board. A game in REGISTRATION is not playable, so acting in one is refused,
+//but looking at it is fine and is the only way to see a roster before the game
+//begins. OVER, DEV_PAUSED and a timestop still block a read: those withhold
+//the answer on purpose, rather than being a game with nothing in it yet - and
+//a timestop answers to the actor's class either way, so a Clockwatcher reads
+//through one as well as acting through it.
+//
+//The clock (gameActive) is deliberately NOT consulted. A game whose AP is
+//paused is still a game being played, and stopping the clock is not a way to
+//stop everyone acting - that is what DEV_PAUSED and a timestop are for.
+checkGameState(game, isClockwatcher, { readOnly = false } = {}) {
+  const gamestate = game && game.GAME_STATE;
+  logger150.debug({function:"checkGameState"},  "gamestate: " + gamestate + ", timeStopped: " + !!(game && game.timeStopped) + ", readOnly: " + readOnly );
   switch(gamestate) {
     case GAMESTATES.OVER:
       return { blocked: true, reason: REJECTIONS.GAME_OVER };
     case GAMESTATES.DEV_PAUSED:
       return { blocked: true, reason: REJECTIONS.GAME_PAUSED };
-    case GAMESTATES.TIMESTOPPED:
-      if(!isClockwatcher){
-        return { blocked: true, reason: REJECTIONS.TIME_STOPPED };
-      }
-      return { blocked: false };
     case GAMESTATES.REGISTRATION:
       if (readOnly) return { blocked: false };
       return { blocked: true, reason: REJECTIONS.GAME_IN_REGISTRATION };
-    case GAMESTATES.INACTIVE:
-      if (readOnly) return { blocked: false };
-      return { blocked: true, reason: REJECTIONS.GAME_INACTIVE };
     case GAMESTATES.ACTIVE:
-    case GAMESTATES.SANDBOX:
-    case GAMESTATES.FINALE:
+      //a timestop is a condition on a game being played, so it is checked
+      //after the state rather than instead of it
+      if (game.timeStopped && !isClockwatcher) {
+        return { blocked: true, reason: REJECTIONS.TIME_STOPPED };
+      }
       return { blocked: false };
     default:
       logger150.debug({function:"checkGameState"}, 'threw an error because gamestate was: ' + gamestate );
       throw "Gamestate out of enum, gamestate: " + gamestate + "."
   }
-},
-
-//Transitional bridge with the old checkGameState behaviour: decide, reply,
-//return a boolean. Commands not yet converted to the parse/run/present shape
-//call this; each conversion replaces it with the pure checkGameState above,
-//and the bridge is deleted once no callers remain.
-async checkGameStateAndReply(gamestate, isClockwatcher, interaction) {
-  let verdict;
-  try {
-    verdict = this.checkGameState(gamestate, isClockwatcher);
-  } catch (err) {
-    await interaction.editReply({ content: "Gamestate out of enum, gamestate: " + gamestate + "."});
-    throw err;
-  }
-  if (!verdict.blocked) return false;
-  const messages = {
-    [REJECTIONS.GAME_OVER]: "Game is over! only the dev can use commands for this game at this time.\n Please register on a new game.",
-    [REJECTIONS.GAME_PAUSED]: "Game is paused! only the dev can use commands for this game at this time.",
-    [REJECTIONS.TIME_STOPPED]: "Time is stopped! only Clockwatchers can use commands at this time.",
-  };
-  await interaction.editReply({ content: messages[verdict.reason], ephemeral: true });
-  return true;
 },
 
 async getOldestGameId(playerDiscordID) {

@@ -39,7 +39,7 @@ async function run(input, deps = defaultDeps) {
   if (!player) return { ok: false, reason: REJECTIONS.NOT_IN_GAME };
 
   const playerClass = await models.Classes.findByPk(player.Class_ID);
-  const verdict = utils.checkGameState(game.GAME_STATE, playerClass.Class_Name === 'Clockwatcher', { readOnly: true });
+  const verdict = utils.checkGameState(game, playerClass.Class_Name === 'Clockwatcher', { readOnly: true });
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   let layerId;

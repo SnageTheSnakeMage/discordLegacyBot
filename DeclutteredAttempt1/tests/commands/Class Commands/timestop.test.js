@@ -99,14 +99,14 @@ describe('timestop.run rejections', () => {
   // included) still stops time. A new state cannot be added without deciding
   // this test.
   it.each([
-    [GAMESTATES.ACTIVE],
-    [GAMESTATES.OVER],
-  ])('gamestate %s -> succeeds (no gamestate gate)', async (state) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, AP_INTERVAL_MIN: 720, GAME_STATE: state }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }],
+    [{ GAME_STATE: GAMESTATES.OVER }],
+  ])('game %o -> succeeds (no gamestate gate)', async (condition) => {
+    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, AP_INTERVAL_MIN: 720, ...condition }) });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: GAMESTATES.TIMESTOPPED, timestopTurns: 4 },
+      { timeStopped: true, timestopTurns: 4 },
       { where: { Game_ID: 1 } },
     );
   });
@@ -131,7 +131,7 @@ describe('timestop.run success', () => {
       data: { gameId: 1, turns: 4, minutes: 2880 },
     });
     expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: GAMESTATES.TIMESTOPPED, timestopTurns: 4 },
+      { timeStopped: true, timestopTurns: 4 },
       { where: { Game_ID: 1 } },
     );
     expect(deps.models.Games.update).toHaveBeenCalledTimes(1);

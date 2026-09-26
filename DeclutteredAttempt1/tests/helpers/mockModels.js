@@ -108,7 +108,13 @@ function expectNoWrites(deps) {
 function createFakeGame(overrides = {}) {
   return {
     Game_ID: 1,
+    // a game being played, with its clock running and no flags set - what
+    // /change-gamestate writes when it starts a game
     GAME_STATE: GAMESTATES.ACTIVE,
+    gameActive: true,
+    timeStopped: false,
+    finale: false,
+    sandbox: false,
     AP_INTERVAL_MIN: 720,
     CHEST_AMOUNT: 0,
     LAST_CHEST_GIVER: null,

@@ -118,10 +118,10 @@ describe('override.run rejections', () => {
   // can override in every state, OVER/DEV_PAUSED/TIMESTOPPED included; this
   // table pins that a new state cannot silently change it either
   it.each([
-    [GAMESTATES.ACTIVE],
-    [GAMESTATES.OVER],
-  ])('gamestate %s -> succeeds (no gamestate gate)', async (state) => {
-    const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }],
+    [{ GAME_STATE: GAMESTATES.OVER }],
+  ])('game %o -> succeeds (no gamestate gate)', async (condition) => {
+    const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
   });

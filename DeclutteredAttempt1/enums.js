@@ -1,12 +1,34 @@
+//Where a game is in its life, and nothing else. Exactly one of these is true
+//of a game at any moment, which is what makes it an enum: signing up, being
+//played, held by the dev, finished.
+//
+//Time stop, the finale, sandbox mode and whether the clock is running are NOT
+//points in that life - they are conditions that can hold while a game is
+//being played, and they can hold at the same time as each other. They live in
+//the GAME_FLAGS columns instead. As gamestates they were mutually exclusive
+//with being ACTIVE, so each one erased whatever it replaced: a timestop over
+//a finale game came back as ACTIVE, and the finale transition then ran a
+//second time.
 const GAMESTATES = Object.freeze({
+  REGISTRATION: "REGISTRATION",
   ACTIVE: "ACTIVE",
   DEV_PAUSED: "DEV_PAUSED",
-  OVER: "OVER",
-  TIMESTOPPED: "TIMESTOPPED",
-  FINALE: "FINALE",
-  REGISTRATION: "REGISTRATION",
-  INACTIVE: "INACTIVE",
-  SANDBOX: "SANDBOX"
+  OVER: "OVER"
+})
+
+//The boolean Games columns that used to be gamestates, plus gameActive. Any
+//combination of them is legal on a game that is being played.
+//
+//gameActive is the switch for the game clock: AP distribution and the chaos
+//council poll. It is free to be either way while a game is ACTIVE or
+//DEV_PAUSED, and is forced false for REGISTRATION and OVER - a game that has
+//not started or has finished cannot tick. utils.setGameState is what enforces
+//that.
+const GAME_FLAGS = Object.freeze({
+  gameActive: "gameActive",
+  timeStopped: "timeStopped",
+  finale: "finale",
+  sandbox: "sandbox"
 })
 
 
@@ -62,8 +84,10 @@ const REJECTIONS = Object.freeze({
   GAME_PAUSED: "GAME_PAUSED",
   TIME_STOPPED: "TIME_STOPPED",
   GAME_IN_REGISTRATION: "GAME_IN_REGISTRATION",
-  GAME_INACTIVE: "GAME_INACTIVE",
   GAME_NOT_IN_REGISTRATION: "GAME_NOT_IN_REGISTRATION",
+  // the clock cannot run on a game that has not started or has finished
+  CLOCK_NOT_ALLOWED: "CLOCK_NOT_ALLOWED",
+  NO_SUCH_FLAG: "NO_SUCH_FLAG",
   // actor
   NO_SUCH_GAME: "NO_SUCH_GAME",
   NOT_IN_GAME: "NOT_IN_GAME",
@@ -108,6 +132,7 @@ const REJECTIONS = Object.freeze({
 
 module.exports = {
   GAMESTATES,
+  GAME_FLAGS,
   ChaosEvents,
   REJECTIONS,
 }

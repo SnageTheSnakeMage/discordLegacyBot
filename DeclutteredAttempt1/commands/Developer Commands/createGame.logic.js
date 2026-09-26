@@ -51,6 +51,12 @@ async function run(input, deps = defaultDeps) {
 
   await models.Games.create({
     GAME_STATE: GAMESTATES.REGISTRATION,
+    //a new game is signing up, so its clock is off and none of the flags are
+    //set; /change-gamestate starts it and /gameflags turns the rest on
+    gameActive: false,
+    timeStopped: false,
+    finale: false,
+    sandbox: false,
     AP_INTERVAL_MIN: input.apDistributionInterval,
     CHEST_AMOUNT: input.chestAmount,
     LAST_CHEST_GIVER: null,

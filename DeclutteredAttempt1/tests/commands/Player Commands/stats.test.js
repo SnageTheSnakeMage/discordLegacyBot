@@ -111,15 +111,14 @@ describe('stats.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   it.each([
-    [GAMESTATES.ACTIVE, null],
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
     // blocked for anything that acts; /stats reads, so it passes readOnly and
     // these two are open to it. These rows fail if that argument is dropped.
-    [GAMESTATES.REGISTRATION, null],
-    [GAMESTATES.INACTIVE, null],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-  ])('gamestate %s -> %s', async (state, reason) => {
-    const deps = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
+    [{ GAME_STATE: GAMESTATES.REGISTRATION }, null],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+  ])('game %o -> %s', async (condition, reason) => {
+    const deps = happyDeps({ game: createFakeGame({ ...condition }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
       expect(result.ok).toBe(true);
@@ -131,7 +130,7 @@ describe('stats.run rejections', () => {
 
   it('does not block a Clockwatcher during a timestop', async () => {
     const deps = happyDeps({
-      game: createFakeGame({ GAME_STATE: GAMESTATES.TIMESTOPPED }),
+      game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
       playerClass: createFakeClass({ Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);

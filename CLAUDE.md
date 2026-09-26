@@ -367,27 +367,71 @@ The fix in both cases is the same: read the row where the decision is made.
 `utils.apCheckTick(gameId, client)` exists so that one pass is a function that
 re-reads and can be tested without fake timers.
 
-### The gamestate gate now refuses REGISTRATION and INACTIVE
+### GAMESTATES is where a game is in its life, and nothing else
 
-`checkGameState(state, isClockwatcher, { readOnly })`:
+Four states, one true at a time: `REGISTRATION`, `ACTIVE`, `DEV_PAUSED`,
+`OVER`. Everything else that used to be a gamestate is a boolean column on
+`Games`, listed in `GAME_FLAGS`, and any combination of them is legal:
 
-| state | acting | reading |
+| column | means |
+|---|---|
+| `gameActive` | the game clock: AP distribution and the chaos council poll |
+| `timeStopped` | a Clockwatcher's timestop - only Clockwatchers may act |
+| `finale` | the one-time finale transition has happened |
+| `sandbox` | a debug game: `/sandbox` works on it, `/sandbox ap-tick` drives it |
+
+As gamestates they were mutually exclusive with being `ACTIVE`, so each one
+erased whatever it replaced. That is the bug behind #150: a timestop over a
+finale game came back as `ACTIVE`, nothing recorded that the transition had
+happened, and the next distribution ran it again - four more gateways per
+layer, every time.
+
+- **`gameActive` is the only thing that decides whether a game is paid.**
+  Not the gamestate, not `timeStopped`, not `finale`. A timestopped or finale
+  game is still being paid, which is what it was before they were flags.
+- **`utils.setGameState(gameId, gamestate, { gameActive, db })` is the one
+  writer** for the state and the clock, because they have to agree:
+  `REGISTRATION` and `OVER` force the clock off, `ACTIVE` and `DEV_PAUSED` are
+  free either way. Leave `gameActive` out to move the state and leave the clock
+  alone; pass `gamestate: null` to move only the clock.
+- **Starting the clock resets `lastAPDistributionTimestampInMS`**, in that same
+  writer. `apCheckTick` measures catch-up from it, so a game unpaused after
+  three hours would otherwise be paid for all three in one lump. The stopped
+  time is not owed.
+- **`finale` is set once and never cleared**; that stickiness IS the fix, so
+  nothing should clear it.
+- **`/gameflags`** sets the four: `set` for the dev on any game, `sandbox` for a
+  player in their own sandbox game (which cannot touch `sandbox` itself), and
+  `show` to read them. `/change-gamestate` only moves the enum, and takes the
+  clock with it.
+
+### The gamestate gate takes the game ROW
+
+`checkGameState(game, isClockwatcher, { readOnly })` - the row, not one column,
+because where a game is in its life and whether time is stopped are two
+separate answers and both can block:
+
+| condition | acting | reading |
 |---|---|---|
-| `ACTIVE`, `SANDBOX`, `FINALE` | allowed | allowed |
+| `ACTIVE` | allowed | allowed |
 | `REGISTRATION` | `GAME_IN_REGISTRATION` | allowed |
-| `INACTIVE` | `GAME_INACTIVE` | allowed |
 | `OVER`, `DEV_PAUSED` | refused | refused |
-| `TIMESTOPPED` | Clockwatchers only | refused |
+| `timeStopped` (on top of the state) | Clockwatchers only | Clockwatchers only |
 
 `readOnly: true` is passed by `/stats` and `/board` and nothing else: those two
 only look, and a game you are waiting to start is exactly what you want to
-look at. Before this, both states were `blocked: false`, so a command's own
+look at. Before this, `REGISTRATION` was `blocked: false`, so a command's own
 checks answered first — which is why `/move` on a registration game complained
 about action points (#145).
 
+The clock is deliberately **not** consulted: a game whose AP is paused is still
+a game being played, and stopping the clock is not a way to stop everyone
+acting - `DEV_PAUSED` and a timestop are.
+
 `/stats` resolves its default game with `getOldestGameId` (any state) on
 purpose (#143); an active-only resolver cannot return the registration game
-the readOnly exemption exists for.
+the readOnly exemption exists for. `getOldestActiveGameId` means `GAME_STATE
+ACTIVE` - the three states it used to list all collapsed into it.
 
 The gate has no idea who the dev is — `DEV_ID` is read in the adapters — so
 its messages no longer claim "only the dev can use commands" (#166). The dev's
@@ -435,14 +479,15 @@ The icon rules are in the icon-path section above; two things it does not say:
   bot:bot /data/<dir>`; and prefer `docker exec` over a root container when the
   files must stay writable.
 
-### The AP path logs nothing in production
+### The log level comes from LOG_LEVEL, and defaults to near-silence
 
-`index.js` builds pino with no `level`, so the default `info` applies and
-**every `logger.debug` line is dropped** — which is all of the AP check,
-`distributeAP` and the chaos events. pino reads no environment variable on its
-own, so there is no way to turn it up on the host: it needs
-`level: process.env.LOG_LEVEL || 'info'` in `index.js` first. Nothing in the
-AP path logs at `info` or above. Not yet fixed.
+Almost everything the bot logs is at `debug` — the whole AP check,
+`distributeAP` and the chaos events log at nothing else — and pino keeps
+nothing below its level. Both loggers (`index.js`, whose children reach
+everything through `globalThis.topLogger`, and the per-command one in
+`events/interactionCreate.js`) take `process.env.LOG_LEVEL || 'info'`, so
+`LOG_LEVEL=debug` in the host's `.env` is what makes that path visible.
+`dotenv.config()` runs **before** the logger is built for that reason.
 
 `docker logs discord-bot` is the only copy of anything — no log file is
 written inside the container — and `docker-compose.yml` caps it at 5 x 10 MB.
@@ -454,6 +499,21 @@ Only three places read `CURR_CC_EVENT` for effects:
 `applyChaosEventToPlayer`, `distributeAP`'s Time Acceleration multiplier and
 `ChaosEventDeathCheck`. None mentions `Blockade`, and `shoot.logic.js` damages
 a `Wall` unconditionally. The other 13 live entries are wired up.
+
+### A schema change needs `bootstrap-db.js`, not just the model
+
+`sequelize.sync()` creates a table that does not exist and **never alters one
+that does**, so adding a column to a model does nothing to the live volume. The
+container runs `node scripts/bootstrap-db.js && node index.js`, which is where a
+migration belongs: `migrateGameFlags` adds its columns with
+`queryInterface.addColumn` and rewrites the rows.
+
+Gate the data half on the schema half — "were the columns missing?" — not just
+on being idempotent. This runs on every boot, and re-running the rewrites would
+start the clock on a game whose clock was deliberately stopped since. Watch the
+order of blanket rules too: three of those rewrites set `GAME_STATE` to
+`'ACTIVE'`, so a later "ACTIVE means the clock runs" caught the sandbox rows the
+line above had just excluded. The test found it; the queries had looked right.
 
 ### Stacked PRs need retargeting when the base merges
 

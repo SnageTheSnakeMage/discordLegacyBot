@@ -227,8 +227,8 @@ describe('reloadCommands run file selection', () => {
   // The gamestate table. This command deliberately has NO gamestate gate - the
   // dev reloads code no matter what any game is doing - so the table pins that
   // absence: adding a state that should block a reload breaks this test.
-  it.each([GAMESTATES.ACTIVE, GAMESTATES.OVER])('reloads regardless of gamestate %s', async (state) => {
-    const deps = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
+  it.each([GAMESTATES.ACTIVE, GAMESTATES.OVER])('reloads regardless of gamestate %s', async (condition) => {
+    const deps = happyDeps({ game: createFakeGame({ ...condition }) });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect(result.data.reloaded).toHaveLength(3);

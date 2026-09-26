@@ -49,7 +49,7 @@ async function run(input, deps = defaultDeps) {
 
   const giverClass = await models.Classes.findByPk(giver.Class_ID);
   const isClockwatcher = !!giverClass && giverClass.Class_Name === 'Clockwatcher';
-  const verdict = utils.checkGameState(game.GAME_STATE, isClockwatcher);
+  const verdict = utils.checkGameState(game, isClockwatcher);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (giver.Action_Points < input.amount) {

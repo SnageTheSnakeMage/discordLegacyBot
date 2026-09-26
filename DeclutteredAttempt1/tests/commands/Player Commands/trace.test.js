@@ -86,7 +86,7 @@ describe('trace.run rejections', () => {
   });
 
   it('is blocked by the gamestate gate like any other player command', async () => {
-    const deps = happyDeps({ game: createFakeGame({ GAME_STATE: GAMESTATES.TIMESTOPPED }) });
+    const deps = happyDeps({ game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }) });
     expect((await logic.run(input(), deps)).ok).toBe(false);
   });
 });

@@ -54,18 +54,15 @@ async function run(input, deps = defaultDeps) {
   const game = await models.Games.findByPk(gameId);
   if (!game) return { ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId } };
 
+  //A dev pause stops the clock with the state, and unpausing starts it again.
+  //setGameState resets the AP timestamp on the way back, so an hour of being
+  //paused is not paid out in one lump the moment the game resumes.
   if (game.GAME_STATE === GAMESTATES.DEV_PAUSED) {
-    await models.Games.update(
-      { GAME_STATE: GAMESTATES.ACTIVE },
-      { where: { Game_ID: gameId } },
-    );
+    await utils.setGameState(gameId, GAMESTATES.ACTIVE, { gameActive: true, db: models });
     return { ok: true, kind: 'unpaused', data: { gameId } };
   }
 
-  await models.Games.update(
-    { GAME_STATE: GAMESTATES.DEV_PAUSED },
-    { where: { Game_ID: gameId } },
-  );
+  await utils.setGameState(gameId, GAMESTATES.DEV_PAUSED, { gameActive: false, db: models });
   return { ok: true, kind: 'paused', data: { gameId } };
 }
 

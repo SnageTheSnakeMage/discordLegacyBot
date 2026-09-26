@@ -86,37 +86,47 @@ describe('apCheckTick', () => {
     expect(await apOf(player)).toBe(12);
   });
 
-  // the state is read fresh every pass, so a pause that lands after the
-  // interval started is seen by the next one
-  it.each([GAMESTATES.DEV_PAUSED, GAMESTATES.INACTIVE, GAMESTATES.OVER, GAMESTATES.REGISTRATION])(
-    'pays nothing while the game is %s',
+  // the clock is read fresh every pass, so stopping it after the interval
+  // started is seen by the next one
+  it('pays nothing while the clock is stopped', async () => {
+    const { game, player } = await seedBehind();
+    await models.Games.update({ gameActive: false }, { where: { Game_ID: game.Game_ID } });
+
+    await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
+
+    expect(await apOf(player)).toBe(0);
+    // and the timestamp is untouched, so a stopped clock does not eat the AP
+    // the game is owed once it starts again
+    expect((await models.Games.findByPk(game.Game_ID)).lastAPDistributionTimestampInMS)
+      .toBe(game.lastAPDistributionTimestampInMS);
+  });
+
+  // the states that cannot have a running clock at all. setGameState is what
+  // enforces that, so these go through it rather than writing the column.
+  it.each([GAMESTATES.REGISTRATION, GAMESTATES.OVER])(
+    'pays nothing for a game moved to %s, which cannot run a clock',
     async (state) => {
       const { game, player } = await seedBehind();
-      await models.Games.update({ GAME_STATE: state }, { where: { Game_ID: game.Game_ID } });
+      await utils.setGameState(game.Game_ID, state, { gameActive: true });
 
       await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
 
       expect(await apOf(player)).toBe(0);
-      // and the timestamp is untouched, so the pause does not eat the AP the
-      // game is owed once it resumes
-      expect((await models.Games.findByPk(game.Game_ID)).lastAPDistributionTimestampInMS)
-        .toBe(game.lastAPDistributionTimestampInMS);
     },
   );
 
-  it.each([GAMESTATES.ACTIVE, GAMESTATES.FINALE, GAMESTATES.TIMESTOPPED])(
-    'pays a game that is %s',
-    async (state) => {
-      const { game, player } = await seedBehind();
-      await models.Games.update(
-        // a timestop with turns left, so the state is not a mid-tick no-op
-        { GAME_STATE: state, timestopTurns: state === GAMESTATES.TIMESTOPPED ? 3 : 0 },
-        { where: { Game_ID: game.Game_ID } },
-      );
-      await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
-      expect(await apOf(player)).toBeGreaterThan(0);
-    },
-  );
+  // the flags do not stop the clock: a timestopped or finale game is still
+  // being paid, which is what it was before they were flags
+  it.each([
+    ['no flags', {}],
+    ['in the finale', { finale: true }],
+    ['with time stopped', { timeStopped: true, timestopTurns: 3 }],
+  ])('pays a running game %s', async (_label, flags) => {
+    const { game, player } = await seedBehind();
+    await models.Games.update(flags, { where: { Game_ID: game.Game_ID } });
+    await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
+    expect(await apOf(player)).toBeGreaterThan(0);
+  });
 
   it('posts no council poll while the game is paused', async () => {
     const send = jest.fn(async () => ({ id: '999' }));

@@ -7,9 +7,42 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
+    // where the game is in its life: REGISTRATION, ACTIVE, DEV_PAUSED, OVER.
+    // See the GAMESTATES comment in enums.js for why time stop, the finale and
+    // sandbox mode are the four booleans below instead of more of these.
     GAME_STATE: {
       type: DataTypes.STRING,
       allowNull: false
+    },
+    // is the game clock running: AP distribution and the chaos council poll.
+    // Not the same question as GAME_STATE - a game can be ACTIVE with the
+    // clock stopped, and REGISTRATION and OVER force it false.
+    gameActive: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    // a Clockwatcher's timestop: only Clockwatchers may act. timestopTurns
+    // counts the AP distributions left before it lifts.
+    timeStopped: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    // the game has passed finaleThreshold and made its one-time transition:
+    // extra gateways, fire spread each distribution, double AP. Set once and
+    // never cleared, which is what stops the transition running twice.
+    finale: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    // a debug game: /sandbox works on it, and its clock is driven by hand
+    // with /sandbox ap-tick rather than by an interval.
+    sandbox: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
     },
     AP_INTERVAL_MIN: {
       type: DataTypes.INTEGER,

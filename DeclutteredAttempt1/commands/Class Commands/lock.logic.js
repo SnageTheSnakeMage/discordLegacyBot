@@ -23,7 +23,7 @@
  * refresh the in-memory row, so "You have made a Gateway_Open tile" is what
  * a player saw after locking one. Both are pinned by tests.
  */
-const { GAMESTATES, REJECTIONS } = require('../../enums.js');
+const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
 const defaultDeps = require('../_deps.js');
 
@@ -69,7 +69,7 @@ async function run(input, deps = defaultDeps) {
   // a Clockwatcher acts through a timestop. Every call site used to
   // hard-code false here, so the class's whole ability did nothing.
   const verdict = utils.checkGameState(
-    game.GAME_STATE, await utils.isClockwatcher(models, player),
+    game, await utils.isClockwatcher(models, player),
   );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
@@ -89,7 +89,7 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.NOT_ENOUGH_AP, data: { action: 'lock/unlock a tile' } };
   }
 
-  if (game.GAME_STATE === GAMESTATES.FINALE
+  if (game.finale
     && tileToChange.Tile_Type === 'Gateway_Open'
     && gatewaysRemaining.length === 1) {
     return { ok: false, reason: REJECTIONS.WRONG_TILE_TYPE, data: { message: 'You cannot lock the last open gateway in the layer during a finale!' } };
