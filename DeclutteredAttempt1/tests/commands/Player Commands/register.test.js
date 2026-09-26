@@ -113,11 +113,9 @@ describe('register.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // #144. Accepting anything image/* is what the issue's wording allows and
-  // the renderer cannot honour: node-canvas here is built against libpng and
-  // libjpeg only, so a WebP would upload, fail to decode, and quietly render
-  // as default.png. Refusing it at registration is the only point at which
-  // the player can be told why.
+  // node-canvas here decodes PNG and JPEG only, so anything else would upload
+  // and then render as default.png with nothing in the logs. Registration is
+  // the last point at which the player can be told why.
   it.each(['image/webp', 'image/avif', 'image/gif', 'video/mp4', 'application/pdf'])(
     'rejects a %s icon and writes nothing',
     async (contentType) => {
@@ -132,14 +130,14 @@ describe('register.run rejections', () => {
     },
   );
 
-  it('accepts a JPEG now that the format is not PNG-only', async () => {
+  it('accepts a JPEG', async () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, contentType: 'image/jpeg' } }, deps);
     expect(result.ok).toBe(true);
   });
 
-  // the size requirement is gone: the renderer scales the icon into a
-  // quadrant of a tile, so only the shape can be wrong
+  // the renderer scales the icon into a quadrant of a tile, so any square
+  // size draws correctly
   it.each([[16, 16], [80, 80], [512, 512], [1024, 1024]])(
     'accepts a square %dx%d icon',
     async (width, height) => {
