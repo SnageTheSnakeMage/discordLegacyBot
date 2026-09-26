@@ -76,11 +76,11 @@ describe('deliver.run rejections', () => {
   // isClockwatcher is hardcoded false in deliver, so TIMESTOPPED always
   // blocks.
   it.each([
-    [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-  ])('gamestate %s -> %s', async (state, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+  ])('game %o -> %s', async (condition, reason) => {
+    const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
       expect(result.ok).toBe(true);

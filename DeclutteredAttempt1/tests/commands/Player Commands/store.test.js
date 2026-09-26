@@ -73,11 +73,11 @@ describe('store.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   it.each([
-    [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-  ])('gamestate %s -> %s', async (state, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state, CHEST_AMOUNT: 10 }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+  ])('game %o -> %s', async (condition, reason) => {
+    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition, CHEST_AMOUNT: 10 }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
       expect(result.ok).toBe(true);
@@ -90,7 +90,7 @@ describe('store.run rejections', () => {
   // quirk pin: the old code passed a hard false for isClockwatcher and never
   // looked the class up, so even a Clockwatcher is blocked during a timestop
   it('does not block a Clockwatcher during a timestop', async () => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED, CHEST_AMOUNT: 10 }) });
+    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, CHEST_AMOUNT: 10 }) });
     // the actor really is a Clockwatcher: this fixture had no Classes
     // mock, so the gate saw no class and blocked them
     deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Clockwatcher' }));

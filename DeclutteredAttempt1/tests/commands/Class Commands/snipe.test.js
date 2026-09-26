@@ -150,11 +150,11 @@ describe('snipe.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   it.each([
-    [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-  ])('gamestate %s -> %s', async (state, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state, shootCost: 2 }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+  ])('game %o -> %s', async (condition, reason) => {
+    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition, shootCost: 2 }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
       expect(result.ok).toBe(true);
@@ -168,7 +168,7 @@ describe('snipe.run rejections', () => {
   // unlike most commands even a Clockwatcher is frozen out by a timestop
   it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
-      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED, shootCost: 2 }),
+      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, shootCost: 2 }),
       sniperClass: createFakeClass({ Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);

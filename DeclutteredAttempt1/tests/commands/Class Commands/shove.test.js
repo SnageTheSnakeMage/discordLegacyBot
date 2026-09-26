@@ -228,7 +228,7 @@ describe('shove.run rejections', () => {
   });
 
   it('is blocked by a timestop, but not for a Clockwatcher', async () => {
-    const stopped = { game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED }) };
+    const stopped = { game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }) };
     const { result } = await rejects(stopped);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TIME_STOPPED });
   });

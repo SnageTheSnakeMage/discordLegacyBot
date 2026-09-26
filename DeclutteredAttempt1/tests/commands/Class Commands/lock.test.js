@@ -179,7 +179,7 @@ describe('lock.run rejections', () => {
   it('rejects locking the last open gateway of a layer during a finale', async () => {
     const gateway = createFakeTile({ Tile_ID: 42, X_Position: 3, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' });
     const { deps } = happyDeps({
-      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.FINALE }),
+      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, finale: true }),
       tileToChange: gateway,
       layersTiles: [gateway, createFakeTile({ Tile_ID: 43, Tile_Type: 'Gateway_Locked' })],
     });
@@ -195,7 +195,7 @@ describe('lock.run rejections', () => {
   it('still allows UNlocking during a finale when only one gateway is open', async () => {
     const locked = createFakeTile({ Tile_ID: 42, X_Position: 3, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Gateway_Locked' });
     const { deps } = happyDeps({
-      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.FINALE }),
+      game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, finale: true }),
       tileToChange: locked,
       layersTiles: [locked, createFakeTile({ Tile_ID: 43, Tile_Type: 'Gateway_Open' })],
     });
@@ -210,11 +210,11 @@ describe('lock.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   it.each([
-    [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-  ])('gamestate %s -> %s', async (state, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+  ])('game %o -> %s', async (condition, reason) => {
+    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
       expect(result.ok).toBe(true);
@@ -225,7 +225,7 @@ describe('lock.run rejections', () => {
   });
 
   it('blocks a Guardian during a timestop (the gate is asked with isClockwatcher false)', async () => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED }) });
+    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }) });
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.TIME_STOPPED);
     expectNoWrites(deps);

@@ -97,7 +97,7 @@ async function run(input, deps = defaultDeps) {
   });
 
   const verdict = utils.checkGameState(
-    game.GAME_STATE, await utils.isClockwatcher(models, player),
+    game, await utils.isClockwatcher(models, player),
   );
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 

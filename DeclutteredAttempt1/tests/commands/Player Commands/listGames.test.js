@@ -34,15 +34,20 @@ describe('listGames.run', () => {
   it('returns every game as plain data and writes nothing (read-only)', async () => {
     const deps = createDeps({ models: { Games: { findAll: async () => [
       createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, CURR_CC_EVENT: 'BOOOORRRINNNG', winner: null }),
-      createFakeGame({ Game_ID: 2, GAME_STATE: GAMESTATES.OVER, CURR_CC_EVENT: 'Blockade', winner: 'snage' }),
+      createFakeGame({
+        Game_ID: 2, GAME_STATE: GAMESTATES.OVER, gameActive: false, finale: true,
+        CURR_CC_EVENT: 'Blockade', winner: 'snage',
+      }),
     ] } } });
     const result = await logic.run(ALL, deps);
+    // the flags are listed because the gamestate no longer says any of it: the
+    // finished game below reached its finale, and neither state shows that
     expect(result).toEqual({
       ok: true,
       kind: 'gameList',
       data: { gamestate: 'ALL', games: [
-        { gameId: 1, gameState: GAMESTATES.ACTIVE, chaosEvent: 'BOOOORRRINNNG', winner: null },
-        { gameId: 2, gameState: GAMESTATES.OVER, chaosEvent: 'Blockade', winner: 'snage' },
+        { gameId: 1, gameState: GAMESTATES.ACTIVE, flags: ['clock running'], chaosEvent: 'BOOOORRRINNNG', winner: null },
+        { gameId: 2, gameState: GAMESTATES.OVER, flags: ['clock stopped', 'finale'], chaosEvent: 'Blockade', winner: 'snage' },
       ] },
     });
     expect(deps.models.Games.update).not.toHaveBeenCalled();
@@ -93,10 +98,10 @@ describe('listGames.run', () => {
 describe('listGames.present', () => {
   it('renders one game byte-identical to the legacy format', () => {
     const out = logic.present({ ok: true, kind: 'gameList', data: { games: [
-      { gameId: 1, gameState: 'ACTIVE', chaosEvent: 'BOOOORRRINNNG', winner: null },
+      { gameId: 1, gameState: 'ACTIVE', flags: ['clock running'], chaosEvent: 'BOOOORRRINNNG', winner: null },
     ] } });
     expect(out).toEqual({
-      content: 'Game ID:1 - Game State: ACTIVE\n Current Chaos Council Event: BOOOORRRINNNG - No chaos,\n Winner: null\n--------\n',
+      content: 'Game ID:1 - Game State: ACTIVE (clock running)\n Current Chaos Council Event: BOOOORRRINNNG - No chaos,\n Winner: null\n--------\n',
     });
   });
 

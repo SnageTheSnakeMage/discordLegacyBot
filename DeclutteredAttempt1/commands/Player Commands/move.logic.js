@@ -450,7 +450,7 @@ async function run(input, deps = defaultDeps) {
 
   if (player.Dead) return { ok: false, reason: REJECTIONS.PLAYER_DEAD };
 
-  const gameStateVerdict = utils.checkGameState(game.GAME_STATE, playerClass.Class_Name == 'Clockwatcher');
+  const gameStateVerdict = utils.checkGameState(game, playerClass.Class_Name == 'Clockwatcher');
   if (gameStateVerdict.blocked) return { ok: false, reason: gameStateVerdict.reason };
 
   //#region Calculation of New Position

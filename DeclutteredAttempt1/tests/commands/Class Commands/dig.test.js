@@ -94,11 +94,11 @@ describe('dig.run rejections', () => {
   // TIMESTOPPED always blocks (a Gravedigger is never a Clockwatcher) -
   // preserved.
   it.each([
-    [GAMESTATES.ACTIVE, null],
-    [GAMESTATES.OVER, REJECTIONS.GAME_OVER],
-    [GAMESTATES.TIMESTOPPED, REJECTIONS.TIME_STOPPED],
-  ])('gamestate %s -> %s', async (state, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: state }) });
+    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+  ])('game %o -> %s', async (condition, reason) => {
+    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
     const result = await logic.run(INPUT, deps);
     if (reason === null) {
       expect(result.ok).toBe(true);
