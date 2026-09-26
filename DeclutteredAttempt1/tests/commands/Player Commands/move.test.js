@@ -293,6 +293,30 @@ describe('move.run rejections', () => {
     }
   });
 
+  // The reported symptom of #145: a registration game answered "does not have
+  // enough action points for movement requested" - the gate passed the state
+  // through and the AP check was the first thing to object, so the player was
+  // told the wrong thing about a game that had not started. The message, not
+  // just the reason code, is what was wrong, so it is asserted here.
+  it.each([
+    [GAMESTATES.REGISTRATION, REJECTIONS.GAME_IN_REGISTRATION],
+    [GAMESTATES.INACTIVE, REJECTIONS.GAME_INACTIVE],
+  ])('%s is refused by the gate, not by the AP check', async (state, reason) => {
+    const { deps } = makeDeps({
+      // plenty of AP: the point is that the gate answers first, so the old
+      // "not enough action points" reply cannot be what comes back
+      player: createFakePlayer({
+        Player_ID: 1, Class_ID: 1, Game_ID: 1, Discord_ID: DISCORD_ID,
+        Action_Points: 99, Health_Points: 10, Free_Move: 0, Tile_ID: 11, Tile_ID2: null,
+      }),
+      game: createFakeGame({ Game_ID: 1, GAME_STATE: state, moveCost: 1 }),
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result).toEqual({ ok: false, reason });
+    expect(logic.present(result).content).not.toMatch(/action points/i);
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+  });
+
   it('lets a Clockwatcher move during a timestop', async () => {
     const { deps } = makeDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.TIMESTOPPED, moveCost: 1 }),
