@@ -367,8 +367,8 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   //is one multiplier rather than an extra additive write off a stale row.
   //`let`, because the finale doubles it
   let chaosTimes = game.CURR_CC_EVENT === "Time Acceleration!" ? times * 3 : times;
-  //`finale` is a flag rather than a state, so "already in the finale" survives
-  //a timestop: the transition is the one pass where the flag is not yet set.
+  //the transition runs on the one pass where the threshold is met and the
+  //flag is not yet set; every pass after it is a finale tick
   if(timeForFinaleTranstion && !game.finale){
     chaosTimes = await this.finaleTransition(game, chaosTimes);
   }
@@ -432,9 +432,8 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   //tick down doomsday for immutables
   game.immutableDoomsday--;
 
-  //tick down clockwatcher timestop if the game is timestopped. Clearing the
-  //flag leaves the rest of the game exactly as it was, so a timestop over a
-  //finale game no longer ends by throwing the finale away.
+  //tick down clockwatcher timestop if the game is timestopped; ending it
+  //clears that one flag and nothing else
   if(game.timeStopped){
     game.timestopTurns--;
     if(game.timestopTurns == 0){
@@ -1344,42 +1343,25 @@ getTileCordinatesOfLine(tileCord1, tileCord2) {
 },
 
 
-async  getOldestActiveGameId(playerDiscordID) {
+//The oldest game being played - the lowest Game_ID in ACTIVE - optionally
+//among the games one player is registered in. Answers null when there is none,
+//so the caller rejects with NO_SUCH_GAME instead of looking up an id that
+//names nothing. Takes an injectable db for the same reason setGameState does.
+async getOldestActiveGameId(playerDiscordID, { db = models } = {}) {
+  const where = {GAME_STATE: GAMESTATES.ACTIVE};
   if (playerDiscordID) {
-    logger150.debug({function: `getOldestActiveGameId`}, `game id was not inputted taking in player discord id: ${playerDiscordID}` +
-       `and finding the oldest game they are in that is being played`)
-    var players = await models.Players.findAll({where: {Discord_ID: playerDiscordID}, attributes: ["Game_ID"]});
-  var games = await models.Games.findAll({where: {
-    GAME_STATE: GAMESTATES.ACTIVE,
-    Game_ID: players}});
+    const memberships = await db.Players.findAll({where: {Discord_ID: playerDiscordID}, attributes: ["Game_ID"]});
+    where.Game_ID = memberships.map((membership) => membership.Game_ID);
   }
-  else {
-    logger150.debug({function: `getOldestActiveGameId`}, `game id was not inputted, finding the oldest game being played`)
-    var games = await models.Games.findAll({where: {
-      GAME_STATE: GAMESTATES.ACTIVE}});
-  }
-  logger150.debug({function: `getOldestActiveGameId`}, `found the following games: ${JSON.stringify(games)} determining which is the oldest via lowest Game_ID`)
-  //set oldestGameId to newest Id
-  var oldestGameId = games.length;
-  for (var i = 0; i < games.length; i++) {
-    //if a game id is lower its older so we swap it out
-    if (games[i].Game_ID < oldestGameId) {
-      logger150.debug({function: `getOldestActiveGameId`}, `Game_ID: ${games[i].Game_ID} is lower than ${oldestGameId} making it the newest oldest game id`)
-      oldestGameId = games[i].Game_ID;
-    }
-  }
-  logger150.debug({function: `getOldestActiveGameId`}, `oldest game was decided to have the id: ${oldestGameId}`)
-  return oldestGameId;
+  const game = await db.Games.findOne({where, order: [["Game_ID", "ASC"]]});
+  logger150.debug({function: "getOldestActiveGameId"}, `oldest game being played${playerDiscordID ? ` by ${playerDiscordID}` : ""}: ${game ? game.Game_ID : "none"}`);
+  return game ? game.Game_ID : null;
 },
 
-//Pure gamestate gate. Decides whether the current gamestate blocks a normal
-//command; never touches Discord. Player-facing wording for each reason lives
-//in commands/_messages.js.
-//Does this player act through a timestop? checkGameState takes the answer
-//as its second argument, and all 27 call sites hard-coded false - so the
-//Clockwatcher's entire ability did nothing for anyone.
-//models is passed in because the callers are command logic, which owns its
-//own (injected) models rather than reaching for the module-level one.
+//Does this player act through a timestop? checkGameState takes the answer as
+//its second argument. models is passed in because the callers are command
+//logic, which owns its own (injected) models rather than reaching for the
+//module-level one.
 async isClockwatcher(models, player) {
   if (!player) return false;
   const playerClass = await models.Classes.findByPk(player.Class_ID);
@@ -1393,16 +1375,21 @@ async isClockwatcher(models, player) {
 //choice, and AP that carries on through a Clockwatcher's timestop is the
 //rule.
 //
-//Starting the clock also resets lastAPDistributionTimestampInMS, because
-//apCheckTick measures catch-up from it: a game whose clock was stopped for
-//three hours would otherwise be paid for all three the moment it started
-//again. The stopped time is not owed - that is the point of stopping.
+//Stopping the clock freezes the game's progress towards its next AP
+//distribution, and starting it picks up from exactly there: a game 5 minutes
+//from being paid when it stops is still 5 minutes from being paid when it
+//starts again, however long it was stopped for. apCheckTick measures from
+//lastAPDistributionTimestampInMS, so stopping records how far into the
+//interval the game was (apElapsedWhenStoppedInMS) and starting moves the
+//timestamp to that same distance behind now. A game that has never run has
+//nothing recorded and starts a fresh interval.
 //
 //`gameActive` left undefined means "leave the clock as it is"; pass it to move
 //the clock, with or without a state change. Returns the fields it wrote, or
 //null if there is no such game. Takes an injectable db so a logic file can
-//pass deps.models and still exercise this rather than stubbing it.
-async setGameState(gameId, gamestate, { gameActive, db = models } = {}) {
+//pass deps.models and still exercise this rather than stubbing it, and an
+//injectable `now` so the arithmetic can be checked to the millisecond.
+async setGameState(gameId, gamestate, { gameActive, db = models, now = Date.now() } = {}) {
   const game = await db.Games.findByPk(gameId);
   if (!game) return null;
   if (gamestate != null && !Object.values(GAMESTATES).includes(gamestate)) {
@@ -1413,15 +1400,22 @@ async setGameState(gameId, gamestate, { gameActive, db = models } = {}) {
   let nextActive = gameActive === undefined ? !!game.gameActive : !!gameActive;
   if (!clockMayRun) nextActive = false;
   const changes = { GAME_STATE: nextState, gameActive: nextActive };
-  if (nextActive && !game.gameActive) changes.lastAPDistributionTimestampInMS = Date.now();
+  const wasActive = !!game.gameActive;
+  if (wasActive && !nextActive) {
+    const last = game.lastAPDistributionTimestampInMS;
+    changes.apElapsedWhenStoppedInMS = last == null ? 0 : Math.max(0, now - last);
+  } else if (!wasActive && nextActive) {
+    changes.lastAPDistributionTimestampInMS = now - (game.apElapsedWhenStoppedInMS || 0);
+    changes.apElapsedWhenStoppedInMS = null;
+  }
   logger150.debug({function: "setGameState"}, `game ${gameId}: ${game.GAME_STATE} -> ${nextState}, clock ${!!game.gameActive} -> ${nextActive}`);
   await db.Games.update(changes, {where: {Game_ID: gameId}});
   return changes;
 },
 
 //Pure gamestate gate. Takes the game ROW, not one column: where a game is in
-//its life and whether time is stopped are two separate answers now, and both
-//can block.
+//its life and whether time is stopped are two separate answers, and both can
+//block.
 //
 //`readOnly` is for the commands that only LOOK at a game - /stats and
 ///board. A game in REGISTRATION is not playable, so acting in one is refused,

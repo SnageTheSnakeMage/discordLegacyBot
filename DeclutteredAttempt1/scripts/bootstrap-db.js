@@ -130,21 +130,29 @@ function readSeed() {
  * The clock column reproduces exactly which games used to be paid: AP ran in
  * ACTIVE, TIMESTOPPED and FINALE, and never for a sandbox game.
  */
+// The columns match the model. The four flags are NOT NULL DEFAULT 0, which
+// SQLite adds to a populated table by giving every existing row the default.
+// apElapsedWhenStoppedInMS is null on every migrated row: nothing recorded how
+// far into its interval a stopped game was, so it starts a fresh one.
+const FLAG_COLUMNS = {
+  gameActive: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
+  timeStopped: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
+  finale: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
+  sandbox: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
+  apElapsedWhenStoppedInMS: { type: Sequelize.INTEGER, allowNull: true },
+};
+
 async function migrateGameFlags({ sequelize, models }) {
   const queryInterface = sequelize.getQueryInterface();
   const columns = await queryInterface.describeTable('Games');
-  const missing = ['gameActive', 'timeStopped', 'finale', 'sandbox'].filter((c) => !(c in columns));
+  const missing = Object.keys(FLAG_COLUMNS).filter((c) => !(c in columns));
   if (missing.length === 0) {
     console.log('[bootstrap] Games flag columns already present, no migration needed');
     return { migrated: false, added: [], rows: 0 };
   }
 
   for (const column of missing) {
-    // NOT NULL DEFAULT 0 matches the model; SQLite is happy to add that to a
-    // populated table because every existing row takes the default
-    await queryInterface.addColumn('Games', column, {
-      type: Sequelize.INTEGER, allowNull: false, defaultValue: 0,
-    });
+    await queryInterface.addColumn('Games', column, FLAG_COLUMNS[column]);
     console.log(`[bootstrap] added Games.${column}`);
   }
 

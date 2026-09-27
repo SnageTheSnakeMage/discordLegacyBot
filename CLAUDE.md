@@ -333,6 +333,20 @@ Much of `utils.js` and the older test files predate this and still read as
 changelogs. Leave them unless you are already editing that code — but do not
 add more.
 
+**This was flagged on two PRs running, so check before pushing**: grep your
+own added comment lines, tests included, for `no longer`, `used to`, `old`,
+`was`, `before`, `anymore`, `again` and issue numbers, and rewrite each hit as
+the rule it describes. The history of a change belongs in the commit message
+and the PR description, where review can use it — not in the file.
+
+Two more rules from the same reviews:
+
+- **No comments at all in `database/Models/*.js`**, the sequelize-auto header
+  excepted. Explanations of a column go where the column is used.
+- **Deleting dead code is welcome.** Removing `checkGameStateAndReply` (no
+  callers, an out-of-date signature) was called out as the right move: when a
+  change leaves something unreachable, take it out in the same PR.
+
 ### A blacklist of `!=` joined by `||` is always true
 
 This trap has now appeared three times in three different shapes:
@@ -394,10 +408,15 @@ layer, every time.
   `REGISTRATION` and `OVER` force the clock off, `ACTIVE` and `DEV_PAUSED` are
   free either way. Leave `gameActive` out to move the state and leave the clock
   alone; pass `gamestate: null` to move only the clock.
-- **Starting the clock resets `lastAPDistributionTimestampInMS`**, in that same
-  writer. `apCheckTick` measures catch-up from it, so a game unpaused after
-  three hours would otherwise be paid for all three in one lump. The stopped
-  time is not owed.
+- **A stopped clock keeps the game's place in its AP interval**, in that same
+  writer. A game 5 minutes from being paid when it stops is 5 minutes from
+  being paid when it starts, however long it was stopped. `apCheckTick`
+  measures from `lastAPDistributionTimestampInMS`, so stopping records the
+  elapsed part of the interval in `apElapsedWhenStoppedInMS` and starting sets
+  the timestamp to that far behind now. A game that has never run (no
+  timestamp) starts on a fresh interval. Neither resetting the timestamp nor
+  leaving it alone is right: one throws away the elapsed time, the other pays
+  out the whole stop in one lump.
 - **`finale` is set once and never cleared**; that stickiness IS the fix, so
   nothing should clear it.
 - **`/gameflags`** sets the four: `set` for the dev on any game, `sandbox` for a
@@ -430,8 +449,15 @@ acting - `DEV_PAUSED` and a timestop are.
 
 `/stats` resolves its default game with `getOldestGameId` (any state) on
 purpose (#143); an active-only resolver cannot return the registration game
-the readOnly exemption exists for. `getOldestActiveGameId` means `GAME_STATE
-ACTIVE` - the three states it used to list all collapsed into it.
+the readOnly exemption exists for.
+
+`getOldestActiveGameId(discordId?, { db })` is the default-game resolver for
+every command with an optional game id: the lowest `Game_ID` in `ACTIVE`,
+optionally among one player's games, or **null** when there is none. It orders
+in the query. It used to start its minimum at `games.length` and only replace
+it with a lower id, so with games 5 and 7 active it answered 2 — every
+command's default landed on the wrong game or on none. Anything else that picks
+"the oldest" by hand should be checked for the same shape.
 
 The gate has no idea who the dev is — `DEV_ID` is read in the adapters — so
 its messages no longer claim "only the dev can use commands" (#166). The dev's

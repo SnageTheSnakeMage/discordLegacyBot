@@ -45,15 +45,23 @@ describe('migrateGameFlags', () => {
     sequelize = null;
   });
 
-  it('adds the four columns to a table that has none of them', async () => {
+  it('adds the flag columns to a table that has none of them', async () => {
     await legacyDb();
     const result = await migrateGameFlags({ sequelize, models });
     expect(result).toMatchObject({ migrated: true, rows: LEGACY_STATES.length });
-    expect(result.added.sort()).toEqual(['finale', 'gameActive', 'sandbox', 'timeStopped']);
+    expect(result.added.sort())
+      .toEqual(['apElapsedWhenStoppedInMS', 'finale', 'gameActive', 'sandbox', 'timeStopped']);
     const columns = await sequelize.getQueryInterface().describeTable('Games');
-    for (const column of ['gameActive', 'timeStopped', 'finale', 'sandbox']) {
-      expect(columns[column]).toBeDefined();
-    }
+    for (const column of result.added) expect(columns[column]).toBeDefined();
+  });
+
+  // nothing recorded how far into its interval a stopped game was, so every
+  // migrated game starts its next interval fresh
+  it('leaves the stopped interval unrecorded on every migrated game', async () => {
+    await legacyDb();
+    await migrateGameFlags({ sequelize, models });
+    const [rows] = await sequelize.query('SELECT apElapsedWhenStoppedInMS FROM Games');
+    expect(rows.every((row) => row.apElapsedWhenStoppedInMS === null)).toBe(true);
   });
 
   // the three states that described a game being played all become ACTIVE plus

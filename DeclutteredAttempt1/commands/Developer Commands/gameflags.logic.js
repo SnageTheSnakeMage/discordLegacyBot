@@ -18,8 +18,8 @@
  *
  * gameActive is written through utils.setGameState rather than directly,
  * because the clock and the gamestate have to agree: a game in REGISTRATION or
- * OVER cannot have a running clock, and starting the clock resets the AP
- * timestamp so a game is not paid for the time it spent stopped.
+ * OVER cannot have a running clock, and a stopped clock keeps the game's
+ * distance to its next AP distribution for when it starts again.
  */
 const { GAMESTATES, GAME_FLAGS, REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
@@ -44,28 +44,21 @@ function parse(raw, actor) {
 }
 
 /**
- * The game to act on. An explicit id wins; otherwise the oldest game being
- * played, which is what a dev running this without an id means.
- *
- * Resolved here rather than with utils.getOldestActiveGameId because that
- * helper answers `games.length` when it finds nothing - a game id of 0 for an
- * empty database - and "there is no such game" should be a rejection.
+ * The game to act on: an explicit id, otherwise the oldest game being played.
  */
-async function resolveGame(input, models) {
-  if (input.gameId != null) {
-    const game = await models.Games.findByPk(input.gameId);
-    if (!game) return { ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId: input.gameId } };
-    return { ok: true, game };
-  }
-  const playing = await models.Games.findAll({ where: { GAME_STATE: GAMESTATES.ACTIVE } });
-  if (playing.length === 0) {
+async function resolveGame(input, deps) {
+  const { models, utils } = deps;
+  const gameId = input.gameId ?? await utils.getOldestActiveGameId(null, { db: models });
+  if (gameId == null) {
     return {
       ok: false,
       reason: REJECTIONS.NO_SUCH_GAME,
       data: { message: 'No game is being played, so there is none to default to. Pass a game id.' },
     };
   }
-  return { ok: true, game: playing.reduce((a, b) => (a.Game_ID <= b.Game_ID ? a : b)) };
+  const game = await models.Games.findByPk(gameId);
+  if (!game) return { ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId } };
+  return { ok: true, game };
 }
 
 /** Every flag on a game, for `show` and for the reply after a `set`. */
@@ -111,7 +104,7 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.NOT_DEV };
   }
 
-  const resolved = await resolveGame(input, models);
+  const resolved = await resolveGame(input, deps);
   if (!resolved.ok) return resolved;
   const game = resolved.game;
 

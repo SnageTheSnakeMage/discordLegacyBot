@@ -4,11 +4,8 @@
 //
 //Time stop, the finale, sandbox mode and whether the clock is running are NOT
 //points in that life - they are conditions that can hold while a game is
-//being played, and they can hold at the same time as each other. They live in
-//the GAME_FLAGS columns instead. As gamestates they were mutually exclusive
-//with being ACTIVE, so each one erased whatever it replaced: a timestop over
-//a finale game came back as ACTIVE, and the finale transition then ran a
-//second time.
+//being played, and they can hold at the same time as each other, so they are
+//the GAME_FLAGS columns.
 const GAMESTATES = Object.freeze({
   REGISTRATION: "REGISTRATION",
   ACTIVE: "ACTIVE",
@@ -16,8 +13,8 @@ const GAMESTATES = Object.freeze({
   OVER: "OVER"
 })
 
-//The boolean Games columns that used to be gamestates, plus gameActive. Any
-//combination of them is legal on a game that is being played.
+//The boolean Games columns. Any combination of them is legal on a game that is
+//being played.
 //
 //gameActive is the switch for the game clock: AP distribution and the chaos
 //council poll. It is free to be either way while a game is ACTIVE or

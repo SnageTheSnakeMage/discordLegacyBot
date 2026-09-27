@@ -40,8 +40,7 @@ describe('listGames.run', () => {
       }),
     ] } } });
     const result = await logic.run(ALL, deps);
-    // the flags are listed because the gamestate no longer says any of it: the
-    // finished game below reached its finale, and neither state shows that
+    // the finished game below reached its finale, which only its flags show
     expect(result).toEqual({
       ok: true,
       kind: 'gameList',
