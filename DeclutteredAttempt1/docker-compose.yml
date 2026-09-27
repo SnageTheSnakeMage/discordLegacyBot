@@ -27,6 +27,10 @@ services:
       # artwork: written into the same volume as the database rather than
       # into the image, where every deploy threw them away
       LEGACY_PLAYER_TILES_DIR: /data/player-tiles
+      # Most of the bot logs at debug and pino keeps nothing below its level,
+      # so `docker logs` is near-silent at the default. Set LOG_LEVEL=debug in
+      # .env to see the AP distribution and chaos event lines.
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       # named volume: game state survives image rebuilds. The old bind mount
       # (./data) pointed at a path the bot never wrote; the database lived
