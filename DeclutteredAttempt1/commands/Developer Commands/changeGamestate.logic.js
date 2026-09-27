@@ -11,8 +11,8 @@
  *
  * The clock follows the state here: a game being played runs, and anything else
  * does not. utils.setGameState is what writes both, so the pair cannot end up
- * disagreeing, and it resets the AP timestamp when the clock starts so an
- * unpaused game is not immediately paid for the time it spent stopped.
+ * disagreeing, and it keeps a game's distance to its next AP distribution
+ * across the time its clock is stopped.
  */
 const { REJECTIONS, GAMESTATES } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');

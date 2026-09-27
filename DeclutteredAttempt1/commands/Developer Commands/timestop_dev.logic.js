@@ -54,9 +54,9 @@ async function run(input, deps = defaultDeps) {
   const game = await models.Games.findByPk(gameId);
   if (!game) return { ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId } };
 
-  //A dev pause stops the clock with the state, and unpausing starts it again.
-  //setGameState resets the AP timestamp on the way back, so an hour of being
-  //paused is not paid out in one lump the moment the game resumes.
+  //A dev pause stops the clock with the state, and unpausing starts it again
+  //from where it stopped: setGameState keeps the game's distance to its next
+  //AP distribution across the pause.
   if (game.GAME_STATE === GAMESTATES.DEV_PAUSED) {
     await utils.setGameState(gameId, GAMESTATES.ACTIVE, { gameActive: true, db: models });
     return { ok: true, kind: 'unpaused', data: { gameId } };

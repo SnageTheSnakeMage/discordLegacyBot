@@ -121,10 +121,8 @@ describe('finale', () => {
       expect(await gateways(layer)).toBe(4);
     });
 
-    // The reason the finale is a flag. As a gamestate it was overwritten by
-    // TIMESTOPPED, so nothing recorded that the transition had happened: the
-    // timestop ended by writing ACTIVE, the threshold was still met, and the
-    // game transitioned all over again - four more gateways every time.
+    // the transition is once per game: ending a timestop leaves the finale
+    // flag set, so the passes after it are finale ticks, not transitions
     it('does not happen a second time when a timestop ends', async () => {
       const { game, layer } = await board({
         game: { GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, timestopTurns: 1 },

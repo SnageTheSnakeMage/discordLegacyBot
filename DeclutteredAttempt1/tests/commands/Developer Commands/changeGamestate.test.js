@@ -61,7 +61,10 @@ describe('change-gamestate run rejections', () => {
 });
 
 describe('change-gamestate run success', () => {
-  it('writes the chosen gamestate and starts the clock', async () => {
+  // a game starting for the first time has no stopped interval to pick up, so
+  // it starts a fresh one now
+  it('writes the chosen gamestate and starts the clock on a fresh interval', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
     const deps = devDeps({}, { GAME_STATE: GAMESTATES.REGISTRATION, gameActive: false });
     const result = await logic.run(DEV_INPUT, deps);
     expect(result).toEqual({
@@ -69,16 +72,16 @@ describe('change-gamestate run success', () => {
       kind: 'gamestateChanged',
       data: { gameId: 1, gamestate: GAMESTATES.ACTIVE, gameActive: true },
     });
-    // starting the clock resets the AP timestamp, so the game is not paid for
-    // the time it spent stopped
     expect(deps.models.Games.update).toHaveBeenCalledWith(
       {
         GAME_STATE: GAMESTATES.ACTIVE,
         gameActive: true,
-        lastAPDistributionTimestampInMS: expect.any(Number),
+        lastAPDistributionTimestampInMS: 1700000000000,
+        apElapsedWhenStoppedInMS: null,
       },
       { where: { Game_ID: 1 } },
     );
+    jest.restoreAllMocks();
     expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
   });
 

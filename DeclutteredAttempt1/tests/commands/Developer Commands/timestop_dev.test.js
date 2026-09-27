@@ -107,27 +107,40 @@ describe('timestop-dev run gamestate table', () => {
 });
 
 describe('timestop-dev run success', () => {
-  it('pauses an active game, stopping its clock', async () => {
-    const deps = depsForState({ GAME_STATE: GAMESTATES.ACTIVE, gameActive: true });
+  const MINUTE = 60 * 1000;
+  const NOW = 1700000000000;
+  afterEach(() => jest.restoreAllMocks());
+
+  // the game is 55 minutes into its interval when it is paused, and that is
+  // what is kept for when it resumes
+  it('pauses an active game, stopping its clock where it stands', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW);
+    const deps = depsForState({
+      GAME_STATE: GAMESTATES.ACTIVE, gameActive: true, lastAPDistributionTimestampInMS: NOW - 55 * MINUTE,
+    });
     const result = await logic.run(DEV_INPUT, deps);
     expect(result).toEqual({ ok: true, kind: 'paused', data: { gameId: 1 } });
     expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false },
+      { GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false, apElapsedWhenStoppedInMS: 55 * MINUTE },
       { where: { Game_ID: 1 } },
     );
   });
 
-  // the AP timestamp is reset on the way back, so an hour of being paused is
-  // not paid out in one lump the moment the game resumes
-  it('unpauses a dev-paused game, starting its clock and resetting the AP timestamp', async () => {
-    const deps = depsForState({ GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false });
+  // however long the pause, the game resumes 55 minutes into its interval
+  it('unpauses a dev-paused game, picking the clock up where it stopped', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(NOW);
+    const deps = depsForState({
+      GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false,
+      lastAPDistributionTimestampInMS: NOW - 9 * 60 * MINUTE, apElapsedWhenStoppedInMS: 55 * MINUTE,
+    });
     const result = await logic.run(DEV_INPUT, deps);
     expect(result).toEqual({ ok: true, kind: 'unpaused', data: { gameId: 1 } });
     expect(deps.models.Games.update).toHaveBeenCalledWith(
       {
         GAME_STATE: GAMESTATES.ACTIVE,
         gameActive: true,
-        lastAPDistributionTimestampInMS: expect.any(Number),
+        lastAPDistributionTimestampInMS: NOW - 55 * MINUTE,
+        apElapsedWhenStoppedInMS: null,
       },
       { where: { Game_ID: 1 } },
     );
@@ -150,7 +163,7 @@ describe('timestop-dev run success', () => {
     expect(result).toEqual({ ok: true, kind: 'paused', data: { gameId: 4 } });
     expect(getOldestActiveGameId).toHaveBeenCalledWith();
     expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false },
+      expect.objectContaining({ GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false }),
       { where: { Game_ID: 4 } },
     );
   });

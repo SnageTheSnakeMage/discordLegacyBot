@@ -194,24 +194,68 @@ describe('setGameState', () => {
     expect(changes.gameActive).toBe(true);
   });
 
-  // apCheckTick measures catch-up from this timestamp, so a clock that starts
-  // after an hour off would otherwise pay for the whole hour
-  it('resets the AP timestamp when the clock starts', async () => {
-    const { db } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.DEV_PAUSED, gameActive: false });
-    const changes = await utils.setGameState(1, GAMESTATES.ACTIVE, { gameActive: true, db });
-    expect(changes.lastAPDistributionTimestampInMS).toEqual(expect.any(Number));
-  });
+  // A stop keeps the game's place in its AP interval: a game 5 minutes from
+  // being paid when it stops is 5 minutes from being paid when it starts,
+  // however long it was stopped. apCheckTick measures from the timestamp, so
+  // that is what has to land in the same place relative to `now`.
+  describe('the AP interval across a stopped clock', () => {
+    const MINUTE = 60 * 1000;
+    const STOPPED_AT = 1700000000000;
+    const STARTED_AT = STOPPED_AT + 9 * 60 * MINUTE;
+    const running = (over = {}) => ({
+      Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, gameActive: true, AP_INTERVAL_MIN: 60,
+      lastAPDistributionTimestampInMS: STOPPED_AT - 55 * MINUTE, apElapsedWhenStoppedInMS: null, ...over,
+    });
 
-  it('leaves the AP timestamp alone when the clock was already running', async () => {
-    const { db } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, gameActive: true });
-    const changes = await utils.setGameState(1, GAMESTATES.ACTIVE, { gameActive: true, db });
-    expect(changes).not.toHaveProperty('lastAPDistributionTimestampInMS');
-  });
+    it('records how far into its interval the game was when the clock stops', async () => {
+      const { db } = fakeDb(running());
+      const changes = await utils.setGameState(1, null, { gameActive: false, db, now: STOPPED_AT });
+      expect(changes.apElapsedWhenStoppedInMS).toBe(55 * MINUTE);
+      expect(changes).not.toHaveProperty('lastAPDistributionTimestampInMS');
+    });
 
-  it('leaves the AP timestamp alone when the clock stops', async () => {
-    const { db } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, gameActive: true });
-    const changes = await utils.setGameState(1, GAMESTATES.DEV_PAUSED, { gameActive: false, db });
-    expect(changes).not.toHaveProperty('lastAPDistributionTimestampInMS');
+    it('starts again exactly that far into it', async () => {
+      const { db } = fakeDb(running({ gameActive: false, apElapsedWhenStoppedInMS: 55 * MINUTE }));
+      const changes = await utils.setGameState(1, null, { gameActive: true, db, now: STARTED_AT });
+      expect(STARTED_AT - changes.lastAPDistributionTimestampInMS).toBe(55 * MINUTE);
+      expect(changes.apElapsedWhenStoppedInMS).toBeNull();
+    });
+
+    it('round-trips: 5 minutes to go before the stop, 5 minutes to go after it', async () => {
+      const game = running();
+      const { db } = fakeDb(game);
+      Object.assign(game, await utils.setGameState(1, GAMESTATES.DEV_PAUSED, { gameActive: false, db, now: STOPPED_AT }));
+      Object.assign(game, await utils.setGameState(1, GAMESTATES.ACTIVE, { gameActive: true, db, now: STARTED_AT }));
+      const interval = game.AP_INTERVAL_MIN * MINUTE;
+      expect(interval - (STARTED_AT - game.lastAPDistributionTimestampInMS)).toBe(5 * MINUTE);
+    });
+
+    // a game behind on its payments keeps that too: the gap is kept, not capped
+    it('keeps a gap longer than one interval', async () => {
+      const { db } = fakeDb(running({ lastAPDistributionTimestampInMS: STOPPED_AT - 130 * MINUTE }));
+      const changes = await utils.setGameState(1, null, { gameActive: false, db, now: STOPPED_AT });
+      expect(changes.apElapsedWhenStoppedInMS).toBe(130 * MINUTE);
+    });
+
+    it('starts a game that has never run on a fresh interval', async () => {
+      const { db } = fakeDb(running({
+        GAME_STATE: GAMESTATES.REGISTRATION, gameActive: false, lastAPDistributionTimestampInMS: null,
+      }));
+      const changes = await utils.setGameState(1, GAMESTATES.ACTIVE, { gameActive: true, db, now: STARTED_AT });
+      expect(changes.lastAPDistributionTimestampInMS).toBe(STARTED_AT);
+    });
+
+    it('records no time elapsed for a game stopped before it ever ran', async () => {
+      const { db } = fakeDb(running({ lastAPDistributionTimestampInMS: null }));
+      const changes = await utils.setGameState(1, null, { gameActive: false, db, now: STOPPED_AT });
+      expect(changes.apElapsedWhenStoppedInMS).toBe(0);
+    });
+
+    it('writes neither column when the clock does not move', async () => {
+      const { db } = fakeDb(running());
+      const changes = await utils.setGameState(1, GAMESTATES.ACTIVE, { gameActive: true, db, now: STARTED_AT });
+      expect(changes).toEqual({ GAME_STATE: GAMESTATES.ACTIVE, gameActive: true });
+    });
   });
 
   it('answers null for a game that is not there, and writes nothing', async () => {

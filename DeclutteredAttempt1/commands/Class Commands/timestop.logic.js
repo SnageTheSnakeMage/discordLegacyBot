@@ -65,9 +65,7 @@ async function run(input, deps = defaultDeps) {
   }
 
   // the AP is only a threshold - the old command never deducted it
-  //a flag, not a gamestate: the game carries on being whatever it was, so a
-  //timestop during a finale no longer ends by dropping the game back to ACTIVE
-  //and running the finale transition again
+  //a flag, not a gamestate: whatever else is true of the game stays true
   await models.Games.update(
     { timeStopped: true, timestopTurns: TIMESTOP_TURNS },
     { where: { Game_ID: game.Game_ID } },

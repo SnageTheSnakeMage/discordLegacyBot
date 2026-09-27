@@ -251,13 +251,22 @@ These are the ones SQL will happily break.
   `DEV_PAUSED` with it running (nobody can act, AP piles up). `REGISTRATION` and
   `OVER` must have it 0; the bot's own writer forces that, and the query above
   finds a hand edit that did not.
-- **Starting the clock by hand needs the AP timestamp moved with it.** The bot's
-  writer resets `lastAPDistributionTimestampInMS` when the clock starts, so the
-  game is not immediately paid for the hours it spent stopped. SQL does not:
-  set both, or the first tick pays every interval since.
+- **Moving the clock by hand needs the AP timestamp moved with it.** The bot's
+  writer keeps a game's place in its AP interval across a stop: stopping
+  records how far into the interval it was in `apElapsedWhenStoppedInMS`, and
+  starting sets `lastAPDistributionTimestampInMS` that far behind now and
+  clears the column. SQL does neither — flip `gameActive` alone and the first
+  tick pays out the whole stop in one go. Prefer `/gameflags` or
+  `/timestop-dev`; by hand it is:
   ```sql
+  -- stopping
+  UPDATE Games SET gameActive = 0,
+    apElapsedWhenStoppedInMS = CAST(strftime('%s','now') AS INTEGER) * 1000 - lastAPDistributionTimestampInMS
+   WHERE Game_ID = 1;
+  -- starting
   UPDATE Games SET gameActive = 1,
-    lastAPDistributionTimestampInMS = CAST(strftime('%s','now') AS INTEGER) * 1000
+    lastAPDistributionTimestampInMS = CAST(strftime('%s','now') AS INTEGER) * 1000 - COALESCE(apElapsedWhenStoppedInMS, 0),
+    apElapsedWhenStoppedInMS = NULL
    WHERE Game_ID = 1;
   ```
 - **`timeStopped` only decides who may act** — Clockwatchers only. It does not
@@ -287,6 +296,7 @@ ALTER TABLE Games ADD COLUMN gameActive  INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE Games ADD COLUMN timeStopped INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE Games ADD COLUMN finale      INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE Games ADD COLUMN sandbox     INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE Games ADD COLUMN apElapsedWhenStoppedInMS INTEGER;
 
 -- the games that were already ACTIVE get their clock FIRST: the three
 -- rewrites below land on 'ACTIVE' themselves, and a blanket rule afterwards
@@ -300,6 +310,10 @@ UPDATE Games SET GAME_STATE = 'OVER',                    gameActive = 0 WHERE GA
 
 SELECT Game_ID, GAME_STATE, gameActive, timeStopped, finale, sandbox FROM Games;
 ```
+
+`apElapsedWhenStoppedInMS` stays NULL on every migrated row: nothing recorded
+how far into its interval a stopped game was, so each one starts a fresh
+interval the first time its clock runs.
 
 `INACTIVE` meant "finished", so it becomes `OVER` with a stopped clock. The
 clock column reproduces exactly which games used to be paid — AP ran in

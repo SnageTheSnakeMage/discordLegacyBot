@@ -7,38 +7,25 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
-    // where the game is in its life: REGISTRATION, ACTIVE, DEV_PAUSED, OVER.
-    // See the GAMESTATES comment in enums.js for why time stop, the finale and
-    // sandbox mode are the four booleans below instead of more of these.
     GAME_STATE: {
       type: DataTypes.STRING,
       allowNull: false
     },
-    // is the game clock running: AP distribution and the chaos council poll.
-    // Not the same question as GAME_STATE - a game can be ACTIVE with the
-    // clock stopped, and REGISTRATION and OVER force it false.
     gameActive: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0
     },
-    // a Clockwatcher's timestop: only Clockwatchers may act. timestopTurns
-    // counts the AP distributions left before it lifts.
     timeStopped: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0
     },
-    // the game has passed finaleThreshold and made its one-time transition:
-    // extra gateways, fire spread each distribution, double AP. Set once and
-    // never cleared, which is what stops the transition running twice.
     finale: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0
     },
-    // a debug game: /sandbox works on it, and its clock is driven by hand
-    // with /sandbox ap-tick rather than by an interval.
     sandbox: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -124,6 +111,10 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.INTEGER,
       allowNull: true
     },
+    apElapsedWhenStoppedInMS: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
     APAmount: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -134,17 +125,11 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: true,
       defaultValue: 32
     },
-    // Discord snowflakes exceed Number.MAX_SAFE_INTEGER: as an INTEGER,
-    // 1392574348333678633 was stored as ...678600 and pointed at no channel
-    // at all. Players.Discord_ID is already STRING for the same reason.
-    // The old hard-coded default was one specific server's channel; the
-    // channel is now set per game with /set-dead-chat.
     deadChatChannelId: {
       type: DataTypes.STRING,
       allowNull: true,
       defaultValue: null
     },
-    // a message snowflake, same precision problem as above
     currentChaosPollMsgId: {
       type: DataTypes.STRING,
       allowNull: true

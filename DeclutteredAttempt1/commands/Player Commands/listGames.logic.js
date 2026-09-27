@@ -48,8 +48,8 @@ async function run(input, deps = defaultDeps) {
       games: games.map((g) => ({
         gameId: g.Game_ID,
         gameState: g.GAME_STATE,
-        //the flags are listed because the gamestate no longer tells you any of
-        //this: a game in the finale, or with time stopped, reads as ACTIVE
+        //a game in the finale, or with time stopped, is ACTIVE by its
+        //gamestate, so the flags are what tell those games apart
         flags: [
           g.gameActive ? 'clock running' : 'clock stopped',
           g.timeStopped ? 'time stopped' : null,

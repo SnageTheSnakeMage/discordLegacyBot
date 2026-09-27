@@ -55,6 +55,33 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
+describe('a stopped clock keeps its place in the AP interval', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  // stopped 5 minutes short of being paid, stopped for three hours, and still
+  // 5 minutes short when it starts again - then paid once, on time
+  it('pays on schedule after a long pause, not early and not in a lump', async () => {
+    const stoppedAt = Date.now();
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(stoppedAt);
+    const { game, player } = await seedBehind({ lastAPDistributionTimestampInMS: stoppedAt - 55 * MINUTE });
+    await utils.setGameState(game.Game_ID, GAMESTATES.DEV_PAUSED, { gameActive: false });
+
+    const resumedAt = stoppedAt + 3 * 60 * MINUTE;
+    clock.mockReturnValue(resumedAt);
+    await utils.setGameState(game.Game_ID, GAMESTATES.ACTIVE, { gameActive: true });
+    await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
+    expect(await apOf(player)).toBe(0);
+
+    clock.mockReturnValue(resumedAt + 4 * MINUTE);
+    await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
+    expect(await apOf(player)).toBe(0);
+
+    clock.mockReturnValue(resumedAt + 5 * MINUTE + 1000);
+    await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
+    expect(await apOf(player)).toBe(4);
+  });
+});
+
 describe('apCheckTick', () => {
 
   it('pays one interval once, and the next pass pays nothing', async () => {
@@ -115,8 +142,8 @@ describe('apCheckTick', () => {
     },
   );
 
-  // the flags do not stop the clock: a timestopped or finale game is still
-  // being paid, which is what it was before they were flags
+  // the other flags do not stop the clock: a timestopped or finale game is
+  // still paid
   it.each([
     ['no flags', {}],
     ['in the finale', { finale: true }],

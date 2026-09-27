@@ -12,8 +12,8 @@ const DEV = { discordId: '123', username: 'snage', isDev: true };
 const PLAYER = { discordId: '456', username: 'someone', isDev: false };
 
 /**
- * deps whose Games.findByPk finds one game, and whose Players.findOne finds
- * the caller in it unless a test says otherwise.
+ * deps with one game, found both by id and as the oldest game being played,
+ * and with the caller registered in it unless a test says otherwise.
  */
 function depsFor(game = {}, over = {}) {
   const row = createFakeGame({ Game_ID: 1, ...game });
@@ -21,7 +21,7 @@ function depsFor(game = {}, over = {}) {
     models: {
       Games: {
         findByPk: async () => row,
-        findAll: async () => [row],
+        findOne: async () => row,
         ...(over.Games || {}),
       },
       Players: {
@@ -96,29 +96,45 @@ describe('gameflags set', () => {
     },
   );
 
-  // the clock goes through utils.setGameState, which is what keeps it honest
-  // against the gamestate and resets the AP timestamp when it starts
-  it('starts the clock through setGameState, resetting the AP timestamp', async () => {
-    const deps = depsFor({ GAME_STATE: GAMESTATES.ACTIVE, gameActive: false });
-    const result = await logic.run(setInput({ flag: GAME_FLAGS.gameActive, value: true }), deps);
-    expect(result.ok).toBe(true);
-    expect(deps.models.Games.update).toHaveBeenCalledWith(
-      {
-        GAME_STATE: GAMESTATES.ACTIVE,
-        gameActive: true,
-        lastAPDistributionTimestampInMS: expect.any(Number),
-      },
-      { where: { Game_ID: 1 } },
-    );
-  });
+  // the clock goes through utils.setGameState, which keeps it honest against
+  // the gamestate and keeps the game's place in its AP interval across a stop:
+  // a game 5 minutes from being paid when it stops is 5 minutes from being paid
+  // when it starts
+  describe('the clock', () => {
+    const MINUTE = 60 * 1000;
+    const NOW = 1700000000000;
+    beforeEach(() => jest.spyOn(Date, 'now').mockReturnValue(NOW));
+    afterEach(() => jest.restoreAllMocks());
 
-  it('stops the clock without touching the AP timestamp', async () => {
-    const deps = depsFor({ GAME_STATE: GAMESTATES.ACTIVE, gameActive: true });
-    await logic.run(setInput({ flag: GAME_FLAGS.gameActive, value: false }), deps);
-    expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { GAME_STATE: GAMESTATES.ACTIVE, gameActive: false },
-      { where: { Game_ID: 1 } },
-    );
+    it('stops, recording how far into its interval the game was', async () => {
+      const deps = depsFor({
+        GAME_STATE: GAMESTATES.ACTIVE, gameActive: true, AP_INTERVAL_MIN: 60,
+        lastAPDistributionTimestampInMS: NOW - 55 * MINUTE,
+      });
+      await logic.run(setInput({ flag: GAME_FLAGS.gameActive, value: false }), deps);
+      expect(deps.models.Games.update).toHaveBeenCalledWith(
+        { GAME_STATE: GAMESTATES.ACTIVE, gameActive: false, apElapsedWhenStoppedInMS: 55 * MINUTE },
+        { where: { Game_ID: 1 } },
+      );
+    });
+
+    it('starts again from that same point, however long it was stopped', async () => {
+      const deps = depsFor({
+        GAME_STATE: GAMESTATES.ACTIVE, gameActive: false, AP_INTERVAL_MIN: 60,
+        lastAPDistributionTimestampInMS: NOW - 3 * 60 * MINUTE, apElapsedWhenStoppedInMS: 55 * MINUTE,
+      });
+      const result = await logic.run(setInput({ flag: GAME_FLAGS.gameActive, value: true }), deps);
+      expect(result.ok).toBe(true);
+      expect(deps.models.Games.update).toHaveBeenCalledWith(
+        {
+          GAME_STATE: GAMESTATES.ACTIVE,
+          gameActive: true,
+          lastAPDistributionTimestampInMS: NOW - 55 * MINUTE,
+          apElapsedWhenStoppedInMS: null,
+        },
+        { where: { Game_ID: 1 } },
+      );
+    });
   });
 
   // the invariant, refused out loud rather than silently ignored: setGameState
@@ -147,21 +163,18 @@ describe('gameflags set', () => {
 });
 
 describe('gameflags set - resolving the game', () => {
+  // which game that is, is utils.getOldestActiveGameId's job and is tested
+  // against a real schema; here it only has to be asked, over deps.models
   it('defaults to the oldest game being played', async () => {
-    const findAll = jest.fn(async () => [
-      createFakeGame({ Game_ID: 7, GAME_STATE: GAMESTATES.ACTIVE }),
-      createFakeGame({ Game_ID: 3, GAME_STATE: GAMESTATES.ACTIVE }),
-    ]);
-    const deps = createDeps({ models: { Games: { findAll, findByPk: async (id) => createFakeGame({ Game_ID: id }) } } });
+    const findOne = jest.fn(async () => createFakeGame({ Game_ID: 3, GAME_STATE: GAMESTATES.ACTIVE }));
+    const deps = createDeps({ models: { Games: { findOne, findByPk: async (id) => createFakeGame({ Game_ID: id }) } } });
     const result = await logic.run(setInput({ game: null }), deps);
     expect(result.data.gameId).toBe(3);
-    expect(findAll).toHaveBeenCalledWith({ where: { GAME_STATE: GAMESTATES.ACTIVE } });
+    expect(findOne).toHaveBeenCalledWith({ where: { GAME_STATE: GAMESTATES.ACTIVE }, order: [['Game_ID', 'ASC']] });
   });
 
-  // a helper that answers games.length here would give a game id of 0 and the
-  // write would land on nothing
   it('rejects when no game is being played', async () => {
-    const deps = createDeps({ models: { Games: { findAll: async () => [] } } });
+    const deps = createDeps({ models: { Games: { findOne: async () => null } } });
     const result = await logic.run(setInput({ game: null }), deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_GAME });
     expect(result.data.message).toMatch(/No game is being played/);

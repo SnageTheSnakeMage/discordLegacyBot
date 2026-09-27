@@ -132,6 +132,7 @@ function createFakeGame(overrides = {}) {
     finaleThreshold: 4,
     timestopTurns: 0,
     lastAPDistributionTimestampInMS: 0,
+    apElapsedWhenStoppedInMS: null,
     APAmount: 4,
     immutableDoomsday: 32,
     deadChatChannelId: null,
