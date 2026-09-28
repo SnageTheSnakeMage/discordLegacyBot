@@ -569,13 +569,24 @@ describe('move.run success', () => {
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 1, 1);
   });
 
-  // QUIRK: amountOfRepeats is never incremented, so repeats always read "x2"
-  it('collapses repeated identical steps to x2', async () => {
-    const { deps } = makeDeps({
-      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10 }),
-    });
-    const result = await logic.run({ ...INPUT, distance: 3 }, deps);
-    expect(result.data.response).toBe('You moved from a Blank1 tile to a Blank1 tile! \nx2 \nx2 \n');
+  it.each([
+    [2, 'You moved from a Blank1 tile to a Blank1 tile! \nx2 \n'],
+    [3, 'You moved from a Blank1 tile to a Blank1 tile! \nx3 \n'],
+    [4, 'You moved from a Blank1 tile to a Blank1 tile! \nx4 \n'],
+  ])('counts a run of %i identical steps once, as xN', async (distance, response) => {
+    const { deps } = makeDeps();
+    const result = await logic.run({ ...INPUT, distance }, deps);
+    expect(result.data.response).toBe(response);
+  });
+
+  it('counts each run separately when the tiles change between them', async () => {
+    const { deps } = makeDeps({ board: makeBoard({ '4,1': { Tile_Type: 'Blank2' } }) });
+    const result = await logic.run({ ...INPUT, distance: 4 }, deps);
+    expect(result.data.response).toBe(
+      'You moved from a Blank1 tile to a Blank1 tile! \nx2 \n'
+      + 'You moved from a Blank1 tile to a Blank2 tile! \n'
+      + 'You moved from a Blank2 tile to a Blank1 tile! \n',
+    );
   });
 
   it('clamps the destination to the layer bound', async () => {
