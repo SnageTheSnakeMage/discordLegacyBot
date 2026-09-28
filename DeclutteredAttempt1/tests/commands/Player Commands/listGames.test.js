@@ -7,6 +7,7 @@ const listGames = require('../../../commands/Player Commands/listGames.js');
 const { GAMESTATES } = require('../../../enums.js');
 const { noticeFor, NOTICES } = require('../../../commands/_messages.js');
 const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 describe('listGames.parse', () => {
   it('defaults to REGISTRATION, the games you can still join', () => {
@@ -82,12 +83,14 @@ describe('listGames.run', () => {
   });
 
   // every state in the enum is a legal filter, including one added later
-  it.each(Object.values(GAMESTATES))('filters on %s', async (state) => {
-    const deps = createDeps({ models: { Games: { findAll: jest.fn(async () => [createFakeGame({ GAME_STATE: state })]) } } });
-    const result = await logic.run({ gamestate: state }, deps);
-    expect(result.ok).toBe(true);
-    expect(deps.models.Games.findAll).toHaveBeenCalledWith({ where: { GAME_STATE: state } });
-    expect(result.data.games[0].gameState).toBe(state);
+  it('filters on <state>', async () => {
+    expect(await everyCase('filters on %s', Object.values(GAMESTATES), async (state) => {
+      const deps = createDeps({ models: { Games: { findAll: jest.fn(async () => [createFakeGame({ GAME_STATE: state })]) } } });
+      const result = await logic.run({ gamestate: state }, deps);
+      expect(result.ok).toBe(true);
+      expect(deps.models.Games.findAll).toHaveBeenCalledWith({ where: { GAME_STATE: state } });
+      expect(result.data.games[0].gameState).toBe(state);
+    })).toEqual([]);
   });
 
   // no AP/range boundary cases: the command has no inputs, costs nothing and

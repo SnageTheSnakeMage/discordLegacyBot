@@ -12,6 +12,7 @@ const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const DISCORD = '123';
 const HOPPER_CLASS_ID = 7;
@@ -160,19 +161,21 @@ describe('warp.run rejections', () => {
   // gate and returns its verdict without writing, so one state that passes,
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = setup({ game: createFakeGame({ ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expect(deps.models.Players.update).not.toHaveBeenCalled();
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = setup({ game: createFakeGame({ ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expect(deps.models.Players.update).not.toHaveBeenCalled();
+      }
+    })).toEqual([]);
   });
 
   // preserved quirk: warp passes isClockwatcher=false unconditionally, so a
@@ -383,19 +386,21 @@ describe('warp.run AP cost', () => {
   });
 
   // a gateway is free whoever takes it, so even 0AP is enough
-  it.each([
-    ['a non-hopper', 2],
-    ['a Hopper', HOPPER_CLASS_ID],
-  ])('lets %s through an open gateway for free', async (_who, classId) => {
-    const { deps } = setup({
-      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD, Class_ID: classId, Tile_ID: 1, Action_Points: 0 }),
-      currentTile: createFakeTile({ Tile_ID: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
-      destinationTiles: [openGateway(65)],
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: true, data: { viaGateway: true, tileId: 65 } });
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
-    expect(deps.models.Players.update).not.toHaveBeenCalled();
+  it('lets <who> through an open gateway for free', async () => {
+    expect(await everyCase('lets %s through an open gateway for free', [
+      ['a non-hopper', 2],
+      ['a Hopper', HOPPER_CLASS_ID],
+    ], async (_who, classId) => {
+      const { deps } = setup({
+        player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD, Class_ID: classId, Tile_ID: 1, Action_Points: 0 }),
+        currentTile: createFakeTile({ Tile_ID: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
+        destinationTiles: [openGateway(65)],
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({ ok: true, data: { viaGateway: true, tileId: 65 } });
+      expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
+      expect(deps.models.Players.update).not.toHaveBeenCalled();
+    })).toEqual([]);
   });
 
   it('warps with exactly 2AP, down to 0', async () => {

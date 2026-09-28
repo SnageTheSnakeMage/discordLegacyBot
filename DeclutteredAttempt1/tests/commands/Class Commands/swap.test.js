@@ -8,6 +8,7 @@ const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const ACTOR = '123';
 const VICTIM = '456';
@@ -176,18 +177,18 @@ describe('swap.run gamestate gate', () => {
     expect(Object.keys(OUTCOMES).sort()).toEqual(Object.values(GAMESTATES).sort());
   });
 
-  it.each(Object.values(GAMESTATES).map((state) => [state, OUTCOMES[state]]))(
-    '%s -> %s', async (state, reason) => {
-      const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
-      const result = await logic.run(INPUT, deps);
-      if (reason === null) {
-        expect(result.ok).toBe(true);
-      } else {
-        expect(result).toMatchObject({ ok: false, reason });
-        expect(deps.models.Players.update).not.toHaveBeenCalled();
-      }
-    },
-  );
+  it('<state> -> <reason>', async () => {
+    expect(await everyCase('%s -> %s', Object.values(GAMESTATES).map((state) => [state, OUTCOMES[state]]), async (state, reason) => {
+        const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
+        const result = await logic.run(INPUT, deps);
+        if (reason === null) {
+          expect(result.ok).toBe(true);
+        } else {
+          expect(result).toMatchObject({ ok: false, reason });
+          expect(deps.models.Players.update).not.toHaveBeenCalled();
+        }
+      },)).toEqual([]);
+  });
 
   // a timestop is a condition on a game being played, so it blocks on top of
   // the state rather than as one of its values
@@ -200,14 +201,14 @@ describe('swap.run gamestate gate', () => {
   });
 
   // the other flags are not the gate's business at all
-  it.each([{ finale: true }, { sandbox: true }, { gameActive: false }])(
-    'passes with %o', async (flags) => {
-      const { deps } = happyDeps({
-        game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, ...flags }),
-      });
-      expect((await logic.run(INPUT, deps)).ok).toBe(true);
-    },
-  );
+  it('passes with <flags>', async () => {
+    expect(await everyCase('passes with %o', [{ finale: true }, { sandbox: true }, { gameActive: false }], async (flags) => {
+        const { deps } = happyDeps({
+          game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, ...flags }),
+        });
+        expect((await logic.run(INPUT, deps)).ok).toBe(true);
+      },)).toEqual([]);
+  });
 
   // PRESERVED QUIRK: the gate is called with isClockwatcher = false, so a
   // Clockwatcher gets no exemption here
@@ -283,11 +284,13 @@ describe('swap.run success', () => {
 });
 
 describe('swap.present', () => {
-  it.each([
-    [REJECTIONS.WRONG_CLASS, { className: 'Switchmate' }, 'You are not a Switchmate!'],
-    [REJECTIONS.SAME_TILE, undefined, 'The player and victim are on the same tile!'],
-  ])('renders %s with the legacy wording', (reason, data, content) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.WRONG_CLASS, { className: 'Switchmate' }, 'You are not a Switchmate!'],
+      [REJECTIONS.SAME_TILE, undefined, 'The player and victim are on the same tile!'],
+    ], (reason, data, content) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content });
+    })).toEqual([]);
   });
 
   it('renders success with the victim\'s username', () => {

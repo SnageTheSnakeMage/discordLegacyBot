@@ -6,6 +6,7 @@ const logic = require('../../../commands/Developer Commands/changeGamestate.logi
 const changeGamestate = require('../../../commands/Developer Commands/changeGamestate.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 /**
  * deps whose Games.findByPk finds a game. The command needs one to exist:
@@ -87,15 +88,17 @@ describe('change-gamestate run success', () => {
 
   // every state in the enum is writable by the dev, and the clock follows it:
   // a game being played runs, and nothing else does
-  it.each(Object.values(GAMESTATES))('writes %s, with the clock following it', async (state) => {
-    const deps = devDeps({}, { GAME_STATE: GAMESTATES.REGISTRATION, gameActive: false });
-    const result = await logic.run({ ...DEV_INPUT, gamestate: state }, deps);
-    expect(result.ok).toBe(true);
-    expect(result.data.gamestate).toBe(state);
-    expect(deps.models.Games.update).toHaveBeenCalledWith(
-      expect.objectContaining({ GAME_STATE: state, gameActive: state === GAMESTATES.ACTIVE }),
-      { where: { Game_ID: 1 } },
-    );
+  it('writes <state>, with the clock following it', async () => {
+    expect(await everyCase('writes %s, with the clock following it', Object.values(GAMESTATES), async (state) => {
+      const deps = devDeps({}, { GAME_STATE: GAMESTATES.REGISTRATION, gameActive: false });
+      const result = await logic.run({ ...DEV_INPUT, gamestate: state }, deps);
+      expect(result.ok).toBe(true);
+      expect(result.data.gamestate).toBe(state);
+      expect(deps.models.Games.update).toHaveBeenCalledWith(
+        expect.objectContaining({ GAME_STATE: state, gameActive: state === GAMESTATES.ACTIVE }),
+        { where: { Game_ID: 1 } },
+      );
+    })).toEqual([]);
   });
 
   // a value the choice list cannot produce would otherwise be written into a

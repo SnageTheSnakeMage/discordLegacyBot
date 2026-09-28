@@ -8,6 +8,7 @@ const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const MAILMAN = '123';
 const RECEIVER = '456';
@@ -75,19 +76,21 @@ describe('deliver.run rejections', () => {
   //
   // isClockwatcher is hardcoded false in deliver, so TIMESTOPPED always
   // blocks.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expect(deps.models.Players.update).not.toHaveBeenCalled();
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expect(deps.models.Players.update).not.toHaveBeenCalled();
+      }
+    })).toEqual([]);
   });
 
   it('rejects a non-Mailman', async () => {
@@ -211,12 +214,14 @@ describe('deliver.run success', () => {
 });
 
 describe('deliver.present', () => {
-  it.each([
-    [REJECTIONS.WRONG_CLASS, { className: 'Mailman' }, 'You are not a Mailman!'],
-    [REJECTIONS.TARGET_NOT_IN_GAME, { role: 'receiver' }, 'The receiver is not in the game!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'deliver' }, 'You dont have enough AP to deliver!'],
-  ])('renders %s byte-identical to the legacy reply', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.WRONG_CLASS, { className: 'Mailman' }, 'You are not a Mailman!'],
+      [REJECTIONS.TARGET_NOT_IN_GAME, { role: 'receiver' }, 'The receiver is not in the game!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'deliver' }, 'You dont have enough AP to deliver!'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   // quirk pinned: no space between the amount and "AP", exactly as before

@@ -5,16 +5,19 @@
  */
 const utils = require('../utils.js');
 const { GAMESTATES, REJECTIONS } = require('../enums.js');
+const { everyCase } = require('./helpers/everyCase.js');
 
 describe('getTileCordinatesOfLine', () => {
-  it.each([
-    // orthogonal
-    [[3, 3], [5, 3], [[3, 3], [4, 3], [5, 3]]],
-    [[3, 3], [1, 3], [[3, 3], [2, 3], [1, 3]]],
-    [[3, 3], [3, 5], [[3, 3], [3, 4], [3, 5]]],
-    [[3, 3], [3, 1], [[3, 3], [3, 2], [3, 1]]],
-  ])('orthogonal %j -> %j', (from, to, expected) => {
-    expect(utils.getTileCordinatesOfLine(from, to)).toStrictEqual(expected);
+  it('orthogonal <from> -> <to>', async () => {
+    expect(await everyCase('orthogonal %j -> %j', [
+      // orthogonal
+      [[3, 3], [5, 3], [[3, 3], [4, 3], [5, 3]]],
+      [[3, 3], [1, 3], [[3, 3], [2, 3], [1, 3]]],
+      [[3, 3], [3, 5], [[3, 3], [3, 4], [3, 5]]],
+      [[3, 3], [3, 1], [[3, 3], [3, 2], [3, 1]]],
+    ], (from, to, expected) => {
+      expect(utils.getTileCordinatesOfLine(from, to)).toStrictEqual(expected);
+    })).toEqual([]);
   });
 
   it('starts every line with the origin tile', () => {
@@ -34,33 +37,37 @@ describe('getTileCordinatesOfLine', () => {
     expect(utils.getTileCordinatesOfLine([3, 3], [3, 3])).toStrictEqual([[3, 3]]);
   });
 
-  it.each([
-    [[3, 3], [5, 5]],
-    [[3, 3], [1, 1]],
-    [[3, 3], [5, 1]],
-    [[3, 3], [1, 5]],
-  ])('pure diagonals step both axes each move: %j -> %j', (from, to) => {
-    const line = utils.getTileCordinatesOfLine(from, to);
-    expect(line).toHaveLength(3);
-    for (let i = 1; i < line.length; i++) {
-      expect(Math.abs(line[i][0] - line[i - 1][0])).toBe(1);
-      expect(Math.abs(line[i][1] - line[i - 1][1])).toBe(1);
-    }
+  it('pure diagonals step both axes each move: <from> -> <to>', async () => {
+    expect(await everyCase('pure diagonals step both axes each move: %j -> %j', [
+      [[3, 3], [5, 5]],
+      [[3, 3], [1, 1]],
+      [[3, 3], [5, 1]],
+      [[3, 3], [1, 5]],
+    ], (from, to) => {
+      const line = utils.getTileCordinatesOfLine(from, to);
+      expect(line).toHaveLength(3);
+      for (let i = 1; i < line.length; i++) {
+        expect(Math.abs(line[i][0] - line[i - 1][0])).toBe(1);
+        expect(Math.abs(line[i][1] - line[i - 1][1])).toBe(1);
+      }
+    })).toEqual([]);
   });
 });
 
 describe('getDirection', () => {
-  it.each([
-    [[3, 3], [3, 1], 'north'],
-    [[3, 3], [3, 5], 'south'],
-    [[3, 3], [5, 3], 'east'],
-    [[3, 3], [1, 3], 'west'],
-    [[3, 3], [5, 1], 'northeast'],
-    [[3, 3], [1, 1], 'northwest'],
-    [[3, 3], [5, 5], 'southeast'],
-    [[3, 3], [1, 5], 'southwest'],
-  ])('%j -> %j is %s (south is +Y, issue #89)', (from, to, expected) => {
-    expect(utils.getDirection(from, to)).toBe(expected);
+  it('<from> -> <to> is <expected> (south is +Y, issue #89)', async () => {
+    expect(await everyCase('%j -> %j is %s (south is +Y, issue #89)', [
+      [[3, 3], [3, 1], 'north'],
+      [[3, 3], [3, 5], 'south'],
+      [[3, 3], [5, 3], 'east'],
+      [[3, 3], [1, 3], 'west'],
+      [[3, 3], [5, 1], 'northeast'],
+      [[3, 3], [1, 1], 'northwest'],
+      [[3, 3], [5, 5], 'southeast'],
+      [[3, 3], [1, 5], 'southwest'],
+    ], (from, to, expected) => {
+      expect(utils.getDirection(from, to)).toBe(expected);
+    })).toEqual([]);
   });
 });
 
@@ -90,16 +97,20 @@ describe('checkGameState - the full gamestate table', () => {
     expect(Object.keys(expected).sort()).toEqual(Object.values(GAMESTATES).sort());
   });
 
-  it.each(Object.entries(expected))('%s (non-clockwatcher)', (state, verdict) => {
-    expect(utils.checkGameState({ GAME_STATE: state }, false)).toEqual(verdict);
+  it('<state> (non-clockwatcher)', async () => {
+    expect(await everyCase('%s (non-clockwatcher)', Object.entries(expected), (state, verdict) => {
+      expect(utils.checkGameState({ GAME_STATE: state }, false)).toEqual(verdict);
+    })).toEqual([]);
   });
 
   it('covers every declared gamestate for a read-only caller too', () => {
     expect(Object.keys(expectedReadOnly).sort()).toEqual(Object.values(GAMESTATES).sort());
   });
 
-  it.each(Object.entries(expectedReadOnly))('%s (read-only)', (state, verdict) => {
-    expect(utils.checkGameState({ GAME_STATE: state }, false, { readOnly: true })).toEqual(verdict);
+  it('<state> (read-only)', async () => {
+    expect(await everyCase('%s (read-only)', Object.entries(expectedReadOnly), (state, verdict) => {
+      expect(utils.checkGameState({ GAME_STATE: state }, false, { readOnly: true })).toEqual(verdict);
+    })).toEqual([]);
   });
 
   it('throws on a gamestate outside the enum', () => {
@@ -131,23 +142,25 @@ describe('checkGameState - the full gamestate table', () => {
 
     // the finale, sandbox mode and the clock are not the gate's business: they
     // change what the game does, not who may act in it
-    it.each([{ finale: true }, { sandbox: true }, { gameActive: false }, { gameActive: true }])(
-      '%o does not block', (flags) => {
-        expect(utils.checkGameState(playing(flags), false)).toEqual({ blocked: false });
-      },
-    );
+    it('<flags> does not block', async () => {
+      expect(await everyCase('%o does not block', [{ finale: true }, { sandbox: true }, { gameActive: false }, { gameActive: true }], (flags) => {
+          expect(utils.checkGameState(playing(flags), false)).toEqual({ blocked: false });
+        },)).toEqual([]);
+    });
 
     // every combination of the three non-clock flags, with the timestop
     // deciding on its own each time
-    it.each([true, false])('timeStopped %s decides regardless of the others', (timeStopped) => {
-      for (const finale of [true, false]) {
-        for (const sandbox of [true, false]) {
-          const verdict = utils.checkGameState(playing({ timeStopped, finale, sandbox }), false);
-          expect(verdict).toEqual(timeStopped
-            ? { blocked: true, reason: REJECTIONS.TIME_STOPPED }
-            : { blocked: false });
+    it('timeStopped <timeStopped> decides regardless of the others', async () => {
+      expect(await everyCase('timeStopped %s decides regardless of the others', [true, false], (timeStopped) => {
+        for (const finale of [true, false]) {
+          for (const sandbox of [true, false]) {
+            const verdict = utils.checkGameState(playing({ timeStopped, finale, sandbox }), false);
+            expect(verdict).toEqual(timeStopped
+              ? { blocked: true, reason: REJECTIONS.TIME_STOPPED }
+              : { blocked: false });
+          }
         }
-      }
+      })).toEqual([]);
     });
   });
 });
@@ -168,17 +181,19 @@ describe('setGameState', () => {
     };
   };
 
-  it.each([
-    [GAMESTATES.REGISTRATION, false],
-    [GAMESTATES.OVER, false],
-    [GAMESTATES.ACTIVE, true],
-    [GAMESTATES.DEV_PAUSED, true],
-  ])('%s: an asked-for running clock is granted = %s', async (state, granted) => {
-    const { db, updates } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, gameActive: false });
-    const changes = await utils.setGameState(1, state, { gameActive: true, db });
-    expect(changes.GAME_STATE).toBe(state);
-    expect(changes.gameActive).toBe(granted);
-    expect(updates[0].gameActive).toBe(granted);
+  it('<state>: an asked-for running clock is granted = <granted>', async () => {
+    expect(await everyCase('%s: an asked-for running clock is granted = %s', [
+      [GAMESTATES.REGISTRATION, false],
+      [GAMESTATES.OVER, false],
+      [GAMESTATES.ACTIVE, true],
+      [GAMESTATES.DEV_PAUSED, true],
+    ], async (state, granted) => {
+      const { db, updates } = fakeDb({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, gameActive: false });
+      const changes = await utils.setGameState(1, state, { gameActive: true, db });
+      expect(changes.GAME_STATE).toBe(state);
+      expect(changes.gameActive).toBe(granted);
+      expect(updates[0].gameActive).toBe(granted);
+    })).toEqual([]);
   });
 
   it('leaves the clock alone when gameActive is not passed', async () => {

@@ -13,6 +13,7 @@ const {
   createFakeTile,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const BUILDER = '123';
 
@@ -88,23 +89,27 @@ describe('build.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it.each(['Gateway_Open', 'Gateway_Locked'])('rejects building on a %s tile', async (tileType) => {
-    const { deps } = happyDeps({
-      targetTile: createFakeTile({ Tile_ID: 2, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: tileType }),
-    });
-    const result = await logic.run({ ...INPUT, wall: true }, deps);
-    expect(result.reason).toBe(REJECTIONS.WRONG_TILE_TYPE);
-    expect(result.data.message).toBe('You cannot build on a gateway tile!');
-    expectNoWrites(deps);
+  it('rejects building on a <tileType> tile', async () => {
+    expect(await everyCase('rejects building on a %s tile', ['Gateway_Open', 'Gateway_Locked'], async (tileType) => {
+      const { deps } = happyDeps({
+        targetTile: createFakeTile({ Tile_ID: 2, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: tileType }),
+      });
+      const result = await logic.run({ ...INPUT, wall: true }, deps);
+      expect(result.reason).toBe(REJECTIONS.WRONG_TILE_TYPE);
+      expect(result.data.message).toBe('You cannot build on a gateway tile!');
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
-  it.each(['Player1', 'Player4'])('rejects a wall when %s occupies the tile', async (slot) => {
-    const { deps } = happyDeps({
-      targetTile: createFakeTile({ Tile_ID: 2, X_Position: 2, Y_Position: 1, Layer_ID: 1, [slot]: 9 }),
-    });
-    const result = await logic.run({ ...INPUT, wall: true }, deps);
-    expect(result.reason).toBe(REJECTIONS.TILE_OCCUPIED);
-    expectNoWrites(deps);
+  it('rejects a wall when <slot> occupies the tile', async () => {
+    expect(await everyCase('rejects a wall when %s occupies the tile', ['Player1', 'Player4'], async (slot) => {
+      const { deps } = happyDeps({
+        targetTile: createFakeTile({ Tile_ID: 2, X_Position: 2, Y_Position: 1, Layer_ID: 1, [slot]: 9 }),
+      });
+      const result = await logic.run({ ...INPUT, wall: true }, deps);
+      expect(result.reason).toBe(REJECTIONS.TILE_OCCUPIED);
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
   // preserved quirk: only walls check for occupants; a chest builds straight
@@ -165,19 +170,21 @@ describe('build.run rejections', () => {
   //
   // The old code hard-coded isClockwatcher=false, so TIMESTOPPED always
   // blocks.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expectNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   // preserved quirk: the AP check ran before the gamestate gate in the old
@@ -248,13 +255,15 @@ describe('build.run success', () => {
 });
 
 describe('build.present', () => {
-  it.each([
-    [REJECTIONS.NO_SUCH_TILE, { action: 'build on' }, 'Could not find tile to build on at the given coordinates.'],
-    [REJECTIONS.WRONG_CLASS, { className: 'Construction Worker' }, 'You are not a Construction Worker!'],
-    [REJECTIONS.TILE_OCCUPIED, undefined, 'There is a player on that tile!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'build a wall or chest' }, 'You dont have enough AP to build a wall or chest!'],
-  ])('renders %s byte-identical to the legacy string', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.NO_SUCH_TILE, { action: 'build on' }, 'Could not find tile to build on at the given coordinates.'],
+      [REJECTIONS.WRONG_CLASS, { className: 'Construction Worker' }, 'You are not a Construction Worker!'],
+      [REJECTIONS.TILE_OCCUPIED, undefined, 'There is a player on that tile!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'build a wall or chest' }, 'You dont have enough AP to build a wall or chest!'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   it('renders success naming the previous tile type', () => {

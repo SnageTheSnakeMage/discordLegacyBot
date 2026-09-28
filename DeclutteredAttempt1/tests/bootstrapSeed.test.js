@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parseCsv, readSeed } = require('../scripts/bootstrap-db.js');
+const { everyCase } = require('./helpers/everyCase.js');
 
 const SEED = path.join(__dirname, '..', 'database', 'seed', 'classes.csv');
 
@@ -34,16 +35,18 @@ function withBrokenSeed(csv, assertion) {
 }
 
 describe('parseCsv', () => {
-  it.each([
-    ['plain rows', 'a,b\n1,2\n', [['a', 'b'], ['1', '2']]],
-    ['a comma inside a quoted field', 'a,b\n"x,y",2\n', [['a', 'b'], ['x,y', '2']]],
-    ['a doubled quote', 'a\n"he said ""hi"""\n', [['a'], ['he said "hi"']]],
-    ['a newline inside a quoted field', 'a,b\n"l1\nl2",2\n', [['a', 'b'], ['l1\nl2', '2']]],
-    ['CRLF line endings', 'a,b\r\n1,2\r\n', [['a', 'b'], ['1', '2']]],
-    ['an empty field', 'a,b\n,2\n', [['a', 'b'], ['', '2']]],
-    ['no trailing newline', 'a,b\n1,2', [['a', 'b'], ['1', '2']]],
-  ])('handles %s', (_label, input, expected) => {
-    expect(parseCsv(input)).toEqual(expected);
+  it('handles <label>', async () => {
+    expect(await everyCase('handles %s', [
+      ['plain rows', 'a,b\n1,2\n', [['a', 'b'], ['1', '2']]],
+      ['a comma inside a quoted field', 'a,b\n"x,y",2\n', [['a', 'b'], ['x,y', '2']]],
+      ['a doubled quote', 'a\n"he said ""hi"""\n', [['a'], ['he said "hi"']]],
+      ['a newline inside a quoted field', 'a,b\n"l1\nl2",2\n', [['a', 'b'], ['l1\nl2', '2']]],
+      ['CRLF line endings', 'a,b\r\n1,2\r\n', [['a', 'b'], ['1', '2']]],
+      ['an empty field', 'a,b\n,2\n', [['a', 'b'], ['', '2']]],
+      ['no trailing newline', 'a,b\n1,2', [['a', 'b'], ['1', '2']]],
+    ], (_label, input, expected) => {
+      expect(parseCsv(input)).toEqual(expected);
+    })).toEqual([]);
   });
 });
 

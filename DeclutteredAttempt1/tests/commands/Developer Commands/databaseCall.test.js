@@ -12,6 +12,7 @@ const logic = require('../../../commands/Developer Commands/databaseCall.logic.j
 const databaseCall = require('../../../commands/Developer Commands/databaseCall.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame, createFakePlayer, expectNoWrites } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const MODEL_NAMES = ['Players', 'Games', 'Classes', 'Tiles', 'Layers'];
 const DEV_INPUT = { subcommand: 'find-all', model: 'Games', isDev: true, discordId: '123' };
@@ -64,39 +65,43 @@ describe('call-db run rejections', () => {
   // MISSING CODE: REJECTIONS has no INVALID_MODEL, so the closest general
   // "that option value is not valid" code carries the exact wording in
   // data.message (see the conversion report's missing_codes).
-  it.each([
-    ['a model that is not on the choice list', 'Nonsense'],
-    ['the right name in the wrong case', 'players'],
-    ['an absent option', null],
-    ['an empty string', ''],
-  ])('rejects %s and touches nothing', async (_label, model) => {
-    const deps = createDeps();
-    const result = await logic.run({ ...DEV_INPUT, model }, deps);
-    expect(result).toEqual({
-      ok: false,
-      reason: REJECTIONS.INVALID_AMOUNT,
-      data: { message: `\`${model}\` is not one of the models this command can read.` },
-    });
-    expectNoDatabaseAccess(deps);
+  it('rejects <label> and touches nothing', async () => {
+    expect(await everyCase('rejects %s and touches nothing', [
+      ['a model that is not on the choice list', 'Nonsense'],
+      ['the right name in the wrong case', 'players'],
+      ['an absent option', null],
+      ['an empty string', ''],
+    ], async (_label, model) => {
+      const deps = createDeps();
+      const result = await logic.run({ ...DEV_INPUT, model }, deps);
+      expect(result).toEqual({
+        ok: false,
+        reason: REJECTIONS.INVALID_AMOUNT,
+        data: { message: `\`${model}\` is not one of the models this command can read.` },
+      });
+      expectNoDatabaseAccess(deps);
+    })).toEqual([]);
   });
 
   // `data` declares no primary-key option and no field/value options, so
   // these two subcommands have no way to receive the inputs they need. They
   // reject rather than guess, and they still touch nothing.
-  it.each([
-    'find-by-primary-key',
-    'update-player',
-    'some-subcommand-that-does-not-exist',
-    null,
-  ])('rejects the %s subcommand and touches nothing', async (subcommand) => {
-    const deps = createDeps();
-    const result = await logic.run({ ...DEV_INPUT, subcommand }, deps);
-    expect(result).toEqual({
-      ok: false,
-      reason: REJECTIONS.INVALID_AMOUNT,
-      data: { message: `The \`${subcommand}\` subcommand is not implemented.` },
-    });
-    expectNoDatabaseAccess(deps);
+  it('rejects the <subcommand> subcommand and touches nothing', async () => {
+    expect(await everyCase('rejects the %s subcommand and touches nothing', [
+      'find-by-primary-key',
+      'update-player',
+      'some-subcommand-that-does-not-exist',
+      null,
+    ], async (subcommand) => {
+      const deps = createDeps();
+      const result = await logic.run({ ...DEV_INPUT, subcommand }, deps);
+      expect(result).toEqual({
+        ok: false,
+        reason: REJECTIONS.INVALID_AMOUNT,
+        data: { message: `The \`${subcommand}\` subcommand is not implemented.` },
+      });
+      expectNoDatabaseAccess(deps);
+    })).toEqual([]);
   });
 
   it('checks the model before the subcommand', async () => {
@@ -120,16 +125,18 @@ describe('call-db run success', () => {
     expectNoWrites(deps);
   });
 
-  it.each(MODEL_NAMES)('find-all on %s reads only that model', async (model) => {
-    const deps = createDeps();
-    const result = await logic.run({ ...DEV_INPUT, model }, deps);
-    expect(result.ok).toBe(true);
-    expect(result.data).toEqual({ model, rows: [], count: 0 });
-    expect(deps.models[model].findAll).toHaveBeenCalledTimes(1);
-    for (const other of MODEL_NAMES.filter((n) => n !== model)) {
-      expect(deps.models[other].findAll).not.toHaveBeenCalled();
-    }
-    expectNoWrites(deps);
+  it('find-all on <model> reads only that model', async () => {
+    expect(await everyCase('find-all on %s reads only that model', MODEL_NAMES, async (model) => {
+      const deps = createDeps();
+      const result = await logic.run({ ...DEV_INPUT, model }, deps);
+      expect(result.ok).toBe(true);
+      expect(result.data).toEqual({ model, rows: [], count: 0 });
+      expect(deps.models[model].findAll).toHaveBeenCalledTimes(1);
+      for (const other of MODEL_NAMES.filter((n) => n !== model)) {
+        expect(deps.models[other].findAll).not.toHaveBeenCalled();
+      }
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
   it('covers all five models of the option choice list', () => {
@@ -155,13 +162,15 @@ describe('call-db run success', () => {
   // loads "the" game, it dumps a table - so the table asserts exactly that:
   // every state in the enum reads back unchanged and none of them blocks the
   // command. A new state cannot be added without this test being reconsidered.
-  it.each(Object.values(GAMESTATES))('%s neither blocks nor alters the read', async (state) => {
-    const game = createFakeGame({ GAME_STATE: state });
-    const deps = createDeps({ models: { Games: { findAll: async () => [game] } } });
-    const result = await logic.run(DEV_INPUT, deps);
-    expect(result.ok).toBe(true);
-    expect(result.data.rows[0].GAME_STATE).toBe(state);
-    expectNoWrites(deps);
+  it('<state> neither blocks nor alters the read', async () => {
+    expect(await everyCase('%s neither blocks nor alters the read', Object.values(GAMESTATES), async (state) => {
+      const game = createFakeGame({ GAME_STATE: state });
+      const deps = createDeps({ models: { Games: { findAll: async () => [game] } } });
+      const result = await logic.run(DEV_INPUT, deps);
+      expect(result.ok).toBe(true);
+      expect(result.data.rows[0].GAME_STATE).toBe(state);
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
   // No AP or range boundaries apply: this command spends no AP and has no

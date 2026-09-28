@@ -8,6 +8,7 @@ const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const FAKE_PNG = Buffer.from('not-a-real-png');
 
@@ -53,14 +54,16 @@ describe('board.run', () => {
     expect(await logic.run(INPUT, deps)).toMatchObject({ ok: false, reason: REJECTIONS.NOT_IN_GAME });
   });
 
-  it.each([
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.DEV_PAUSED }, REJECTIONS.GAME_PAUSED],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o blocks with %s', async (condition, reason) => {
-    const deps = happyDeps({ game: createFakeGame({ ...condition }) });
-    expect(await logic.run(INPUT, deps)).toMatchObject({ ok: false, reason });
-    expect(deps.utils.GenerateGameGridImage).not.toHaveBeenCalled();
+  it('game <condition> blocks with <reason>', async () => {
+    expect(await everyCase('game %o blocks with %s', [
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.DEV_PAUSED }, REJECTIONS.GAME_PAUSED],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const deps = happyDeps({ game: createFakeGame({ ...condition }) });
+      expect(await logic.run(INPUT, deps)).toMatchObject({ ok: false, reason });
+      expect(deps.utils.GenerateGameGridImage).not.toHaveBeenCalled();
+    })).toEqual([]);
   });
 
   // /board only looks, so the state that means "nothing to act on yet" stays

@@ -14,6 +14,7 @@ const {
   createFakeTile,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const DRUID = '123';
 
@@ -108,19 +109,21 @@ describe('conjure.run rejections', () => {
   // The old code passed isClockwatcher=false unconditionally, so
   // TIMESTOPPED always blocks (a Druid is never a Clockwatcher) -
   // preserved.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expectNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   it('reports the gamestate before the missing tile (legacy order)', async () => {
@@ -146,14 +149,16 @@ describe('conjure.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it.each(['Gateway_Open', 'Gateway_Locked'])('rejects conjuring on a %s tile', async (type) => {
-    const { deps } = happyDeps({
-      tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
-    expect(result.data.message).toBe('You cannot conjure a storm on a gateway tile!');
-    expectNoWrites(deps);
+  it('rejects conjuring on a <type> tile', async () => {
+    expect(await everyCase('rejects conjuring on a %s tile', ['Gateway_Open', 'Gateway_Locked'], async (type) => {
+      const { deps } = happyDeps({
+        tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+      expect(result.data.message).toBe('You cannot conjure a storm on a gateway tile!');
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
   it('rejects a tile one beyond max range (boundary: one beyond)', async () => {
@@ -265,16 +270,18 @@ describe('conjure.run success', () => {
 
 describe('conjure.present', () => {
   // every rejection conjure can return renders as its exact legacy string
-  it.each([
-    [REJECTIONS.PLAYER_DEAD, undefined, "Dead players can't use this command."],
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
-    [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
-    [REJECTIONS.NO_SUCH_TILE, { action: 'conjure a storm on' }, 'Could not find tile to conjure a storm on at the given coordinates.'],
-    [REJECTIONS.WRONG_CLASS, { className: 'Druid' }, 'You are not a Druid!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'conjure a storm on a tile' }, 'You dont have enough AP to conjure a storm on a tile!'],
-  ])('renders %s as its legacy message', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.PLAYER_DEAD, undefined, "Dead players can't use this command."],
+      [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+      [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
+      [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
+      [REJECTIONS.NO_SUCH_TILE, { action: 'conjure a storm on' }, 'Could not find tile to conjure a storm on at the given coordinates.'],
+      [REJECTIONS.WRONG_CLASS, { className: 'Druid' }, 'You are not a Druid!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'conjure a storm on a tile' }, 'You dont have enough AP to conjure a storm on a tile!'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   it('renders success naming the PRE-conjure tile type, not Storm (preserved quirk)', () => {

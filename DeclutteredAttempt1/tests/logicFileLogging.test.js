@@ -14,6 +14,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { everyCase } = require('./helpers/everyCase.js');
 
 const COMMANDS_DIR = path.join(__dirname, '..', 'commands');
 const THRESHOLD = 200;
@@ -74,18 +75,22 @@ describe('logic files over 200 non-comment lines log their internals', () => {
     expect(large.map((entry) => entry.relative)).toContain(path.join('Player Commands', 'move.logic.js'));
   });
 
-  it.each(large.map((entry) => [entry.relative, entry]))('%s requires stepLogger', (_relative, entry) => {
-    expect(entry.source).toMatch(/require\((['"]).*_logging\.js\1\)/);
-    expect(entry.source).toMatch(/stepLogger/);
+  it('<relative> requires stepLogger', async () => {
+    expect(await everyCase('%s requires stepLogger', large.map((entry) => [entry.relative, entry]), (_relative, entry) => {
+      expect(entry.source).toMatch(/require\((['"]).*_logging\.js\1\)/);
+      expect(entry.source).toMatch(/stepLogger/);
+    })).toEqual([]);
   });
 
-  it.each(large.map((entry) => [entry.relative, entry]))('%s actually calls its step logger', (_relative, entry) => {
-    // stepLogger returns the logging function; a file that requires it and
-    // never calls it has the import and none of the logging. Counting to a
-    // fixed minimum was churn, not a guard: merging two trace() calls while
-    // logging exactly as much used to fail this.
-    const calls = entry.source.match(/(?<![\w.])trace\(/g) || [];
-    expect(calls.length).toBeGreaterThan(0);
+  it('<relative> actually calls its step logger', async () => {
+    expect(await everyCase('%s actually calls its step logger', large.map((entry) => [entry.relative, entry]), (_relative, entry) => {
+      // stepLogger returns the logging function; a file that requires it and
+      // never calls it has the import and none of the logging. Counting to a
+      // fixed minimum was churn, not a guard: merging two trace() calls while
+      // logging exactly as much used to fail this.
+      const calls = entry.source.match(/(?<![\w.])trace\(/g) || [];
+      expect(calls.length).toBeGreaterThan(0);
+    })).toEqual([]);
   });
 });
 

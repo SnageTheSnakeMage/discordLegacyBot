@@ -10,6 +10,7 @@ const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const ACTOR = '123';
 const VICTIM = '456';
@@ -198,18 +199,18 @@ describe('hotPotato.run gamestate gate', () => {
     expect(Object.keys(OUTCOMES).sort()).toEqual(Object.values(GAMESTATES).sort());
   });
 
-  it.each(Object.values(GAMESTATES).map((state) => [state, OUTCOMES[state]]))(
-    '%s -> %s', async (state, reason) => {
-      const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
-      const result = await logic.run(INPUT, deps);
-      if (reason === null) {
-        expect(result.ok).toBe(true);
-      } else {
-        expect(result).toMatchObject({ ok: false, reason });
-        expect(deps.models.Players.update).not.toHaveBeenCalled();
-      }
-    },
-  );
+  it('<state> -> <reason>', async () => {
+    expect(await everyCase('%s -> %s', Object.values(GAMESTATES).map((state) => [state, OUTCOMES[state]]), async (state, reason) => {
+        const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
+        const result = await logic.run(INPUT, deps);
+        if (reason === null) {
+          expect(result.ok).toBe(true);
+        } else {
+          expect(result).toMatchObject({ ok: false, reason });
+          expect(deps.models.Players.update).not.toHaveBeenCalled();
+        }
+      },)).toEqual([]);
+  });
 
   // a timestop is a condition on a game being played, so it blocks on top of
   // the state rather than as one of its values
@@ -222,14 +223,14 @@ describe('hotPotato.run gamestate gate', () => {
   });
 
   // the other flags are not the gate's business at all
-  it.each([{ finale: true }, { sandbox: true }, { gameActive: false }])(
-    'passes with %o', async (flags) => {
-      const { deps } = happyDeps({
-        game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, ...flags }),
-      });
-      expect((await logic.run(INPUT, deps)).ok).toBe(true);
-    },
-  );
+  it('passes with <flags>', async () => {
+    expect(await everyCase('passes with %o', [{ finale: true }, { sandbox: true }, { gameActive: false }], async (flags) => {
+        const { deps } = happyDeps({
+          game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, ...flags }),
+        });
+        expect((await logic.run(INPUT, deps)).ok).toBe(true);
+      },)).toEqual([]);
+  });
 
   it('blocks a timestop even though the actor is a Hot Potato (isClockwatcher is always false here)', async () => {
     const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }) });
@@ -283,14 +284,16 @@ describe('hotPotato.run success', () => {
 });
 
 describe('hotPotato.present', () => {
-  it.each([
-    [REJECTIONS.WRONG_CLASS, { className: 'Hot Potato' }, 'You are not a Hot Potato!'],
-    [REJECTIONS.TARGET_NOT_IN_GAME, { role: 'victim' }, 'The victim is not in the game!'],
-    [REJECTIONS.TARGET_NOT_ON_TILE, { role: 'victim' }, 'The victim is not on the tile provided!'],
-    [REJECTIONS.OUT_OF_RANGE, { role: 'victim' }, 'Your victim is not in range!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'swap classes' }, 'You dont have enough AP to swap classes!'],
-  ])('renders %s with the legacy wording', (reason, data, content) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.WRONG_CLASS, { className: 'Hot Potato' }, 'You are not a Hot Potato!'],
+      [REJECTIONS.TARGET_NOT_IN_GAME, { role: 'victim' }, 'The victim is not in the game!'],
+      [REJECTIONS.TARGET_NOT_ON_TILE, { role: 'victim' }, 'The victim is not on the tile provided!'],
+      [REJECTIONS.OUT_OF_RANGE, { role: 'victim' }, 'Your victim is not in range!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'swap classes' }, 'You dont have enough AP to swap classes!'],
+    ], (reason, data, content) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content });
+    })).toEqual([]);
   });
 
   it('renders success with the swap line appended', () => {

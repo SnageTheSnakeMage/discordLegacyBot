@@ -14,6 +14,7 @@ const {
   createFakeLayer,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const CASTER = '123';
 const TARGET = '456';
@@ -138,19 +139,21 @@ describe('resurrect.run rejections', () => {
   // gate and returns its verdict without writing, so one state that passes,
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expectNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   it('does not block a Clockwatcher during a timestop', async () => {
@@ -226,28 +229,32 @@ describe('resurrect.run rejections', () => {
     );
   });
 
-  it.each(['Void', 'Wall', 'Ice'])('rejects resurrecting onto a %s tile', async (tileType) => {
-    const { deps } = happyDeps({
-      inputtedTile: createFakeTile({
-        Tile_ID: INPUTTED_TILE_ID, Layer_ID: CASTER_LAYER, X_Position: 3, Y_Position: 4, Tile_Type: tileType,
-      }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
-    expect(logic.present(result).content).toBe('You cannot resurrect to that tile!');
-    expectNoWrites(deps);
+  it('rejects resurrecting onto a <tileType> tile', async () => {
+    expect(await everyCase('rejects resurrecting onto a %s tile', ['Void', 'Wall', 'Ice'], async (tileType) => {
+      const { deps } = happyDeps({
+        inputtedTile: createFakeTile({
+          Tile_ID: INPUTTED_TILE_ID, Layer_ID: CASTER_LAYER, X_Position: 3, Y_Position: 4, Tile_Type: tileType,
+        }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+      expect(logic.present(result).content).toBe('You cannot resurrect to that tile!');
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
-  it.each(['Player1', 'Player2', 'Player3', 'Player4'])('rejects a tile occupied via %s', async (slot) => {
-    const { deps } = happyDeps({
-      inputtedTile: createFakeTile({
-        Tile_ID: INPUTTED_TILE_ID, Layer_ID: CASTER_LAYER, X_Position: 3, Y_Position: 4, [slot]: 99,
-      }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TILE_OCCUPIED });
-    expect(logic.present(result).content).toBe('You cannot resurrect to that tile!');
-    expectNoWrites(deps);
+  it('rejects a tile occupied via <slot>', async () => {
+    expect(await everyCase('rejects a tile occupied via %s', ['Player1', 'Player2', 'Player3', 'Player4'], async (slot) => {
+      const { deps } = happyDeps({
+        inputtedTile: createFakeTile({
+          Tile_ID: INPUTTED_TILE_ID, Layer_ID: CASTER_LAYER, X_Position: 3, Y_Position: 4, [slot]: 99,
+        }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TILE_OCCUPIED });
+      expect(logic.present(result).content).toBe('You cannot resurrect to that tile!');
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 });
 
