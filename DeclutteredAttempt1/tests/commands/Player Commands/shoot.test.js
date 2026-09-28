@@ -150,14 +150,17 @@ describe('shoot.run rejections', () => {
     })).toEqual([]);
   });
 
-  it('blocks a Clockwatcher during a timestop', async () => {
+  it('does not block a Clockwatcher during a timestop', async () => {
+    const clockwatcher = createFakeClass({ Class_Name: 'Clockwatcher' });
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, shootCost: 2 }),
-      shooterClass: createFakeClass({ Class_Name: 'Clockwatcher' }),
+      shooterClass: clockwatcher,
     });
+    // utils.isClockwatcher reads the class by primary key
+    deps.models.Classes.findByPk = jest.fn(async () => clockwatcher);
     const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TIME_STOPPED });
-    expectNoWrites(deps);
+    expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
+    expect(result.ok).toBe(true);
   });
 
   it('rejects when AP is one short of shootCost * amount, with its wording', async () => {

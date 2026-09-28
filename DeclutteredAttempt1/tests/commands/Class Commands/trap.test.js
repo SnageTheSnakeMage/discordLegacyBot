@@ -265,7 +265,7 @@ describe('trap.run success', () => {
   });
 
   it('traps a <type> tile too - there is no tile-type check', async () => {
-    expect(await everyCase('traps a %s tile too - there is no tile-type check (preserved quirk)', ['Wall', 'Void', 'Fire', 'Blank2', 'Gateway_Open'], async (type) => {
+    expect(await everyCase('traps a %s tile too - there is no tile-type check', ['Wall', 'Void', 'Fire', 'Blank2', 'Gateway_Open'], async (type) => {
         const { deps } = happyDeps({
           tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
         });
