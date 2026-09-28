@@ -284,6 +284,18 @@ const COMMANDS = {
     },
   },
 
+  'warp': {
+    description: 'Teleport to a random gateway tile on the layer ^/V Dimensional Hoppers land on any tile. 2AP',
+    options: {
+      'up-or-down': {
+        kind: 'boolean',
+        description: 'teleport up or down, true = up, false = down',
+        required: true,
+      },
+      'game': { kind: 'integer', description: 'which game, defaults to oldest registering game' },
+    },
+  },
+
   //#endregion Player Commands
 
   //#region Class Commands
@@ -538,18 +550,6 @@ const COMMANDS = {
         min: 1,
         max: 2,
       },
-    },
-  },
-
-  'warp': {
-    description: 'Teleport to a random gateway tile on the layer ^/V Dimensional Hoppers land on any tile',
-    options: {
-      'up-or-down': {
-        kind: 'boolean',
-        description: 'teleport up or down, true = up, false = down',
-        required: true,
-      },
-      'game': { kind: 'integer', description: 'which game, defaults to oldest registering game' },
     },
   },
 

@@ -6,8 +6,8 @@
  * preserved (splice-while-iterating, repeated filter passes, no Clockwatcher
  * exemption, loose class comparison). Each says so where it is asserted.
  */
-const logic = require('../../../commands/Class Commands/warp.logic.js');
-const warp = require('../../../commands/Class Commands/warp.js');
+const logic = require('../../../commands/Player Commands/warp.logic.js');
+const warp = require('../../../commands/Player Commands/warp.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
@@ -324,7 +324,7 @@ describe('warp.run preserved loop quirks', () => {
 });
 
 describe('warp.run success', () => {
-  it('teleports a hopper down and writes only Players.Tile_ID', async () => {
+  it('teleports a hopper down through setPlayerToTile', async () => {
     const { deps } = setup();
     const result = await logic.run(INPUT, deps);
     expect(result).toEqual({
@@ -332,11 +332,9 @@ describe('warp.run success', () => {
       kind: 'warped',
       data: { up: false, viaGateway: false, tileId: 50, layerId: 3 },
     });
-    // was: a bare Players.Tile_ID write that never claimed the destination
-    // slot nor vacated the old tile. setPlayerToTile does both (#78).
+    // setPlayerToTile claims the destination slot and vacates the old tile
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 3, 1, 1);
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
-    expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
   it('teleports a hopper up, using the layer above', async () => {
@@ -364,6 +362,60 @@ describe('warp.run success', () => {
     const result = await logic.run({ ...INPUT, gameId: null }, deps);
     expect(result.ok).toBe(true);
     expect(deps.utils.getOldestGameId).toHaveBeenCalledWith(DISCORD);
+  });
+});
+
+describe('warp.run AP cost', () => {
+  it.each([
+    ['a hopper on a blank tile', {}],
+    ['a non-hopper on an open gateway', {
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD, Class_ID: 2, Tile_ID: 1, Action_Points: 5 }),
+      currentTile: createFakeTile({ Tile_ID: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
+      destinationTiles: [openGateway(65)],
+    }],
+  ])('charges %s 2AP, after the move', async (_who, over) => {
+    const { deps } = setup(over);
+    const order = [];
+    deps.utils.setPlayerToTile.mockImplementation(async () => { order.push('move'); });
+    deps.models.Players.update.mockImplementation(async () => { order.push('charge'); return [1]; });
+
+    const result = await logic.run(INPUT, deps);
+
+    expect(result.ok).toBe(true);
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(1);
+    expect(deps.models.Players.update).toHaveBeenCalledWith(
+      { Action_Points: 3 }, { where: { Player_ID: 1 } },
+    );
+    expect(order).toEqual(['move', 'charge']);
+  });
+
+  it('warps with exactly 2AP, down to 0', async () => {
+    const { deps } = setup({
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD, Class_ID: HOPPER_CLASS_ID, Tile_ID: 1, Action_Points: 2 }),
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result.ok).toBe(true);
+    expect(deps.models.Players.update).toHaveBeenCalledWith(
+      { Action_Points: 0 }, { where: { Player_ID: 1 } },
+    );
+  });
+
+  it('refuses a player with less than 2AP without moving them', async () => {
+    const { deps } = setup({
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD, Class_ID: HOPPER_CLASS_ID, Tile_ID: 1, Action_Points: 1 }),
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NOT_ENOUGH_AP });
+    expect(logic.present(result).content).toBe('You dont have enough AP to warp!');
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+    expect(deps.models.Players.update).not.toHaveBeenCalled();
+  });
+
+  it('charges nothing when the move itself fails', async () => {
+    const { deps } = setup();
+    deps.utils.setPlayerToTile.mockRejectedValue('tile is full');
+    await expect(logic.run(INPUT, deps)).rejects.toBe('tile is full');
+    expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 });
 
