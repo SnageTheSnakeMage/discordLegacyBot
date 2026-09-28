@@ -81,6 +81,7 @@ function isUnusable(tile) {
     || tile.Tile_Type == 'Void'
     || tile.Tile_Type == 'Wall'
     || tile.Tile_Type == 'Wall_Damaged'
+    || tile.Tile_Type == 'Ice'
     || tile.Tile_Type == 'Gateway_Locked';
 }
 
