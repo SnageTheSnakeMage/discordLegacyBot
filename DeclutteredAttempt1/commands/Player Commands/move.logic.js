@@ -107,31 +107,31 @@ const STORMCHASER_CLASS_ID = 15;
 const STORM_FORBIDDEN_TILE_TYPES = ['Wall', 'Wall_Damaged', 'Void', 'Ice'];
 
 /**
- * direction option value -> [dx, dy] per unit of distance.
- * NOTE north is +Y here. Path segments below use the opposite convention;
- * that disagreement is legacy behaviour, not a typo in the port.
+ * The board's y grows downwards (row 1 is drawn at the top), so north is -y
+ * and south is +y; west is -x and east is +x. The direction option and path
+ * segments share this table.
  */
 const DIRECTION_DELTAS = {
   west: [-1, 0],
   east: [1, 0],
-  north: [0, 1],
-  south: [0, -1],
-  northeast: [1, 1],
-  northwest: [-1, 1],
-  southeast: [1, -1],
-  southwest: [-1, -1],
+  north: [0, -1],
+  south: [0, 1],
+  northeast: [1, -1],
+  northwest: [-1, -1],
+  southeast: [1, 1],
+  southwest: [-1, 1],
 };
 
-/** path segment direction -> [dx, dy] per unit of distance (up is -Y here). */
+/** path segment direction -> the direction it names */
 const PATH_DELTAS = {
-  left: [-1, 0], w: [-1, 0],
-  right: [1, 0], e: [1, 0],
-  up: [0, -1], n: [0, -1],
-  down: [0, 1], s: [0, 1],
-  nw: [-1, -1],
-  ne: [1, -1],
-  sw: [-1, 1],
-  se: [1, 1],
+  left: DIRECTION_DELTAS.west, w: DIRECTION_DELTAS.west,
+  right: DIRECTION_DELTAS.east, e: DIRECTION_DELTAS.east,
+  up: DIRECTION_DELTAS.north, n: DIRECTION_DELTAS.north,
+  down: DIRECTION_DELTAS.south, s: DIRECTION_DELTAS.south,
+  nw: DIRECTION_DELTAS.northwest,
+  ne: DIRECTION_DELTAS.northeast,
+  sw: DIRECTION_DELTAS.southwest,
+  se: DIRECTION_DELTAS.southeast,
 };
 
 /** random 0-7 -> [dx, dy], exactly the switch in movePlayerToRandomSurroundingTile */
@@ -146,7 +146,7 @@ const RANDOM_DIRECTION_DELTAS = [
   [-1, -1], // 7 northwest
 ];
 
-const PATH_REGEX = /^((?:left|right|up|down|ne|nw|se|sw),\d+;)+$/;
+const PATH_REGEX = /^((?:left|right|up|down|ne|nw|se|sw|n|s|e|w),\d+;)+$/;
 
 // player-facing wording that predates REJECTIONS; carried verbatim so the
 // text a player sees is byte-identical to the legacy command's.
@@ -155,8 +155,8 @@ const MSG_NO_TILE = "Current tile not found! please register, or ask a Dev about
 const MSG_ICE_END = 'Cannot end a movement on an ice tile, please either provide a path that moves off the ice, or move onto a non-ice tile.';
 const MSG_NO_AP = 'Player does not enough action points for movement requested.';
 const MSG_BAD_PATH_TILE = 'Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage.';
-const MSG_BAD_PATH_DIRECTION = 'Invalid input path, your are using a direction that isnt: left,right,up,down,nw,ne,sw, or se';
-const MSG_BAD_PATH_FORMAT = "Invalid input path, make sure your path uses a direction(left,right,up,down,nw,ne,sw,se) then a comma(,) and a number separated & ended by a semicolon(;). Also make sure it doesnt take you off the layer you are currently on. For example: 'sw,2;n,1;' and 'up,2;e,1;' are valid as long as they do not move to a tile that doesn't exist";
+const MSG_BAD_PATH_DIRECTION = 'Invalid input path, your are using a direction that isnt: left,right,up,down,n,s,e,w,nw,ne,sw, or se';
+const MSG_BAD_PATH_FORMAT = "Invalid input path, make sure your path uses a direction(left,right,up,down,n,s,e,w,nw,ne,sw,se) then a comma(,) and a number separated & ended by a semicolon(;). Also make sure it doesnt take you off the layer you are currently on. For example: 'sw,2;n,1;' and 'up,2;e,1;' are valid as long as they do not move to a tile that doesn't exist";
 
 // ---------------------------------------------------------------------------
 // pure path helpers (issue #88 - moved out of move.js so they can be tested)

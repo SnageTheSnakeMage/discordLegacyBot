@@ -196,6 +196,11 @@ describe('move.verifyInputPath', () => {
     expect(verdict).toEqual({ valid: true, destination: [3, 1] });
   });
 
+  it('accepts the one-letter compass directions', async () => {
+    const verdict = await logic.verifyInputPath('e,2;s,1;', 1, 1, 1, pathDeps());
+    expect(verdict.valid).toBe(true);
+  });
+
   it.each([
     ['garbage'],
     ['right,2'],
@@ -453,12 +458,12 @@ describe('move.run success', () => {
   it.each([
     ['east', 4, 3],
     ['west', 2, 3],
-    ['north', 3, 4],
-    ['south', 3, 2],
-    ['northeast', 4, 4],
-    ['northwest', 2, 4],
-    ['southeast', 4, 2],
-    ['southwest', 2, 2],
+    ['north', 3, 2],
+    ['south', 3, 4],
+    ['northeast', 4, 2],
+    ['northwest', 2, 2],
+    ['southeast', 4, 4],
+    ['southwest', 2, 4],
   ])('direction %s lands on (%i, %i)', async (direction, x, y) => {
     // start from the middle of the board so every direction has a tile
     const { deps } = makeDeps({
@@ -470,10 +475,38 @@ describe('move.run success', () => {
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, x, y);
   });
 
-  // QUIRK: north is +Y for the direction option but -Y for path segments
-  it('keeps the direction option and path segments disagreeing about north', async () => {
-    expect(logic.DIRECTION_DELTAS.north).toEqual([0, 1]);
-    expect(logic.pathToTiles([3, 3], [['up', '1']])).toEqual([[3, 3], [3, 2]]);
+  // the board draws row 1 at the top, so north and up are both -y
+  it.each([
+    ['north', 'up'], ['north', 'n'],
+    ['south', 'down'], ['south', 's'],
+    ['west', 'left'], ['west', 'w'],
+    ['east', 'right'], ['east', 'e'],
+    ['northeast', 'ne'], ['northwest', 'nw'],
+    ['southeast', 'se'], ['southwest', 'sw'],
+  ])('the %s option and the %s path segment go the same way', (option, segment) => {
+    const [dx, dy] = logic.DIRECTION_DELTAS[option];
+    expect(logic.pathToTiles([3, 3], [[segment, '1'], ['']])).toEqual([[3, 3], [3 + dx, 3 + dy]]);
+  });
+
+  it('agrees with utils.getDirection about every direction', () => {
+    const utils = require('../../../utils.js');
+    const disagreements = Object.entries(logic.DIRECTION_DELTAS)
+      .filter(([name, [dx, dy]]) => utils.getDirection([3, 3], [3 + dx, 3 + dy]) !== name)
+      .map(([name]) => name);
+    expect(disagreements).toEqual([]);
+  });
+
+  it('labels every /move choice with the direction it moves', () => {
+    const catalog = require('../../../commandCatalog.js');
+    const commands = catalog.COMMANDS || catalog;
+    const choices = commands.move.options.direction.choices;
+    const LABEL_TO_VALUE = {
+      left: 'west', right: 'east', up: 'north', down: 'south',
+      nw: 'northwest', ne: 'northeast', sw: 'southwest', se: 'southeast',
+    };
+    const mislabelled = choices.filter((c) => LABEL_TO_VALUE[c.name] !== c.value).map((c) => c.name);
+    expect(mislabelled).toEqual([]);
+    expect(choices).toHaveLength(8);
   });
 
   // QUIRK: the starting tile is billed, so a one-tile move costs two tiles
