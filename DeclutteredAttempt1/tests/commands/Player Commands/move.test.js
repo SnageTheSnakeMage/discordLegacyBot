@@ -670,7 +670,7 @@ describe('move.run success', () => {
     );
   });
 
-  it('gives a Robot 1 HP on a storm tile and throws them a tile', async () => {
+  it('gives a Robot 1 HP on a storm tile and storms them a tile', async () => {
     const { deps } = makeDeps({
       board: makeBoard({ '2,1': { Tile_Type: 'Storm' } }),
       player: createFakePlayer({ Player_ID: 1, Class_ID: 19, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10, Health_Points: 10 }),
@@ -684,13 +684,13 @@ describe('move.run success', () => {
       { Health_Points: 10, MISSED_HP: 1 },
       { where: { Player_ID: 1 } },
     );
-    // thrown east off the storm at (2,1), and placed once, where it landed
+    // stormed east off (2,1), and placed once, where it landed
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 1);
   });
 
-  // random(7) picks the throw: 2 is south, 4 is east
-  it('throws a player off a storm on their last step, and they end where they land', async () => {
+  // random(7) picks the stormed direction: 2 is south, 4 is east
+  it('storms a player on their last step, and they end where they land', async () => {
     const { deps } = makeDeps({
       board: makeBoard({ '2,1': { Tile_Type: 'Storm' } }),
       random: () => 2,
@@ -703,7 +703,7 @@ describe('move.run success', () => {
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 2);
   });
 
-  it('moves the rest of the walk, destination included, by the storm\'s throw', async () => {
+  it('moves the rest of the walk, destination included, by where they were stormed', async () => {
     const { deps } = makeDeps({
       board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '3,2': { Tile_Type: 'Blank2' } }),
       random: () => 2,
@@ -722,7 +722,7 @@ describe('move.run success', () => {
       board: makeBoard({ '3,1': { Tile_Type: 'Storm' } }),
       random: () => 4,
     });
-    // planned (1,1) -> (5,1); thrown east off (3,1) to (4,1), so the rest
+    // planned (1,1) -> (5,1); stormed east off (3,1) to (4,1), so the rest
     // becomes (5,1) then (6,1), which is off the 5-wide board
     const result = await logic.run({ ...INPUT, distance: 4 }, deps);
     expect(result.ok).toBe(true);
@@ -746,30 +746,30 @@ describe('move.run success', () => {
     );
   });
 
-  /** random(7) answers from `throws` in order; everything else answers 0 */
-  function throwsInOrder(...throws) {
-    return (max) => (max === 7 ? throws.shift() : 0);
+  /** random(7) answers from `directions` in order; everything else answers 0 */
+  function stormsInOrder(...directions) {
+    return (max) => (max === 7 ? directions.shift() : 0);
   }
 
-  it('re-rolls a throw that would leave a non-Cloudborn\'s walk ending on ice', async () => {
+  it('re-rolls a stormed direction that would leave a non-Cloudborn\'s walk ending on ice', async () => {
     const { deps } = makeDeps({
       board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '3,2': { Tile_Type: 'Ice' } }),
       // south would shift the end from (3,1) to the ice at (3,2); east is fine
-      random: throwsInOrder(2, 4),
+      random: stormsInOrder(2, 4),
     });
     const result = await logic.run({ ...INPUT, distance: 2 }, deps);
     expect(result.ok).toBe(true);
     expect([result.data.newX, result.data.newY]).toEqual([4, 1]);
   });
 
-  it('re-rolls a throw that would cut a walk short on ice', async () => {
+  it('re-rolls a stormed direction that would cut a walk short on ice', async () => {
     const { deps } = makeDeps({
       board: makeBoard({ '3,2': { Tile_Type: 'Storm' }, '5,1': { Tile_Type: 'Ice' } }),
       player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 12, Action_Points: 10 }),
       // planned (1,2) -> (5,2). Northeast off the storm lands on (4,1) and
       // pushes the rest to (5,1) then (6,1), off the board, stopping on the
       // ice at (5,1); south shifts the whole walk down a row instead
-      random: throwsInOrder(5, 2),
+      random: stormsInOrder(5, 2),
     });
     const result = await logic.run({ ...INPUT, distance: 4 }, deps);
     expect(result.ok).toBe(true);
@@ -781,7 +781,7 @@ describe('move.run success', () => {
       board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '3,2': { Tile_Type: 'Ice' } }),
       player: createFakePlayer({ Player_ID: 1, Class_ID: 6, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10 }),
       playerClass: createFakeClass({ Class_ID: 6, Class_Name: 'Cloudborn' }),
-      random: throwsInOrder(2),
+      random: stormsInOrder(2),
     });
     const result = await logic.run({ ...INPUT, distance: 2 }, deps);
     expect(result.ok).toBe(true);

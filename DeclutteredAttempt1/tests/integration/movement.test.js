@@ -85,7 +85,7 @@ describe('movement', () => {
       discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 8,
     });
 
-    // random 2 throws south: off the storm at (2,1) to (2,2), so the planned
+    // random 2 storms them south: off the storm at (2,1) to (2,2), so the planned
     // end at (3,1) becomes (3,2)
     const result = await moveLogic.run(
       { gameId: game.Game_ID, direction: 'east', distance: 2, path: null, body: 1, discordId: '1' },
