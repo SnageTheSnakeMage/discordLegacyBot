@@ -1531,21 +1531,27 @@ async getAllPlayersOnTile(tileID, tile) {
 },
 
 //TODO Should be called whenever we change a players Tile_ID or a Tiles Player1,Player2,Player3, or Player4 will keep this in utils as chaos events will use it
-async setPlayerToTile(playerId, layer, x, y) {
+//
+//Moves one body: `body` is 1, or 2 for a Twin's second body (Tile_ID2), as
+//in damagePlayer. The destination is checked for room before anything is
+//written, so a full tile throws with the player still where they were.
+async setPlayerToTile(playerId, layer, x, y, { body = 1 } = {}) {
+  const column = body === 2 ? 'Tile_ID2' : 'Tile_ID';
   var currentPlayer = await models.Players.findByPk(playerId)
   const tile = await models.Tiles.findOne({where: {Layer_ID: layer, X_Position: x, Y_Position: y}});
-  //Check the destination FIRST. This used to vacate the old tile and then
-  //call claimTileSlot, so a full destination threw after the player had
-  //already been removed - leaving them alive and on no tile at all, the #78
-  //state /resurrect used to produce. Five callers move players this way and
-  //only the gust checked anything beforehand.
   if (!this.tileHasRoom(tile)) throw "tile is full";
-  var currentTile = await models.Tiles.findByPk(currentPlayer.Tile_ID);
+  var currentTile = await models.Tiles.findByPk(currentPlayer[column]);
   if (currentTile) {
     await this.removePlayerFromTile(playerId, currentTile.Layer_ID, currentTile.X_Position, currentTile.Y_Position);
+    //removePlayerFromTile clears every slot naming the player, so a Twin's
+    //other body standing on the same tile gets its slot back
+    const otherColumn = column === 'Tile_ID' ? 'Tile_ID2' : 'Tile_ID';
+    if (currentPlayer[otherColumn] === currentTile.Tile_ID) {
+      await this.claimTileSlot(await models.Tiles.findByPk(currentTile.Tile_ID), playerId);
+    }
   }
   await this.claimTileSlot(tile, playerId);
-  await models.Players.update({Tile_ID: tile.Tile_ID}, {where: {Player_ID: playerId}});
+  await models.Players.update({[column]: tile.Tile_ID}, {where: {Player_ID: playerId}});
 },
 
 /**

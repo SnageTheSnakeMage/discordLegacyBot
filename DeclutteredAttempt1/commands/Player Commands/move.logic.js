@@ -625,7 +625,7 @@ async function run(input, deps = defaultDeps) {
   // put the player on the destination tile (and take them off the old one)
   const moved = newX !== originalTile.X_Position || newY !== originalTile.Y_Position;
   if (!died && moved) {
-    await utils.setPlayerToTile(player.Player_ID, originalTile.Layer_ID, newX, newY);
+    await utils.setPlayerToTile(player.Player_ID, originalTile.Layer_ID, newX, newY, { body: secondBody ? 2 : 1 });
     trace('placed', { at: [newX, newY], layerId: originalTile.Layer_ID });
   }
 

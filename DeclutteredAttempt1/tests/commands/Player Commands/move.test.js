@@ -74,6 +74,10 @@ function makeDeps(over = {}) {
   return { deps, board, layer, game, player, playerClass, trapper };
 }
 
+/** the placement option for each body */
+const BODY_1 = { body: 1 };
+const BODY_2 = { body: 2 };
+
 /** one tile east, no path */
 const INPUT = { gameId: 1, direction: 'east', distance: 1, path: null, body: 1, discordId: DISCORD_ID };
 
@@ -459,7 +463,7 @@ describe('move.run success', () => {
         deleteReplyAfterMs: null,
       },
     });
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1, BODY_1);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 9, Free_Move: 0 },
       { where: { Discord_ID: DISCORD_ID, Player_ID: 1, Game_ID: 1 } },
@@ -484,7 +488,7 @@ describe('move.run success', () => {
     const result = await logic.run({ ...INPUT, direction }, deps);
     expect(result.ok).toBe(true);
     expect([result.data.newX, result.data.newY]).toEqual([x, y]);
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, x, y);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, x, y, BODY_1);
   });
 
   // the board draws row 1 at the top, so north and up are both -y
@@ -606,7 +610,7 @@ describe('move.run success', () => {
     const result = await logic.run({ ...INPUT, direction, distance: 4 }, deps);
     expect(result.ok).toBe(true);
     expect([result.data.newX, result.data.newY]).toEqual(landing);
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, ...landing);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, ...landing, BODY_1);
   });
 
   it('walks a custom path and ends where the path ends', async () => {
@@ -615,7 +619,7 @@ describe('move.run success', () => {
     expect(result.ok).toBe(true);
     expect([result.data.newX, result.data.newY]).toEqual([3, 1]);
     expect(result.data.spentAP).toBe(2);
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 1);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 1, BODY_1);
   });
 
   it('walks a bent path to the end of its last segment', async () => {
@@ -623,7 +627,7 @@ describe('move.run success', () => {
     const result = await logic.run({ ...INPUT, path: 'right,2;down,2;' }, deps);
     expect(result.ok).toBe(true);
     expect([result.data.newX, result.data.newY]).toEqual([3, 3]);
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 3);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 3, BODY_1);
   });
 
   it('resolves the default game via getOldestActiveGameId when no game is given', async () => {
@@ -686,7 +690,7 @@ describe('move.run success', () => {
     );
     // stormed east off (2,1), and placed once, where it landed
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 1);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 1, BODY_1);
   });
 
   // random(7) picks the stormed direction: 2 is south, 4 is east
@@ -700,7 +704,7 @@ describe('move.run success', () => {
     // one south of the storm tile, not of the tile they stepped off
     expect([result.data.newX, result.data.newY]).toEqual([2, 2]);
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 2);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 2, BODY_1);
   });
 
   it('moves the rest of the walk, destination included, by where they were stormed', async () => {
@@ -714,7 +718,7 @@ describe('move.run success', () => {
     // walk went through the shifted tiles, not the planned ones
     expect([result.data.newX, result.data.newY]).toEqual([4, 2]);
     expect(result.data.response).toContain('Blank2');
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 4, 2);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 4, 2, BODY_1);
   });
 
   it('stops the walk where the storm left them when the rest would leave the board', async () => {
@@ -728,7 +732,7 @@ describe('move.run success', () => {
     expect(result.ok).toBe(true);
     expect([result.data.newX, result.data.newY]).toEqual([5, 1]);
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 5, 1);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 5, 1, BODY_1);
   });
 
   it('gives a Stormchaser 1d4-2 AP on a storm tile', async () => {
@@ -760,7 +764,7 @@ describe('move.run success', () => {
     expect([result.data.newX, result.data.newY]).toEqual([2, 1]);
     expect(result.data.spentAP).toBe(1);
     expect(result.data.response).toContain('A tile on your path was full, so you stopped before it!');
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1, BODY_1);
     // the mine on the full tile was never reached
     expect(deps.utils.damagePlayer).not.toHaveBeenCalled();
   });
@@ -852,7 +856,7 @@ describe('move.run success', () => {
     expect([result.data.newX, result.data.newY]).toEqual([2, 1]);
     expect(result.data.spentAP).toBe(1);
     expect(result.data.response).toContain('you stopped on the storm');
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1, BODY_1);
   });
 
   it('never charges more than the planned walk, whatever a storm does to it', async () => {
@@ -905,6 +909,7 @@ describe('move.run success', () => {
     const result = await logic.run({ ...INPUT, body: 2 }, deps);
     expect(result.ok).toBe(true);
     expect(result.data.newX).toBe(2);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1, BODY_2);
     // body 2 is damaged through its own column
     expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
       null, expect.objectContaining({ Player_ID: 1 }), 3, 2,
