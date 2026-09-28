@@ -102,8 +102,8 @@ describe('exorcise.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   //
-  // The old code hard-coded isClockwatcher=false, so TIMESTOPPED blocks
-  // everyone.
+  // The exorcist in these fixtures is not a Clockwatcher, so a timestop
+  // blocks.
   it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
     expect(await everyCase('game %o -> %s', [
       [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
@@ -281,7 +281,6 @@ describe('exorcise.run success', () => {
 });
 
 describe('exorcise.present', () => {
-  // every rejection renders its exact legacy wording
   it('renders every rejection it returns as its player-facing message', async () => {
     expect(await everyCase('%s', [
       [REJECTIONS.NO_SUCH_TILE, { action: 'exorcise' }, 'Could not find tile to exorcise at the given coordinates.'],

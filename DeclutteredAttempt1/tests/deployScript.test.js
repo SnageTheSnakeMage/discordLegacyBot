@@ -144,13 +144,10 @@ describe('deploy.sh - the happy path', () => {
     expect(backup).not.toContain(' legacy-db:/data');
   });
 
-  // This line was `${LEGACY_DEPLOY_DIR:/Users/.../legacy-deployed}` for one
-  // commit - `:` instead of `:-`, which is bash substring expansion rather
-  // than a default, and evaluates the path as arithmetic. DEPLOY_DIR came out
-  // EMPTY and the deploy died with "deploy:  does not exist". Nothing covered
-  // the fallback, so the suite stayed green while the only host could not
-  // deploy. The path itself belongs in a repository variable, which the
-  // workflow now passes in - the script names no host.
+  // The default needs `:-`: a bare `:` is bash substring expansion, which
+  // evaluates the path as arithmetic and leaves DEPLOY_DIR empty. The host's
+  // path belongs in a repository variable the workflow passes in, so the
+  // script names no host and falls back to $HOME/legacy-bot.
   it('falls back to $HOME/legacy-bot when LEGACY_DEPLOY_DIR is unset', () => {
     const { code, calls, recorded } = runDeploy({ fromEnv: false });
     expect(code).toBe(0);

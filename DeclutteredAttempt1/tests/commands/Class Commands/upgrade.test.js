@@ -257,7 +257,6 @@ describe('upgrade.run quirks', () => {
   it('keeps the cost at the top of the ladder, at utils\' own scaled price', async () => {
     // utils.getHPAndRangePriceScaled(4) is 4+5+7+(10*4-3) = 53, so the fourth
     // rung prices at 53 - 16 = 37 rather than 10; that maths lives in utils
-    // and is preserved untouched
     const deps = makeDeps({ player: basePlayer({ HP_COST: 10, Action_Points: 40 }) });
     const result = await logic.run(INPUT, deps);
     expect(result.data).toMatchObject({ price: 37, newCost: 10 });

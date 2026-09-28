@@ -150,8 +150,6 @@ describe('shoot.run rejections', () => {
     })).toEqual([]);
   });
 
-  // quirk pin: the old code hardcoded isClockwatcher=false, so unlike other
-  // commands even a Clockwatcher cannot shoot during a timestop
   it('blocks a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, shootCost: 2 }),
@@ -208,11 +206,8 @@ describe('shoot.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // quirk pin: only the target's Tile_ID is ever compared - a Twin's second
-  // body (Tile_ID2) cannot be shot at
-  // was: only Tile_ID was compared, so a Twin's second body could not be
-  // shot at all. Either body standing on the tile is now a legal target,
-  // and the hit lands on that body's own HP column.
+  // Either body standing on the tile is a legal target, and the hit lands on
+  // that body's own HP column.
   it("hits a Twin's second body when that is the one on the tile", async () => {
     const { deps } = happyDeps({
       // body 1 is elsewhere (tile 9); body 2 is on the targeted tile, which
@@ -283,10 +278,8 @@ describe('shoot.run success', () => {
     expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; no DMG_BUFF reset at 0
   });
 
-  // quirk pin: the target row is fetched by Discord_ID alone - no Game_ID
-  // filter, so a row from another game can be found
-  // was: looked up by Discord_ID alone, so a row from another game could
-  // satisfy it and be shot from outside that game entirely
+  // a row from another game must not satisfy the lookup, or a player could
+  // be shot from outside that game entirely
   it('scopes the target lookup to this game', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);
@@ -336,7 +329,7 @@ describe('shoot.run success', () => {
     expect(deps.utils.revertTileToBlank).toHaveBeenCalledWith(tiles[1]);
   });
 
-  // quirk pin: full shootCost * requested amount is deducted even when every
+  // the full shootCost * requested amount is deducted even when every
   // shot is spent on walls and the target is never reached
   it('charges the full AP cost when shots run out on walls before the target', async () => {
     const tiles = [
@@ -360,7 +353,7 @@ describe('shoot.run success', () => {
     expect(deps.models.Players.update).toHaveBeenCalledWith({ Action_Points: 2 }, { where: { Player_ID: 1, Game_ID: 1 } });
   });
 
-  // quirk pin: a bush-miss on an INTACT wall reports "damaged wall" and the
+  // a bush-miss on an INTACT wall reports "damaged wall" and the
   // wall is still damaged right after - the miss burns a shot, nothing else
   it('bush shooter can miss a wall (still damaging it) and then hit the target', async () => {
     const { deps } = happyDeps({
@@ -398,7 +391,7 @@ describe('shoot.run success', () => {
     ]);
   });
 
-  // quirk pin: a miss on the target tile still damages the target with the
+  // a miss on the target tile still damages the target with the
   // remaining shots - it falls through to the hit
   it('a target in a bush can be missed once, and the rest of the shots still land', async () => {
     const { deps } = happyDeps({
@@ -426,8 +419,7 @@ describe('shoot.run success', () => {
   });
 
   it('resolves the default game via getOldestActiveGameId with the shooter id', async () => {
-    // 8c3cd694 moved the resolver to getOldestActiveGameId so a finished game
-    // can no longer be shot in; the stub moved with it
+    // an active-only resolver, so a finished game cannot be shot in
     const { deps } = happyDeps();
     deps.utils = { ...deps.utils, getOldestActiveGameId: jest.fn(async () => 1) };
     const result = await logic.run({ ...INPUT, gameId: null }, deps);
@@ -451,7 +443,7 @@ describe('shoot.present', () => {
       .toEqual({ content: 'That tile is not on the board!' });
   });
 
-  // byte-identical legacy formatting, including "damaged wall" on a miss
+  // exact player-facing formatting, including "damaged wall" on a miss
   // against an intact wall, the newline BEFORE the "!" on wall hits, and the
   // "$" after the damage number
   it('renders every event type exactly', () => {

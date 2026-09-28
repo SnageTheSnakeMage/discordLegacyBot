@@ -1,5 +1,5 @@
 /**
- * /trace - logic tests (#91). The path maths is real utils; only the model
+ * /trace - logic tests. The path maths is real utils; only the model
  * rows are faked, so a change to getTileCordinatesOfLine shows up here.
  *
  * The property that matters most is that a trace is free: /shoot deducts AP,

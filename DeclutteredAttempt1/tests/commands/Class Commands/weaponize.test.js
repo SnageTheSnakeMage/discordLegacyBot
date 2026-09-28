@@ -133,7 +133,6 @@ describe('weaponize.run rejections', () => {
     })).toEqual([]);
   });
 
-  // quirk: isClockwatcher is hardcoded false, so a timestop blocks everyone
   it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),

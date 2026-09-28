@@ -6,11 +6,8 @@
  * pinning. pollToResults is the thin layer that feeds it, tested against a
  * fake poll object rather than a real one.
  *
- * The old pollToResults could not work at all: `for (answer in poll.answers)`
- * iterates keys, `answer` was an undeclared implicit global, and the
- * accumulator started as the number 0 so `.text` came back undefined. It
- * also counted votes from anyone at all - living players, spectators, and
- * players of other games sharing the channel.
+ * Only dead players of this game get a vote: living players, spectators and
+ * players of other games sharing the channel are not counted.
  */
 const utils = require('../utils.js');
 const { createFakePlayer, createFakeGame, createFakeClass } = require('./helpers/mockModels.js');
@@ -276,7 +273,7 @@ describe('buildChaosCouncilPoll', () => {
   });
 
   it('never asks discord for a zero-hour poll', () => {
-    // duration is in HOURS; any interval under 30 minutes used to round to 0,
+    // duration is in HOURS, so a short interval must not round down to 0,
     // which discord rejects
     const poll = utils.buildChaosCouncilPoll('x', createFakeGame({ Game_ID: 1, AP_INTERVAL_MIN: 10 }));
     expect(poll.duration).toBeGreaterThanOrEqual(1);

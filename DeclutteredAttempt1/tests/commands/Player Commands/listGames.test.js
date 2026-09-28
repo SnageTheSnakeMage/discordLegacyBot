@@ -117,10 +117,8 @@ describe('listGames.present', () => {
     );
   });
 
-  // was: "preserves the old quirk: zero games renders as an empty string".
-  // Discord refuses to send an empty message, so that quirk was not a
-  // cosmetic oddity - it took the whole command down into the central
-  // handler's "There was an error while executing this command!".
+  // Discord refuses to send an empty message, so an empty list would take
+  // the whole command down into the central error handler.
   it('renders the NO_GAMES notice when there are no games, never an empty message', () => {
     const out = logic.present({ ok: true, kind: 'gameList', data: { games: [] } });
     expect(out.content).toBe(noticeFor('NO_GAMES'));
