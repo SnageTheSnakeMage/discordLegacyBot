@@ -3,9 +3,8 @@
  *
  * Everything else under tiles/ is artwork baked into the image. A player
  * icon arrives at registration, so it is STATE: written into the image, it
- * survived exactly as long as the container, and every deploy wiped every
- * icon uploaded since the previous one. LEGACY_PLAYER_TILES_DIR points the
- * writer at the /data volume instead, beside the database.
+ * would survive exactly as long as the container. LEGACY_PLAYER_TILES_DIR
+ * points the writer at the /data volume instead, beside the database.
  *
  * The reader therefore has two directories to look in, and these pin which
  * wins. The alternative - mounting the volume over ./tiles/players - is what
@@ -24,9 +23,8 @@ const BAKED = './tiles/players';
  * A throwaway writable dir, as LEGACY_PLAYER_TILES_DIR would point at.
  *
  * `await run(dir)`, not `return run(dir)`: with an async callback the second
- * runs `finally` the moment the promise is CREATED, so the variable was put
- * back before the body that needed it ever ran. The first version of this
- * helper did exactly that and the test failed with the default path.
+ * runs `finally` the moment the promise is CREATED, putting the variable
+ * back before the body that needs it ever runs.
  */
 async function withWritableDir(run) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'player-tiles-'));

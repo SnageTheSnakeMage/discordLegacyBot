@@ -257,7 +257,7 @@ describe('hotPotato.run success', () => {
     expect(deps.utils.hotPotatoSwap).toHaveBeenCalledWith(player, victim, 'snage', 'victim');
   });
 
-  // PRESERVED QUIRK: the 12 AP is required but never spent
+  // the 12 AP is required but never spent
   it('does not deduct the 12 AP it requires', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);
@@ -304,8 +304,8 @@ describe('hotPotato.present', () => {
     expect(out).toEqual({ content: "You have swapped classes with victim!\nsnage took victim's target!" });
   });
 
-  // PRESERVED QUIRK: classes with no special case return undefined from
-  // hotPotatoSwap, and the legacy reply concatenated it verbatim
+  // classes with no special case return undefined from hotPotatoSwap, and
+  // the reply concatenates it verbatim
   it('appends the literal "undefined" when the swap has no extra line', () => {
     const out = logic.present({
       ok: true,

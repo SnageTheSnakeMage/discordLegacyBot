@@ -164,7 +164,6 @@ describe('deliver.run success', () => {
     expect(deps.models.Tiles.findOne).not.toHaveBeenCalled();
   });
 
-  // quirk: no MAX_AP clamp - the receiver can be pushed over their cap
   it('clamps the receiver at MAX_AP instead of overfilling them', async () => {
     const { deps } = happyDeps({
       receiver: createFakePlayer({ Player_ID: 2, Discord_ID: RECEIVER, Action_Points: 9, MAX_AP: 10 }),
@@ -223,7 +222,7 @@ describe('deliver.present', () => {
     })).toEqual([]);
   });
 
-  // quirk pinned: no space between the amount and "AP", exactly as before
+  // no space between the amount and "AP"
   it('renders success with its no-space wording', () => {
     const out = logic.present({ ok: true, kind: 'delivered', data: { amount: 3, receiverUsername: 'postbox' } });
     expect(out).toEqual({ content: 'You have delivered 3AP to postbox!' });

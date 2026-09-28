@@ -1,15 +1,10 @@
 /**
  * The finale: what happens once the living count reaches the threshold.
  *
- * None of this had a test, and none of it could run. Every "tiles in this
- * game" query was written `where: {Game_ID}`, but tiles hang off Layer_ID and
- * there is no Tiles.Game_ID column - so the first thing finaleTransition did
- * was throw `SQLITE_ERROR: no such column: Tiles.Game_ID`, before a single
- * player had been paid. A game reaching four players simply stopped receiving
- * AP, in the state the whole game is building towards.
- *
- * These run the real distribution against the real schema, because that is
- * the only thing that would have caught it.
+ * Tiles hang off Layer_ID and there is no Tiles.Game_ID column, so every
+ * "tiles in this game" query has to go through the game's layers. A mock
+ * accepts any where-clause; these run the real distribution against the
+ * real schema, which does not.
  */
 const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
 const { seedGame, seedLayer, seedPlayer, assertBoardConsistent } = require('./helpers/seed.js');
@@ -73,7 +68,7 @@ describe('finale', () => {
       expect((await fresh(game)).finale).toBeTruthy();
       expect(await gateways(layer)).toBe(4);
       // APAmount 4, doubled by the finale. The doubling is the return value of
-      // finaleTransition, which both callers used to discard.
+      // finaleTransition, which the caller must apply.
       expect((await reload(players[0])).Action_Points).toBe(8);
       await assertBoardConsistent(game.Game_ID);
     });
@@ -142,11 +137,11 @@ describe('finale', () => {
     });
 
     // Four independent draws from the same pool can return one tile four
-    // times, which quietly gave a layer fewer gateways than it should have.
-    // The randomness is pinned rather than relied on: four draws that all
-    // land on index 0 are four DIFFERENT tiles when the pool shrinks, and one
-    // tile four times when it does not - so this fails every run under the
-    // old code, not the nine runs in ten a real dice roll would catch.
+    // times, giving a layer fewer gateways than it should have. The
+    // randomness is pinned rather than relied on: four draws that all land on
+    // index 0 are four DIFFERENT tiles when the pool shrinks, and one tile
+    // four times when it does not - so a collision fails every run, not the
+    // nine runs in ten a real dice roll would catch.
     it('gives four DISTINCT gateway tiles, not four draws that may collide', async () => {
       const { game, layer } = await board({ width: 5, height: 5 });
       jest.spyOn(utils, 'getRandomInt').mockReturnValue(0);

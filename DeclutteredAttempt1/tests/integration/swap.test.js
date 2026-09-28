@@ -1,8 +1,8 @@
 /**
- * /swap against the real schema. The point of these is the #78 invariant:
- * a mock happily accepts a Players.Tile_ID write that leaves the tiles'
- * own PlayerN slots pointing at whoever was there before, so only a real
- * database can prove the two sides still agree after a swap.
+ * /swap against the real schema. The point of these is the position
+ * invariant: a mock happily accepts a Players.Tile_ID write that leaves the
+ * tiles' own PlayerN slots pointing at whoever was there before, so only a
+ * real database can prove the two sides still agree after a swap.
  */
 const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
 const {
