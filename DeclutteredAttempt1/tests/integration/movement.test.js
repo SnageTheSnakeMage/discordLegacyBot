@@ -144,6 +144,46 @@ describe('movement', () => {
     expect((await models.Players.findByPk(walker.Player_ID)).Action_Points).toBe(7);
   });
 
+  it('a Twin moving its second body moves Tile_ID2 and leaves body 1 where it is', async () => {
+    const { game, layer } = await board();
+    const twin = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 8,
+      className: 'Twin', Health_Points2: 10, secondBody: { x: 1, y: 3 },
+    });
+    const body1Tile = twin.Tile_ID;
+
+    const result = await moveLogic.run(
+      { gameId: game.Game_ID, direction: 'east', distance: 1, path: null, body: 2, discordId: '1' },
+      DEPS(),
+    );
+
+    expect(result.ok).toBe(true);
+    const after = await models.Players.findByPk(twin.Player_ID);
+    expect(after.Tile_ID).toBe(body1Tile);
+    const body2 = await models.Tiles.findByPk(after.Tile_ID2);
+    expect([body2.X_Position, body2.Y_Position]).toEqual([2, 3]);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
+  it('a Twin moving one body off a shared tile leaves the other body on it', async () => {
+    const { game, layer } = await board();
+    const twin = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 8,
+      className: 'Twin', Health_Points2: 10, secondBody: { x: 1, y: 1 },
+    });
+
+    await moveLogic.run(
+      { gameId: game.Game_ID, direction: 'east', distance: 1, path: null, body: 2, discordId: '1' },
+      DEPS(),
+    );
+
+    const after = await models.Players.findByPk(twin.Player_ID);
+    const shared = await models.Tiles.findByPk(after.Tile_ID);
+    expect([shared.X_Position, shared.Y_Position]).toEqual([1, 1]);
+    expect([shared.Player1, shared.Player2, shared.Player3, shared.Player4]).toContain(twin.Player_ID);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
   it('a move costs AP', async () => {
     const { game, layer } = await board();
     const walker = await seedPlayer(game.Game_ID, {
