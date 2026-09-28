@@ -8,18 +8,17 @@
  * - Every layer runs from (1,1) to (X_Bound, Y_Bound); a direction move that
  *   would leave it stops at the edge. A path that would leave it is refused.
  * - Each path segment starts where the previous one ended.
- * - A walk stops on the tile before a full one.
- * - A player pays moveCost (doubled for a Glutton) per tile they actually
- *   step onto, not for the tile they start on and not for tiles a stop or a
- *   storm kept them from. Ice stepped onto is free, free movement pays before
- *   AP does, and a move never costs more than the walk as planned. Nobody but
- *   a Snowman may plan to end on ice.
- * - A player who steps onto a storm is stormed one tile off it in a random
- *   direction, and the rest of the walk, destination included, moves with
- *   them. If the tile they would be stormed onto is off the board, full, or
- *   (unless they are a Cloudborn) a wall, void or ice, they stay on the storm
- *   and the walk ends there. Otherwise the shifted walk stops before the
- *   first tile they may not enter, and backs off an ice tile at its end.
+ * - A move is checked before anything happens, and refused if any tile on
+ *   it is full (the tile the player starts on aside), if it crosses a storm,
+ *   or if it ends on ice and the player is not a Snowman. A storm may only be
+ *   where a move ends.
+ * - A player pays moveCost (doubled for a Glutton) per tile they step onto,
+ *   not for the tile they start on. Ice stepped onto is free and free
+ *   movement pays before AP does. A player killed partway pays only for the
+ *   tiles they reached.
+ * - A move that ends on a storm storms the player one tile off it in a random
+ *   direction. If that tile is off the board, full, or (unless they are a
+ *   Cloudborn) a wall, void or ice, they stay on the storm instead.
  *
  * parse/run/present per TESTING.md Part 1. run() takes plain data and a deps
  * bundle and returns a CommandResult; it never sees an interaction.
@@ -43,7 +42,7 @@ const CLOUDBORN_CLASS_ID = 6;
 const ROBOT_CLASS_ID = 19;
 const STORMCHASER_CLASS_ID = 15;
 
-/** terrain a stormed non-Cloudborn may not enter, or, for ice, end on */
+/** terrain a non-Cloudborn may not be stormed onto */
 const STORM_FORBIDDEN_TILE_TYPES = ['Wall', 'Wall_Damaged', 'Void', 'Ice'];
 
 /**
@@ -92,6 +91,8 @@ const PATH_REGEX = /^((?:left|right|up|down|ne|nw|se|sw|n|s|e|w),\d+;)+$/;
 const MSG_NO_PLAYER = 'Player not found in game!, please register for the game you wish to move in.';
 const MSG_NO_TILE = "Current tile not found! please register, or ask a Dev about why your not on the board";
 const MSG_ICE_END = 'Cannot end a movement on an ice tile, please either provide a path that moves off the ice, or move onto a non-ice tile.';
+const MSG_FULL_TILE = 'Your move crosses or ends on a full tile. Pick a path around it.';
+const MSG_STORM_ON_PATH = 'Your move crosses a storm tile. You can end a move on a storm, but not walk through one.';
 const MSG_NO_AP = 'Player does not enough action points for movement requested.';
 const MSG_BAD_PATH_TILE = 'Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage.';
 const MSG_BAD_PATH_DIRECTION = 'Invalid input path, your are using a direction that isnt: left,right,up,down,n,s,e,w,nw,ne,sw, or se';
@@ -308,60 +309,19 @@ function directionName([dx, dy]) {
   return entry ? entry[0] : 'somewhere';
 }
 
-/**
- * How far along `walk` a player can go from index `from` on: they stop
- * before the first tile they may not enter, then back off any tiles at the
- * end they may not stop on. Never shortens the walk below `from`. Returns the
- * new length and why it was cut, or null when it was not.
- */
-async function reachableLength(walk, from, rules, deps) {
-  const tiles = [];
-  let length = walk.length;
-  let cutBy = null;
-  for (let j = from; j < walk.length; j++) {
-    const tile = await findWalkTile(walk[j], rules.layerId, deps);
-    const refusal = rules.mayEnter(tile);
-    if (refusal) {
-      length = j;
-      cutBy = refusal;
-      break;
-    }
-    tiles.push(tile);
-  }
-  while (length > from && !rules.mayStopOn(tiles[length - 1 - from])) {
-    length--;
-    cutBy = cutBy || 'cannotStop';
-  }
-  return { length, cutBy };
-}
-
 function findWalkTile([x, y], layerId, deps) {
   return deps.models.Tiles.findOne({ where: { Layer_ID: layerId, X_Position: x, Y_Position: y } });
 }
 
 /**
- * What a walk may enter and stop on. Every walk stops before a full tile; a
- * stormed walk also stops before the board's edge and, unless the player is
- * a Cloudborn, before a wall or void, and may not end on ice. A planned walk
- * may end on ice only for a Snowman. The tile the player is moving from
- * always has room for them.
+ * Why a player may not be stormed onto `tile`, or null when they may: it is
+ * off the board, full, or, unless they are a Cloudborn, a wall, void or ice.
  */
-function walkRules({ layerId, fromTileId, className, stormed }, deps) {
-  const hasRoom = (tile) => tile.Tile_ID === fromTileId || deps.utils.tileHasRoom(tile);
-  const cloudborn = className == 'Cloudborn';
-  return {
-    layerId,
-    mayEnter(tile) {
-      if (!tile) return 'offBoard';
-      if (!hasRoom(tile)) return 'full';
-      if (stormed && !cloudborn && STORM_FORBIDDEN_TILE_TYPES.includes(tile.Tile_Type) && tile.Tile_Type != 'Ice') return 'terrain';
-      return null;
-    },
-    mayStopOn(tile) {
-      if (tile.Tile_Type != 'Ice') return true;
-      return stormed ? cloudborn : className == 'Snowman';
-    },
-  };
+function stormLandingRefusal(tile, className, deps) {
+  if (!tile) return 'offBoard';
+  if (!deps.utils.tileHasRoom(tile)) return 'full';
+  if (className != 'Cloudborn' && STORM_FORBIDDEN_TILE_TYPES.includes(tile.Tile_Type)) return 'terrain';
+  return null;
 }
 
 /**
@@ -486,30 +446,32 @@ async function run(input, deps = defaultDeps) {
     tilesWalked: iceChecklistAndTileList.length,
   });
 
-  // every tile on the planned walk must exist, and nobody but a Snowman may
-  // plan to end on ice
-  for (let cord = 0; cord < iceChecklistAndTileList.length; cord++) {
-    const tile = await findWalkTile(iceChecklistAndTileList[cord], originalTile.Layer_ID, deps);
+  // the whole walk is checked before anything happens: every tile exists,
+  // none is full (the tile the player is moving from always has room for
+  // them), a storm may only be where the walk ends, and nobody but a Snowman
+  // may end on ice
+  const walk = iceChecklistAndTileList;
+  const plannedTypes = [];
+  for (let cord = 0; cord < walk.length; cord++) {
+    const tile = await findWalkTile(walk[cord], originalTile.Layer_ID, deps);
     if (!tile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE };
-    if (cord == iceChecklistAndTileList.length - 1 && tile.Tile_Type == 'Ice' && playerClass.Class_Name != 'Snowman') {
+    const last = cord == walk.length - 1;
+    if (cord > 0) {
+      if (tile.Tile_ID !== originalTile.Tile_ID && !utils.tileHasRoom(tile)) {
+        trace('refused', { reason: 'full', at: walk[cord] });
+        return { ok: false, reason: REJECTIONS.TILE_FULL, data: { message: MSG_FULL_TILE } };
+      }
+      if (!last && tile.Tile_Type == 'Storm') {
+        trace('refused', { reason: 'stormOnPath', at: walk[cord] });
+        return { ok: false, reason: REJECTIONS.WRONG_TILE_TYPE, data: { message: MSG_STORM_ON_PATH } };
+      }
+      plannedTypes.push(tile.Tile_Type);
+    }
+    if (last && tile.Tile_Type == 'Ice' && playerClass.Class_Name != 'Snowman') {
       return { ok: false, reason: REJECTIONS.WRONG_TILE_TYPE, data: { message: MSG_ICE_END } };
     }
   }
 
-  // the walk as it actually happens: cut short before a full tile, and
-  // shifted by a storm
-  const walk = iceChecklistAndTileList.map(([x, y]) => [x, y]);
-  const ruleContext = { layerId: originalTile.Layer_ID, fromTileId: originalTile.Tile_ID, className: playerClass.Class_Name };
-  const planned = await reachableLength(walk, 1, walkRules({ ...ruleContext, stormed: false }, deps), deps);
-  walk.length = planned.length;
-  if (planned.cutBy) trace('cutShort', { cutBy: planned.cutBy, stopAt: walk[walk.length - 1] });
-
-  // the price of the walk as planned. A player pays only for tiles they
-  // actually step onto, so a storm or a stop can make it cheaper, never dearer
-  const plannedTypes = [];
-  for (let cord = 1; cord < walk.length; cord++) {
-    plannedTypes.push((await findWalkTile(walk[cord], originalTile.Layer_ID, deps)).Tile_Type);
-  }
   const quote = moveCost(plannedTypes, player, playerClass.Class_Name, game);
 
   // the numbers a player disputes most often: how many tiles they were
@@ -588,27 +550,20 @@ async function run(input, deps = defaultDeps) {
       break;
     }
     if (blocked && blocked.stormedBy) {
-      const [dx, dy] = blocked.stormedBy;
-      const stormRules = walkRules({ ...ruleContext, stormed: true }, deps);
-      const landingAt = [walk[cord + 1][0] + dx, walk[cord + 1][1] + dy];
+      // a storm is only ever the last tile: the player ends wherever it
+      // moves them, or on the storm if it has nowhere legal to move them
+      const landingAt = [walk[cord + 1][0] + blocked.stormedBy[0], walk[cord + 1][1] + blocked.stormedBy[1]];
       const landing = await findWalkTile(landingAt, originalTile.Layer_ID, deps);
-      const refusal = stormRules.mayEnter(landing) || (stormRules.mayStopOn(landing) ? null : 'cannotStop');
+      const refusal = stormLandingRefusal(landing, playerClass.Class_Name, deps);
+      const direction = directionName(blocked.stormedBy);
       if (refusal) {
-        // nowhere to be stormed to: they stay on the storm and stop there
         trace('stormedNowhere', { at: walk[cord + 1], refused: landingAt, refusal });
-        walk.length = cord + 2;
-        note(`A storm tried to move you ${directionName(blocked.stormedBy)}, but that way was blocked, so you stopped on the storm! \n`);
-        break;
+        note(`A storm tried to move you ${direction}, but that way was blocked, so you stayed on the storm! \n`);
+      } else {
+        trace('stormed', { from: walk[cord + 1], to: landingAt });
+        walk[cord + 1] = landingAt;
+        note(`You were stormed one tile ${direction}! \n`);
       }
-      // the storm moves the player, and the rest of the walk moves with them
-      for (let later = cord + 1; later < walk.length; later++) {
-        walk[later] = [walk[later][0] + dx, walk[later][1] + dy];
-      }
-      const stormedWalk = await reachableLength(walk, cord + 2, stormRules, deps);
-      walk.length = stormedWalk.length;
-      trace('destinationShifted', { by: [dx, dy], to: walk[walk.length - 1], cutBy: stormedWalk.cutBy });
-      note(`You were stormed one tile ${directionName(blocked.stormedBy)}! \n`);
-      if (stormedWalk.cutBy) note('The storm left your path blocked, so you stopped early! \n');
       continue;
     }
     if (blocked) {
@@ -617,7 +572,6 @@ async function run(input, deps = defaultDeps) {
     }
   }
 
-  if (planned.cutBy) note('A tile on your path was full, so you stopped before it! \n');
   response += repeatLine;
 
   [newX, newY] = walk[walk.length - 1];
@@ -629,8 +583,8 @@ async function run(input, deps = defaultDeps) {
     trace('placed', { at: [newX, newY], layerId: originalTile.Layer_ID });
   }
 
-  const actual = moveCost(enteredTileTypes, player, playerClass.Class_Name, game);
-  const charged = actual.spentAP > quote.spentAP ? quote : actual;
+  // a player who dies partway pays only for the tiles they reached
+  const charged = moveCost(enteredTileTypes, player, playerClass.Class_Name, game);
   trace('charged', { ...charged, quoted: quote.spentAP });
 
   // deduct action points & update free movement
