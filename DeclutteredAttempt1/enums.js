@@ -120,6 +120,8 @@ const REJECTIONS = Object.freeze({
   NOT_ON_GATEWAY: "NOT_ON_GATEWAY",
   NO_AVAILABLE_TILE: "NO_AVAILABLE_TILE",
   INVALID_PATH: "INVALID_PATH",
+  // a move that would leave the player where they are
+  NO_MOVEMENT: "NO_MOVEMENT",
   INVALID_AMOUNT: "INVALID_AMOUNT",
   // board building (/create-board)
   NO_SUCH_PRESET: "NO_SUCH_PRESET",
