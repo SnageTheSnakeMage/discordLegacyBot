@@ -35,8 +35,6 @@
  * - there is no default-game lookup. The option description promises "oldest
  *   active game", but the command only ever read the option, so omitting it
  *   finds no game; that path now reports NO_SUCH_GAME instead of crashing
- * - the gamestate gate passes isClockwatcher=false, so a timestop blocks
- *   everyone here
  * - rejection order: gamestate, missing tile, missing target, target not on
  *   the tile, range, class, AP
  * - the buff INCREMENTS DMG_BUFF rather than setting it, so repeated
@@ -90,13 +88,9 @@ async function run(input, deps = defaultDeps) {
   });
   const targetPlayer = await models.Players.findOne({ where: { Game_ID: gameId, Discord_ID: input.targetDiscordId } });
 
-  // the old code hardcoded isClockwatcher=false, so even a Clockwatcher is
-  // blocked by a timestop here
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!targetTile) {

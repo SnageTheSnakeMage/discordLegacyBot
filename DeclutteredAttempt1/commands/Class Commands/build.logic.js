@@ -20,9 +20,8 @@
  *   those now return NO_SUCH_GAME / NOT_IN_GAME.
  *
  * Preserved as-is: the AP check runs BEFORE the gamestate gate (so a broke
- * player in a paused game sees the AP message), the gamestate gate never
- * treats the builder as a Clockwatcher (the old code hard-coded false),
- * chests may be built on occupied tiles (only walls check occupants), and
+ * player in a paused game sees the AP message), chests may be built on
+ * occupied tiles (only walls check occupants), and
  * the success message names the tile's PREVIOUS type - Tile_Type is read
  * before the update, so it says e.g. "You have made a Blank1 tile ...".
  */
@@ -91,13 +90,9 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.NOT_ENOUGH_AP, data: { action: 'build a wall or chest' } };
   }
 
-  // the old code hard-coded isClockwatcher=false here (a Construction
-  // Worker can never be a Clockwatcher anyway)
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   await models.Players.update(

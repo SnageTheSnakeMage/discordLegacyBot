@@ -115,7 +115,7 @@ describe('override.run rejections', () => {
   });
 
   // the command has NO gamestate gate - a dead Medium can override in every
-  // state, OVER/DEV_PAUSED/TIMESTOPPED included; this
+  // state, OVER, DEV_PAUSED and a timestop included; this
   // table pins that a new state cannot silently change it either
   it('succeeds whatever state the game is in', async () => {
     expect(await everyCase('game %o -> succeeds (no gamestate gate)', [

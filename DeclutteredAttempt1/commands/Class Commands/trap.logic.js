@@ -20,11 +20,6 @@
  *   commit)
  *
  * Preserved as-is (see the pinning tests):
- * - the gamestate gate passes isClockwatcher=false, so a Clockwatcher is
- *   blocked during a timestop like everyone else (the old
- *   checkGameStateAndReply call hard-coded false)
- * - REGISTRATION is NOT blocked: the old gate only stopped OVER, DEV_PAUSED
- *   and TIMESTOPPED, unlike most other class commands
  * - there is no Dead check, so a dead Minesweeper can still plant mines
  * - the target tile's type and occupancy are never checked: walls, void and
  *   occupied tiles can all be trapped, and an already-trapped tile is simply
@@ -69,12 +64,9 @@ async function run(input, deps = defaultDeps) {
     where: { X_Position: input.x, Y_Position: input.y, Layer_ID: playerTile.Layer_ID },
   });
 
-  // the old call hard-coded no Clockwatcher exemption; keep that
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!tileToChange) {

@@ -73,8 +73,7 @@ describe('deliver.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   //
-  // isClockwatcher is hardcoded false in deliver, so TIMESTOPPED always
-  // blocks.
+  // deliver is a class command, so a timestop always blocks it.
   it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
     expect(await everyCase('game %o -> %s', [
       [{ GAME_STATE: GAMESTATES.ACTIVE }, null],

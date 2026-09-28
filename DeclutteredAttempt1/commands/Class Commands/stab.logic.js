@@ -35,8 +35,6 @@
  *   the /shoot code this was copied from); dropped.
  *
  * Preserved as-is (each pinned by a test):
- * - the gamestate gate passes isClockwatcher=false, so even a Clockwatcher is
- *   blocked by a timestop here
  * - the AP cost is the stab count itself: `requiredAP = amount`, 1 AP a stab
  * - the number written and the number announced disagree. The write applies
  *   `min(amount * Damage * (DMG_BUFF + 1) * 2, MAX_DAMAGE)` - the doubling is
@@ -94,13 +92,9 @@ async function run(input, deps = defaultDeps) {
 
   if (player.Dead) return { ok: false, reason: REJECTIONS.PLAYER_DEAD };
 
-  // the old code hardcoded isClockwatcher=false, so even Clockwatchers are
-  // blocked by a timestop
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!playerClass || playerClass.Class_Name != 'Fencer') {

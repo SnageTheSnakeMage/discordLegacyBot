@@ -29,8 +29,6 @@
  * - the command is free. The description advertises 4 AP, but the old code
  *   never checked or deducted any, and neither does this
  * - there is no Dead check, so a dead Switchmate can still swap
- * - the gamestate gate is called with isClockwatcher = false, so even a
- *   Clockwatcher Switchmate is blocked by a timestop
  * - only `Players.Tile_ID` moves. The Tiles.PlayerN occupancy slots are left
  *   pointing at whoever was there before, and Tile_ID2 (a Twin's second
  *   body) is never considered
@@ -59,12 +57,9 @@ async function run(input, deps = defaultDeps) {
   const player = await models.Players.findOne({ where: { Game_ID: gameId, Discord_ID: input.discordId } });
   const victim = await models.Players.findOne({ where: { Game_ID: gameId, Discord_ID: input.victimDiscordId } });
 
-  // the old code passed isClockwatcher = false unconditionally
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   // moved ahead of the class check, which used to dereference a null player

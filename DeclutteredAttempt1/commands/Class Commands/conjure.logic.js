@@ -12,8 +12,6 @@
  *   player.Class_ID
  *
  * Preserved as-is (see the pinning tests):
- * - the gamestate gate passes isClockwatcher=false unconditionally, exactly
- *   like the old checkGameStateAndReply(gamestate, false, interaction) call
  * - the success message names the tile's PRE-conjure type (the row was read
  *   before the update), so players see "made a Blank1 tile", never "Storm"
  * - occupied tiles, Storm tiles and every other non-gateway type still get
@@ -61,12 +59,9 @@ async function run(input, deps = defaultDeps) {
 
   if (player.Dead) return { ok: false, reason: REJECTIONS.PLAYER_DEAD };
 
-  // the old code hard-coded isClockwatcher=false here; keep that
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!tileToChange) {

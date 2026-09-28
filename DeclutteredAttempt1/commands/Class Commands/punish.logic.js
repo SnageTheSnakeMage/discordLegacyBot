@@ -35,8 +35,6 @@
  * Preserved as-is (each pinned by a test):
  * - punish writes nothing at all, ever: the legacy AP deduction sat after
  *   the loop, so no AP was ever actually spent
- * - the gamestate gate passes isClockwatcher=false, so a Clockwatcher is
- *   blocked by a timestop here too
  * - the not-enough-AP message still talks about shooting
  * - the AP cost is a flat 4, not game.shootCost
  * - the target player is looked up by Discord_ID alone (no Game_ID filter)
@@ -99,13 +97,9 @@ async function run(input, deps = defaultDeps) {
     [targetTile.X_Position, targetTile.Y_Position],
   );
 
-  // the old code hardcoded isClockwatcher=false here, so even Clockwatchers
-  // are blocked by a timestop
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (player.Action_Points < REQUIRED_AP) {

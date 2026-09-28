@@ -20,9 +20,6 @@
  *
  * Preserved as-is (see the pinning tests):
  * - there is NO dead check: a dead Snowman can still freeze (unlike /burn)
- * - the gamestate gate runs BEFORE every tile/class check, with
- *   isClockwatcher=false hard-coded, exactly like the old
- *   checkGameStateAndReply(gamestate, false, interaction) call
  * - the success message names the tile's PRE-freeze type (the row was read
  *   before the update) and carries no username prefix ("You have made a...")
  * - occupied tiles, Ice tiles and every other non-gateway type still
@@ -53,13 +50,9 @@ async function run(input, deps = defaultDeps) {
   const player = await models.Players.findOne({ where: { Game_ID: game.Game_ID, Discord_ID: input.discordId } });
   if (!player) return { ok: false, reason: REJECTIONS.NOT_IN_GAME };
 
-  // the old code gated on gamestate before any other check, with
-  // isClockwatcher hard-coded false; keep both
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   const playerClass = await models.Classes.findByPk(player.Class_ID);

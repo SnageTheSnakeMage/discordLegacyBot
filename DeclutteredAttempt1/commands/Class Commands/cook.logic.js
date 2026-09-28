@@ -20,8 +20,6 @@
  *   customersTile.Tile_ID; that is now a NO_SUCH_TILE rejection
  *
  * Preserved as-is (see the pinning tests):
- * - the gamestate gate passes isClockwatcher=false unconditionally, exactly
- *   like the old checkGameStateAndReply(gamestate, false, interaction) call
  * - no Dead check: a dead Chef can still cook, and a dead customer can
  *   still be cooked for
  * - the customer's +2 AP and +1 HP are NOT clamped to MAX_AP/MAX_HP, and
@@ -78,12 +76,9 @@ async function run(input, deps = defaultDeps) {
     where: { Layer_ID: playersTile.Layer_ID, X_Position: input.x, Y_Position: input.y },
   });
 
-  // the old code hard-coded isClockwatcher=false here; keep that
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   const playerClass = await models.Classes.findByPk(player.Class_ID);

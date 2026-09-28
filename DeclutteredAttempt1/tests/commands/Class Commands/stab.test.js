@@ -128,11 +128,14 @@ describe('stab.run rejections', () => {
     })).toEqual([]);
   });
 
-  it('blocks a Clockwatcher during a timestop', async () => {
+  it('blocks a Clockwatcher during a timestop: a class command, and not their class', async () => {
+    const clockwatcher = createFakeClass({ Class_ID: 7, Class_Name: 'Clockwatcher' });
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
-      stabberClass: createFakeClass({ Class_ID: 7, Class_Name: 'Clockwatcher' }),
+      stabberClass: clockwatcher,
     });
+    // the actor really is a Clockwatcher, as utils.isClockwatcher would see it
+    deps.models.Classes.findByPk = jest.fn(async () => clockwatcher);
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.TIME_STOPPED);
     expectNoWrites(deps);

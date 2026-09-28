@@ -26,8 +26,6 @@
  * Preserved as-is (see the pinning tests):
  * - only Blank1 smokes: Blank2 is rejected with "You can only smoke blank
  *   tiles!" despite the wording
- * - the gamestate gate passes isClockwatcher=false (the old switch blocked
- *   TIMESTOPPED for everyone; a Smoker is never a Clockwatcher anyway)
  * - the success message names the tile's PRE-smoke type (the row was read
  *   before the update), so players always see "made a Blank1 tile"
  * - occupied tiles still smoke; there is no occupant check
@@ -72,12 +70,9 @@ async function run(input, deps = defaultDeps) {
 
   if (player.Dead) return { ok: false, reason: REJECTIONS.PLAYER_DEAD };
 
-  // the old switch hard-coded no Clockwatcher exemption; keep that
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
   // ... and it blocked REGISTRATION too, which checkGameState lets through
   if (game.GAME_STATE === GAMESTATES.REGISTRATION) {

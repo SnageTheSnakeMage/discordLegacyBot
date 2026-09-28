@@ -1,15 +1,19 @@
 /**
  * Structural guard for the Clockwatcher exemption.
  *
- * The gamestate gate's second argument decides whether a timestop applies.
- * A call site that passes a literal `false` takes away the Clockwatcher's
- * entire ability - acting while time is stopped - for that command.
+ * The gamestate gate's second argument decides whether a timestop applies
+ * to the actor. The rule has two halves:
+ *
+ * - a class command (one that refuses the wrong class with WRONG_CLASS)
+ *   passes `false`: a player has one class, and a Clockwatcher never has
+ *   the class that command needs, so a timestop always blocks it;
+ * - every other command decides it from the actor's class, so a
+ *   Clockwatcher acts through a timestop - that is the class's ability.
  *
  * utils.isClockwatcher has its own tests. This one exists because those
- * cannot notice a single command quietly passing `false`: each command's
- * own suite mostly does not exercise a Clockwatcher, so the mistake would
- * pass unseen in most of the files. Checking the shape
- * of the call covers all of them at once, the same way the no-discord.js
+ * cannot notice a single command drifting to the wrong half: each
+ * command's own suite exercises only its own gate. Checking the shape of
+ * the call covers all of them at once, the same way the no-discord.js
  * boundary is enforced.
  */
 const fs = require('fs');
@@ -33,28 +37,31 @@ const gated = logicFiles()
   .map((f) => [path.basename(f), fs.readFileSync(f, 'utf8')])
   .filter(([, src]) => src.includes('checkGameState('));
 
-describe('the gamestate gate is never told the actor is not a Clockwatcher', () => {
-  it('finds the gated commands', () => {
+const isClassCommand = (src) => src.includes('REJECTIONS.WRONG_CLASS');
+// `checkGameState(x, false)` on one line, or wrapped across several with a
+// trailing comma
+const passesFalse = (src) => /checkGameState\([^)]*,\s*false\s*,?\s*\)/s.test(src);
+// board and move resolve it inline, because they have the class row in
+// hand; the rest go through utils.isClockwatcher
+const asksTheClass = (src) => /isClockwatcher|Class_Name\s*===?\s*'Clockwatcher'/.test(src);
+
+describe('the gamestate gate is told whether a timestop applies to the actor', () => {
+  it('finds the gated commands, of both kinds', () => {
     expect(gated.length).toBeGreaterThanOrEqual(27);
+    expect(gated.filter(([, src]) => isClassCommand(src)).length).toBeGreaterThanOrEqual(20);
+    expect(gated.filter(([, src]) => !isClassCommand(src)).length).toBeGreaterThanOrEqual(5);
   });
 
-  // One test per rule, not per file: the failure then names every command
-  // that regressed in one go, and the suite counts rules rather than rows.
-  it('no gated command hard-codes the exemption to false', () => {
-    // `checkGameState(x, false)` on one line, or wrapped across several
-    // with a trailing comma - both must fail this
+  it('every class command is blocked by a timestop', () => {
     const offenders = gated
-      .filter(([, src]) => /checkGameState\([^)]*,\s*false\s*,?\s*\)/s.test(src))
+      .filter(([, src]) => isClassCommand(src) && !passesFalse(src))
       .map(([name]) => name);
     expect(offenders).toEqual([]);
   });
 
-  // board and move already resolved it inline, because they had the class
-  // row in hand; the rest go through utils.isClockwatcher. Either is fine -
-  // what matters is that the answer comes from the actor's class.
-  it('every gated command decides the exemption from the actor class', () => {
+  it('every other command lets a Clockwatcher act through a timestop', () => {
     const offenders = gated
-      .filter(([, src]) => !/isClockwatcher|Class_Name\s*===?\s*'Clockwatcher'/.test(src))
+      .filter(([, src]) => !isClassCommand(src) && (passesFalse(src) || !asksTheClass(src)))
       .map(([name]) => name);
     expect(offenders).toEqual([]);
   });

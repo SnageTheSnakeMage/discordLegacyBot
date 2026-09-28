@@ -26,8 +26,6 @@
  * - negative amounts pass every check and deposit AP into the chest
  * - no Dead gate: dead players can retrieve
  * - no MAX_AP clamp on the receiving player
- * - isClockwatcher is hard-coded false, so even a Clockwatcher is blocked
- *   during a timestop (the player's class is never looked up)
  */
 const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
@@ -57,10 +55,7 @@ async function run(input, deps = defaultDeps) {
   // read returns null and every use below would be a TypeError
   if (!playerTile) return { ok: false, reason: REJECTIONS.NOT_ON_BOARD };
 
-  // hard false: the old code never consulted the player's class here, so a
-  // Clockwatcher is blocked during a timestop like everyone else
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
+  // a Clockwatcher acts through a timestop
   const verdict = utils.checkGameState(
     game, await utils.isClockwatcher(models, player),
   );

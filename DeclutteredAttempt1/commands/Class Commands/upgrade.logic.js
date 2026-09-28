@@ -36,9 +36,6 @@
  *   prompt: a logic layer cannot own an interaction component collector.
  *
  * Preserved as-is (see the pinning tests):
- * - the gamestate gate passes isClockwatcher=false unconditionally, exactly
- *   like the old checkGameStateAndReply(gamestate, false, interaction) call,
- *   so a Clockwatcher cannot upgrade during a timestop
  * - a cost column outside its ladder (HP/RANGE 4,5,7,10 - DAMAGE 12,14,16)
  *   throws, as both the old price helper and the old buy-index switch did
  * - the cost ladder advances exactly ONE step per command, however many
@@ -138,9 +135,7 @@ async function run(input, deps = defaultDeps) {
 
   if (player.Dead) return { ok: false, reason: REJECTIONS.PLAYER_DEAD };
 
-  // the old code hard-coded isClockwatcher=false here; keep it
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
+  // a Clockwatcher acts through a timestop
   const verdict = utils.checkGameState(
     game, await utils.isClockwatcher(models, player),
   );

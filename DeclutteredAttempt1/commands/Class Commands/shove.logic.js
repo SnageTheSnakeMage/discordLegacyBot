@@ -96,9 +96,9 @@ async function run(input, deps = defaultDeps) {
     where: { Game_ID: gameId, Discord_ID: input.discordId },
   });
 
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!player) return { ok: false, reason: REJECTIONS.NOT_IN_GAME };

@@ -14,11 +14,9 @@
  *   which throws "missing playerDiscordID"; the actor's id is passed now.
  * - a missing game / player / player tile / player class dereferenced null;
  *   they return NO_SUCH_GAME / NOT_IN_GAME / NO_SUCH_TILE / WRONG_CLASS.
- * - checkGameStateAndReply is the pure two-argument checkGameState.
  *
- * Preserved as-is: the gamestate gate is asked with isClockwatcher = false
- * (a Guardian is never a Clockwatcher), the range test is inclusive of both
- * endpoints, the finale rule only blocks *locking* the last open gateway,
+ * Preserved as-is: the range test is inclusive of both endpoints, the
+ * finale rule only blocks *locking* the last open gateway,
  * and the success line names the tile's OLD type - Tiles.update does not
  * refresh the in-memory row, so "You have made a Gateway_Open tile" is what
  * a player saw after locking one. Both are pinned by tests.
@@ -66,11 +64,9 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.NO_SUCH_TILE, data: { message: 'Could not find a gateway to lock at the given coordinates.' } };
   }
 
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!playerClass || playerClass.Class_Name !== 'Guardian') {

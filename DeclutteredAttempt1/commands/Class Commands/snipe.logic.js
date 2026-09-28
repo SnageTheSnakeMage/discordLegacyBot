@@ -30,8 +30,6 @@
  *   !targetPlayer half stays where it was.
  *
  * Preserved as-is (each pinned by a test):
- * - the gamestate gate passes isClockwatcher=false, so even a Clockwatcher
- *   is blocked by a timestop here
  * - collateral players take `1 * Damage * (DMG_BUFF + 1)` damage but the
  *   message they get reports `amount * Damage * (DMG_BUFF + 1)`; the number
  *   written and the number announced disagree
@@ -105,13 +103,9 @@ async function run(input, deps = defaultDeps) {
   const amount = input.amount;
   const requiredAP = game.shootCost * amount;
 
-  // the old code hardcoded isClockwatcher=false, so even Clockwatchers are
-  // blocked by a timestop
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (player.Action_Points < requiredAP) {

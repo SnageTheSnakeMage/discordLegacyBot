@@ -111,16 +111,13 @@ describe('cook.run rejections', () => {
     })).toEqual([]);
   });
 
-  it('does not block a Clockwatcher during a timestop', async () => {
+  it('blocks a Clockwatcher during a timestop: a class command, and not their class', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
       chefClass: createFakeClass({ Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);
-    // the gate consults the actor's class, so a timestop does not
-    // stop a Clockwatcher; whatever the command decides next is its own
-    // business (often its own class gate)
-    expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
+    expect(result.reason).toBe(REJECTIONS.TIME_STOPPED);
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 

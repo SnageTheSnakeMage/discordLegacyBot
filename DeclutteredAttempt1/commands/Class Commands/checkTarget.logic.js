@@ -17,8 +17,6 @@
  * - the success message reads X_Position, Y_Position, Layer_ID and Class off
  *   the target's PLAYERS row; none of those are Players columns, so the
  *   message renders them as "undefined" exactly as the source line would
- * - the gamestate gate is called with isClockwatcher hardcoded false, as the
- *   old checkGameStateAndReply call did
  * - the hitman check is the loose `Class_ID != 10`
  *
  * A dead hitman is turned away with PLAYER_DEAD. The ported command let them
@@ -62,11 +60,9 @@ async function run(input, deps = defaultDeps) {
   // timestop; the NOT_IN_GAME rejection stays below it, so rejection ORDER
   // is unchanged
   const player = await models.Players.findOne({ where: { Game_ID: gameId, Discord_ID: input.discordId } });
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!player) return { ok: false, reason: REJECTIONS.NOT_IN_GAME };

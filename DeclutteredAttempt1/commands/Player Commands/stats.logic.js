@@ -21,8 +21,7 @@
  *   embed field value, which discord.js v14 builders reject (crash); it is
  *   now stringified
  *
- * Preserved as-is: isClockwatcher is hardcoded false (a Clockwatcher cannot
- * see stats during a timestop), the odd "current/ max/missed" AP spacing,
+ * Preserved as-is: the odd "current/ max/missed" AP spacing,
  * the default-game fallback via getOldestGameId (any gamestate, not just
  * active), and the default switch branch showing overflow Pharoh HP for any
  * non-Pharoh/Chef/Twin class.
@@ -64,10 +63,7 @@ async function run(input, deps = defaultDeps) {
   const game = await models.Games.findByPk(gameId);
   if (!game) return { ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId } };
 
-  // legacy passed isClockwatcher=false unconditionally: stats is blocked for
-  // everyone during a timestop, Clockwatchers included
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
+  // a Clockwatcher acts through a timestop
   const verdict = utils.checkGameState(
     game, await utils.isClockwatcher(models, player), { readOnly: true },
   );

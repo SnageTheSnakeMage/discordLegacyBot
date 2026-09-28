@@ -28,8 +28,6 @@
  *   compared on Class_Name
  *
  * Preserved as-is (see the pinning tests):
- * - the gamestate gate passes isClockwatcher=false unconditionally, exactly
- *   like the old checkGameStateAndReply(gamestate, false, interaction) call
  * - there is no dead-check on the CASTER: a dead Necromancer may resurrect
  * - the `?? playersTile.Layer_ID` fallback: an out-of-range layer number
  *   silently falls back to the caster's own layer rather than rejecting
@@ -98,11 +96,9 @@ async function run(input, deps = defaultDeps) {
   const resurrectee = await models.Players.findOne({ where: { Game_ID: game.Game_ID, Discord_ID: input.targetDiscordId } });
   const playerClass = await models.Classes.findByPk(player.Class_ID);
 
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!playerClass || playerClass.Class_Name !== 'Necromancer') {
