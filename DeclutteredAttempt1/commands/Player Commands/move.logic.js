@@ -547,9 +547,12 @@ async function run(input, deps = defaultDeps) {
 
   let died = false;
 
+  // a run of identical steps is written once, followed by "xN" for the
+  // whole run; repeatLine holds that count until the run ends
   let response = '';
   let lastStringAddedToResponse = '';
   let amountOfRepeats = 0;
+  let repeatLine = '';
 
   for (let cord = 0; cord < iceChecklistAndTileList.length - 1; cord++) {
     const cur_Tile = await models.Tiles.findOne({ where: { X_Position: iceChecklistAndTileList[cord][0], Y_Position: iceChecklistAndTileList[cord][1], Layer_ID: originalTile.Layer_ID } });
@@ -557,17 +560,18 @@ async function run(input, deps = defaultDeps) {
     if (!cur_Tile || !nxt_Tile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE };
 
     if (lastStringAddedToResponse != `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`) {
+      response += repeatLine;
+      repeatLine = '';
       if (nxt_Tile.trapped) {
         response += `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile IT WAS TRAPPED took ${game.mineDmg}! \n`;
       } else {
         response += `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`;
       }
       lastStringAddedToResponse = `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`;
-      // assigned, never incremented (legacy), so a run of identical steps
-      // always renders as "x2"
       amountOfRepeats = 1;
     } else {
-      response += `x${amountOfRepeats + 1} \n`;
+      amountOfRepeats++;
+      repeatLine = `x${amountOfRepeats} \n`;
     }
 
     // one line per tile crossed: this is the record that says how far the
@@ -596,6 +600,8 @@ async function run(input, deps = defaultDeps) {
       return { ok: false, reason: blocked.reason, data: blocked.data };
     }
   }
+
+  response += repeatLine;
 
   // put the player on the destination tile (and take them off the old one)
   if (!died) {
