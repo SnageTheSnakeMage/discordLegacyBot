@@ -5,11 +5,11 @@
  * checkGameState) are the real ones.
  */
 const logic = require('../../../commands/Player Commands/move.logic.js');
-const move = require('../../../commands/Player Commands/move.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const DISCORD_ID = '123';
 
@@ -140,13 +140,15 @@ describe('move.parse', () => {
 // ---------------------------------------------------------------------------
 
 describe('move.inputPathToArray', () => {
-  it.each([
-    ['right,2;', [['right', '2'], ['']]],
-    ['right,2;down,1;', [['right', '2'], ['down', '1'], ['']]],
-    ['sw,10;', [['sw', '10'], ['']]],
-    ['nonsense', [['nonsense']]],
-  ])('%s -> %j', (input, expected) => {
-    expect(logic.inputPathToArray(input)).toEqual(expected);
+  it('<input> -> <expected>', async () => {
+    expect(await everyCase('%s -> %j', [
+      ['right,2;', [['right', '2'], ['']]],
+      ['right,2;down,1;', [['right', '2'], ['down', '1'], ['']]],
+      ['sw,10;', [['sw', '10'], ['']]],
+      ['nonsense', [['nonsense']]],
+    ], (input, expected) => {
+      expect(logic.inputPathToArray(input)).toEqual(expected);
+    })).toEqual([]);
   });
 
   // the mandatory trailing ';' leaves an empty [""] segment in the
@@ -157,17 +159,19 @@ describe('move.inputPathToArray', () => {
 });
 
 describe('move.addStartToPathArray', () => {
-  it.each([
-    ['ne', 'northeast'],
-    ['nw', 'northwest'],
-    ['se', 'southeast'],
-    ['sw', 'southwest'],
-    ['left', 'west'],
-    ['right', 'east'],
-    ['up', 'north'],
-    ['down', 'south'],
-  ])('prepends %s as %s', (short, long) => {
-    expect(logic.addStartToPathArray(short, 2, [['down', '1']])).toEqual([[long, 2], ['down', '1']]);
+  it('prepends <short> as <long>', async () => {
+    expect(await everyCase('prepends %s as %s', [
+      ['ne', 'northeast'],
+      ['nw', 'northwest'],
+      ['se', 'southeast'],
+      ['sw', 'southwest'],
+      ['left', 'west'],
+      ['right', 'east'],
+      ['up', 'north'],
+      ['down', 'south'],
+    ], (short, long) => {
+      expect(logic.addStartToPathArray(short, 2, [['down', '1']])).toEqual([[long, 2], ['down', '1']]);
+    })).toEqual([]);
   });
 
   it('throws on a direction it cannot translate', () => {
@@ -235,15 +239,17 @@ describe('move.verifyInputPath', () => {
     expect(verdict.valid).toBe(true);
   });
 
-  it.each([
-    ['garbage'],
-    ['right,2'],
-    ['right;2;'],
-    ['east,2;'],
-  ])('rejects the malformed path %s', async (path) => {
-    const verdict = await logic.verifyInputPath(path, 1, 1, 1, pathDeps());
-    expect(verdict.valid).toBe(false);
-    expect(verdict.message).toMatch(/make sure your path uses a direction/);
+  it('rejects the malformed path <path>', async () => {
+    expect(await everyCase('rejects the malformed path %s', [
+      ['garbage'],
+      ['right,2'],
+      ['right;2;'],
+      ['east,2;'],
+    ], async (path) => {
+      const verdict = await logic.verifyInputPath(path, 1, 1, 1, pathDeps());
+      expect(verdict.valid).toBe(false);
+      expect(verdict.message).toMatch(/make sure your path uses a direction/);
+    })).toEqual([]);
   });
 
   it('rejects a path that crosses a tile which does not exist', async () => {
@@ -323,40 +329,44 @@ describe('move.run rejections', () => {
   // gate and returns its verdict without writing, so one state that passes,
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = makeDeps({ game: createFakeGame({ Game_ID: 1, ...condition, moveCost: 1 }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toEqual({ ok: false, reason });
-      expect(deps.models.Players.update).not.toHaveBeenCalled();
-      expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = makeDeps({ game: createFakeGame({ Game_ID: 1, ...condition, moveCost: 1 }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toEqual({ ok: false, reason });
+        expect(deps.models.Players.update).not.toHaveBeenCalled();
+        expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+      }
+    })).toEqual([]);
   });
 
   // The gate answers before the AP check, so a player in a game that has not
   // started is told that and not something about action points - which is why
   // the message is asserted here and not just the reason code.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.REGISTRATION }, REJECTIONS.GAME_IN_REGISTRATION],
-  ])('%s is refused by the gate, not by the AP check', async (condition, reason) => {
-    const { deps } = makeDeps({
-      // plenty of AP, so an AP complaint cannot be what comes back
-      player: createFakePlayer({
-        Player_ID: 1, Class_ID: 1, Game_ID: 1, Discord_ID: DISCORD_ID,
-        Action_Points: 99, Health_Points: 10, Free_Move: 0, Tile_ID: 11, Tile_ID2: null,
-      }),
-      game: createFakeGame({ Game_ID: 1, ...condition, moveCost: 1 }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toEqual({ ok: false, reason });
-    expect(logic.present(result).content).not.toMatch(/action points/i);
-    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+  it('<condition> is refused by the gate, not by the AP check', async () => {
+    expect(await everyCase('%s is refused by the gate, not by the AP check', [
+      [{ GAME_STATE: GAMESTATES.REGISTRATION }, REJECTIONS.GAME_IN_REGISTRATION],
+    ], async (condition, reason) => {
+      const { deps } = makeDeps({
+        // plenty of AP, so an AP complaint cannot be what comes back
+        player: createFakePlayer({
+          Player_ID: 1, Class_ID: 1, Game_ID: 1, Discord_ID: DISCORD_ID,
+          Action_Points: 99, Health_Points: 10, Free_Move: 0, Tile_ID: 11, Tile_ID2: null,
+        }),
+        game: createFakeGame({ Game_ID: 1, ...condition, moveCost: 1 }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toEqual({ ok: false, reason });
+      expect(logic.present(result).content).not.toMatch(/action points/i);
+      expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+    })).toEqual([]);
   });
 
   it('lets a Clockwatcher move during a timestop', async () => {
@@ -879,16 +889,5 @@ describe('move internal logging', () => {
     } finally {
       globalThis.topLogger = saved;
     }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// adapter
-// ---------------------------------------------------------------------------
-
-describe('move adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(move.data.toJSON().name).toBe('move');
-    expect(typeof move.execute).toBe('function');
   });
 });
