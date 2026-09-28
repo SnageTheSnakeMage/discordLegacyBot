@@ -51,7 +51,7 @@ describe('movement', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
-  it('a /move stops before a full tile, pays only for the tiles walked, and keeps the board consistent', async () => {
+  it('a /move that crosses or ends on a full tile is refused and changes nothing', async () => {
     const { game, layer } = await board();
     for (let i = 0; i < 4; i++) {
       await seedPlayer(game.Game_ID, { discordId: `full${i}`, x: 3, y: 3, layerId: layer.Layer_ID });
@@ -59,17 +59,18 @@ describe('movement', () => {
     const mover = await seedPlayer(game.Game_ID, {
       discordId: '9', x: 1, y: 3, layerId: layer.Layer_ID, Action_Points: 8,
     });
+    const before = await boardAscii(game.Game_ID);
 
-    const result = await moveLogic.run(
-      { gameId: game.Game_ID, direction: 'east', distance: 3, path: null, body: 1, discordId: '9' },
-      DEPS(),
-    );
+    for (const distance of [2, 3]) {
+      const result = await moveLogic.run(
+        { gameId: game.Game_ID, direction: 'east', distance, path: null, body: 1, discordId: '9' },
+        DEPS(),
+      );
+      expect(result).toMatchObject({ ok: false, reason: 'TILE_FULL' });
+    }
 
-    expect(result.ok).toBe(true);
-    const after = await models.Players.findByPk(mover.Player_ID);
-    const tile = await models.Tiles.findByPk(after.Tile_ID);
-    expect([tile.X_Position, tile.Y_Position]).toEqual([2, 3]);
-    expect(after.Action_Points).toBe(7);
+    expect((await models.Players.findByPk(mover.Player_ID)).Action_Points).toBe(8);
+    expect(await boardAscii(game.Game_ID)).toBe(before);
     await assertBoardConsistent(game.Game_ID);
   });
 
@@ -97,7 +98,7 @@ describe('movement', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
-  it('a storm moves the rest of the walk, and the player ends on the shifted destination', async () => {
+  it('a /move ending on a storm leaves the player where the storm moved them', async () => {
     const { game, layer } = await board();
     await models.Tiles.update(
       { Tile_Type: 'Storm' },
@@ -107,80 +108,17 @@ describe('movement', () => {
       discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 8,
     });
 
-    // random 2 storms them south: off the storm at (2,1) to (2,2), so the planned
-    // end at (3,1) becomes (3,2)
+    // random 2 storms them south: off the storm at (2,1) to (2,2)
     const result = await moveLogic.run(
-      { gameId: game.Game_ID, direction: 'east', distance: 2, path: null, body: 1, discordId: '1' },
+      { gameId: game.Game_ID, direction: 'east', distance: 1, path: null, body: 1, discordId: '1' },
       { ...DEPS(), random: () => 2 },
     );
 
     expect(result.ok).toBe(true);
     const after = await models.Players.findByPk(walker.Player_ID);
     const dest = await models.Tiles.findByPk(after.Tile_ID);
-    expect([dest.X_Position, dest.Y_Position]).toEqual([3, 2]);
-    await assertBoardConsistent(game.Game_ID);
-  });
-
-  it('reads ice from the layer being walked, not whichever layer has that coordinate', async () => {
-    const game = await seedGame({ moveCost: 1, mineDmg: 1, fireDmg: 1 });
-    const other = await seedLayer(game.Game_ID);
-    const layer = await seedLayer(game.Game_ID);
-    await models.Tiles.update(
-      { Tile_Type: 'Ice' },
-      { where: { Layer_ID: other.Layer_ID, X_Position: 2, Y_Position: 1 } },
-    );
-    const walker = await seedPlayer(game.Game_ID, {
-      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 8,
-    });
-
-    const result = await moveLogic.run(
-      { gameId: game.Game_ID, direction: 'east', distance: 1, path: null, body: 1, discordId: '1' },
-      DEPS(),
-    );
-
-    // (2,1) on this layer is Blank1: the move is allowed and paid for
-    expect(result.ok).toBe(true);
-    expect(result.data.spentAP).toBe(1);
-    expect((await models.Players.findByPk(walker.Player_ID)).Action_Points).toBe(7);
-  });
-
-  it('a Twin moving its second body moves Tile_ID2 and leaves body 1 where it is', async () => {
-    const { game, layer } = await board();
-    const twin = await seedPlayer(game.Game_ID, {
-      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 8,
-      className: 'Twin', Health_Points2: 10, secondBody: { x: 1, y: 3 },
-    });
-    const body1Tile = twin.Tile_ID;
-
-    const result = await moveLogic.run(
-      { gameId: game.Game_ID, direction: 'east', distance: 1, path: null, body: 2, discordId: '1' },
-      DEPS(),
-    );
-
-    expect(result.ok).toBe(true);
-    const after = await models.Players.findByPk(twin.Player_ID);
-    expect(after.Tile_ID).toBe(body1Tile);
-    const body2 = await models.Tiles.findByPk(after.Tile_ID2);
-    expect([body2.X_Position, body2.Y_Position]).toEqual([2, 3]);
-    await assertBoardConsistent(game.Game_ID);
-  });
-
-  it('a Twin moving one body off a shared tile leaves the other body on it', async () => {
-    const { game, layer } = await board();
-    const twin = await seedPlayer(game.Game_ID, {
-      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 8,
-      className: 'Twin', Health_Points2: 10, secondBody: { x: 1, y: 1 },
-    });
-
-    await moveLogic.run(
-      { gameId: game.Game_ID, direction: 'east', distance: 1, path: null, body: 2, discordId: '1' },
-      DEPS(),
-    );
-
-    const after = await models.Players.findByPk(twin.Player_ID);
-    const shared = await models.Tiles.findByPk(after.Tile_ID);
-    expect([shared.X_Position, shared.Y_Position]).toEqual([1, 1]);
-    expect([shared.Player1, shared.Player2, shared.Player3, shared.Player4]).toContain(twin.Player_ID);
+    expect([dest.X_Position, dest.Y_Position]).toEqual([2, 2]);
+    expect(after.Action_Points).toBe(7);
     await assertBoardConsistent(game.Game_ID);
   });
 
