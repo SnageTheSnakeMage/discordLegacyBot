@@ -51,6 +51,28 @@ describe('movement', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
+  it('a /move stops before a full tile, pays only for the tiles walked, and keeps the board consistent', async () => {
+    const { game, layer } = await board();
+    for (let i = 0; i < 4; i++) {
+      await seedPlayer(game.Game_ID, { discordId: `full${i}`, x: 3, y: 3, layerId: layer.Layer_ID });
+    }
+    const mover = await seedPlayer(game.Game_ID, {
+      discordId: '9', x: 1, y: 3, layerId: layer.Layer_ID, Action_Points: 8,
+    });
+
+    const result = await moveLogic.run(
+      { gameId: game.Game_ID, direction: 'east', distance: 3, path: null, body: 1, discordId: '9' },
+      DEPS(),
+    );
+
+    expect(result.ok).toBe(true);
+    const after = await models.Players.findByPk(mover.Player_ID);
+    const tile = await models.Tiles.findByPk(after.Tile_ID);
+    expect([tile.X_Position, tile.Y_Position]).toEqual([2, 3]);
+    expect(after.Action_Points).toBe(7);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
   it('a move relocates the player and keeps both sides of the invariant', async () => {
     const { game, layer } = await board();
     const walker = await seedPlayer(game.Game_ID, {

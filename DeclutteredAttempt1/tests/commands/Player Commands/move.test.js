@@ -561,12 +561,12 @@ describe('move.run success', () => {
     );
   });
 
-  it('charges nothing for a zero-distance move', async () => {
+  it('charges nothing for a zero-distance move, and does not re-place the player', async () => {
     const { deps } = makeDeps();
     const result = await logic.run({ ...INPUT, distance: 0 }, deps);
     expect(result.data.response).toBe('');
     expect(result.data.spentAP).toBe(0);
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 1, 1);
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -746,34 +746,126 @@ describe('move.run success', () => {
     );
   });
 
+  /** four other players on one tile */
+  const FULL = { Player1: 7, Player2: 8, Player3: 9, Player4: 10 };
+
+  it('stops a walk before a full tile, and charges only the tiles walked', async () => {
+    const trapper = createFakePlayer({ Player_ID: 2, Discord_ID: '456' });
+    const { deps } = makeDeps({
+      board: makeBoard({ '3,1': { ...FULL, trapped: true, trapper: 2 } }),
+      trapper,
+    });
+    const result = await logic.run({ ...INPUT, distance: 3 }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([2, 1]);
+    expect(result.data.spentAP).toBe(1);
+    expect(result.data.response).toContain('A tile on your path was full, so you stopped before it!');
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1);
+    // the mine on the full tile was never reached
+    expect(deps.utils.damagePlayer).not.toHaveBeenCalled();
+  });
+
+  it('leaves a player where they are when the first tile is full', async () => {
+    const { deps } = makeDeps({ board: makeBoard({ '2,1': FULL }) });
+    const result = await logic.run(INPUT, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([1, 1]);
+    expect(result.data.spentAP).toBe(0);
+    expect(result.data.response).toBe('A tile on your path was full, so you stopped before it! \n');
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+    expect(deps.models.Players.update).toHaveBeenCalledWith(
+      { Action_Points: 10, Free_Move: 0 },
+      { where: { Discord_ID: DISCORD_ID, Player_ID: 1, Game_ID: 1 } },
+    );
+  });
+
+  it('backs off an ice tile a full tile would have left them on', async () => {
+    const { deps } = makeDeps({ board: makeBoard({ '2,1': { Tile_Type: 'Ice' }, '3,1': FULL }) });
+    const result = await logic.run({ ...INPUT, distance: 2 }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([1, 1]);
+  });
+
+  it('may walk back over the tile it started on even when that tile is full', async () => {
+    const { deps } = makeDeps({ board: makeBoard({ '1,1': { Player1: 1, Player2: 8, Player3: 9, Player4: 10 } }) });
+    const result = await logic.run({ ...INPUT, path: 'right,1;left,1;down,1;' }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([1, 2]);
+  });
+
   /** random(7) answers from `directions` in order; everything else answers 0 */
   function stormsInOrder(...directions) {
     return (max) => (max === 7 ? directions.shift() : 0);
   }
 
-  it('re-rolls a stormed direction that would leave a non-Cloudborn\'s walk ending on ice', async () => {
+  it('stops a stormed walk before a tile it could not end on, and charges only the tiles walked', async () => {
     const { deps } = makeDeps({
       board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '3,2': { Tile_Type: 'Ice' } }),
-      // south would shift the end from (3,1) to the ice at (3,2); east is fine
-      random: stormsInOrder(2, 4),
+      // stormed south onto (2,2); the shifted end (3,2) is ice, so they stop
+      // on (2,2) instead
+      random: stormsInOrder(2),
     });
     const result = await logic.run({ ...INPUT, distance: 2 }, deps);
     expect(result.ok).toBe(true);
-    expect([result.data.newX, result.data.newY]).toEqual([4, 1]);
+    expect([result.data.newX, result.data.newY]).toEqual([2, 2]);
+    // they walked onto the storm and nothing after it
+    expect(result.data.spentAP).toBe(1);
+    expect(result.data.response).toContain('You were stormed one tile south!');
+    expect(result.data.response).toContain('stopped early');
   });
 
-  it('re-rolls a stormed direction that would cut a walk short on ice', async () => {
+  it('backs a stormed walk cut off at the edge off an ice tile', async () => {
     const { deps } = makeDeps({
       board: makeBoard({ '3,2': { Tile_Type: 'Storm' }, '5,1': { Tile_Type: 'Ice' } }),
       player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 12, Action_Points: 10 }),
-      // planned (1,2) -> (5,2). Northeast off the storm lands on (4,1) and
-      // pushes the rest to (5,1) then (6,1), off the board, stopping on the
-      // ice at (5,1); south shifts the whole walk down a row instead
-      random: stormsInOrder(5, 2),
+      // planned (1,2) -> (5,2). Stormed northeast onto (4,1), the rest becomes
+      // (5,1) then (6,1): cut at the edge, on the ice at (5,1), so back to (4,1)
+      random: stormsInOrder(5),
     });
     const result = await logic.run({ ...INPUT, distance: 4 }, deps);
     expect(result.ok).toBe(true);
-    expect([result.data.newX, result.data.newY]).toEqual([5, 3]);
+    expect([result.data.newX, result.data.newY]).toEqual([4, 1]);
+    expect(result.data.spentAP).toBe(2);
+  });
+
+  it('stops a stormed walk before a wall', async () => {
+    const { deps } = makeDeps({
+      board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '3,2': { Tile_Type: 'Wall' } }),
+      random: stormsInOrder(2),
+    });
+    const result = await logic.run({ ...INPUT, distance: 3 }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([2, 2]);
+    expect(result.data.spentAP).toBe(1);
+  });
+
+  it('leaves a player on the storm when the tile they would be stormed onto is full', async () => {
+    const { deps } = makeDeps({
+      board: makeBoard({
+        '2,1': { Tile_Type: 'Storm' },
+        '2,2': { Player1: 7, Player2: 8, Player3: 9, Player4: 10 },
+      }),
+      random: stormsInOrder(2),
+    });
+    const result = await logic.run({ ...INPUT, distance: 2 }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([2, 1]);
+    expect(result.data.spentAP).toBe(1);
+    expect(result.data.response).toContain('you stopped on the storm');
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1);
+  });
+
+  it('never charges more than the planned walk, whatever a storm does to it', async () => {
+    const { deps } = makeDeps({
+      // planned: storm, ice (free), blank = 2 AP. Stormed south, the walk
+      // crosses two blanks instead, which would be 3
+      board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '3,1': { Tile_Type: 'Ice' } }),
+      random: stormsInOrder(2),
+    });
+    const result = await logic.run({ ...INPUT, distance: 3 }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([4, 2]);
+    expect(result.data.spentAP).toBe(2);
   });
 
   it('lets a storm leave a Cloudborn\'s walk ending on ice', async () => {
@@ -863,7 +955,7 @@ describe('move internal logging', () => {
 
     expect(result.ok).toBe(true);
     // 1,1 -> 4,1 is four coordinates, so three steps between them
-    expect(steps(lines)).toEqual(['resolved', 'destination', 'cost', 'step', 'step', 'step', 'placed']);
+    expect(steps(lines)).toEqual(['resolved', 'destination', 'cost', 'step', 'step', 'step', 'placed', 'charged']);
 
     const destination = lines.find((line) => line.obj.function === 'destination').obj;
     expect(destination).toMatchObject({ via: 'direction', direction: 'east', distance: 3, to: [4, 1], tilesWalked: 4 });
