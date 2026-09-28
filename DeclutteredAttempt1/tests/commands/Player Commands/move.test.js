@@ -341,8 +341,11 @@ describe('move.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('rejects ending a movement on ice when not a Snowman', async () => {
-    const { deps } = makeDeps({ board: makeBoard({ '2,1': { Tile_Type: 'Ice' } }) });
+  it.each(['Average', 'Snowman'])('refuses a %s ending a movement on ice', async (className) => {
+    const { deps } = makeDeps({
+      board: makeBoard({ '2,1': { Tile_Type: 'Ice' } }),
+      playerClass: createFakeClass({ Class_Name: className }),
+    });
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.WRONG_TILE_TYPE);
     expect(logic.present(result)).toEqual({
@@ -352,10 +355,10 @@ describe('move.run rejections', () => {
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 
-  it('lets a Snowman end a movement on ice', async () => {
+  it('lets a Cloudborn end a movement on ice', async () => {
     const { deps } = makeDeps({
       board: makeBoard({ '2,1': { Tile_Type: 'Ice' } }),
-      playerClass: createFakeClass({ Class_Name: 'Snowman' }),
+      playerClass: createFakeClass({ Class_ID: 6, Class_Name: 'Cloudborn' }),
     });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);

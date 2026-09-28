@@ -13,7 +13,7 @@
  * - A move is checked before anything happens, and refused if any tile on
  *   it is full (the tile the player starts on aside), if it crosses a wall,
  *   damaged wall or void and the player is not a Cloudborn, if it crosses a
- *   storm, or if it ends on ice and the player is not a Snowman. A storm may
+ *   storm, or if it ends on ice and the player is not a Cloudborn. A storm may
  *   only be where a move ends.
  * - A player pays moveCost (doubled for a Glutton) per tile they step onto,
  *   not for the tile they start on. Ice stepped onto is free and free
@@ -447,7 +447,7 @@ async function run(input, deps = defaultDeps) {
   // the whole walk is checked before anything happens: every tile exists,
   // none is full (the tile the player is moving from always has room for
   // them), only a Cloudborn may cross a wall or void, a storm may only be
-  // where the walk ends, and nobody but a Snowman
+  // where the walk ends, and nobody but a Cloudborn
   // may end on ice
   const walk = iceChecklistAndTileList;
   const plannedTypes = [];
@@ -470,7 +470,7 @@ async function run(input, deps = defaultDeps) {
       }
       plannedTypes.push(tile.Tile_Type);
     }
-    if (last && tile.Tile_Type == 'Ice' && playerClass.Class_Name != 'Snowman') {
+    if (last && tile.Tile_Type == 'Ice' && playerClass.Class_Name != 'Cloudborn') {
       return { ok: false, reason: REJECTIONS.WRONG_TILE_TYPE, data: { message: MSG_ICE_END } };
     }
   }
