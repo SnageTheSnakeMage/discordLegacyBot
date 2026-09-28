@@ -567,7 +567,6 @@ describe('move.run success', () => {
 
   it.each([
     ['a zero-distance move', { distance: 0 }],
-    ['a path back to where it started', { path: 'right,1;left,1;' }],
     ['a walk into the edge the player is standing on', { direction: 'west' }],
   ])('refuses %s, before anything happens', async (_what, move) => {
     const { deps } = makeDeps();
@@ -578,11 +577,14 @@ describe('move.run success', () => {
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  it('lets a path that leaves and comes back somewhere else through', async () => {
+  it('lets a path loop back to where it started, and charges for every step', async () => {
     const { deps } = makeDeps();
-    const result = await logic.run({ ...INPUT, path: 'right,1;down,1;left,1;' }, deps);
+    const result = await logic.run({ ...INPUT, path: 'right,1;down,1;left,1;up,1;' }, deps);
     expect(result.ok).toBe(true);
-    expect([result.data.newX, result.data.newY]).toEqual([1, 2]);
+    expect([result.data.newX, result.data.newY]).toEqual([1, 1]);
+    expect(result.data.spentAP).toBe(4);
+    // they end on the tile they are already on, so nobody is re-placed
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 
   it.each([
