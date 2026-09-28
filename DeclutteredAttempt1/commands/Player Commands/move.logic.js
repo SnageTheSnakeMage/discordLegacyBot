@@ -11,10 +11,10 @@
  * - A player pays moveCost (doubled for a Glutton) per tile stepped onto, not
  *   for the tile they start on. Ice stepped onto is free, free movement pays
  *   before AP does, and nobody but a Snowman may stop on ice.
- * - A storm throws the player one tile off it, and the rest of the walk,
- *   destination included, moves with them. Unless they are a Cloudborn, it
- *   never throws them onto, or leaves their walk ending on, a wall, void or
- *   ice tile.
+ * - A player who steps onto a storm is stormed: moved one tile off it in a
+ *   random direction, and the rest of the walk, destination included, moves
+ *   with them. Unless they are a Cloudborn, a storm never storms them onto,
+ *   or leaves their walk ending on, a wall, void or ice tile.
  *
  * parse/run/present per TESTING.md Part 1. run() takes plain data and a deps
  * bundle and returns a CommandResult; it never sees an interaction.
@@ -69,7 +69,7 @@ const PATH_DELTAS = {
   se: DIRECTION_DELTAS.southeast,
 };
 
-/** random 0-7 -> [dx, dy] for a storm throw */
+/** random 0-7 -> [dx, dy] for being stormed */
 const RANDOM_DIRECTION_DELTAS = [
   [-1, 0],  // 0 west
   [-1, 1],  // 1 southwest
@@ -205,18 +205,18 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
  * One tile of movement: what the tile being left does, what the tile being
  * entered does, and whether it was mined. Returns undefined normally,
  * { blocked: true, ... } when the player may not enter the tile at all,
- * { died: true } when the tile killed them, or { thrownTo: [x, y] } when a
- * storm threw them somewhere else.
+ * { died: true } when the tile killed them, or { stormedTo: [x, y] } when a
+ * storm moved them somewhere else.
  *
  * secondBody selects the twin's second body's columns. rest is the walk still
- * to come after endTile, which a storm throw shifts.
+ * to come after endTile, which being stormed shifts.
  */
 async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, deps, rest = []) {
   const { models, utils, random } = deps;
   const trace = stepLogger('move', deps);
   const body = secondBody ? 2 : 1;
   const currentHp = secondBody ? player.Health_Points2 : player.Health_Points;
-  let thrownTo = null;
+  let stormedTo = null;
 
   switch (startTile.Tile_Type) {
     // leaving a fire tile burns the player
@@ -257,8 +257,8 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
       if (player.Class_ID == STORMCHASER_CLASS_ID) {
         await models.Players.update({ Action_Points: player.Action_Points + (random(3) - 1) }, { where: { Player_ID: player.Player_ID } });
       }
-      // and everyone is thrown one tile off the storm in a random direction
-      thrownTo = await movePlayerToRandomSurroundingTile(player.Player_ID, endTile.Layer_ID, endTile.X_Position, endTile.Y_Position, deps, { rest });
+      // and everyone is stormed one tile off it in a random direction
+      stormedTo = await movePlayerToRandomSurroundingTile(player.Player_ID, endTile.Layer_ID, endTile.X_Position, endTile.Y_Position, deps, { rest });
       break;
     case 'Void':
     case 'Wall':
@@ -290,11 +290,11 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
     await models.Tiles.update({ trapped: false, trapper: null }, { where: { Tile_ID: endTile.Tile_ID } });
     if (afterMine.Dead) return { died: true };
   }
-  return thrownTo ? { thrownTo } : undefined;
+  return stormedTo ? { stormedTo } : undefined;
 }
 
 /**
- * The tile a walk finishes on once a throw has shifted it: the last tile of
+ * The tile a walk finishes on once being stormed has shifted it: the last tile of
  * `rest` moved by `delta`, or, if the shift takes it off the board, the last
  * tile before it leaves. `rest` is the walk still to come after the storm.
  */
@@ -309,10 +309,10 @@ async function stormStopTile(landingTile, rest, delta, layer, models) {
 }
 
 /**
- * Picks the tile a storm at (x, y) throws a player onto: one tile in a random
+ * Picks the tile a storm at (x, y) moves a stormed player onto: one tile in a random
  * direction, re-rolled a bounded number of times when the terrain would be
- * illegal for their class. The rest of the walk moves with the throw, so a
- * throw is also refused when the shifted walk would finish on such terrain.
+ * illegal for their class. The rest of the walk moves with them, so a
+ * direction is also refused when the shifted walk would finish on such terrain.
  * Returns [x, y], or null when every roll failed and the player stays on the
  * storm. It does not move anyone; the walk does.
  */
@@ -336,7 +336,7 @@ async function movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, { 
   const forbidden = !newTile || restricted(newTile) || restricted(stop);
   if (forbidden) {
     // a re-roll is invisible in the reply, so the log is the only place that
-    // says why a storm threw a player two tiles away from where they expected
+    // says why a stormed player ended up two tiles away from where they expected
     trace('stormReroll', {
       attempt,
       rejected: [newX, newY],
@@ -346,7 +346,7 @@ async function movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, { 
     if (attempt >= RANDOM_DIRECTION_DELTAS.length) return null;
     return movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, { rest, attempt: attempt + 1 });
   }
-  trace('stormThrow', { playerId, from: [x, y], to: [newX, newY], attempts: attempt });
+  trace('stormed', { playerId, from: [x, y], to: [newX, newY], attempts: attempt });
   return [newX, newY];
 }
 
@@ -566,10 +566,10 @@ async function run(input, deps = defaultDeps) {
       died = true;
       break;
     }
-    if (blocked && blocked.thrownTo) {
+    if (blocked && blocked.stormedTo) {
       // the storm moves the player, and the rest of the walk moves with them
-      const dx = blocked.thrownTo[0] - walk[cord + 1][0];
-      const dy = blocked.thrownTo[1] - walk[cord + 1][1];
+      const dx = blocked.stormedTo[0] - walk[cord + 1][0];
+      const dy = blocked.stormedTo[1] - walk[cord + 1][1];
       for (let later = cord + 1; later < walk.length; later++) {
         walk[later] = [walk[later][0] + dx, walk[later][1] + dy];
       }
