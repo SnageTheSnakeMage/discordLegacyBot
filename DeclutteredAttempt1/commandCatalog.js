@@ -285,7 +285,7 @@ const COMMANDS = {
   },
 
   'warp': {
-    description: 'Teleport to a random gateway tile on the layer ^/V Dimensional Hoppers land on any tile. 2AP',
+    description: 'Teleport to a random gateway tile on the layer ^/V Dimensional Hoppers land on any tile for 2AP',
     options: {
       'up-or-down': {
         kind: 'boolean',

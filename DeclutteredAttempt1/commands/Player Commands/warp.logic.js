@@ -1,9 +1,10 @@
 /**
- * /warp - teleport to a random tile on the layer above or below, for 2AP.
+ * /warp - teleport to a random tile on the layer above or below.
  *
- * Anyone standing on a Gateway_Open tile warps to a random open gateway on the
- * neighbouring layer; a Dimensional Hopper may warp from any tile, and lands
- * on any usable one.
+ * Anyone standing on a Gateway_Open tile warps for free to a random open
+ * gateway on the neighbouring layer. A Dimensional Hopper may also warp from
+ * any other tile, landing on any usable one, and that costs 2AP. A Hopper on
+ * a gateway takes the gateway like anyone else, for free.
  *
  * The cost is charged only once the player has actually moved, so a warp that
  * finds nowhere to land costs nothing.
@@ -28,7 +29,7 @@ const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
 const defaultDeps = require('../_deps.js');
 
-const AP_COST = 2;
+const HOPPER_AP_COST = 2;
 
 function parse(raw, actor) {
   return {
@@ -95,7 +96,8 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.NOT_ON_GATEWAY };
   }
 
-  if (player.Action_Points < AP_COST) {
+  const cost = viaGateway ? 0 : HOPPER_AP_COST;
+  if (player.Action_Points < cost) {
     return { ok: false, reason: REJECTIONS.NOT_ENOUGH_AP, data: { action: 'warp' } };
   }
 
@@ -144,10 +146,12 @@ async function run(input, deps = defaultDeps) {
   await deps.utils.setPlayerToTile(
     player.Player_ID, newTile.Layer_ID, newTile.X_Position, newTile.Y_Position,
   );
-  await models.Players.update(
-    { Action_Points: player.Action_Points - AP_COST },
-    { where: { Player_ID: player.Player_ID } },
-  );
+  if (cost > 0) {
+    await models.Players.update(
+      { Action_Points: player.Action_Points - cost },
+      { where: { Player_ID: player.Player_ID } },
+    );
+  }
 
   return {
     ok: true,
