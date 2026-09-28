@@ -66,6 +66,7 @@ const MESSAGES = {
   [REJECTIONS.NOT_ON_GATEWAY]: () => "You must be on a Gateway tile or a Dimensional Hopper to use this command!",
   [REJECTIONS.NO_AVAILABLE_TILE]: (d) => (d && d.message) || "There are no available tiles to move to!",
   [REJECTIONS.INVALID_PATH]: (d) => (d && d.message) || "Invalid input path.",
+  [REJECTIONS.NO_MOVEMENT]: () => "That move would not take you anywhere. Move at least one tile!",
   [REJECTIONS.INVALID_AMOUNT]: (d) => (d && d.message) || "That amount is not valid!",
 
   [REJECTIONS.NO_SUCH_PRESET]: (d) => `No board preset called "${(d && d.preset) || ""}". Available: ${(d && d.available && d.available.join(", ")) || "none"}`,

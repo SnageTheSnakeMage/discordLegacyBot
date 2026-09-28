@@ -565,12 +565,24 @@ describe('move.run success', () => {
     );
   });
 
-  it('charges nothing for a zero-distance move, and does not re-place the player', async () => {
+  it.each([
+    ['a zero-distance move', { distance: 0 }],
+    ['a path back to where it started', { path: 'right,1;left,1;' }],
+    ['a walk into the edge the player is standing on', { direction: 'west' }],
+  ])('refuses %s, before anything happens', async (_what, move) => {
     const { deps } = makeDeps();
-    const result = await logic.run({ ...INPUT, distance: 0 }, deps);
-    expect(result.data.response).toBe('');
-    expect(result.data.spentAP).toBe(0);
+    const result = await logic.run({ ...INPUT, ...move }, deps);
+    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NO_MOVEMENT });
+    expect(logic.present(result).content).toBe('That move would not take you anywhere. Move at least one tile!');
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+    expect(deps.models.Players.update).not.toHaveBeenCalled();
+  });
+
+  it('lets a path that leaves and comes back somewhere else through', async () => {
+    const { deps } = makeDeps();
+    const result = await logic.run({ ...INPUT, path: 'right,1;down,1;left,1;' }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([1, 2]);
   });
 
   it.each([
