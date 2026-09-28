@@ -75,6 +75,30 @@ describe('movement', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
+  it('a storm moves the rest of the walk, and the player ends on the shifted destination', async () => {
+    const { game, layer } = await board();
+    await models.Tiles.update(
+      { Tile_Type: 'Storm' },
+      { where: { Layer_ID: layer.Layer_ID, X_Position: 2, Y_Position: 1 } },
+    );
+    const walker = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 8,
+    });
+
+    // random 2 throws south: off the storm at (2,1) to (2,2), so the planned
+    // end at (3,1) becomes (3,2)
+    const result = await moveLogic.run(
+      { gameId: game.Game_ID, direction: 'east', distance: 2, path: null, body: 1, discordId: '1' },
+      { ...DEPS(), random: () => 2 },
+    );
+
+    expect(result.ok).toBe(true);
+    const after = await models.Players.findByPk(walker.Player_ID);
+    const dest = await models.Tiles.findByPk(after.Tile_ID);
+    expect([dest.X_Position, dest.Y_Position]).toEqual([3, 2]);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
   it('a move costs AP', async () => {
     const { game, layer } = await board();
     const walker = await seedPlayer(game.Game_ID, {

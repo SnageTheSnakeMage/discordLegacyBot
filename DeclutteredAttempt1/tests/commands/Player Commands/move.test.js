@@ -685,8 +685,51 @@ describe('move.run success', () => {
       { Health_Points: 10, MISSED_HP: 1 },
       { where: { Player_ID: 1 } },
     );
-    // once for the storm displacement, once for the requested destination
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(2);
+    // thrown east off the storm at (2,1), and placed once, where it landed
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 1);
+  });
+
+  // random(7) picks the throw: 2 is south, 4 is east
+  it('throws a player off a storm on their last step, and they end where they land', async () => {
+    const { deps } = makeDeps({
+      board: makeBoard({ '2,1': { Tile_Type: 'Storm' } }),
+      random: () => 2,
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result.ok).toBe(true);
+    // one south of the storm tile, not of the tile they stepped off
+    expect([result.data.newX, result.data.newY]).toEqual([2, 2]);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 2);
+  });
+
+  it('moves the rest of the walk, destination included, by the storm\'s throw', async () => {
+    const { deps } = makeDeps({
+      board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '3,2': { Tile_Type: 'Blank2' } }),
+      random: () => 2,
+    });
+    const result = await logic.run({ ...INPUT, distance: 3 }, deps);
+    expect(result.ok).toBe(true);
+    // (3,1) and (4,1) become (3,2) and (4,2); the step onto (3,2) proves the
+    // walk went through the shifted tiles, not the planned ones
+    expect([result.data.newX, result.data.newY]).toEqual([4, 2]);
+    expect(result.data.response).toContain('Blank2');
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 4, 2);
+  });
+
+  it('stops the walk where the storm left them when the rest would leave the board', async () => {
+    const { deps } = makeDeps({
+      board: makeBoard({ '3,1': { Tile_Type: 'Storm' } }),
+      random: () => 4,
+    });
+    // planned (1,1) -> (5,1); thrown east off (3,1) to (4,1), so the rest
+    // becomes (5,1) then (6,1), which is off the 5-wide board
+    const result = await logic.run({ ...INPUT, distance: 4 }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([5, 1]);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 5, 1);
   });
 
   it('gives a Stormchaser 1d4-2 AP on a storm tile', async () => {
@@ -706,12 +749,14 @@ describe('move.run success', () => {
 
   it('does not displace a storm-struck player onto forbidden terrain', async () => {
     const { deps } = makeDeps({
-      board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '1,2': { Tile_Type: 'Void' } }),
-      random: () => 2, // 2 = south, onto the void tile at (1,2); always re-rolled
+      board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '2,2': { Tile_Type: 'Void' } }),
+      random: () => 2, // 2 = south of the storm, onto the void tile at (2,2); always re-rolled
     });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
-    // only the final destination move happened, the storm displacement gave up
+    // every roll failed, so the player stays on the storm and the walk ends
+    // where it was going
+    expect([result.data.newX, result.data.newY]).toEqual([2, 1]);
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
   });
 
