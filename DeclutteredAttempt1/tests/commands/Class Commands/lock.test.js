@@ -286,7 +286,7 @@ describe('lock.run success', () => {
 describe('lock.present', () => {
   // quirk preserved from the legacy command: Tiles.update does not refresh
   // the in-memory row, so the confirmation names the tile's OLD type
-  it('names the tile type as it was BEFORE the toggle (preserved quirk)', () => {
+  it('names the tile type as it was BEFORE the toggle', () => {
     const out = logic.present({
       ok: true,
       kind: 'locked',

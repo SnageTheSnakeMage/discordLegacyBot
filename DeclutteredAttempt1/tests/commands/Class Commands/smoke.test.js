@@ -94,7 +94,7 @@ describe('smoke.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('reports a dead player before the missing tile (legacy order)', async () => {
+  it('reports a dead player before the missing tile', async () => {
     const { deps } = happyDeps({
       tileToChange: null,
       player: createFakePlayer({ Player_ID: 1, Discord_ID: SMOKER, Dead: true, Range_: 3, Tile_ID: 1 }),
@@ -169,7 +169,7 @@ describe('smoke.run rejections', () => {
     })).toEqual([]);
   });
 
-  it('reports the wrong class before the tile type (legacy order)', async () => {
+  it('reports the wrong class before the tile type', async () => {
     const { deps } = happyDeps({
       playerClass: createFakeClass({ Class_Name: 'Average' }),
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Wall' }),
@@ -178,7 +178,7 @@ describe('smoke.run rejections', () => {
     expect(result.reason).toBe(REJECTIONS.WRONG_CLASS);
   });
 
-  it('reports a non-blank tile before the range check (legacy order)', async () => {
+  it('reports a non-blank tile before the range check', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 9, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Wall' }),
     });
@@ -266,7 +266,7 @@ describe('smoke.run success', () => {
     );
   });
 
-  it('still smokes an occupied tile (no occupant check - preserved quirk)', async () => {
+  it('still smokes an occupied tile (no occupant check)', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1', Player1: 2 }),
     });
@@ -306,7 +306,7 @@ describe('smoke.present', () => {
     })).toEqual([]);
   });
 
-  it('renders success naming the PRE-smoke tile type, not Smoke (preserved quirk)', () => {
+  it('renders success naming the PRE-smoke tile type, not Smoke', () => {
     const out = logic.present({
       ok: true,
       kind: 'smoked',

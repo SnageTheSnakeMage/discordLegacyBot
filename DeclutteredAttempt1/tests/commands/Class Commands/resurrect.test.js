@@ -124,7 +124,7 @@ describe('resurrect.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a caster who is not in the game (the old code crashed here)', async () => {
+  it('rejects a caster who is not in the game', async () => {
     const { deps, target } = happyDeps();
     deps.models.Players.findOne = jest.fn(async ({ where }) => (where.Discord_ID === TARGET ? target : null));
     const result = await logic.run(INPUT, deps);
@@ -313,7 +313,7 @@ describe('resurrect.run success', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('maps an explicit common layer number to the games Layer_ID (this path used to throw TypeError)', async () => {
+  it('maps an explicit common layer number to the games Layer_ID', async () => {
     const { deps } = happyDeps({
       inputtedTile: createFakeTile({
         Tile_ID: INPUTTED_TILE_ID, Layer_ID: OTHER_LAYER, X_Position: 3, Y_Position: 4,

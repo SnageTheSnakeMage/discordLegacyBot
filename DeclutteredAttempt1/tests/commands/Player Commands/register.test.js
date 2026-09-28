@@ -47,7 +47,7 @@ describe('register.parse', () => {
 });
 
 describe('register.run rejections', () => {
-  it('rejects an unknown game with the legacy message and writes nothing', async () => {
+  it('rejects an unknown game with its message and writes nothing', async () => {
     const { deps } = happyDeps();
     deps.models.Games.findByPk = jest.fn(async () => null);
     const result = await logic.run(INPUT, deps);
@@ -102,7 +102,7 @@ describe('register.run rejections', () => {
   // and the branch itself, reached only by inventing the column the gate
   // reads. Nothing else covers it: the present() table used to "check" this
   // wording by passing it in as data.message and asserting it came back.
-  it('rejects a full game once playerMax exists, with the legacy message', async () => {
+  it('rejects a full game once playerMax exists, with its message', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.REGISTRATION, playerMax: 8 }),
       playerCount: 8,
@@ -159,7 +159,7 @@ describe('register.run rejections', () => {
       },)).toEqual([]);
   });
 
-  it('rejects an already registered player with the legacy message', async () => {
+  it('rejects an already registered player with its message', async () => {
     const { deps } = happyDeps({ existingPlayer: createFakePlayer({ Discord_ID: ACTOR, Game_ID: 1 }) });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({
@@ -240,7 +240,7 @@ describe('register.present', () => {
     })).toEqual([]);
   });
 
-  it('renders success with the legacy confirmation', () => {
+  it('renders success with its confirmation', () => {
     expect(logic.present({ ok: true, kind: 'registered', data: { gameId: 1 } })).toEqual({
       content: 'Player registered! Use the stats command to see where you are, your class, and your stats',
     });

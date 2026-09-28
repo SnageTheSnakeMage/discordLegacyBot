@@ -142,7 +142,7 @@ describe('upgrade.run rejections', () => {
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  it('rejects past the range cap with the legacy (space-less) wording', async () => {
+  it('rejects past the range cap with its space-less wording', async () => {
     const deps = makeDeps({ player: basePlayer({ Range_: 5, MAX_RANGE: 5 }) });
     const result = await logic.run({ ...INPUT, stat: 'Range_' }, deps);
     expect(result.reason).toBe(REJECTIONS.INVALID_AMOUNT);
@@ -150,7 +150,7 @@ describe('upgrade.run rejections', () => {
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  it('rejects past the damage cap with the legacy (space-less) wording', async () => {
+  it('rejects past the damage cap with its space-less wording', async () => {
     const deps = makeDeps({ player: basePlayer({ Damage: 3, MAX_DAMAGE: 3 }) });
     const result = await logic.run({ ...INPUT, stat: 'Damage' }, deps);
     expect(result.reason).toBe(REJECTIONS.INVALID_AMOUNT);
@@ -216,7 +216,7 @@ describe('upgrade.run success', () => {
     expect(deps.models.Players.update).toHaveBeenCalledWith({ DAMAGE_COST: 14 }, { where: { Player_ID: 7 } });
   });
 
-  it('prices damage at the second and third rungs (the old helper could not reach them)', async () => {
+  it('prices damage at the second and third rungs', async () => {
     const at14 = makeDeps({ player: basePlayer({ DAMAGE_COST: 14 }) });
     expect((await logic.run({ ...INPUT, stat: 'Damage' }, at14)).data).toMatchObject({ price: 14, newCost: 16 });
 
@@ -244,7 +244,7 @@ describe('upgrade.run success', () => {
   });
 });
 
-describe('upgrade.run preserved quirks', () => {
+describe('upgrade.run quirks', () => {
   it('advances the cost ladder exactly one rung however many steps are bought', async () => {
     const deps = makeDeps();
     const result = await logic.run({ ...INPUT, amount: 3 }, deps);

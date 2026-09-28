@@ -207,7 +207,7 @@ describe('cook.run success', () => {
   });
 
   // preserved quirk: the old code never checked Dead, so a dead chef cooks
-  it('lets a dead chef cook (no Dead check in the legacy command)', async () => {
+  it('lets a dead chef cook (there is no dead check)', async () => {
     const { deps } = happyDeps({
       chef: createFakePlayer({ Player_ID: 1, Discord_ID: CHEF, Action_Points: 5, Range_: 3, Tile_ID: 1, Meals: 1, Dead: true }),
     });
@@ -263,17 +263,17 @@ describe('cook.run success', () => {
 });
 
 describe('cook.present', () => {
-  it('renders the meals rejection with the exact legacy wording', () => {
+  it('renders the meals rejection with its exact wording', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.NOT_ENOUGH_MEALS });
     expect(out).toEqual({ content: "You don't have enough ingriedients for a meal! Wait until next AP distribution" });
   });
 
-  it('renders the not-in-game rejection with the exact legacy wording', () => {
+  it('renders the not-in-game rejection with its exact wording', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.NOT_IN_GAME, data: { message: 'You are not in the game!' } });
     expect(out).toEqual({ content: 'You are not in the game!' });
   });
 
-  it('renders the customer-targeting rejections with the exact legacy wording', () => {
+  it('renders the customer-targeting rejections with its exact wording', () => {
     expect(logic.present({ ok: false, reason: REJECTIONS.TARGET_NOT_IN_GAME, data: { role: 'customer' } }))
       .toEqual({ content: 'The customer is not in the game!' });
     expect(logic.present({ ok: false, reason: REJECTIONS.TARGET_NOT_ON_TILE, data: { role: 'customer' } }))
@@ -284,7 +284,7 @@ describe('cook.present', () => {
       .toEqual({ content: 'You are not a Chef!' });
   });
 
-  it('renders success with the exact legacy wording', () => {
+  it('renders success with its exact wording', () => {
     const out = logic.present({ ok: true, kind: 'cooked', data: { customerUsername: 'hungrybob' } });
     expect(out).toEqual({ content: 'You have cooked for hungrybob giving them 2 AP & 1 HP and yourself 1 AP!' });
   });

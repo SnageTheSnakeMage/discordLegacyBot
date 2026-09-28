@@ -55,7 +55,7 @@ describe('getTileCordinatesOfLine', () => {
 });
 
 describe('getDirection', () => {
-  it('<from> -> <to> is <expected> (south is +Y, issue #89)', async () => {
+  it('<from> -> <to> is <expected> (south is +Y)', async () => {
     expect(await everyCase('%j -> %j is %s (south is +Y, issue #89)', [
       [[3, 3], [3, 1], 'north'],
       [[3, 3], [3, 5], 'south'],
@@ -298,7 +298,7 @@ describe('randomness helpers', () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 
-  it('getRandomItemInCollection always returns an element (was undefined ~1 in 6 calls)', () => {
+  it('getRandomItemInCollection always returns an element', () => {
     const items = ['a', 'b', 'c'];
     for (let i = 0; i < 200; i++) {
       expect(items).toContain(utils.getRandomItemInCollection(items));

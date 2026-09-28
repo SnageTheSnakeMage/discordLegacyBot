@@ -122,7 +122,7 @@ describe('trap.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('reports a blocked gamestate before the missing tile (legacy order)', async () => {
+  it('reports a blocked gamestate before the missing tile', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.OVER }),
       tileToChange: null,
@@ -145,7 +145,7 @@ describe('trap.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('reports the missing tile before the wrong class (legacy order)', async () => {
+  it('reports the missing tile before the wrong class', async () => {
     const { deps } = happyDeps({
       tileToChange: null,
       playerClass: createFakeClass({ Class_Name: 'Average' }),
@@ -154,7 +154,7 @@ describe('trap.run rejections', () => {
     expect(result.reason).toBe(REJECTIONS.NO_SUCH_TILE);
   });
 
-  it('reports the wrong class before the range check (legacy order)', async () => {
+  it('reports the wrong class before the range check', async () => {
     const { deps } = happyDeps({
       playerClass: createFakeClass({ Class_Name: 'Average' }),
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 9, Y_Position: 1, Layer_ID: 1 }),
@@ -184,7 +184,7 @@ describe('trap.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('reports the range failure before the AP check (legacy order)', async () => {
+  it('reports the range failure before the AP check', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: MINESWEEPER, Action_Points: 0, Range_: 3, Tile_ID: 1 }),
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 4, Y_Position: 1, Layer_ID: 1 }),
@@ -264,7 +264,7 @@ describe('trap.run success', () => {
     );
   });
 
-  it('traps a <type> tile too - there is no tile-type check (preserved quirk)', async () => {
+  it('traps a <type> tile too - there is no tile-type check', async () => {
     expect(await everyCase('traps a %s tile too - there is no tile-type check (preserved quirk)', ['Wall', 'Void', 'Fire', 'Blank2', 'Gateway_Open'], async (type) => {
         const { deps } = happyDeps({
           tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
@@ -278,7 +278,7 @@ describe('trap.run success', () => {
       },)).toEqual([]);
   });
 
-  it('traps an occupied tile (no occupant check - preserved quirk)', async () => {
+  it('traps an occupied tile (no occupant check)', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Player1: 2 }),
     });
@@ -286,7 +286,7 @@ describe('trap.run success', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('re-traps an already trapped tile, overwriting the trapper (preserved quirk)', async () => {
+  it('re-traps an already trapped tile, overwriting the trapper', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, trapped: true, trapper: 9 }),
     });
@@ -298,7 +298,7 @@ describe('trap.run success', () => {
     );
   });
 
-  it('lets a dead Minesweeper trap - there is no Dead check (preserved quirk)', async () => {
+  it('lets a dead Minesweeper trap - there is no Dead check', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({
         Player_ID: 1, Discord_ID: MINESWEEPER, Action_Points: 5, Range_: 3, Tile_ID: 1, Dead: true,

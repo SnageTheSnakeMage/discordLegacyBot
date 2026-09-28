@@ -241,7 +241,7 @@ describe('reloadCommands run file selection', () => {
 });
 
 describe('reloadCommands present', () => {
-  it('renders one line per reloaded command, in the legacy wording', () => {
+  it('renders one line per reloaded command, in its wording', () => {
     const out = logic.present({
       ok: true,
       kind: 'reloaded',
@@ -250,7 +250,7 @@ describe('reloadCommands present', () => {
     expect(out).toEqual({ content: 'Command `gift` was reloaded!\nCommand `board` was reloaded!' });
   });
 
-  it('renders a failed module in the legacy error wording', () => {
+  it('renders a failed module in its error wording', () => {
     const out = logic.present({
       ok: true,
       kind: 'reloaded',
@@ -280,7 +280,7 @@ describe('reloadCommands present', () => {
     expect(out).toEqual({ content: 'Only the dev can use this command.' });
   });
 
-  it('prefers a carried legacy message over the shared table', () => {
+  it('prefers a carried message over the shared table', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.NOT_DEV, data: { message: 'nope' } });
     expect(out).toEqual({ content: 'nope' });
   });

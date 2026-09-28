@@ -224,7 +224,7 @@ describe('deliver.present', () => {
   });
 
   // quirk pinned: no space between the amount and "AP", exactly as before
-  it('renders success with the legacy no-space wording', () => {
+  it('renders success with its no-space wording', () => {
     const out = logic.present({ ok: true, kind: 'delivered', data: { amount: 3, receiverUsername: 'postbox' } });
     expect(out).toEqual({ content: 'You have delivered 3AP to postbox!' });
   });

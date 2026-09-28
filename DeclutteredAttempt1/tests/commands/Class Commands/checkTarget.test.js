@@ -159,7 +159,7 @@ describe('checkTarget.run success', () => {
     expectNoWrites(deps);
   });
 
-  it('looks the target up by gameId and Hitman_Target (old code passed the Games row as Game_ID)', async () => {
+  it('looks the target up by gameId and Hitman_Target', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);
     expect(deps.models.Players.findOne).toHaveBeenCalledWith({ where: { Game_ID: 1, Player_ID: 2 } });
@@ -248,17 +248,17 @@ describe('checkTarget.run reassignment', () => {
 });
 
 describe('checkTarget.present', () => {
-  it('renders the wrong-class rejection with the exact legacy wording', () => {
+  it('renders the wrong-class rejection with its exact wording', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.WRONG_CLASS, data: { className: 'hitman' } });
     expect(out).toEqual({ content: 'You are not a hitman!' });
   });
 
-  it('renders the no-target rejection with the exact legacy wording', () => {
+  it('renders the no-target rejection with its exact wording', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.NO_TARGET, data: { message: 'No current target...' } });
     expect(out).toEqual({ content: 'No current target...' });
   });
 
-  it('renders success byte-identically to the legacy message (undefineds included)', () => {
+  it('renders success exactly (undefineds included)', () => {
     const out = logic.present({
       ok: true,
       kind: 'target',
@@ -267,7 +267,7 @@ describe('checkTarget.present', () => {
     expect(out).toEqual({ content: 'Target: <@456> , Location: (undefined, undefined) layer: undefined, Class: undefined' });
   });
 
-  it('says so above the legacy line when the target was reassigned', () => {
+  it('says so above the usual line when the target was reassigned', () => {
     const out = logic.present({
       ok: true,
       kind: 'target',

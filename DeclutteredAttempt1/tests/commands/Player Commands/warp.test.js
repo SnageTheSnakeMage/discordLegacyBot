@@ -121,7 +121,7 @@ describe('warp.run rejections', () => {
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  it('rejects with the exact legacy wording when there is no layer below', async () => {
+  it('rejects with its exact wording when there is no layer below', async () => {
     const { deps } = setup({
       layers: { 1: createFakeLayer({ Layer_ID: 1, Layer_Above: 2, Layer_Below: null }), 2: createFakeLayer({ Layer_ID: 2 }) },
     });
@@ -135,7 +135,7 @@ describe('warp.run rejections', () => {
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  it('rejects with the exact legacy wording when there is no layer above', async () => {
+  it('rejects with its exact wording when there is no layer above', async () => {
     const { deps } = setup({
       layers: { 1: createFakeLayer({ Layer_ID: 1, Layer_Above: null, Layer_Below: 3 }), 3: createFakeLayer({ Layer_ID: 3 }) },
     });
@@ -256,7 +256,7 @@ describe('warp.run rejections', () => {
   });
 });
 
-describe('warp.run preserved loop quirks', () => {
+describe('warp.run loop quirks', () => {
   // splice-while-iterating with for-in: removing index 0 shifts the next tile
   // into it, and for-in moves on to index 1, so every other full gateway
   // survives the filter and can be warped onto
@@ -447,12 +447,12 @@ describe('warp.present', () => {
     });
   });
 
-  it('renders NOT_ON_GATEWAY with its legacy wording', () => {
+  it('renders NOT_ON_GATEWAY with its wording', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.NOT_ON_GATEWAY });
     expect(out).toEqual({ content: 'You must be on a Gateway tile or a Dimensional Hopper to use this command!' });
   });
 
-  it('passes a carried legacy message through untouched', () => {
+  it('passes a carried message through untouched', () => {
     const out = logic.present({
       ok: false,
       reason: REJECTIONS.NO_AVAILABLE_TILE,

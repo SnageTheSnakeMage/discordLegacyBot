@@ -87,7 +87,7 @@ describe('burn.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('reports the missing tile before the dead check (legacy order)', async () => {
+  it('reports the missing tile before the dead check', async () => {
     const { deps } = happyDeps({
       tileToChange: null,
       player: createFakePlayer({ Player_ID: 1, Discord_ID: PYRO, Dead: true, Range_: 3, Tile_ID: 1 }),
@@ -169,7 +169,7 @@ describe('burn.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('reports a gateway before the range check (legacy order)', async () => {
+  it('reports a gateway before the range check', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 9, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
     });
@@ -228,7 +228,7 @@ describe('burn.run success', () => {
     );
   });
 
-  it('still burns an occupied tile (no occupant check - preserved quirk)', async () => {
+  it('still burns an occupied tile (no occupant check)', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1', Player1: 2 }),
     });
@@ -240,7 +240,7 @@ describe('burn.run success', () => {
     );
   });
 
-  it('re-burns a tile that is already Fire (preserved quirk)', async () => {
+  it('re-burns a tile that is already Fire', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Fire' }),
     });
@@ -274,7 +274,7 @@ describe('burn.present', () => {
     })).toEqual([]);
   });
 
-  it('renders success naming the PRE-burn tile type, not Fire (preserved quirk)', () => {
+  it('renders success naming the PRE-burn tile type, not Fire', () => {
     const out = logic.present({
       ok: true,
       kind: 'burned',

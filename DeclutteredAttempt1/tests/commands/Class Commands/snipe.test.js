@@ -106,7 +106,7 @@ describe('snipe.parse', () => {
 });
 
 describe('snipe.run rejections', () => {
-  it('rejects an unknown game and writes nothing (the old code crashed on game.GAME_STATE)', async () => {
+  it('rejects an unknown game and writes nothing', async () => {
     const { deps } = happyDeps();
     deps.models.Games.findByPk = jest.fn(async () => null);
     const result = await logic.run(INPUT, deps);
@@ -114,7 +114,7 @@ describe('snipe.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a sniper who is not in the game (the old code crashed on player.Tile_ID)', async () => {
+  it('rejects a sniper who is not in the game', async () => {
     const { deps, target, bystander } = happyDeps();
     const others = [target, bystander];
     deps.models.Players.findOne = jest.fn(async ({ where }) => others.find((p) => p.Discord_ID === where.Discord_ID) || null);
@@ -123,7 +123,7 @@ describe('snipe.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a sniper whose tile row is missing (the old code crashed on shootersTile.Layer_ID)', async () => {
+  it('rejects a sniper whose tile row is missing', async () => {
     const { deps } = happyDeps({
       sniper: createFakePlayer({ Player_ID: 1, Discord_ID: SNIPER, Game_ID: 1, Action_Points: 6, Range_: 3, Tile_ID: 99 }),
     });
@@ -132,7 +132,7 @@ describe('snipe.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a target tile that is not on the board, with the legacy wording', async () => {
+  it('rejects a target tile that is not on the board, with its wording', async () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, x: 9, y: 9 }, deps);
     expect(result).toMatchObject({
@@ -180,7 +180,7 @@ describe('snipe.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects when AP is one short of shootCost * amount, with the legacy wording', async () => {
+  it('rejects when AP is one short of shootCost * amount, with its wording', async () => {
     // amount 3 at shootCost 2 needs 6 AP; the sniper has 5
     const { deps } = happyDeps({
       sniper: createFakePlayer({
@@ -203,7 +203,7 @@ describe('snipe.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('rejects a target with no player row in this game, with the legacy wording', async () => {
+  it('rejects a target with no player row in this game, with its wording', async () => {
     const { deps, sniper } = happyDeps();
     deps.models.Players.findOne = jest.fn(async ({ where }) => (where.Discord_ID === SNIPER ? sniper : null));
     const result = await logic.run(INPUT, deps);
@@ -222,7 +222,7 @@ describe('snipe.run rejections', () => {
     expect(deps.models.Players.findOne).toHaveBeenCalledWith({ where: { Discord_ID: TARGET, Game_ID: 1 } });
   });
 
-  it('rejects when the target is not standing on the given tile, with the legacy wording', async () => {
+  it('rejects when the target is not standing on the given tile, with its wording', async () => {
     const { deps } = happyDeps({
       target: createFakePlayer({ Player_ID: 2, Discord_ID: TARGET, Game_ID: 1, Health_Points: 10, Tile_ID: 2 }),
     });
@@ -254,7 +254,7 @@ describe('snipe.run rejections', () => {
     );
   });
 
-  it('rejects one tile beyond range with the computed legacy wording', async () => {
+  it('rejects one tile beyond range with the computed wording', async () => {
     // path (1,1)->(3,1) is 3 tiles, so 2 tiles of range are needed; sniper has 1
     const { deps } = happyDeps({
       sniper: createFakePlayer({
@@ -300,7 +300,7 @@ describe('snipe.run rejections', () => {
 });
 
 describe('snipe.run success', () => {
-  it('hits the target with exact write payloads and the legacy death-check argument order', async () => {
+  it('hits the target with exact write payloads and the death check\'s argument order', async () => {
     const { deps } = happyDeps();
     const result = await logic.run(INPUT, deps);
     expect(result).toEqual({
@@ -326,7 +326,7 @@ describe('snipe.run success', () => {
     expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; the HP write moved to damagePlayer
   });
 
-  it('resolves the default game via getOldestGameId with the sniper id (the old code passed nothing and threw)', async () => {
+  it('resolves the default game via getOldestGameId with the sniper id', async () => {
     const { deps } = happyDeps();
     deps.utils = { ...deps.utils, getOldestGameId: jest.fn(async () => 1) };
     const result = await logic.run({ ...INPUT, gameId: null }, deps);
@@ -441,7 +441,7 @@ describe('snipe.run success', () => {
 });
 
 describe('snipe.present', () => {
-  it('renders a rejection through its carried legacy message', () => {
+  it('renders a rejection through its carried message', () => {
     const out = logic.present({
       ok: false,
       reason: REJECTIONS.NOT_ENOUGH_AP,
@@ -453,7 +453,7 @@ describe('snipe.present', () => {
   // byte-identical legacy formatting: the newline BEFORE the "!" on the wall
   // and zip lines, the "$" after the damage number, the target named by
   // username while collateral is mentioned
-  it('renders every event type byte-identically to the legacy strings', () => {
+  it('renders every event type exactly', () => {
     const out = logic.present({
       ok: true,
       kind: 'sniped',

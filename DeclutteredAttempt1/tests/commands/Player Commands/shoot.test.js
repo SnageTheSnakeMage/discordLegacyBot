@@ -91,7 +91,7 @@ describe('shoot.parse', () => {
 });
 
 describe('shoot.run rejections', () => {
-  it('rejects an unknown game and writes nothing (old code crashed on game.shootCost)', async () => {
+  it('rejects an unknown game and writes nothing', async () => {
     const { deps } = happyDeps();
     deps.models.Games.findByPk = jest.fn(async () => null);
     const result = await logic.run(INPUT, deps);
@@ -99,7 +99,7 @@ describe('shoot.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a shooter who is not in the game (old code crashed on player.Class_ID)', async () => {
+  it('rejects a shooter who is not in the game', async () => {
     const { deps, target } = happyDeps();
     deps.models.Players.findOne = jest.fn(async ({ where }) => (where.Discord_ID === TARGET ? target : null));
     const result = await logic.run(INPUT, deps);
@@ -107,7 +107,7 @@ describe('shoot.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a shooter whose tile does not exist, with the legacy off-board wording (old code crashed on shootersTile.Layer_ID)', async () => {
+  it('rejects a shooter whose tile does not exist, with its off-board wording', async () => {
     const { deps } = happyDeps({
       shooter: createFakePlayer({ Player_ID: 1, Discord_ID: SHOOTER, Game_ID: 1, Action_Points: 6, Range_: 3, Tile_ID: 99 }),
     });
@@ -120,7 +120,7 @@ describe('shoot.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a target tile that is not on the board (old code crashed on targetTile.X_Position)', async () => {
+  it('rejects a target tile that is not on the board', async () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, x: 9, y: 9 }, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NO_SUCH_TILE });
@@ -152,7 +152,7 @@ describe('shoot.run rejections', () => {
 
   // quirk pin: the old code hardcoded isClockwatcher=false, so unlike other
   // commands even a Clockwatcher cannot shoot during a timestop
-  it('blocks a Clockwatcher during a timestop (legacy hardcoded false)', async () => {
+  it('blocks a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, shootCost: 2 }),
       shooterClass: createFakeClass({ Class_Name: 'Clockwatcher' }),
@@ -162,7 +162,7 @@ describe('shoot.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects when AP is one short of shootCost * amount, with the legacy wording', async () => {
+  it('rejects when AP is one short of shootCost * amount, with its wording', async () => {
     // amount 3 at shootCost 2 needs 6 AP; shooter has 5
     const { deps } = happyDeps({
       shooter: createFakePlayer({ Player_ID: 1, Discord_ID: SHOOTER, Game_ID: 1, Action_Points: 5, Range_: 3, Damage: 1, Tile_ID: 1 }),
@@ -183,7 +183,7 @@ describe('shoot.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('rejects a target user with no player row anywhere, with the legacy wording', async () => {
+  it('rejects a target user with no player row anywhere, with its wording', async () => {
     const { deps, shooter } = happyDeps();
     deps.models.Players.findOne = jest.fn(async ({ where }) => (where.Discord_ID === SHOOTER ? shooter : null));
     const result = await logic.run(INPUT, deps);
@@ -195,7 +195,7 @@ describe('shoot.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects when the target is not standing on the given tile, with the legacy wording', async () => {
+  it('rejects when the target is not standing on the given tile, with its wording', async () => {
     const { deps } = happyDeps({
       target: createFakePlayer({ Player_ID: 2, Discord_ID: TARGET, Game_ID: 1, Health_Points: 10, Tile_ID: 2 }),
     });
@@ -239,7 +239,7 @@ describe('shoot.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects one tile beyond range with the computed legacy wording', async () => {
+  it('rejects one tile beyond range with the computed wording', async () => {
     // path (1,1)->(3,1) has 3 tiles; range needed is 2, shooter has 1
     const { deps } = happyDeps({
       shooter: createFakePlayer({ Player_ID: 1, Discord_ID: SHOOTER, Game_ID: 1, Action_Points: 6, Range_: 1, Damage: 1, Tile_ID: 1 }),
@@ -425,7 +425,7 @@ describe('shoot.run success', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('resolves the default game via getOldestActiveGameId with the shooter id (old code passed nothing and threw)', async () => {
+  it('resolves the default game via getOldestActiveGameId with the shooter id', async () => {
     // 8c3cd694 moved the resolver to getOldestActiveGameId so a finished game
     // can no longer be shot in; the stub moved with it
     const { deps } = happyDeps();
@@ -437,7 +437,7 @@ describe('shoot.run success', () => {
 });
 
 describe('shoot.present', () => {
-  it('renders a rejection through its carried legacy message', () => {
+  it('renders a rejection through its carried message', () => {
     const out = logic.present({
       ok: false,
       reason: REJECTIONS.NOT_ENOUGH_AP,
@@ -454,7 +454,7 @@ describe('shoot.present', () => {
   // byte-identical legacy formatting, including "damaged wall" on a miss
   // against an intact wall, the newline BEFORE the "!" on wall hits, and the
   // "$" after the damage number
-  it('renders every event type byte-identically to the legacy strings', () => {
+  it('renders every event type exactly', () => {
     const out = logic.present({
       ok: true,
       kind: 'shot',

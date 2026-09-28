@@ -131,7 +131,7 @@ describe('heal.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('reports the gamestate before the missing tile (legacy order)', async () => {
+  it('reports the gamestate before the missing tile', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.DEV_PAUSED }),
       tileToChange: null,
@@ -147,7 +147,7 @@ describe('heal.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('reports the missing tile before the wrong class (legacy order)', async () => {
+  it('reports the missing tile before the wrong class', async () => {
     const { deps } = happyDeps({
       tileToChange: null,
       playerClass: createFakeClass({ Class_Name: 'Average' }),
@@ -186,7 +186,7 @@ describe('heal.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('reports a gateway before the range check (legacy order)', async () => {
+  it('reports a gateway before the range check', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 9, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
     });
@@ -215,7 +215,7 @@ describe('heal.run rejections', () => {
     );
   });
 
-  it('reports the out-of-range tile before the AP cost (legacy order)', async () => {
+  it('reports the out-of-range tile before the AP cost', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: DOCTOR, Action_Points: 0, Range_: 3, Tile_ID: 1 }),
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 4, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1' }),
@@ -262,7 +262,7 @@ describe('heal.run success', () => {
     );
   });
 
-  it('still heals an occupied tile (no occupant check - preserved quirk)', async () => {
+  it('still heals an occupied tile (no occupant check)', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1', Player1: 2 }),
     });
@@ -274,7 +274,7 @@ describe('heal.run success', () => {
     );
   });
 
-  it('re-heals a tile that is already Heal (preserved quirk)', async () => {
+  it('re-heals a tile that is already Heal', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Heal' }),
     });
@@ -283,7 +283,7 @@ describe('heal.run success', () => {
     expect(result.data.previousTileType).toBe('Heal');
   });
 
-  it('lets a dead Doctor heal - there is no dead check (preserved quirk)', async () => {
+  it('lets a dead Doctor heal - there is no dead check', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: DOCTOR, Action_Points: 5, Range_: 3, Tile_ID: 1, Dead: true }),
     });
@@ -295,7 +295,7 @@ describe('heal.run success', () => {
     );
   });
 
-  it('resolves the default game via getOldestGameId, passing the actor id (the old call passed nothing and threw)', async () => {
+  it('resolves the default game via getOldestGameId, passing the actor id', async () => {
     const { deps } = happyDeps();
     deps.utils = { ...deps.utils, getOldestGameId: jest.fn(async () => 1) };
     const result = await logic.run({ ...INPUT, gameId: null }, deps);
@@ -325,7 +325,7 @@ describe('heal.present', () => {
       .toEqual({ content: 'Could not find game #7!' });
   });
 
-  it('renders success naming the PRE-heal tile type, not Heal (preserved quirk)', () => {
+  it('renders success naming the PRE-heal tile type, not Heal', () => {
     const out = logic.present({
       ok: true,
       kind: 'healed',

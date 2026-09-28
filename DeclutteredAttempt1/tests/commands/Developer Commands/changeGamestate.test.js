@@ -123,7 +123,7 @@ describe('change-gamestate run success', () => {
 });
 
 describe('change-gamestate present', () => {
-  it('renders the non-dev rejection with its exact legacy wording', () => {
+  it('renders the non-dev rejection with its exact wording', () => {
     const out = logic.present({
       ok: false,
       reason: REJECTIONS.NOT_DEV,
