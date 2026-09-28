@@ -270,8 +270,10 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
 
 /**
  * One tile of movement: what the tile being left does, what the tile being
- * entered does, and whether it was mined. Returns undefined normally, or
- * { blocked: true, ... } when the player may not enter the tile at all.
+ * entered does, and whether it was mined. Returns undefined normally,
+ * { blocked: true, ... } when the player may not enter the tile at all,
+ * { died: true } when the tile killed them, or { thrownTo: [x, y] } when a
+ * storm threw them somewhere else.
  *
  * secondBody selects the twin's second body's columns.
  */
@@ -280,6 +282,7 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
   const trace = stepLogger('move', deps);
   const body = secondBody ? 2 : 1;
   const currentHp = secondBody ? player.Health_Points2 : player.Health_Points;
+  let thrownTo = null;
 
   switch (startTile.Tile_Type) {
     // leaving a fire tile burns the player
@@ -322,8 +325,8 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
       if (player.Class_ID == STORMCHASER_CLASS_ID) {
         await models.Players.update({ Action_Points: player.Action_Points + (random(3) - 1) }, { where: { Player_ID: player.Player_ID } });
       }
-      // and everyone is thrown one tile in a random direction
-      await movePlayerToRandomSurroundingTile(player.Player_ID, startTile.Layer_ID, startTile.X_Position, startTile.Y_Position, deps);
+      // and everyone is thrown one tile off the storm in a random direction
+      thrownTo = await movePlayerToRandomSurroundingTile(player.Player_ID, endTile.Layer_ID, endTile.X_Position, endTile.Y_Position, deps);
       break;
     case 'Void':
     case 'Wall':
@@ -355,22 +358,23 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
     await models.Tiles.update({ trapped: false, trapper: null }, { where: { Tile_ID: endTile.Tile_ID } });
     if (afterMine.Dead) return { died: true };
   }
-  return undefined;
+  return thrownTo ? { thrownTo } : undefined;
 }
 
 /**
- * Throws a player one tile in a random direction (storm tiles). Re-rolls when
- * the terrain would be illegal for their class, up to a bounded number of
- * attempts - the legacy version recursed with no bound.
+ * Picks the tile a storm at (x, y) throws a player onto: one tile in a random
+ * direction, re-rolled a bounded number of times when the terrain would be
+ * illegal for their class. Returns [x, y], or null when every roll failed and
+ * the player stays on the storm. It does not move anyone; the walk does.
  */
 async function movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, attempt = 0) {
-  const { models, utils, random } = deps;
+  const { models, random } = deps;
   const trace = stepLogger('move', deps);
   const player = await models.Players.findByPk(playerId);
   const playerClass = player ? await models.Classes.findByPk(player.Class_ID) : null;
 
   const delta = RANDOM_DIRECTION_DELTAS[random(7)];
-  if (!delta) return;
+  if (!delta) return null;
   const newX = x + delta[0];
   const newY = y + delta[1];
   const newTile = await models.Tiles.findOne({ where: { Layer_ID: layer, X_Position: newX, Y_Position: newY } });
@@ -383,11 +387,11 @@ async function movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, at
     // a re-roll is invisible in the reply, so the log is the only place that
     // says why a storm threw a player two tiles away from where they expected
     trace('stormReroll', { attempt, rejected: [newX, newY], tileType: newTile ? newTile.Tile_Type : null });
-    if (attempt >= RANDOM_DIRECTION_DELTAS.length) return;
+    if (attempt >= RANDOM_DIRECTION_DELTAS.length) return null;
     return movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, attempt + 1);
   }
   trace('stormThrow', { playerId, from: [x, y], to: [newX, newY], attempts: attempt });
-  await utils.setPlayerToTile(playerId, layer, newX, newY);
+  return [newX, newY];
 }
 
 // ---------------------------------------------------------------------------
@@ -554,9 +558,20 @@ async function run(input, deps = defaultDeps) {
   let amountOfRepeats = 0;
   let repeatLine = '';
 
-  for (let cord = 0; cord < iceChecklistAndTileList.length - 1; cord++) {
-    const cur_Tile = await models.Tiles.findOne({ where: { X_Position: iceChecklistAndTileList[cord][0], Y_Position: iceChecklistAndTileList[cord][1], Layer_ID: originalTile.Layer_ID } });
-    const nxt_Tile = await models.Tiles.findOne({ where: { X_Position: iceChecklistAndTileList[cord + 1][0], Y_Position: iceChecklistAndTileList[cord + 1][1], Layer_ID: originalTile.Layer_ID } });
+  // the walk as it actually happens: a storm shifts everything after it
+  const walk = iceChecklistAndTileList.map(([x, y]) => [x, y]);
+  let stormed = false;
+
+  for (let cord = 0; cord < walk.length - 1; cord++) {
+    const cur_Tile = await models.Tiles.findOne({ where: { X_Position: walk[cord][0], Y_Position: walk[cord][1], Layer_ID: originalTile.Layer_ID } });
+    const nxt_Tile = await models.Tiles.findOne({ where: { X_Position: walk[cord + 1][0], Y_Position: walk[cord + 1][1], Layer_ID: originalTile.Layer_ID } });
+    // a storm can push the rest of the walk off the board; the player then
+    // stops where the storm left them
+    if (stormed && cur_Tile && !nxt_Tile) {
+      trace('stormCutShort', { index: cord, at: walk[cord], wouldReach: walk[cord + 1] });
+      walk.length = cord + 1;
+      break;
+    }
     if (!cur_Tile || !nxt_Tile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE };
 
     if (lastStringAddedToResponse != `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`) {
@@ -578,7 +593,7 @@ async function run(input, deps = defaultDeps) {
     // walk actually got, which the entry/exit pair around run() cannot
     trace('step', {
       index: cord,
-      of: iceChecklistAndTileList.length - 1,
+      of: walk.length - 1,
       from: [cur_Tile.X_Position, cur_Tile.Y_Position],
       to: [nxt_Tile.X_Position, nxt_Tile.Y_Position],
       fromType: cur_Tile.Tile_Type,
@@ -595,11 +610,24 @@ async function run(input, deps = defaultDeps) {
       died = true;
       break;
     }
+    if (blocked && blocked.thrownTo) {
+      // the storm moves the player, and the rest of the walk moves with them
+      const dx = blocked.thrownTo[0] - walk[cord + 1][0];
+      const dy = blocked.thrownTo[1] - walk[cord + 1][1];
+      for (let later = cord + 1; later < walk.length; later++) {
+        walk[later] = [walk[later][0] + dx, walk[later][1] + dy];
+      }
+      stormed = true;
+      trace('destinationShifted', { by: [dx, dy], to: walk[walk.length - 1] });
+      continue;
+    }
     if (blocked) {
       trace('blocked', { index: cord, reason: blocked.reason, tileType: nxt_Tile.Tile_Type });
       return { ok: false, reason: blocked.reason, data: blocked.data };
     }
   }
+
+  [newX, newY] = walk[walk.length - 1];
 
   response += repeatLine;
 
