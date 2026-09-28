@@ -8,7 +8,8 @@
  * - Every layer runs from (1,1) to (X_Bound, Y_Bound); a direction move that
  *   would leave it stops at the edge. A path that would leave it is refused.
  * - Each path segment starts where the previous one ended.
- * - A move that would end where the player already is is refused.
+ * - A move that takes no steps is refused. A path may loop back to where it
+ *   started.
  * - A move is checked before anything happens, and refused if any tile on
  *   it is full (the tile the player starts on aside), if it crosses a storm,
  *   or if it ends on ice and the player is not a Snowman. A storm may only be
@@ -447,9 +448,10 @@ async function run(input, deps = defaultDeps) {
     tilesWalked: iceChecklistAndTileList.length,
   });
 
-  // a move has to go somewhere: distance 0, a path back to the start, or a
-  // walk into the edge the player is already standing on
-  if (newX === originalTile.X_Position && newY === originalTile.Y_Position) {
+  // a move has to take at least one step: distance 0, or a walk into the
+  // edge the player is already standing on, takes none. A path that loops
+  // back to where it started does take steps, and is a move like any other
+  if (iceChecklistAndTileList.length < 2) {
     return { ok: false, reason: REJECTIONS.NO_MOVEMENT };
   }
 
