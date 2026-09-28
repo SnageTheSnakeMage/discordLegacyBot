@@ -40,8 +40,8 @@ describe('retrieve.parse', () => {
     expect(input).toEqual({ amount: 3, gameId: null, discordId: ACTOR });
   });
 
-  // quirk pin: the option description says "defaults to 1" but the old code
-  // never applied a default - an omitted amount stays null
+  // the option description says "defaults to 1", but parse applies no
+  // default - an omitted amount stays null
   it('does NOT default an omitted amount to 1', () => {
     const input = logic.parse({ amount: null, game: 2 }, { discordId: ACTOR, username: 'snage' });
     expect(input).toEqual({ amount: null, gameId: 2, discordId: ACTOR });
@@ -88,20 +88,17 @@ describe('retrieve.run rejections', () => {
     })).toEqual([]);
   });
 
-  // quirk pin: the old code passed a hard false for isClockwatcher and never
-  // looked the class up, so even a Clockwatcher is blocked during a timestop
   it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, CHEST_AMOUNT: 10 }) });
-    // the actor really is a Clockwatcher: this fixture had no Classes
-    // mock, so the gate saw no class and blocked them
+    // the actor really is a Clockwatcher, so the gate has a class to see
     deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Clockwatcher' }));
     const result = await logic.run(INPUT, deps);
-    // the gate now consults the actor's class, so a timestop does not
-    // stop a Clockwatcher
+    // the gate consults the actor's class, so a timestop does not stop a
+    // Clockwatcher
     expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
-    // the class IS consulted now - that is the whole fix
+    // the class IS consulted
     expect(deps.models.Classes.findByPk).toHaveBeenCalled();
-    // the Clockwatcher goes through, so the chest IS written now
+    // the Clockwatcher goes through, so the chest IS written
   });
 
   it('rejects a player who is not on a chest tile and writes nothing', async () => {
@@ -158,7 +155,6 @@ describe('retrieve.run success', () => {
     expect(deps.utils.getOldestGameId).toHaveBeenCalledWith(ACTOR);
   });
 
-  // quirk pin: no MAX_AP clamp - the player can be pushed past their cap
   it('clamps the player at MAX_AP instead of overfilling them', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: ACTOR, Action_Points: 9, MAX_AP: 10, Tile_ID: 1 }),
@@ -171,7 +167,7 @@ describe('retrieve.run success', () => {
     );
   });
 
-  // quirk pin: no Dead gate - dead players can retrieve
+  // there is no Dead gate - dead players can retrieve
   it('lets a dead player retrieve', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: ACTOR, Action_Points: 5, Tile_ID: 1, Dead: true }),
@@ -184,7 +180,7 @@ describe('retrieve.run success', () => {
     );
   });
 
-  // quirk pin: an omitted amount is null, which coerces to 0 - both writes
+  // an omitted amount is null, which coerces to 0 - both writes
   // happen with unchanged values and the result carries amount: null
   it('treats an omitted amount as 0 in the arithmetic (null coercion)', async () => {
     const { deps } = happyDeps();
@@ -200,7 +196,7 @@ describe('retrieve.run success', () => {
     );
   });
 
-  // quirk pin: the amount option has no minimum, and a negative amount passes
+  // the amount option has no minimum, and a negative amount passes
   // every check (CHEST_AMOUNT < -3 is false) - it deposits into the chest
   it('lets a negative amount deposit AP into the chest', async () => {
     const { deps } = happyDeps();
@@ -237,8 +233,8 @@ describe('retrieve.present', () => {
     expect(out).toEqual({ content: 'You have retrieved 3 AP from the chest!' });
   });
 
-  // quirk pin: an omitted amount renders as the string "null", as the old
-  // string concatenation did
+  // an omitted amount renders as the string "null" through string
+  // concatenation
   it('renders a null amount as "null", exactly', () => {
     const out = logic.present({ ok: true, kind: 'retrieved', data: { amount: null } });
     expect(out).toEqual({ content: 'You have retrieved null AP from the chest!' });

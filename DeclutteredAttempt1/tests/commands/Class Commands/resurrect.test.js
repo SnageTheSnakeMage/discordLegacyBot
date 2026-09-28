@@ -267,8 +267,8 @@ describe('resurrect.run success', () => {
       kind: 'resurrected',
       data: { targetUsername: 'ghost', targetPlayerId: 2, x: 3, y: 4, layerId: CASTER_LAYER },
     });
-    // Dead and the position are written together - a player who is alive but
-    // has no tile is the state this command used to leave behind
+    // Dead and the position are written together, so the resurrectee is
+    // never alive with no tile
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Tile_ID: INPUTTED_TILE_ID, Dead: 0 }, { where: { Player_ID: 2 } },
     );
@@ -279,12 +279,8 @@ describe('resurrect.run success', () => {
     expect(deps.models.Tiles.update).toHaveBeenCalledTimes(1);
   });
 
-  // was: "preserved quirk: the tile write claims a slot on the RESURRECTEE'S
-  // OLD tile ... so the body comes back exactly where it died". It did not.
-  // A dead player's Tile_ID is null, so `where: { Tile_ID: null }` matched no
-  // row and the resurrectee came back alive and off the board. The old test
-  // only looked right because its fixture gave the dead target a non-null
-  // Tile_ID, which is a state the game never produces.
+  // A dead player's Tile_ID is null, so the slot claimed is on the tile the
+  // caster named, never one looked up through the resurrectee's own Tile_ID.
   it('claims a slot on the tile the caster asked for, and points the row back at it', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);
@@ -324,8 +320,8 @@ describe('resurrect.run success', () => {
     expect(result.data.layerId).toBe(OTHER_LAYER);
   });
 
-  // preserved quirk: the old `?? playersTile.Layer_ID` meant an unknown layer
-  // number silently resolved to the caster's own layer instead of rejecting
+  // an unknown layer number resolves to the caster's own layer instead of
+  // rejecting
   it('falls back to the casters layer when the layer number is out of range', async () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, layer: 3 }, deps);
@@ -333,7 +329,7 @@ describe('resurrect.run success', () => {
     expect(result.data.layerId).toBe(CASTER_LAYER);
   });
 
-  // preserved quirk: nothing checks the caster's own Dead flag
+  // nothing checks the caster's own Dead flag
   it('lets a dead Necromancer resurrect', async () => {
     const { deps } = happyDeps({
       caster: createFakePlayer({

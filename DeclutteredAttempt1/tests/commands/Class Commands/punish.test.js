@@ -3,10 +3,9 @@
  * modules under test, no discord.js, no interaction. deps carries fake
  * models; utils logic is real.
  *
- * punish is an unfinished command (issue #84): the copied /shoot attack loop
- * could only throw on its undeclared `amount`, so the port rejects where the
- * loop stood and the command has NO success path. Every test below therefore
- * also asserts that punish writes nothing.
+ * punish is an unfinished command: it rejects where its attack would run,
+ * so the command has NO success path. Every test below therefore also
+ * asserts that punish writes nothing.
  */
 const logic = require('../../../commands/Class Commands/punish.logic.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
@@ -163,7 +162,7 @@ describe('punish.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NOT_ENOUGH_AP });
-    // the legacy wording, kept byte-identical - punish still talks about shooting
+    // the wording is shared with /shoot, so punish talks about shooting
     expect(logic.present(result)).toEqual({ content: "You don't have enough AP to shoot that much!" });
     expectNoWrites(deps);
   });
@@ -223,14 +222,12 @@ describe('punish.run rejections', () => {
     const { deps } = happyDeps();
     const result = await logic.run(INPUT, deps);
     expect(result).toEqual({ ok: false, reason: REJECTIONS.WRONG_CLASS, data: { className: 'Punisher' } });
-    // no AP is deducted: the legacy AP update sat after the loop that always threw
     expectNoWrites(deps);
   });
 });
 
 describe('punish.run quirks', () => {
-  // was: looked up by Discord_ID alone, so a player registered only in
-  // another game could be named as the target
+  // a player registered only in another game cannot be named as the target
   it('scopes the target lookup to this game', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);

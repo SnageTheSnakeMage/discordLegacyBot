@@ -103,13 +103,10 @@ describe('smoke.run rejections', () => {
     expect(result.reason).toBe(REJECTIONS.PLAYER_DEAD);
   });
 
-  // Rows dropped where they only re-ran utils.checkGameState's shared table,
-  // which tests/utils.pure.test.js walks in full. The REGISTRATION row stays:
-  // blocking it is this command's own behaviour, not the shared gate's.
-  //
-  // The dead switch this replaces blocked TIMESTOPPED, DEV_PAUSED, "FINISHED"
-  // (really OVER) and REGISTRATION, with no Clockwatcher exemption -
-  // preserved.
+  // utils.checkGameState's shared table is walked in full by
+  // tests/utils.pure.test.js, so only a few rows are repeated here. The
+  // REGISTRATION row stays: blocking it is this command's own behaviour, not
+  // the shared gate's.
   it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
     expect(await everyCase('game %o -> %s', [
       [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
@@ -288,7 +285,7 @@ describe('smoke.run success', () => {
 });
 
 describe('smoke.present', () => {
-  // every rejection smoke can return renders as its exact legacy string
+  // every rejection smoke can return renders as its exact string
   it('renders every rejection it returns as its player-facing message', async () => {
     expect(await everyCase('%s', [
       [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],

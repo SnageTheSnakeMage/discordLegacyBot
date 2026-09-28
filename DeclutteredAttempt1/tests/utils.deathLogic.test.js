@@ -71,12 +71,8 @@ describe('playerDeathLogic - normal kill', () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  // Environment kills (fire tiles) pass killer = null; the guard order
-  // dereferences killerClass.Class_Name before checking killer != null.
-  // The killer null-check used to be the LAST clause of the guard chain, so
-  // killerClass.Class_Name was dereferenced first and a fire-tile death threw.
-  // Nothing could die before utils.damagePlayer, so this never surfaced in
-  // play; the integration death suite caught it immediately.
+  // Environment kills (fire tiles) pass killer = null, so every guard that
+  // reads the killer's class has to check killer != null first.
   it('an environment kill (killer = null) processes the death instead of throwing', async () => {
     stubClasses();
     stubBoringGame();
@@ -114,9 +110,9 @@ describe('playerDeathLogic - pharaoh revive', () => {
     expect(update).not.toHaveBeenCalledWith(expect.objectContaining({ Dead: true }), expect.anything());
   });
 
-  // A revive is a MOVE, and both halves of the position invariant (#78) have
-  // to move with it. This wrote Players.Tile_ID only: the tile the victim
-  // fell on kept naming them, and the spawn tile named nobody.
+  // A revive is a MOVE, and both halves of the position invariant have to
+  // move with it: the tile the victim fell on stops naming them, and the
+  // spawn tile names them.
   it('vacates the tile the victim fell on and claims the spawn tile', async () => {
     stubClasses();
     stubBoringGame();
@@ -172,10 +168,8 @@ describe('playerDeathLogic - twin bodies', () => {
     expect(update).not.toHaveBeenCalledWith({ Dead: true }, expect.anything());
   });
 
-  // Health_Points/Tile_ID and Health_Points2/Tile_ID2 are paired columns, and
-  // the branch for 'body 1 dead, body 2 alive' used to null Tile_ID2 - the
-  // LIVING body's tile, leaving the corpse standing. Flagged on PR #92 as a
-  // suspected body swap; the rule is now decided, so this passes.
+  // Health_Points/Tile_ID and Health_Points2/Tile_ID2 are paired columns, so
+  // when body 1 dies it is Tile_ID that clears, never the living body's tile.
   it('the body that died is the one whose tile clears', async () => {
     stubClasses({ victimClass: 'Twin' });
     stubBoringGame();
@@ -213,8 +207,8 @@ describe('playerDeathLogic - twin bodies', () => {
       { Tile_ID2: null, Health_Points2: 0, Damage2: 0, Range2: 0, Free_Move2: 0 },
       { where: { Player_ID: 20 } },
     );
-    // the surviving body must NOT be taken off the board - the old code
-    // cleared Tile_ID here, which is body 1, the one still alive
+    // the surviving body must NOT be taken off the board: Tile_ID is body 1,
+    // the one still alive
     expect(update).not.toHaveBeenCalledWith({ Tile_ID: null }, expect.anything());
     expect(update).not.toHaveBeenCalledWith({ Dead: true }, expect.anything());
   });
@@ -292,9 +286,9 @@ describe('playerDeathLogic - twin revive HP', () => {
     );
   });
 
-  // the revive used to be undone: six sequential ifs all read the same stale
-  // victim, so a clear branch below still saw the pre-revive hp and fired.
-  // The chain is else-if now, so exactly one outcome happens per death.
+  // Every branch reads the same victim row, so the Twin branches are an
+  // else-if chain: exactly one outcome happens per death, and a clear branch
+  // below a revive never sees the pre-revive hp and fires.
   it('a revive is not immediately undone by a clear branch below it', async () => {
     stubClasses({ victimClass: 'Twin' });
     stubBoringGame();
@@ -305,9 +299,8 @@ describe('playerDeathLogic - twin revive HP', () => {
     }));
 
     // Vacating the old tile does null Tile_ID2 - that is the clear half of
-    // clear-then-place. What must not happen is the reverse order, which is
-    // what the stale-victim `if` chain used to produce: a revive written and
-    // then undone. So assert on the LAST write to Tile_ID2.
+    // clear-then-place. What must not happen is the reverse order - a revive
+    // written and then undone - so assert on the LAST write to Tile_ID2.
     const tileWrites = update.mock.calls
       .map(([payload]) => payload)
       .filter((p) => Object.prototype.hasOwnProperty.call(p, 'Tile_ID2'));
