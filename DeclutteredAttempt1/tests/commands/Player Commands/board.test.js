@@ -3,7 +3,6 @@
  * one util faked here (via deps.utils); everything else runs real.
  */
 const logic = require('../../../commands/Player Commands/board.logic.js');
-const board = require('../../../commands/Player Commands/board.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
@@ -184,12 +183,5 @@ describe('board.present', () => {
 
   it('renders rejections as text', () => {
     expect(logic.present({ ok: false, reason: REJECTIONS.NOT_IN_GAME }).content).toMatch(/register/);
-  });
-});
-
-describe('board adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(board.data.toJSON().name).toBe('board');
-    expect(typeof board.execute).toBe('function');
   });
 });

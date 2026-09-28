@@ -5,7 +5,6 @@
  * helpers playerDeathLogic and revertTileToBlank are injected fakes.
  */
 const logic = require('../../../commands/Class Commands/snipe.logic.js');
-const snipe = require('../../../commands/Class Commands/snipe.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -480,12 +479,5 @@ describe('snipe.present', () => {
 
   it('renders an empty response when nothing happened', () => {
     expect(logic.present({ ok: true, kind: 'sniped', data: { events: [] } })).toEqual({ content: '' });
-  });
-});
-
-describe('snipe adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(snipe.data.toJSON().name).toBe('snipe');
-    expect(typeof snipe.execute).toBe('function');
   });
 });

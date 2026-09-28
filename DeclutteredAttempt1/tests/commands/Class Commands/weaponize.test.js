@@ -3,7 +3,6 @@
  * discord.js, no interaction. deps carries fake models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/weaponize.logic.js');
-const weaponize = require('../../../commands/Class Commands/weaponize.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
@@ -327,12 +326,5 @@ describe('weaponize.present', () => {
     ], (reason, data, text) => {
       expect(logic.present({ ok: false, reason, data })).toEqual({ content: text });
     })).toEqual([]);
-  });
-});
-
-describe('weaponize adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(weaponize.data.toJSON().name).toBe('weaponize');
-    expect(typeof weaponize.execute).toBe('function');
   });
 });

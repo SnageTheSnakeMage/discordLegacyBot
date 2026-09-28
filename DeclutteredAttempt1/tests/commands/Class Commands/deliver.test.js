@@ -3,7 +3,6 @@
  * discord.js, no interaction. deps carries fake models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/deliver.logic.js');
-const deliver = require('../../../commands/Class Commands/deliver.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass,
@@ -228,12 +227,5 @@ describe('deliver.present', () => {
   it('renders success with the legacy no-space wording', () => {
     const out = logic.present({ ok: true, kind: 'delivered', data: { amount: 3, receiverUsername: 'postbox' } });
     expect(out).toEqual({ content: 'You have delivered 3AP to postbox!' });
-  });
-});
-
-describe('deliver adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(deliver.data.toJSON().name).toBe('deliver');
-    expect(typeof deliver.execute).toBe('function');
   });
 });

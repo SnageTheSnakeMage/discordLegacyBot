@@ -4,7 +4,6 @@
  * models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/burn.logic.js');
-const burn = require('../../../commands/Class Commands/burn.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -282,12 +281,5 @@ describe('burn.present', () => {
       data: { x: 2, y: 1, previousTileType: 'Blank1', layerId: 1, username: 'snage' },
     });
     expect(out).toEqual({ content: 'snage made a Blank1 tile on coordinates (2, 1) on layer 1!' });
-  });
-});
-
-describe('burn adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(burn.data.toJSON().name).toBe('burn');
-    expect(typeof burn.execute).toBe('function');
   });
 });

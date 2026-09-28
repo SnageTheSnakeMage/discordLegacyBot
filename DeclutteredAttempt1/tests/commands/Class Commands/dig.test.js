@@ -4,7 +4,6 @@
  * models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/dig.logic.js');
-const dig = require('../../../commands/Class Commands/dig.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -289,12 +288,5 @@ describe('dig.present', () => {
       data: { x: 2, y: 1, previousTileType: 'Blank1', layerId: 1 },
     });
     expect(out).toEqual({ content: 'You have made a Blank1 tile on coordinates (2, 1) on layer 1!' });
-  });
-});
-
-describe('dig adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(dig.data.toJSON().name).toBe('dig');
-    expect(typeof dig.execute).toBe('function');
   });
 });

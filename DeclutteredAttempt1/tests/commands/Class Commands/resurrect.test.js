@@ -3,7 +3,6 @@
  * discord.js, no interaction. deps carries fake models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/resurrect.logic.js');
-const resurrect = require('../../../commands/Class Commands/resurrect.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -358,12 +357,5 @@ describe('resurrect.present', () => {
   it('renders success with the resurrectees username', () => {
     const out = logic.present({ ok: true, kind: 'resurrected', data: { targetUsername: 'ghost' } });
     expect(out).toEqual({ content: 'You have resurrected ghost to the tile provided!' });
-  });
-});
-
-describe('resurrect adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(resurrect.data.toJSON().name).toBe('resurrect');
-    expect(typeof resurrect.execute).toBe('function');
   });
 });

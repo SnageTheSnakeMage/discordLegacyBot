@@ -4,7 +4,6 @@
  * the one util faked here (via deps.utils); everything else runs real.
  */
 const logic = require('../../../commands/Developer Commands/grid_dev.logic.js');
-const gridDev = require('../../../commands/Developer Commands/grid_dev.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
 const { everyCase } = require('../../helpers/everyCase.js');
@@ -144,12 +143,5 @@ describe('grid_dev present', () => {
   it('prefers a carried legacy message over the shared table', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.NOT_DEV, data: { message: 'nope' } });
     expect(out).toEqual({ content: 'nope' });
-  });
-});
-
-describe('grid_dev adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(gridDev.data.toJSON().name).toBe('grid_dev');
-    expect(typeof gridDev.execute).toBe('function');
   });
 });

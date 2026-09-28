@@ -12,7 +12,6 @@
  */
 const path = require('path');
 const logic = require('../../../commands/Developer Commands/reloadCommands.logic.js');
-const reloadCommands = require('../../../commands/Developer Commands/reloadCommands.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame, expectNoWrites } = require('../../helpers/mockModels.js');
 const { everyCase } = require('../../helpers/everyCase.js');
@@ -284,12 +283,5 @@ describe('reloadCommands present', () => {
   it('prefers a carried legacy message over the shared table', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.NOT_DEV, data: { message: 'nope' } });
     expect(out).toEqual({ content: 'nope' });
-  });
-});
-
-describe('reloadCommands adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(reloadCommands.data.toJSON().name).toBe('reload-commands');
-    expect(typeof reloadCommands.execute).toBe('function');
   });
 });

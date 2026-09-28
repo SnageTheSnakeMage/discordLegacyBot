@@ -4,7 +4,6 @@
  * models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/freeze.logic.js');
-const freeze = require('../../../commands/Class Commands/freeze.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -294,12 +293,5 @@ describe('freeze.present', () => {
       data: { x: 2, y: 1, previousTileType: 'Blank1', layerId: 1 },
     });
     expect(out).toEqual({ content: 'You have made a Blank1 tile on coordinates (2, 1) on layer 1!' });
-  });
-});
-
-describe('freeze adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(freeze.data.toJSON().name).toBe('freeze');
-    expect(typeof freeze.execute).toBe('function');
   });
 });

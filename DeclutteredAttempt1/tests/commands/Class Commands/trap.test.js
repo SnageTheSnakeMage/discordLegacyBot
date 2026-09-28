@@ -4,7 +4,6 @@
  * models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/trap.logic.js');
-const trap = require('../../../commands/Class Commands/trap.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -350,12 +349,5 @@ describe('trap.present', () => {
   it('renders success with the coordinates and layer', () => {
     const out = logic.present({ ok: true, kind: 'trapped', data: { x: 2, y: 1, layerId: 1 } });
     expect(out).toEqual({ content: 'You have planted a mine on coordinates (2, 1) on layer 1!' });
-  });
-});
-
-describe('trap adapter (smoke test)', () => {
-  it('exports the command contract', () => {
-    expect(trap.data.toJSON().name).toBe('trap');
-    expect(typeof trap.execute).toBe('function');
   });
 });

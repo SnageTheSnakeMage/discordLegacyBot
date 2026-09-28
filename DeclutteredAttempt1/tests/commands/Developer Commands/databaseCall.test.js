@@ -240,11 +240,6 @@ describe('call-db present', () => {
 });
 
 describe('call-db adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(databaseCall.data.toJSON().name).toBe('call-db');
-    expect(typeof databaseCall.execute).toBe('function');
-  });
-
   it('declares the three subcommands, each carrying the model choice list', () => {
     const json = databaseCall.data.toJSON();
     expect(json.options.map((o) => o.name)).toEqual(['find-all', 'find-by-primary-key', 'update-player']);

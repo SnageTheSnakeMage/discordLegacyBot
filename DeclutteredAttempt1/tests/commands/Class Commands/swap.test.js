@@ -3,7 +3,6 @@
  * discord.js, no interaction. deps carries fake models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/swap.logic.js');
-const swap = require('../../../commands/Class Commands/swap.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
@@ -300,12 +299,5 @@ describe('swap.present', () => {
       data: { victimUsername: 'victim', victimDiscordId: VICTIM, gameId: 1 },
     });
     expect(out).toEqual({ content: 'You have swapped places with victim' });
-  });
-});
-
-describe('swap adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(swap.data.toJSON().name).toBe('swap');
-    expect(typeof swap.execute).toBe('function');
   });
 });

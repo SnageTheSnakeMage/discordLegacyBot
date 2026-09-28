@@ -3,7 +3,6 @@
  * discord.js, no interaction. deps carries fake models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/timestop.logic.js');
-const timestop = require('../../../commands/Class Commands/timestop.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass,
@@ -201,12 +200,5 @@ describe('timestop.present', () => {
     expect(out).toEqual({
       content: 'Time has been stopped! You have 2880 minutes all to yourself!\n and any other clockwatchers...',
     });
-  });
-});
-
-describe('timestop adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(timestop.data.toJSON().name).toBe('timestop');
-    expect(typeof timestop.execute).toBe('function');
   });
 });

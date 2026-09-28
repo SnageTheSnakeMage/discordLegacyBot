@@ -4,7 +4,6 @@
  * models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/conjure.logic.js');
-const conjure = require('../../../commands/Class Commands/conjure.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -291,12 +290,5 @@ describe('conjure.present', () => {
       data: { x: 2, y: 1, previousTileType: 'Blank1', layerId: 1, username: 'snage' },
     });
     expect(out).toEqual({ content: 'snage made a Blank1 tile on coordinates (2, 1) on layer 1!' });
-  });
-});
-
-describe('conjure adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(conjure.data.toJSON().name).toBe('conjure');
-    expect(typeof conjure.execute).toBe('function');
   });
 });

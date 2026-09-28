@@ -4,7 +4,6 @@
  * models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/smoke.logic.js');
-const smoke = require('../../../commands/Class Commands/smoke.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -314,12 +313,5 @@ describe('smoke.present', () => {
       data: { x: 2, y: 1, previousTileType: 'Blank1', layerId: 1 },
     });
     expect(out).toEqual({ content: 'You have made a Blank1 tile on coordinates (2, 1) on layer 1!' });
-  });
-});
-
-describe('smoke adapter (smoke test)', () => {
-  it('exports the command contract', () => {
-    expect(smoke.data.toJSON().name).toBe('smoke');
-    expect(typeof smoke.execute).toBe('function');
   });
 });

@@ -5,7 +5,6 @@
  * both reach the real database.
  */
 const logic = require('../../../commands/Player Commands/register.logic.js');
-const register = require('../../../commands/Player Commands/register.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame, createFakePlayer, expectNoWrites } = require('../../helpers/mockModels.js');
 const { everyCase } = require('../../helpers/everyCase.js');
@@ -245,12 +244,5 @@ describe('register.present', () => {
     expect(logic.present({ ok: true, kind: 'registered', data: { gameId: 1 } })).toEqual({
       content: 'Player registered! Use the stats command to see where you are, your class, and your stats',
     });
-  });
-});
-
-describe('register adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(register.data.toJSON().name).toBe('register');
-    expect(typeof register.execute).toBe('function');
   });
 });

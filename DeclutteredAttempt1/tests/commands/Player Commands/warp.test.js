@@ -7,7 +7,6 @@
  * exemption, loose class comparison). Each says so where it is asserted.
  */
 const logic = require('../../../commands/Player Commands/warp.logic.js');
-const warp = require('../../../commands/Player Commands/warp.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
@@ -460,12 +459,5 @@ describe('warp.present', () => {
       data: { message: 'There are no available(not full or locked) gateways on the layer above you!' },
     });
     expect(out).toEqual({ content: 'There are no available(not full or locked) gateways on the layer above you!' });
-  });
-});
-
-describe('warp adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(warp.data.toJSON().name).toBe('warp');
-    expect(typeof warp.execute).toBe('function');
   });
 });

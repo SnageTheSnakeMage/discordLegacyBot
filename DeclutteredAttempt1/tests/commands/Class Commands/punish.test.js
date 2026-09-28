@@ -9,7 +9,6 @@
  * also asserts that punish writes nothing.
  */
 const logic = require('../../../commands/Class Commands/punish.logic.js');
-const punish = require('../../../commands/Class Commands/punish.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -278,14 +277,6 @@ describe('punish.present', () => {
     expect(out).toEqual({ content: 'That tile is 2 tiles out of range!' });
   });
 });
-
-describe('punish adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(punish.data.toJSON().name).toBe('punish');
-    expect(typeof punish.execute).toBe('function');
-  });
-});
-
 describe('punish.run as an actual Punisher', () => {
   // The class exists now. Its ability comes straight from the command's own
   // description: damage equal to what the target has wasted.

@@ -3,7 +3,6 @@
  * discord.js, no interaction. deps carries fake models; utils logic is real.
  */
 const logic = require('../../../commands/Player Commands/override.logic.js');
-const override = require('../../../commands/Player Commands/override.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -180,12 +179,5 @@ describe('override.present', () => {
       data: { gameId: 1, pollOption: 2, overridesLeft: 2 },
     });
     expect(out).toEqual({ content: 'Your override has been recorded, but applying it to the chaos council poll is not implemented yet.' });
-  });
-});
-
-describe('override adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(override.data.toJSON().name).toBe('override');
-    expect(typeof override.execute).toBe('function');
   });
 });

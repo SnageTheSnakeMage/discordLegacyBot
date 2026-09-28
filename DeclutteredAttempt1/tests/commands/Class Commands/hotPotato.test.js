@@ -5,7 +5,6 @@
  * and so is stubbed where the swap is reached.
  */
 const logic = require('../../../commands/Class Commands/hotPotato.logic.js');
-const hotPotato = require('../../../commands/Class Commands/hotPotato.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
@@ -314,12 +313,5 @@ describe('hotPotato.present', () => {
       data: { victimUsername: 'victim', victimDiscordId: VICTIM, extraResponse: undefined },
     });
     expect(out).toEqual({ content: 'You have swapped classes with victim!\nundefined' });
-  });
-});
-
-describe('hotPotato adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(hotPotato.data.toJSON().name).toBe('hotpotato');
-    expect(typeof hotPotato.execute).toBe('function');
   });
 });

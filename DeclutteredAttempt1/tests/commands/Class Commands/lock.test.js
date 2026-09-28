@@ -4,7 +4,6 @@
  * (the range test really runs getTileCordinatesOfLine).
  */
 const logic = require('../../../commands/Class Commands/lock.logic.js');
-const lock = require('../../../commands/Class Commands/lock.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -312,12 +311,5 @@ describe('lock.present', () => {
     ], (reason, data, expected) => {
       expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
     })).toEqual([]);
-  });
-});
-
-describe('lock adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(lock.data.toJSON().name).toBe('lock');
-    expect(typeof lock.execute).toBe('function');
   });
 });

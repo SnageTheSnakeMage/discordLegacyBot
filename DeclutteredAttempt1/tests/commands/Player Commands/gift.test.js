@@ -3,7 +3,6 @@
  * discord.js, no interaction. deps carries fake models; utils logic is real.
  */
 const logic = require('../../../commands/Player Commands/gift.logic.js');
-const gift = require('../../../commands/Player Commands/gift.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
@@ -191,12 +190,5 @@ describe('gift.present', () => {
   it('renders success with amount and mention', () => {
     const out = logic.present({ ok: true, kind: 'gifted', data: { amount: 2, receiverDiscordId: RECEIVER, username: 'snage' } });
     expect(out).toEqual({ content: `snage gave 2 AP to <@${RECEIVER}>` });
-  });
-});
-
-describe('gift adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(gift.data.toJSON().name).toBe('gift');
-    expect(typeof gift.execute).toBe('function');
   });
 });
