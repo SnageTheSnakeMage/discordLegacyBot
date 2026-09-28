@@ -746,6 +746,48 @@ describe('move.run success', () => {
     );
   });
 
+  /** random(7) answers from `throws` in order; everything else answers 0 */
+  function throwsInOrder(...throws) {
+    return (max) => (max === 7 ? throws.shift() : 0);
+  }
+
+  it('re-rolls a throw that would leave a non-Cloudborn\'s walk ending on ice', async () => {
+    const { deps } = makeDeps({
+      board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '3,2': { Tile_Type: 'Ice' } }),
+      // south would shift the end from (3,1) to the ice at (3,2); east is fine
+      random: throwsInOrder(2, 4),
+    });
+    const result = await logic.run({ ...INPUT, distance: 2 }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([4, 1]);
+  });
+
+  it('re-rolls a throw that would cut a walk short on ice', async () => {
+    const { deps } = makeDeps({
+      board: makeBoard({ '3,2': { Tile_Type: 'Storm' }, '5,1': { Tile_Type: 'Ice' } }),
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 12, Action_Points: 10 }),
+      // planned (1,2) -> (5,2). Northeast off the storm lands on (4,1) and
+      // pushes the rest to (5,1) then (6,1), off the board, stopping on the
+      // ice at (5,1); south shifts the whole walk down a row instead
+      random: throwsInOrder(5, 2),
+    });
+    const result = await logic.run({ ...INPUT, distance: 4 }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([5, 3]);
+  });
+
+  it('lets a storm leave a Cloudborn\'s walk ending on ice', async () => {
+    const { deps } = makeDeps({
+      board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '3,2': { Tile_Type: 'Ice' } }),
+      player: createFakePlayer({ Player_ID: 1, Class_ID: 6, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10 }),
+      playerClass: createFakeClass({ Class_ID: 6, Class_Name: 'Cloudborn' }),
+      random: throwsInOrder(2),
+    });
+    const result = await logic.run({ ...INPUT, distance: 2 }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([3, 2]);
+  });
+
   it('does not displace a storm-struck player onto forbidden terrain', async () => {
     const { deps } = makeDeps({
       board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '2,2': { Tile_Type: 'Void' } }),

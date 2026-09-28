@@ -12,7 +12,9 @@
  *   for the tile they start on. Ice stepped onto is free, free movement pays
  *   before AP does, and nobody but a Snowman may stop on ice.
  * - A storm throws the player one tile off it, and the rest of the walk,
- *   destination included, moves with them.
+ *   destination included, moves with them. Unless they are a Cloudborn, it
+ *   never throws them onto, or leaves their walk ending on, a wall, void or
+ *   ice tile.
  *
  * parse/run/present per TESTING.md Part 1. run() takes plain data and a deps
  * bundle and returns a CommandResult; it never sees an interaction.
@@ -206,9 +208,10 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
  * { died: true } when the tile killed them, or { thrownTo: [x, y] } when a
  * storm threw them somewhere else.
  *
- * secondBody selects the twin's second body's columns.
+ * secondBody selects the twin's second body's columns. rest is the walk still
+ * to come after endTile, which a storm throw shifts.
  */
-async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, deps) {
+async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, deps, rest = []) {
   const { models, utils, random } = deps;
   const trace = stepLogger('move', deps);
   const body = secondBody ? 2 : 1;
@@ -255,7 +258,7 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
         await models.Players.update({ Action_Points: player.Action_Points + (random(3) - 1) }, { where: { Player_ID: player.Player_ID } });
       }
       // and everyone is thrown one tile off the storm in a random direction
-      thrownTo = await movePlayerToRandomSurroundingTile(player.Player_ID, endTile.Layer_ID, endTile.X_Position, endTile.Y_Position, deps);
+      thrownTo = await movePlayerToRandomSurroundingTile(player.Player_ID, endTile.Layer_ID, endTile.X_Position, endTile.Y_Position, deps, { rest });
       break;
     case 'Void':
     case 'Wall':
@@ -291,12 +294,29 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
 }
 
 /**
+ * The tile a walk finishes on once a throw has shifted it: the last tile of
+ * `rest` moved by `delta`, or, if the shift takes it off the board, the last
+ * tile before it leaves. `rest` is the walk still to come after the storm.
+ */
+async function stormStopTile(landingTile, rest, delta, layer, models) {
+  let stop = landingTile;
+  for (const [x, y] of rest) {
+    const tile = await models.Tiles.findOne({ where: { Layer_ID: layer, X_Position: x + delta[0], Y_Position: y + delta[1] } });
+    if (!tile) break;
+    stop = tile;
+  }
+  return stop;
+}
+
+/**
  * Picks the tile a storm at (x, y) throws a player onto: one tile in a random
  * direction, re-rolled a bounded number of times when the terrain would be
- * illegal for their class. Returns [x, y], or null when every roll failed and
- * the player stays on the storm. It does not move anyone; the walk does.
+ * illegal for their class. The rest of the walk moves with the throw, so a
+ * throw is also refused when the shifted walk would finish on such terrain.
+ * Returns [x, y], or null when every roll failed and the player stays on the
+ * storm. It does not move anyone; the walk does.
  */
-async function movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, attempt = 0) {
+async function movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, { rest = [], attempt = 0 } = {}) {
   const { models, random } = deps;
   const trace = stepLogger('move', deps);
   const player = await models.Players.findByPk(playerId);
@@ -308,16 +328,23 @@ async function movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, at
   const newY = y + delta[1];
   const newTile = await models.Tiles.findOne({ where: { Layer_ID: layer, X_Position: newX, Y_Position: newY } });
 
-  // a storm may not put a player somewhere they could not normally walk,
-  // unless they are a Cloudborn
-  const forbidden = !newTile
-    || (playerClass && playerClass.Class_Name != 'Cloudborn' && STORM_FORBIDDEN_TILE_TYPES.includes(newTile.Tile_Type));
+  // a storm may not put a player, or leave them at the end of their walk,
+  // somewhere they could not normally walk, unless they are a Cloudborn
+  const restricted = (tile) => playerClass && playerClass.Class_Name != 'Cloudborn'
+    && STORM_FORBIDDEN_TILE_TYPES.includes(tile.Tile_Type);
+  const stop = newTile && await stormStopTile(newTile, rest, delta, layer, models);
+  const forbidden = !newTile || restricted(newTile) || restricted(stop);
   if (forbidden) {
     // a re-roll is invisible in the reply, so the log is the only place that
     // says why a storm threw a player two tiles away from where they expected
-    trace('stormReroll', { attempt, rejected: [newX, newY], tileType: newTile ? newTile.Tile_Type : null });
+    trace('stormReroll', {
+      attempt,
+      rejected: [newX, newY],
+      tileType: newTile ? newTile.Tile_Type : null,
+      stopTileType: stop ? stop.Tile_Type : null,
+    });
     if (attempt >= RANDOM_DIRECTION_DELTAS.length) return null;
-    return movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, attempt + 1);
+    return movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, { rest, attempt: attempt + 1 });
   }
   trace('stormThrow', { playerId, from: [x, y], to: [newX, newY], attempts: attempt });
   return [newX, newY];
@@ -531,7 +558,7 @@ async function run(input, deps = defaultDeps) {
     });
 
     // also holds the trapped-tile damage logic
-    const blocked = await moveFromTiletoTile(cur_Tile, nxt_Tile, player, secondBody, game, deps);
+    const blocked = await moveFromTiletoTile(cur_Tile, nxt_Tile, player, secondBody, game, deps, walk.slice(cord + 2));
     // a tile can kill the mover. playerDeathLogic has already taken them off
     // the board, so the walk stops here rather than placing a corpse.
     if (blocked && blocked.died) {
