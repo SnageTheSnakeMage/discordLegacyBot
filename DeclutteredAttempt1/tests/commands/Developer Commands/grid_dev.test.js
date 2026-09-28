@@ -44,7 +44,7 @@ describe('grid_dev parse', () => {
     expect(logic.parse({}, { discordId: '456', isDev: 'yes' }).isDev).toBe(false);
   });
 
-  // QUIRK (preserved): both options are addStringOption, so the ids stay
+  // both options are addStringOption, so the ids stay
   // strings and are never coerced to numbers before reaching the renderer.
   it('keeps the ids as the strings the string options supply', () => {
     const input = logic.parse({ layer: '12', game: '7' }, { discordId: '1', isDev: true });
@@ -84,7 +84,7 @@ describe('grid_dev run success', () => {
     expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledTimes(1);
   });
 
-  // QUIRK (preserved): the renderer is called with exactly two arguments, in
+  // the renderer is called with exactly two arguments, in
   // (gameId, layerId) order. The absent third argument (playerID) is what
   // gives the dev trap sight and all-layer sight inside the helper; passing
   // an explicit undefined third argument would fail this assertion.
@@ -118,8 +118,8 @@ describe('grid_dev run success', () => {
     })).toEqual([]);
   });
 
-  // QUIRK (preserved): no existence check on either id. A game or layer that
-  // does not exist is the renderer's problem, exactly as before.
+  // no existence check on either id: a game or layer that does not exist is
+  // the renderer's problem
   it('passes unknown ids straight through to the renderer', async () => {
     const deps = happyDeps();
     const result = await logic.run({ ...INPUT, gameId: '999', layerId: '999' }, deps);

@@ -68,8 +68,7 @@ describe('checkTarget.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   //
-  // isClockwatcher is hardcoded false (as the old call did), so
-  // TIMESTOPPED blocks even a hitman.
+  // A Hitman is not a Clockwatcher, so the timestop blocks.
   it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
     expect(await everyCase('game %o -> %s', [
       [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
@@ -151,9 +150,8 @@ describe('checkTarget.run success', () => {
     expect(result).toEqual({
       ok: true,
       kind: 'target',
-      // quirk pinned: X_Position/Y_Position/Layer_ID/Class are not Players
-      // columns, so the old message rendered them as "undefined"; the port
-      // keeps reading them off the Players row
+      // X_Position/Y_Position/Layer_ID/Class are not Players columns, so
+      // reading them off the Players row gives undefined
       data: { targetDiscordId: '456', reassigned: false, x: undefined, y: undefined, layerId: undefined, className: undefined },
     });
     expectNoWrites(deps);

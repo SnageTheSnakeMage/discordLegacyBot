@@ -94,10 +94,9 @@ describe('timestop.run rejections', () => {
     expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
   });
 
-  // preserved quirk: /timestop has no gamestate gate at all - the legacy
-  // command never called checkGameState, so every state (OVER and DEV_PAUSED
-  // included) still stops time. A new state cannot be added without deciding
-  // this test.
+  // /timestop has no gamestate gate at all: it never calls checkGameState,
+  // so every state (OVER and DEV_PAUSED included) stops time. A new state
+  // cannot be added without deciding this test.
   it('succeeds whatever state the game is in', async () => {
     expect(await everyCase('game %o -> succeeds (no gamestate gate)', [
       [{ GAME_STATE: GAMESTATES.ACTIVE }],
@@ -113,7 +112,7 @@ describe('timestop.run rejections', () => {
     })).toEqual([]);
   });
 
-  // preserved quirk: no dead check - a dead Clockwatcher can still stop time
+  // no dead check - a dead Clockwatcher can still stop time
   it('lets a dead Clockwatcher stop time', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: ACTOR, Action_Points: 12, Dead: true }),
@@ -139,8 +138,8 @@ describe('timestop.run success', () => {
     expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
   });
 
-  // preserved quirk: the 12 AP is a threshold, never spent - no Players row
-  // is ever written, so a Clockwatcher can stop time repeatedly
+  // the 12 AP is a threshold, never spent - no Players row is ever written,
+  // so a Clockwatcher can stop time repeatedly
   it('never deducts the AP it requires', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);

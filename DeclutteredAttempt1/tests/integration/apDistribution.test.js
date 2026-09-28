@@ -1,13 +1,12 @@
 /**
  * distributeAP over a real seeded board.
  *
- * Two things the plan expected turned out not to exist in the code, so the
- * tests pin reality instead of the wish:
+ * Two rules these tests assert as they stand:
  * - AP is NOT capped at MAX_AP during distribution (no clamp, no MISSED_AP
- *   write). Whether it should be is issue #87's clamping question - a game
- *   rule for the owner, pinned here so changing it is a visible decision.
- * - Fire-tile damage at distribution is commented out entirely; the active
- *   environmental damage is the lava-diver shared-tile burn, tested below.
+ *   write). Whether it should be is a game rule for the owner, asserted
+ *   here so changing it is a visible decision.
+ * - Fire tiles do no damage at distribution; the active environmental
+ *   damage is the lava-diver shared-tile burn, tested below.
  */
 const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
 const {
@@ -51,8 +50,6 @@ describe('distributeAP', () => {
     expect((await reload(dead)).Action_Points).toBe(2);
   });
 
-  // was two writes off the same stale row, so the second stored what the
-  // first did and the glutton's double did nothing
   it('a Glutton gets the grant twice', async () => {
     const { game, layer } = await seedPopulatedGame({ APAmount: 4 });
     const glutton = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, className: 'Glutton', Action_Points: 0 });

@@ -111,8 +111,7 @@ describe('build.run rejections', () => {
     })).toEqual([]);
   });
 
-  // preserved quirk: only walls check for occupants; a chest builds straight
-  // over a player, exactly as the old code did
+  // only walls check for occupants; a chest builds straight over a player
   it('builds a chest on an occupied tile', async () => {
     const { deps } = happyDeps({
       targetTile: createFakeTile({ Tile_ID: 2, X_Position: 2, Y_Position: 1, Layer_ID: 1, Player1: 9 }),
@@ -167,8 +166,7 @@ describe('build.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   //
-  // The old code hard-coded isClockwatcher=false, so TIMESTOPPED always
-  // blocks.
+  // A Construction Worker is not a Clockwatcher, so the timestop blocks.
   it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
     expect(await everyCase('game %o -> %s', [
       [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
@@ -186,8 +184,8 @@ describe('build.run rejections', () => {
     })).toEqual([]);
   });
 
-  // preserved quirk: the AP check ran before the gamestate gate in the old
-  // code, so a broke builder in a paused game sees the AP message
+  // the AP check runs before the gamestate gate, so a broke builder in a
+  // paused game sees the AP message
   it('reports NOT_ENOUGH_AP before the gamestate gate', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: BUILDER, Action_Points: 2, Range_: 3, Tile_ID: 1 }),
@@ -233,8 +231,8 @@ describe('build.run success', () => {
     );
   });
 
-  // preserved quirk: the success data carries the tile's PREVIOUS type (the
-  // row was read before the update), so building over a Wall reports "Wall"
+  // the success data carries the tile's PREVIOUS type (the row is read
+  // before the update), so building over a Wall reports "Wall"
   it('reports the previous tile type, not the built one', async () => {
     const { deps } = happyDeps({
       targetTile: createFakeTile({ Tile_ID: 2, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Wall' }),

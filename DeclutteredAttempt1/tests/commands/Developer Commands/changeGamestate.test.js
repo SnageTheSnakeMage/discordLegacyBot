@@ -149,10 +149,8 @@ describe('change-gamestate present', () => {
 describe('changeGamestate registered choices', () => {
   // /change-gamestate is the one command that can write GAME_STATE directly,
   // and checkGameState throws on anything outside the enum - a bad choice
-  // value bricks every command in that game. The 'Finished' choice used to
-  // carry the value 'Inactive' (mixed case, not the enum's INACTIVE); the
-  // legacy write was dead so it never landed, and the conversion made the
-  // write live. This pins every registered choice to a real enum member.
+  // value bricks every command in that game. This pins every registered
+  // choice to a real enum member.
   it('every registered choice value is a real GAMESTATES member', () => {
     const choices = (changeGamestate.data.toJSON().options || [])
       .flatMap((o) => o.choices || []);

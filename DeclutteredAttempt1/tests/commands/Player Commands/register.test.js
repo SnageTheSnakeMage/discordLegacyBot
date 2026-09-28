@@ -89,10 +89,10 @@ describe('register.run rejections', () => {
     expect(Object.values(GAMESTATES)).toHaveLength(4);
   });
 
-  // preserved quirk: the "game is full" gate reads game.playerMax, which is
-  // not a Games column, so against the real schema it can never fire - a
-  // packed game still accepts registrations. No boundary test is possible
-  // without inventing a column.
+  // the "game is full" gate reads game.playerMax, which is not a Games
+  // column, so against the real schema it can never fire - a packed game
+  // still accepts registrations. No boundary test is possible without
+  // inventing a column.
   it('never rejects as full against the real schema (playerMax is not a column)', async () => {
     const { deps } = happyDeps({ playerCount: 999 });
     const result = await logic.run(INPUT, deps);
@@ -100,8 +100,7 @@ describe('register.run rejections', () => {
   });
 
   // and the branch itself, reached only by inventing the column the gate
-  // reads. Nothing else covers it: the present() table used to "check" this
-  // wording by passing it in as data.message and asserting it came back.
+  // reads
   it('rejects a full game once playerMax exists, with its message', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.REGISTRATION, playerMax: 8 }),
@@ -170,7 +169,7 @@ describe('register.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // icon checks come after the game checks, as before: a bad icon for a
+  // icon checks come after the game checks: a bad icon for a
   // non-registering game reports the phase, not the icon
   it('reports the phase before the icon when both are wrong', async () => {
     const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE }) });
@@ -192,8 +191,8 @@ describe('register.run success', () => {
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  // preserved quirk: the default game is the oldest REGISTRATION game across
-  // ALL players - the legacy code passed null for the actor, not their id
+  // the default game is the oldest REGISTRATION game across ALL players:
+  // the lookup is passed null for the actor, not their id
   it('defaults to the oldest registering game, looked up without the actor', async () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, gameId: null }, deps);
@@ -209,8 +208,8 @@ describe('register.run success', () => {
     expect(deps.utils.registerPlayer).toHaveBeenCalledWith(3, ACTOR, PNG_ICON);
   });
 
-  // preserved quirk: a fault while checking for an existing registration
-  // counted as "not registered", and registration proceeded
+  // a fault while checking for an existing registration counts as "not
+  // registered", and registration proceeds
   it('proceeds when the existing-registration lookup throws', async () => {
     const { deps } = happyDeps();
     deps.models.Players.findOne = jest.fn(async () => { throw new Error('db went away'); });
@@ -231,7 +230,7 @@ describe('register.run success', () => {
 });
 
 describe('register.present', () => {
-  // every rejection carries its byte-identical legacy string in data.message
+  // every rejection carries its player-facing string in data.message
   it('renders every rejection it returns as its player-facing message', async () => {
     expect(await everyCase('%s', [
       [REJECTIONS.NO_SUCH_GAME, { gameId: 1, message: 'Game not found. Please check the game ID.' }, 'Game not found. Please check the game ID.'],

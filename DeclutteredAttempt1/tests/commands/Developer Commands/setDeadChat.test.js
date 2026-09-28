@@ -85,9 +85,8 @@ describe('setDeadChat.run', () => {
     expect(deps.models.Games.update).not.toHaveBeenCalled();
   });
 
-  // this used to assert only result.ok === false, which left both the reason
-  // code and the wording free to change - and the branch is the one a dev
-  // actually hits, by passing something that is not a channel
+  // both the reason code and the wording are asserted: this is the branch a
+  // dev actually hits, by passing something that is not a channel
   it('rejects <label> and writes nothing', async () => {
     expect(await everyCase('rejects %s and writes nothing', [
       ['no channel', null],
