@@ -105,7 +105,7 @@ describe('move.parse', () => {
 });
 
 // ---------------------------------------------------------------------------
-// pure path helpers (issue #88)
+// pure path helpers
 // ---------------------------------------------------------------------------
 
 describe('move.inputPathToArray', () => {
@@ -118,8 +118,8 @@ describe('move.inputPathToArray', () => {
     expect(logic.inputPathToArray(input)).toEqual(expected);
   });
 
-  // QUIRK: the mandatory trailing ';' leaves an empty [""] segment in the
-  // result. Consumers skip it; the split itself is unchanged.
+  // the mandatory trailing ';' leaves an empty [""] segment in the
+  // result; consumers skip it.
   it('keeps the trailing empty segment produced by the final semicolon', () => {
     expect(logic.inputPathToArray('up,1;').at(-1)).toEqual(['']);
   });
@@ -260,7 +260,7 @@ describe('move.run rejections', () => {
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 
-  it('rejects a player who is not in the game, with the legacy wording', async () => {
+  it('rejects a player who is not in the game, with its own wording', async () => {
     const { deps } = makeDeps();
     deps.models.Players.findOne = jest.fn(async () => null);
     const result = await logic.run(INPUT, deps);
@@ -643,8 +643,7 @@ describe('move.run success', () => {
     const { deps, player } = makeDeps({ board: makeBoard({ '2,1': { Tile_Type: 'Fire' } }) });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
-    // the HP write and the death check moved into damagePlayer, which
-    // re-reads the row - so a lethal fire tile now actually kills
+    // damagePlayer writes the HP and runs the death check
     expect(deps.utils.damagePlayer).toHaveBeenCalledWith(null, player, 3, 1);
   });
 

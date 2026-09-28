@@ -2,6 +2,18 @@
  * /move - walk a player <distance> tiles in <direction>, or along a custom
  * path, paying AP per tile and resolving whatever the tiles do to them.
  *
+ * The rules:
+ * - Row 1 is drawn at the top, so north/up is -y, south/down +y, west/left
+ *   -x and east/right +x, for the direction option and path segments alike.
+ * - Every layer runs from (1,1) to (X_Bound, Y_Bound); a direction move that
+ *   would leave it stops at the edge. A path that would leave it is refused.
+ * - Each path segment starts where the previous one ended.
+ * - A player pays moveCost (doubled for a Glutton) per tile stepped onto, not
+ *   for the tile they start on. Ice stepped onto is free, free movement pays
+ *   before AP does, and nobody but a Snowman may stop on ice.
+ * - A storm throws the player one tile off it, and the rest of the walk,
+ *   destination included, moves with them.
+ *
  * parse/run/present per TESTING.md Part 1. run() takes plain data and a deps
  * bundle and returns a CommandResult; it never sees an interaction.
  *
@@ -10,85 +22,6 @@
  * threshold that tests/logicFileLogging.test.js enforces. A walk is a loop
  * with damage in it, so "rejected: NO_SUCH_TILE" does not say how far the
  * player got or what the tiles already did to them - the step lines do.
- *
- * ---------------------------------------------------------------------------
- * WHY THIS FILE IS LONGER THAN THE OTHER CONVERSIONS
- *
- * move.js was mid-rewrite when it was converted. Large parts of it could not
- * run at all: `execute` assigned to a `const` (`originalTile`) on its second
- * statement, so EVERY invocation threw "Assignment to constant variable"
- * before any movement happened. Everything downstream of that line was
- * therefore dead code, and "port what it does" has no answer for dead code -
- * so what is ported here is what each block plainly *intends*, with every
- * crash fixed and every fix listed below. Behaviour decisions live in this
- * file (not in the adapter and not in utils) so that a revert is one file.
- *
- * CRASHES / DEAD CODE FIXED (each one made the command unusable):
- *  - `originalTile` was declared `const` then reassigned for the body-2 case:
- *    a guaranteed TypeError on every /move. Body selection now happens once,
- *    before the path is verified (the order the newer
- *    validateAndParseMoveCommandInput helper used).
- *  - the new position was computed by `calculateMovement`, an async method
- *    called without await that mutated its own locals (so the caller's
- *    newX/newY never changed) and read an out-of-scope `bodyToMove`. The
- *    direction -> delta table is now applied inline.
- *  - the path branch called `this.verifyInputPath(direction, distance,
- *    inputPathToArray(path))` - the argument list of `addStartToPathArray`,
- *    against the signature of `verifyInputPath` - and then iterated the
- *    returned Promise with for..in (zero iterations). Path handling is now
- *    explicit: verify the path, expand it to coordinates, walk it.
- *  - `pathToTiles` read `.X_Position` off its `startingTile` argument, which
- *    both call sites pass as an `[x, y]` array, so every destination was
- *    [NaN, NaN]. It now reads the array.
- *  - `getTileCordinatesOfPath` indexed `tiles[tile + 1]` with a for..in
- *    string key ("0" + 1 === "01"), so it always dereferenced undefined; it
- *    also nested each segment instead of producing a flat coordinate list.
- *  - the movement loop had the same `[cord + 1]` string-concat bug.
- *  - `if(cord == iceChecklistAndTileList.length)` could never be true (for..in
- *    keys stop one below length), so the "cannot end on ice" rule never fired.
- *    It now tests the last tile of the walk.
- *  - `if(!player.Class_ID == 6)` is `(!Class_ID) == 6` - always false - so the
- *    wall/void/damaged-wall guard never fired. It is now `Class_ID != 6`
- *    (6 = Cloudborn, per the comment beside it) and returns a rejection.
- *  - `this.setPlayerToTile(...)` does not exist on the command module; the
- *    real one lives in utils. It is called through deps.utils now.
- *  - the twin (body 2) half of moveFromTiletoTile read bare `fireDmg` and
- *    `mineDmg` (never declared - ReferenceError) and `this.getRandomInt`
- *    (not a method of the command module). They are game.fireDmg,
- *    game.mineDmg and deps.random.
- *  - a missing game row crashed on game.GAME_STATE; a coordinate with no tile
- *    row crashed on tile.Tile_Type. Both are rejections now.
- *  - a valid path ends in ';', so inputPathToArray always produced a trailing
- *    [""] segment, which fell into verifyInputPath's `default:` and threw -
- *    i.e. no path input could ever be accepted. inputPathToArray still
- *    returns that segment (its contract is pinned by a test); the two
- *    consumers skip it.
- *  - movePlayerToRandomSurroundingTile passed a findAll array as a tile and
- *    called moveFromTiletoTile with four wrong arguments, then re-rolled by
- *    reading .Tile_Type off that array (always undefined, so the re-roll
- *    never happened) with no recursion bound. It now resolves the target
- *    tile, re-rolls a bounded number of times when the terrain is forbidden,
- *    and moves the player with utils.setPlayerToTile.
- *
- * ODD-BUT-WORKING BEHAVIOUR DELIBERATELY KEPT (pinned by tests):
- *  - the tile list includes the tile the player starts on, so a one-tile move
- *    is billed as two tiles of movement.
- *  - "north" is +Y for the direction option but -Y for path segments ("up").
- *    The two halves of the command have always disagreed; both are preserved.
- *  - the /move choice labels are inverted (label "left" -> value "east").
- *  - the ice-check query has no Layer_ID in its where clause; the movement
- *    loop's query does.
- *  - coordinates are clamped to the layer's upper bound only (Math.min), with
- *    no floor at 1.
- *  - repeated identical steps collapse to "x2" forever: amountOfRepeats is
- *    assigned 1 and never incremented.
- *  - Free_Move is written through Math.min(..., 0), so it can only ever be
- *    set to zero or a negative number.
- *  - a path segment's destination is measured from the STARTING tile rather
- *    than from the end of the previous segment (both in verifyInputPath and
- *    in pathToTiles).
- *  - the storm displacement happens mid-walk, and the final setPlayerToTile
- *    then puts the player on the requested destination anyway.
  *
  * This file must never import discord.js or the adapter.
  */
@@ -134,7 +67,7 @@ const PATH_DELTAS = {
   se: DIRECTION_DELTAS.southeast,
 };
 
-/** random 0-7 -> [dx, dy], exactly the switch in movePlayerToRandomSurroundingTile */
+/** random 0-7 -> [dx, dy] for a storm throw */
 const RANDOM_DIRECTION_DELTAS = [
   [-1, 0],  // 0 west
   [-1, 1],  // 1 southwest
@@ -148,8 +81,7 @@ const RANDOM_DIRECTION_DELTAS = [
 
 const PATH_REGEX = /^((?:left|right|up|down|ne|nw|se|sw|n|s|e|w),\d+;)+$/;
 
-// player-facing wording that predates REJECTIONS; carried verbatim so the
-// text a player sees is byte-identical to the legacy command's.
+// player-facing wording, carried in a rejection's data.message
 const MSG_NO_PLAYER = 'Player not found in game!, please register for the game you wish to move in.';
 const MSG_NO_TILE = "Current tile not found! please register, or ask a Dev about why your not on the board";
 const MSG_ICE_END = 'Cannot end a movement on an ice tile, please either provide a path that moves off the ice, or move onto a non-ice tile.';
@@ -159,13 +91,12 @@ const MSG_BAD_PATH_DIRECTION = 'Invalid input path, your are using a direction t
 const MSG_BAD_PATH_FORMAT = "Invalid input path, make sure your path uses a direction(left,right,up,down,n,s,e,w,nw,ne,sw,se) then a comma(,) and a number separated & ended by a semicolon(;). Also make sure it doesnt take you off the layer you are currently on. For example: 'sw,2;n,1;' and 'up,2;e,1;' are valid as long as they do not move to a tile that doesn't exist";
 
 // ---------------------------------------------------------------------------
-// pure path helpers (issue #88 - moved out of move.js so they can be tested)
+// pure path helpers
 // ---------------------------------------------------------------------------
 
 /**
  * "right,2;down,1;" -> [["right","2"],["down","1"]]
- * Distances stay strings, exactly as the legacy split produced them; every
- * consumer parseInt()s them.
+ * Distances stay strings; every consumer parseInt()s them.
  */
 function inputPathToArray(inputPath) {
   return inputPath.split(';').map((row) => row.split(','));
@@ -174,7 +105,7 @@ function inputPathToArray(inputPath) {
 /**
  * Prepends the command's own direction/distance to a path array, translating
  * the short direction name into the long one the direction option uses.
- * Throws on an unknown direction, as before.
+ * Throws on an unknown direction.
  */
 function addStartToPathArray(initalMoveDirection, initalMoveDistance, pathArray) {
   switch (initalMoveDirection) {
@@ -287,8 +218,8 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
   switch (startTile.Tile_Type) {
     // leaving a fire tile burns the player
     case 'Fire':
-      // damagePlayer re-reads the row before the death check; this used to
-      // hand playerDeathLogic the pre-damage row, so fire never killed
+      // damagePlayer re-reads the row before the death check, so a lethal
+      // fire tile kills
       trace('tileEffect', { effect: 'fireOnExit', damage: game.fireDmg, body, playerId: player.Player_ID });
       if ((await utils.damagePlayer(null, player, game.fireDmg, body)).Dead) return { died: true };
       break;
@@ -304,8 +235,6 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
   switch (endTile.Tile_Type) {
     // entering a fire tile burns the player
     case 'Fire':
-      // damagePlayer re-reads the row before the death check; this used to
-      // hand playerDeathLogic the pre-damage row, so fire never killed
       trace('tileEffect', { effect: 'fireOnEntry', damage: game.fireDmg, body, playerId: player.Player_ID });
       if ((await utils.damagePlayer(null, player, game.fireDmg, body)).Dead) return { died: true };
       break;
@@ -353,7 +282,7 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
     }
     const mineDmg = game.mineDmg;
     trace('tileEffect', { effect: 'mine', damage: mineDmg, body, trapperId: trapper.Player_ID, tileId: endTile.Tile_ID });
-    // same here: a lethal mine now actually kills, and credits the trapper
+    // a lethal mine kills, and credits the trapper
     const afterMine = await utils.damagePlayer(trapper, player, mineDmg, body);
     await models.Tiles.update({ trapped: false, trapper: null }, { where: { Tile_ID: endTile.Tile_ID } });
     if (afterMine.Dead) return { died: true };
@@ -413,7 +342,7 @@ async function run(input, deps = defaultDeps) {
   const { models, utils } = deps;
   const trace = stepLogger('move', deps);
 
-  // legacy used a falsy check here, so game 0 falls back to the oldest game
+  // falsy, so game 0 falls back to the oldest game too
   const gameId = input.gameId || await utils.getOldestActiveGameId(input.discordId);
   const game = await models.Games.findByPk(gameId);
   if (!game) return { ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId } };
@@ -603,8 +532,8 @@ async function run(input, deps = defaultDeps) {
 
     // also holds the trapped-tile damage logic
     const blocked = await moveFromTiletoTile(cur_Tile, nxt_Tile, player, secondBody, game, deps);
-    // a tile can now kill the mover. playerDeathLogic has already taken them
-    // off the board, so the walk stops here rather than placing a corpse.
+    // a tile can kill the mover. playerDeathLogic has already taken them off
+    // the board, so the walk stops here rather than placing a corpse.
     if (blocked && blocked.died) {
       trace('diedMidWalk', { index: cord, at: [nxt_Tile.X_Position, nxt_Tile.Y_Position], tileType: nxt_Tile.Tile_Type });
       died = true;
@@ -676,7 +605,7 @@ module.exports = {
   parse,
   run,
   present,
-  // exported for direct testing (issue #88) and reuse
+  // exported for direct testing
   inputPathToArray,
   addStartToPathArray,
   verifyInputPath,
