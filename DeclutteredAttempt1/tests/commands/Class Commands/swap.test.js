@@ -209,15 +209,13 @@ describe('swap.run gamestate gate', () => {
       },)).toEqual([]);
   });
 
-  // PRESERVED QUIRK: the gate is called with isClockwatcher = false, so a
-  // Clockwatcher gets no exemption here
   it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
       playerClass: createFakeClass({ Class_ID: 5, Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);
-    // the gate now consults the actor's class, so a timestop does not
+    // the gate consults the actor's class, so a timestop does not
     // stop a Clockwatcher; whatever the command decides next is its own
     // business (often its own class gate)
     expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
@@ -233,13 +231,13 @@ describe('swap.run success', () => {
       kind: 'swapped',
       data: { victimUsername: 'victim', victimDiscordId: VICTIM, gameId: 1 },
     });
-    // the two Tile_ID writes moved into utils.swapPlayerTiles, which also
-    // rewrites the tiles' own PlayerN slots
+    // utils.swapPlayerTiles writes both Tile_IDs and the tiles' own PlayerN
+    // slots
     expect(deps.utils.swapPlayerTiles).toHaveBeenCalledWith(1, 2);
     expect(deps.utils.swapPlayerTiles).toHaveBeenCalledTimes(1);
   });
 
-  // PRESERVED QUIRK: the command advertises 4 AP and charges nothing
+  // the command advertises 4 AP and charges nothing
   it('never checks or deducts AP', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Class_ID: 5, Discord_ID: ACTOR, Tile_ID: 1, Action_Points: 0 }),
@@ -251,20 +249,17 @@ describe('swap.run success', () => {
     }
   });
 
-  // PRESERVED QUIRK: only Players.Tile_ID moves - the tiles' own PlayerN
-  // was: only Players.Tile_ID moved, so the Tiles.PlayerN slots kept
-  // pointing at whoever was there before and the board's two sides
-  // disagreed (#78). Both sides are now written, through one helper that
-  // vacates before it places.
+  // Both sides of the position invariant move together, through one helper
+  // that vacates before it places.
   it('moves both sides of the position invariant, not just Players.Tile_ID', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);
     expect(deps.utils.swapPlayerTiles).toHaveBeenCalledWith(1, 2);
-    // the raw Tile_ID writes are gone - the helper owns both sides now
+    // the helper owns both sides, so there are no raw Tile_ID writes
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  // PRESERVED QUIRK: there is no Dead gate on this command
+  // there is no Dead gate on this command
   it('lets a dead Switchmate swap', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Class_ID: 5, Discord_ID: ACTOR, Tile_ID: 1, Dead: true }),

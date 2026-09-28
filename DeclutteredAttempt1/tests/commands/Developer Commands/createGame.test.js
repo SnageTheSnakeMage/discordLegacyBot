@@ -22,7 +22,7 @@ function happyDeps(over = {}) {
   });
 }
 
-/** every option omitted -> every legacy default */
+/** every option omitted -> every default */
 const DEFAULT_INPUT = logic.parse({ isDev: true }, { discordId: DEV, username: 'snage' });
 
 /** the Games row the defaults produce - column names from database/Models/Games.js */
@@ -129,15 +129,15 @@ describe('createGame.parse', () => {
     });
   });
 
-  // preserved quirk: the option is declared as an INTEGER but its default is
+  // the option is declared as an INTEGER but its default is
   // the boolean true, so omitting it writes true and supplying it writes a number
   it('defaults chaos-council-boolean to the boolean true and passes numbers through', () => {
     expect(logic.parse({}, { discordId: DEV }).chaosCouncilBoolean).toBe(true);
     expect(logic.parse({ 'chaos-council-boolean': 0 }, { discordId: DEV }).chaosCouncilBoolean).toBe(0);
   });
 
-  // preserved quirk: the option description says "defaults to null"; the code
-  // has always defaulted to the no-chaos event string
+  // the option description says "defaults to null", but the default is the
+  // no-chaos event string
   it('defaults the chaos council event to BOOOORRRINNNG, not null', () => {
     expect(logic.parse({}, { discordId: DEV }).currentChaosCouncilEvent).toBe('BOOOORRRINNNG');
   });
@@ -247,7 +247,7 @@ describe('createGame.run success', () => {
     expect(written).toEqual(Object.keys(DEFAULT_ROW).sort());
   });
 
-  // preserved quirk: the number reported is Games.count() taken AFTER the
+  // the number reported is Games.count() taken AFTER the
   // insert, i.e. how many games exist - not the new row's Game_ID
   it('reports the post-insert game count, not the new Game_ID', async () => {
     const deps = happyDeps({ newGameId: 99, count: 4 });

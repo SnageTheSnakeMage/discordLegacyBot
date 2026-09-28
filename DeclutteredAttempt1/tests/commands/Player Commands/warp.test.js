@@ -2,9 +2,9 @@
  * /warp - logic tests. Plain data in, plain data out: no jest.mock, no
  * discord.js, no interaction. deps carries fake models; utils logic is real.
  *
- * Several tests below pin deliberately odd behaviour that the conversion
- * preserved (splice-while-iterating, repeated filter passes, no Clockwatcher
- * exemption, loose class comparison). Each says so where it is asserted.
+ * Several tests below pin deliberately odd behaviour (splice-while-iterating,
+ * repeated filter passes, no Clockwatcher exemption, loose class
+ * comparison). Each says so where it is asserted.
  */
 const logic = require('../../../commands/Player Commands/warp.logic.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
@@ -129,7 +129,7 @@ describe('warp.run rejections', () => {
     expect(result).toEqual({
       ok: false,
       reason: REJECTIONS.NO_SUCH_LAYER,
-      // preserved quirk: the legacy string is missing a space after "a"
+      // the message is missing a space after "a"
       data: { message: 'Could not find alayer below layer: 1' },
     });
     expect(deps.models.Players.update).not.toHaveBeenCalled();
@@ -143,8 +143,7 @@ describe('warp.run rejections', () => {
     expect(result.data.message).toBe('Could not find alayer above layer: 1');
   });
 
-  // preserved quirk: the missing-layer check sits BEFORE the gamestate gate,
-  // exactly where the legacy code wrote it
+  // the missing-layer check sits BEFORE the gamestate gate
   it('reports a missing layer before it reports that the game is over', async () => {
     const { deps } = setup({
       game: createFakeGame({ GAME_STATE: GAMESTATES.OVER }),
@@ -177,7 +176,7 @@ describe('warp.run rejections', () => {
     })).toEqual([]);
   });
 
-  // preserved quirk: warp passes isClockwatcher=false unconditionally, so a
+  // warp passes isClockwatcher=false unconditionally, so a
   // Clockwatcher is blocked by a timestop like everyone else
   it('does not exempt a Clockwatcher from a timestop', async () => {
     const { deps } = setup({
@@ -199,7 +198,7 @@ describe('warp.run rejections', () => {
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
-  // preserved quirk: the class test is `player.Class_ID == hopperClass?.Class_ID`,
+  // the class test is `player.Class_ID == hopperClass?.Class_ID`,
   // so a null Class_ID loosely equals the undefined of a missing class row
   it('treats a player with a null Class_ID as a hopper when the class row is missing', async () => {
     const { deps } = setup({
@@ -312,8 +311,8 @@ describe('warp.run loop quirks', () => {
   });
 
   // the destination is indexed with length - 1 because getRandomInt is
-  // inclusive of its max (utils.js:40); the legacy length could index past
-  // the end and crash
+  // inclusive of its max (utils.js:40); indexing with the length would roll
+  // one past the end
   it('indexes the pool with length - 1 and can pick the last tile', async () => {
     const { deps } = setup({
       destinationTiles: [blank(100), blank(101), blank(102)],

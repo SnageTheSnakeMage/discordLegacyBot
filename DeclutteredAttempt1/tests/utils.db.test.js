@@ -129,10 +129,8 @@ describe('classRemoval', () => {
 });
 
 describe('getRandomClass', () => {
-  // getRandomInt is inclusive of max, so the old getRandomInt(count) could
-  // roll 0; on a 1-based Classes table findByPk(0) is null and the next line
-  // threw - a crash on roughly 1 registration in (count+1). It also assumed
-  // contiguous ids. Now it picks from the ids that exist.
+  // Class ids need not be contiguous or 1-based, so the roll picks from the
+  // ids that exist rather than from a range.
   it('never rolls an id that is not in the table, over many rolls', async () => {
     const ids = [3, 7, 11]; // deliberately non-contiguous, not 1-based
     jest.spyOn(utils.models.Classes, 'findAll').mockResolvedValue(ids.map((id) => ({ Class_ID: id })));
@@ -152,9 +150,8 @@ describe('getRandomClass', () => {
 });
 
 describe('isClockwatcher', () => {
-  // The gamestate gate takes this as its second argument. All 27 call sites
-  // used to hard-code false, so the Clockwatcher's whole ability - acting
-  // while time is stopped - did nothing for anyone.
+  // The gamestate gate takes this as its second argument: it is what lets a
+  // Clockwatcher act while time is stopped.
   const models = () => ({ Classes: { findByPk: jest.fn() } });
 
   it('is true for a Clockwatcher', async () => {
@@ -189,7 +186,7 @@ describe('isClockwatcher', () => {
  * writes {Tile_ID: null, Dead: true}, so a tile without clearing Dead is a
  * corpse standing on the board, and Dead cleared without a tile is a live
  * player nowhere - invisible to the renderer and refused by every command
- * that needs a tile. /resurrect used to produce exactly that second state.
+ * that needs a tile.
  */
 describe('placePlayerOnBoard', () => {
   const freshDb = () => ({

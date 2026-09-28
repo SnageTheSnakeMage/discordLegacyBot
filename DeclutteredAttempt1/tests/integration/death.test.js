@@ -6,8 +6,8 @@
  * bonuses - and every branch writes to columns a mock would accept by any
  * name. These pin the branches against a real database.
  *
- * Until utils.damagePlayer, none of this ran at all: every damage site
- * handed the death check a stale pre-damage row, so nothing ever died.
+ * utils.damagePlayer re-reads the victim after writing the damage, so the
+ * death check sees the post-damage row.
  */
 const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
 const {

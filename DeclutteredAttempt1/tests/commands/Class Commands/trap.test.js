@@ -116,7 +116,7 @@ describe('trap.run rejections', () => {
       playerClass: createFakeClass({ Class_ID: 7, Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);
-    // the gate now consults the actor's class, so a timestop does not
+    // the gate consults the actor's class, so a timestop does not
     // stop a Clockwatcher
     expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
     expectNoWrites(deps);
@@ -330,7 +330,7 @@ describe('trap.run success', () => {
 });
 
 describe('trap.present', () => {
-  // every rejection trap can return renders as its exact legacy string
+  // every rejection trap can return renders as its exact player-facing string
   it('renders every rejection it returns as its player-facing message', async () => {
     expect(await everyCase('%s', [
       [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],

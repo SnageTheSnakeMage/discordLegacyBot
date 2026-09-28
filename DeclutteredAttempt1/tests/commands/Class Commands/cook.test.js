@@ -111,15 +111,13 @@ describe('cook.run rejections', () => {
     })).toEqual([]);
   });
 
-  // preserved quirk: the old code hard-coded isClockwatcher=false, so even a
-  // Clockwatcher is blocked during a timestop (they fail the Chef gate anyway)
   it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
       chefClass: createFakeClass({ Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);
-    // the gate now consults the actor's class, so a timestop does not
+    // the gate consults the actor's class, so a timestop does not
     // stop a Clockwatcher; whatever the command decides next is its own
     // business (often its own class gate)
     expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
@@ -206,7 +204,6 @@ describe('cook.run success', () => {
     expect(deps.models.Players.update).toHaveBeenCalledTimes(3);
   });
 
-  // preserved quirk: the old code never checked Dead, so a dead chef cooks
   it('lets a dead chef cook (there is no dead check)', async () => {
     const { deps } = happyDeps({
       chef: createFakePlayer({ Player_ID: 1, Discord_ID: CHEF, Action_Points: 5, Range_: 3, Tile_ID: 1, Meals: 1, Dead: true }),
@@ -215,7 +212,6 @@ describe('cook.run success', () => {
     expect(result.ok).toBe(true);
   });
 
-  // preserved quirk: the customer's AP/HP gains are not clamped to MAX_AP/MAX_HP
   it('clamps the customer at MAX_AP and MAX_HP', async () => {
     const { deps } = happyDeps({
       customer: createFakePlayer({ Player_ID: 2, Discord_ID: CUSTOMER, Action_Points: 9, MAX_AP: 10, Health_Points: 10, MAX_HP: 10, Tile_ID: 2 }),
@@ -232,10 +228,8 @@ describe('cook.run success', () => {
     );
   });
 
-  // was: "preserved quirk: the legacy default-game lookup passed no discord
-  // id". That quirk was not survivable - getOldestGameId throws
-  // "missing playerDiscordID" for a falsy id, so every /cook without an
-  // explicit game died before doing any work.
+  // getOldestGameId throws "missing playerDiscordID" for a falsy id, so the
+  // default-game lookup must pass the chef's discord id.
   it('resolves the default game via getOldestGameId with the chefs discord id', async () => {
     const { deps } = happyDeps();
     deps.utils = { ...deps.utils, getOldestGameId: jest.fn(async () => 1) };
@@ -244,7 +238,7 @@ describe('cook.run success', () => {
     expect(deps.utils.getOldestGameId).toHaveBeenCalledWith(CHEF);
   });
 
-  // the regression this fix is for: the real helper, not a stub
+  // a stand-in with the real helper's falsy-id contract, not a bare stub
   it('does not throw when the game option is omitted', async () => {
     const { deps } = happyDeps();
     const realHelper = require('../../../utils.js').getOldestGameId;

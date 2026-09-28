@@ -148,9 +148,8 @@ describe('timestop-dev run success', () => {
     );
   });
 
-  // QUIRK (preserved): the fallback takes NO player id - the old call was the
-  // game-wide getOldestActiveGame(), not the caller-scoped lookup other
-  // commands use, so a dev pauses the oldest active game overall.
+  // the fallback takes NO player id - unlike the caller-scoped lookup other
+  // commands use - so a dev pauses the oldest active game overall.
   it('resolves the default game via getOldestActiveGameId with no player id', async () => {
     const getOldestActiveGameId = jest.fn(async () => 4);
     const deps = createDeps({

@@ -41,8 +41,8 @@ describe('store.parse', () => {
     expect(input).toEqual({ amount: 3, gameId: null, discordId: ACTOR });
   });
 
-  // quirk pin: the option description says "defaults to 1" but the old code
-  // never applied a default - an omitted amount stays null
+  // the option description says "defaults to 1", but no default is
+  // applied - an omitted amount stays null
   it('does NOT default an omitted amount to 1', () => {
     const input = logic.parse({ amount: null, game: 2 }, { discordId: ACTOR, username: 'snage' });
     expect(input).toEqual({ amount: null, gameId: 2, discordId: ACTOR });
@@ -89,20 +89,16 @@ describe('store.run rejections', () => {
     })).toEqual([]);
   });
 
-  // quirk pin: the old code passed a hard false for isClockwatcher and never
-  // looked the class up, so even a Clockwatcher is blocked during a timestop
+  // the gate consults the actor's class, so a timestop does not stop a
+  // Clockwatcher
   it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, CHEST_AMOUNT: 10 }) });
-    // the actor really is a Clockwatcher: this fixture had no Classes
-    // mock, so the gate saw no class and blocked them
+    // the actor really is a Clockwatcher: without a Classes mock the gate
+    // sees no class and blocks them
     deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Clockwatcher' }));
     const result = await logic.run(INPUT, deps);
-    // the gate now consults the actor's class, so a timestop does not
-    // stop a Clockwatcher
     expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
-    // the class IS consulted now - that is the whole fix
     expect(deps.models.Classes.findByPk).toHaveBeenCalled();
-    // the Clockwatcher goes through, so the chest IS written now
   });
 
   it('rejects a player who is not on a chest tile and writes nothing', async () => {
@@ -163,7 +159,7 @@ describe('store.run success', () => {
     expect(deps.utils.getOldestGameId).toHaveBeenCalledWith(ACTOR);
   });
 
-  // quirk pin: no Dead gate - dead players can store
+  // there is no Dead gate - dead players can store
   it('lets a dead player store', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: ACTOR, Action_Points: 5, Tile_ID: 1, Dead: true }),
@@ -176,7 +172,7 @@ describe('store.run success', () => {
     );
   });
 
-  // quirk pin: an omitted amount is null - it passes the AP check
+  // an omitted amount is null - it passes the AP check
   // (Action_Points < null is false), coerces to 0 in the arithmetic, both
   // writes happen with unchanged values and the result carries amount: null
   it('treats an omitted amount as 0 in the arithmetic (null coercion)', async () => {
@@ -193,7 +189,7 @@ describe('store.run success', () => {
     );
   });
 
-  // quirk pin: the amount option has no minimum, and a negative amount passes
+  // the amount option has no minimum, and a negative amount passes
   // every check (Action_Points < -3 is false) - it withdraws from the chest
   it('lets a negative amount withdraw AP from the chest', async () => {
     const { deps } = happyDeps();
@@ -234,8 +230,8 @@ describe('store.present', () => {
     expect(out).toEqual({ content: 'You have stored 3 AP in the chest!' });
   });
 
-  // quirk pin: an omitted amount renders as the string "null", as the old
-  // string concatenation did
+  // an omitted amount renders as the string "null" through string
+  // concatenation
   it('renders a null amount as "null", exactly', () => {
     const out = logic.present({ ok: true, kind: 'stored', data: { amount: null } });
     expect(out).toEqual({ content: 'You have stored null AP in the chest!' });
