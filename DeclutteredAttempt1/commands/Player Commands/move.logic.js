@@ -504,9 +504,9 @@ async function run(input, deps = defaultDeps) {
   // An ice tile stepped onto is free, and nobody but a Snowman may stop on one
   let iceTileDeduction = 0;
   for (let cord = 0; cord < iceChecklistAndTileList.length; cord++) {
-    // NOTE: no Layer_ID in this where clause - legacy behaviour, kept
     const tile = await models.Tiles.findOne({
       where: {
+        Layer_ID: originalTile.Layer_ID,
         X_Position: iceChecklistAndTileList[cord][0],
         Y_Position: iceChecklistAndTileList[cord][1],
       },

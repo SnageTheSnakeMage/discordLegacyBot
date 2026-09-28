@@ -99,6 +99,29 @@ describe('movement', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
+  it('reads ice from the layer being walked, not whichever layer has that coordinate', async () => {
+    const game = await seedGame({ moveCost: 1, mineDmg: 1, fireDmg: 1 });
+    const other = await seedLayer(game.Game_ID);
+    const layer = await seedLayer(game.Game_ID);
+    await models.Tiles.update(
+      { Tile_Type: 'Ice' },
+      { where: { Layer_ID: other.Layer_ID, X_Position: 2, Y_Position: 1 } },
+    );
+    const walker = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 8,
+    });
+
+    const result = await moveLogic.run(
+      { gameId: game.Game_ID, direction: 'east', distance: 1, path: null, body: 1, discordId: '1' },
+      DEPS(),
+    );
+
+    // (2,1) on this layer is Blank1: the move is allowed and paid for
+    expect(result.ok).toBe(true);
+    expect(result.data.spentAP).toBe(1);
+    expect((await models.Players.findByPk(walker.Player_ID)).Action_Points).toBe(7);
+  });
+
   it('a move costs AP', async () => {
     const { game, layer } = await board();
     const walker = await seedPlayer(game.Game_ID, {
