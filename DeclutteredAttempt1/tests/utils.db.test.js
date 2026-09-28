@@ -224,7 +224,7 @@ describe('placePlayerOnBoard', () => {
 
   it('places a second body in its own column without disturbing the first', async () => {
     const db = freshDb();
-    await utils.placePlayerOnBoard(7, createFakeTile({ Tile_ID: 42 }), { db, column: 'Tile_ID2' });
+    await utils.placePlayerOnBoard(7, createFakeTile({ Tile_ID: 42 }), { db, body: 2 });
     expect(db.Players.update).toHaveBeenCalledWith(
       { Tile_ID2: 42, Dead: 0 }, { where: { Player_ID: 7 } },
     );

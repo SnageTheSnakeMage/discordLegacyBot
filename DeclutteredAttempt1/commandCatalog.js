@@ -90,9 +90,9 @@ const COMMANDS = {
         kind: 'string',
         description: 'which direction you are moving',
         required: true,
-        choices: [{ name: 'left', value: 'east' }, { name: 'right', value: 'west' }, { name: 'up', value: 'north' }, { name: 'down', value: 'south' }, { name: 'nw', value: 'northwest' }, { name: 'ne', value: 'northeast' }, { name: 'sw', value: 'southwest' }, { name: 'se', value: 'southeast' }],
+        choices: [{ name: 'left', value: 'west' }, { name: 'right', value: 'east' }, { name: 'up', value: 'north' }, { name: 'down', value: 'south' }, { name: 'nw', value: 'northwest' }, { name: 'ne', value: 'northeast' }, { name: 'sw', value: 'southwest' }, { name: 'se', value: 'southeast' }],
       },
-      'distance': { kind: 'integer', description: 'how many tiles you move', required: true, min: 0 },
+      'distance': { kind: 'integer', description: 'how many tiles you move', required: true, min: 1 },
       'path': {
         kind: 'string',
         description: 'a list of DIRections and DISTances Ex: "dir,dist;dir,dist;...", required to move on an ice tile',
