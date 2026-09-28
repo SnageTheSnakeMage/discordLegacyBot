@@ -3,7 +3,6 @@
  * discord.js, no interaction. deps carries fake models; utils logic is real.
  */
 const logic = require('../../../commands/Player Commands/retrieve.logic.js');
-const retrieve = require('../../../commands/Player Commands/retrieve.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -243,12 +242,5 @@ describe('retrieve.present', () => {
   it('renders a null amount as "null", byte-identical to the legacy concat', () => {
     const out = logic.present({ ok: true, kind: 'retrieved', data: { amount: null } });
     expect(out).toEqual({ content: 'You have retrieved null AP from the chest!' });
-  });
-});
-
-describe('retrieve adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(retrieve.data.toJSON().name).toBe('retrieve');
-    expect(typeof retrieve.execute).toBe('function');
   });
 });

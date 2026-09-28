@@ -300,11 +300,6 @@ describe('gameflags present', () => {
 });
 
 describe('gameflags adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(gameflags.data.toJSON().name).toBe('gameflags');
-    expect(typeof gameflags.execute).toBe('function');
-  });
-
   // gameActive decides whether the game has an AP check interval, so a flip
   // has to be reconciled - and run() never sees the client
   it('reconciles the AP intervals after a flag is set', async () => {

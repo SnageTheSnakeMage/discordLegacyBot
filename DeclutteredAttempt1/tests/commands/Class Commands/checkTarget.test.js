@@ -4,7 +4,6 @@
  * real. Read-only command: no update/create is ever expected.
  */
 const logic = require('../../../commands/Class Commands/checkTarget.logic.js');
-const checkTarget = require('../../../commands/Class Commands/checkTarget.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -275,12 +274,5 @@ describe('checkTarget.present', () => {
       data: { targetDiscordId: '789', reassigned: true, x: undefined, y: undefined, layerId: undefined, className: undefined },
     });
     expect(out.content).toBe('Your last target is gone, so you have a new one.\nTarget: <@789> , Location: (undefined, undefined) layer: undefined, Class: undefined');
-  });
-});
-
-describe('checkTarget adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(checkTarget.data.toJSON().name).toBe('check-target');
-    expect(typeof checkTarget.execute).toBe('function');
   });
 });

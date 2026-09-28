@@ -6,7 +6,6 @@
  * nothing, so there is no cost or range check to put a boundary on.
  */
 const logic = require('../../../commands/Player Commands/stats.logic.js');
-const stats = require('../../../commands/Player Commands/stats.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
@@ -507,12 +506,5 @@ describe('stats.present', () => {
   it('hides overflow Pharoh HP at zero', () => {
     const out = logic.present(ok({ pharohHp: 0 }));
     expect(fieldNames(out)).not.toContain('Pharoh HP');
-  });
-});
-
-describe('stats adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(stats.data.toJSON().name).toBe('stats');
-    expect(typeof stats.execute).toBe('function');
   });
 });

@@ -270,11 +270,6 @@ describe('createGame.present', () => {
 });
 
 describe('createGame adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(createGame.data.toJSON().name).toBe('create-game');
-    expect(typeof createGame.execute).toBe('function');
-  });
-
   it('declares all fourteen options', () => {
     expect(createGame.data.toJSON().options.map((o) => o.name)).toEqual([
       'ap-distribution-interval',

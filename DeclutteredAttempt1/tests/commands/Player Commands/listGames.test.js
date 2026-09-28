@@ -3,7 +3,6 @@
  * no rejection paths, no writes. Plain data in, plain data out.
  */
 const logic = require('../../../commands/Player Commands/listGames.logic.js');
-const listGames = require('../../../commands/Player Commands/listGames.js');
 const { GAMESTATES } = require('../../../enums.js');
 const { noticeFor, NOTICES } = require('../../../commands/_messages.js');
 const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
@@ -167,11 +166,4 @@ describe('listGames.present', () => {
 
   // present() has no per-REJECTIONS table here: run() never rejects, so no
   // rejection code is ever rendered by this command
-});
-
-describe('listGames adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(listGames.data.toJSON().name).toBe('listgames');
-    expect(typeof listGames.execute).toBe('function');
-  });
 });

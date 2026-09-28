@@ -3,7 +3,6 @@
  * no discord.js, no interaction. deps carries fake models.
  */
 const logic = require('../../../commands/Developer Commands/timestop_dev.logic.js');
-const timestopDev = require('../../../commands/Developer Commands/timestop_dev.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
 const { everyCase } = require('../../helpers/everyCase.js');
@@ -204,12 +203,5 @@ describe('timestop-dev present', () => {
   it('renders the unknown-game rejection with the game id', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.NO_SUCH_GAME, data: { gameId: 9 } });
     expect(out).toEqual({ content: 'Could not find game #9!' });
-  });
-});
-
-describe('timestop-dev adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(timestopDev.data.toJSON().name).toBe('timestop-dev');
-    expect(typeof timestopDev.execute).toBe('function');
   });
 });

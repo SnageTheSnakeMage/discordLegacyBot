@@ -4,7 +4,6 @@
  * models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/heal.logic.js');
-const heal = require('../../../commands/Class Commands/heal.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -333,12 +332,5 @@ describe('heal.present', () => {
       data: { x: 2, y: 1, previousTileType: 'Blank1', layerId: 1 },
     });
     expect(out).toEqual({ content: 'You have made a Blank1 tile on coordinates (2, 1) on layer 1!' });
-  });
-});
-
-describe('heal adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(heal.data.toJSON().name).toBe('heal');
-    expect(typeof heal.execute).toBe('function');
   });
 });

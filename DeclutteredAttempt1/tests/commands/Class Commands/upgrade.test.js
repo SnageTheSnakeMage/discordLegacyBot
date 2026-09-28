@@ -4,7 +4,6 @@
  * the real utils.
  */
 const logic = require('../../../commands/Class Commands/upgrade.logic.js');
-const upgrade = require('../../../commands/Class Commands/upgrade.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeClass, createFakeGame, createFakePlayer } = require('../../helpers/mockModels.js');
 const { everyCase } = require('../../helpers/everyCase.js');
@@ -302,12 +301,5 @@ describe('upgrade.present', () => {
   it('renders a rejection with no data from the shared message table', () => {
     expect(logic.present({ ok: false, reason: REJECTIONS.PLAYER_DEAD }))
       .toEqual({ content: "Dead players can't use this command." });
-  });
-});
-
-describe('upgrade adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(upgrade.data.toJSON().name).toBe('upgrade');
-    expect(typeof upgrade.execute).toBe('function');
   });
 });

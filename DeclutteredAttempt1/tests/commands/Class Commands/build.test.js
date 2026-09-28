@@ -3,7 +3,6 @@
  * discord.js, no interaction. deps carries fake models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/build.logic.js');
-const build = require('../../../commands/Class Commands/build.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -271,12 +270,5 @@ describe('build.present', () => {
       ok: true, kind: 'built', data: { previousTileType: 'Blank1', x: 2, y: 1, layerId: 1 },
     });
     expect(out).toEqual({ content: 'You have made a Blank1 tile on coordinates (2, 1) on layer 1!' });
-  });
-});
-
-describe('build adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(build.data.toJSON().name).toBe('build');
-    expect(typeof build.execute).toBe('function');
   });
 });

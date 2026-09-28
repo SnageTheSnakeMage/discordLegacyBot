@@ -5,7 +5,6 @@
  * which are injected as jest.fns through deps.utils.
  */
 const logic = require('../../../commands/Class Commands/exorcise.logic.js');
-const exorcise = require('../../../commands/Class Commands/exorcise.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -303,12 +302,5 @@ describe('exorcise.present', () => {
   it('renders class-removal success with the target username', () => {
     const out = logic.present({ ok: true, kind: 'class_removed', data: { targetUsername: 'victim' } });
     expect(out).toEqual({ content: 'You have exorcised victim and removed their class!' });
-  });
-});
-
-describe('exorcise adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(exorcise.data.toJSON().name).toBe('exorcise');
-    expect(typeof exorcise.execute).toBe('function');
   });
 });

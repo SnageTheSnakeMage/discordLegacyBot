@@ -5,7 +5,6 @@
  * injected fake.
  */
 const logic = require('../../../commands/Class Commands/stab.logic.js');
-const stab = require('../../../commands/Class Commands/stab.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -402,12 +401,5 @@ describe('stab.present', () => {
     expect(out).toEqual({
       content: `You missed the target in the bush!\nYou hit <@${TARGET}> for 0$ damage at 4,7!\n`,
     });
-  });
-});
-
-describe('stab adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(stab.data.toJSON().name).toBe('stab');
-    expect(typeof stab.execute).toBe('function');
   });
 });

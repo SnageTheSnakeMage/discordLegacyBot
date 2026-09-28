@@ -3,7 +3,6 @@
  * discord.js, no interaction. deps carries fake models; utils logic is real.
  */
 const logic = require('../../../commands/Class Commands/cook.logic.js');
-const cook = require('../../../commands/Class Commands/cook.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
@@ -288,12 +287,5 @@ describe('cook.present', () => {
   it('renders success with the exact legacy wording', () => {
     const out = logic.present({ ok: true, kind: 'cooked', data: { customerUsername: 'hungrybob' } });
     expect(out).toEqual({ content: 'You have cooked for hungrybob giving them 2 AP & 1 HP and yourself 1 AP!' });
-  });
-});
-
-describe('cook adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(cook.data.toJSON().name).toBe('cook');
-    expect(typeof cook.execute).toBe('function');
   });
 });

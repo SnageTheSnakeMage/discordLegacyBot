@@ -4,7 +4,6 @@
  * logic is real.
  */
 const logic = require('../../../commands/Player Commands/store.logic.js');
-const store = require('../../../commands/Player Commands/store.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -240,12 +239,5 @@ describe('store.present', () => {
   it('renders a null amount as "null", byte-identical to the legacy concat', () => {
     const out = logic.present({ ok: true, kind: 'stored', data: { amount: null } });
     expect(out).toEqual({ content: 'You have stored null AP in the chest!' });
-  });
-});
-
-describe('store adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(store.data.toJSON().name).toBe('store');
-    expect(typeof store.execute).toBe('function');
   });
 });

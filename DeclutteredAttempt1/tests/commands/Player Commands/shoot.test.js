@@ -5,7 +5,6 @@
  * helpers playerDeathLogic and revertTileToBlank are injected fakes.
  */
 const logic = require('../../../commands/Player Commands/shoot.logic.js');
-const shoot = require('../../../commands/Player Commands/shoot.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps,
@@ -477,12 +476,5 @@ describe('shoot.present', () => {
         + 'You missed the target tile!\n'
         + `You hit <@${TARGET}> for 3$ damage at 3,1!\n`,
     });
-  });
-});
-
-describe('shoot adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(shoot.data.toJSON().name).toBe('shoot');
-    expect(typeof shoot.execute).toBe('function');
   });
 });

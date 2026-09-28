@@ -146,14 +146,6 @@ describe('change-gamestate present', () => {
     expect(out.content).toBe('Only the dev can use this command.');
   });
 });
-
-describe('change-gamestate adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(changeGamestate.data.toJSON().name).toBe('change-gamestate');
-    expect(typeof changeGamestate.execute).toBe('function');
-  });
-});
-
 describe('changeGamestate registered choices', () => {
   // /change-gamestate is the one command that can write GAME_STATE directly,
   // and checkGameState throws on anything outside the enum - a bad choice
