@@ -22,9 +22,6 @@
  *   exorcist is now passed as the second argument
  *
  * Preserved as-is (see the pinning tests):
- * - the gamestate gate runs BEFORE the missing-tile check, and passes
- *   isClockwatcher=false unconditionally, exactly like the old
- *   checkGameStateAndReply(gamestate, false, interaction) call
  * - there is no dead-player check: a dead Exorcist can still exorcise
  * - tile mode gates on 3 AP but DEDUCTS 4, so a 3-AP exorcist ends on -1
  * - class mode deducts the 16 AP from the TARGET, not the exorcist
@@ -74,13 +71,9 @@ async function run(input, deps = defaultDeps) {
     where: { X_Position: input.x, Y_Position: input.y, Layer_ID: playerTile.Layer_ID },
   });
 
-  // the old code hard-coded isClockwatcher=false here, and gated BEFORE
-  // verifying the tile; keep both
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!tileToChange) {

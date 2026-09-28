@@ -437,6 +437,18 @@ separate answers and both can block:
 | `OVER`, `DEV_PAUSED` | refused | refused |
 | `timeStopped` (on top of the state) | Clockwatchers only | Clockwatchers only |
 
+**Class commands are always blocked by a timestop.** A player has one class,
+and no class command's class is Clockwatcher, so a command that refuses the
+wrong class (`WRONG_CLASS`) passes `false` as the gate's second argument.
+Every other command (`/shoot`, `/move`, `/warp`, `/store`, …) asks the
+actor's class - `utils.isClockwatcher` or an inline `Class_Name` check - and a
+Clockwatcher acts through the timestop. `tests/clockwatcherGate.test.js`
+enforces both halves. A timestop is the `timeStopped` flag, never a
+`GAME_STATE`; build a timestopped fixture as `{ GAME_STATE: 'ACTIVE',
+timeStopped: true }`. A Clockwatcher fixture must answer
+`Classes.findByPk`, which is what `isClockwatcher` reads - several tests once
+"blocked a Clockwatcher" only because their fixture stubbed `findOne`.
+
 `readOnly: true` is passed by `/stats` and `/board` and nothing else: those two
 only look, and a game you are waiting to start is exactly what you want to
 look at. Before this, `REGISTRATION` was `blocked: false`, so a command's own

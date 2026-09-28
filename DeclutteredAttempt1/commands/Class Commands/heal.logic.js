@@ -16,8 +16,6 @@
  *   player.Class_ID
  *
  * Preserved as-is (see the pinning tests):
- * - the gamestate gate passes isClockwatcher=false unconditionally, exactly
- *   like the old checkGameStateAndReply(gamestate, false, interaction) call
  * - the gamestate gate runs BEFORE the "no tile there" check, so a bad
  *   coordinate during a paused game reports the pause
  * - there is no dead-player check at all (unlike /burn)
@@ -63,13 +61,9 @@ async function run(input, deps = defaultDeps) {
     where: { X_Position: input.x, Y_Position: input.y, Layer_ID: playerTile.Layer_ID },
   });
 
-  // the old code hard-coded isClockwatcher=false here, and gated before any
-  // of the coordinate checks; keep both
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   if (!tileToChange) {

@@ -176,17 +176,19 @@ describe('warp.run rejections', () => {
     })).toEqual([]);
   });
 
-  // warp passes isClockwatcher=false unconditionally, so a
-  // Clockwatcher is blocked by a timestop like everyone else
-  it('does not exempt a Clockwatcher from a timestop', async () => {
+  // anyone may warp through a gateway, so warp is not a class command and a
+  // Clockwatcher acts through a timestop
+  it('lets a Clockwatcher warp through a gateway during a timestop', async () => {
+    const clockwatcher = createFakeClass({ Class_ID: 9, Class_Name: 'Clockwatcher' });
     const { deps } = setup({
       game: createFakeGame({ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
-      player: createFakePlayer({ Discord_ID: DISCORD, Class_ID: 9, Tile_ID: 1 }),
-      hopperClass: createFakeClass({ Class_ID: 9, Class_Name: 'Clockwatcher' }),
+      player: createFakePlayer({ Discord_ID: DISCORD, Class_ID: 9, Tile_ID: 1, Action_Points: 5 }),
+      currentTile: createFakeTile({ Tile_ID: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
+      destinationTiles: [openGateway(65)],
     });
+    deps.models.Classes.findByPk = jest.fn(async () => clockwatcher);
     const result = await logic.run(INPUT, deps);
-    expect(result.reason).toBe(REJECTIONS.TIME_STOPPED);
-    expect(deps.models.Players.update).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ ok: true, data: { viaGateway: true } });
   });
 
   it('rejects a non-hopper who is not on an open gateway', async () => {

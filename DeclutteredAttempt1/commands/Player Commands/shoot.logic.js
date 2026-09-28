@@ -19,8 +19,6 @@
  *   could run; the guard now runs first
  *
  * Preserved as-is (each pinned by a test):
- * - the gamestate gate passes isClockwatcher=false, so a Clockwatcher can
- *   NOT shoot during a timestop
  * - a bush-miss on an intact Wall reports "You missed a damaged wall" and
  *   the wall still gets damaged afterwards (the miss costs an extra shot,
  *   it does not spare the wall unless it was the last shot)
@@ -91,10 +89,7 @@ async function run(input, deps = defaultDeps) {
     [targetTile.X_Position, targetTile.Y_Position],
   );
 
-  // the old code hardcoded isClockwatcher=false here, so even Clockwatchers
-  // are blocked by a timestop
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
+  // a Clockwatcher acts through a timestop
   const verdict = utils.checkGameState(
     game, await utils.isClockwatcher(models, player),
   );

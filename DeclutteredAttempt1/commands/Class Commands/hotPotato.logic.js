@@ -58,12 +58,9 @@ async function run(input, deps = defaultDeps) {
   const player = await models.Players.findOne({ where: { Game_ID: gameId, Discord_ID: input.discordId } });
   if (!player) return { ok: false, reason: REJECTIONS.NOT_IN_GAME };
 
-  // the old code passed isClockwatcher = false unconditionally
-  // a Clockwatcher acts through a timestop. Every call site used to
-  // hard-code false here, so the class's whole ability did nothing.
-  const verdict = utils.checkGameState(
-    game, await utils.isClockwatcher(models, player),
-  );
+  // a class command: a player has one class, and a Clockwatcher never has
+  // this one, so a timestop always blocks it
+  const verdict = utils.checkGameState(game, false);
   if (verdict.blocked) return { ok: false, reason: verdict.reason };
 
   const playerClass = await models.Classes.findByPk(player.Class_ID);

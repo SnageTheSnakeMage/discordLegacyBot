@@ -139,20 +139,12 @@ describe('punish.run rejections', () => {
     })).toEqual([]);
   });
 
-  it('does not block a Clockwatcher during a timestop', async () => {
+  it('blocks a Clockwatcher during a timestop: a class command, and not their class', async () => {
     const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }) });
-    // the actor really is a Clockwatcher: this fixture had no Classes
-    // mock, so the gate saw no class and blocked them
+    // the actor really is a Clockwatcher, as utils.isClockwatcher would see it
     deps.models.Classes.findByPk = jest.fn(async () => createFakeClass({ Class_Name: 'Clockwatcher' }));
     const result = await logic.run(INPUT, deps);
-    // the gate now consults the actor's class, so a timestop does not
-    // stop a Clockwatcher; whatever the command decides next is its own
-    // business (often its own class gate)
-    expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
-    // the Classes lookup existed only for the Hunter check inside the
-    // unported attack loop, so no class is fetched at all any more
-    // the class IS consulted now - that is the whole fix
-    expect(deps.models.Classes.findByPk).toHaveBeenCalled();
+    expect(result.reason).toBe(REJECTIONS.TIME_STOPPED);
     expectNoWrites(deps);
   });
 
