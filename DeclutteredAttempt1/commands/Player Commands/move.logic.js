@@ -20,8 +20,9 @@
  *   movement pays before AP does. A player killed partway pays only for the
  *   tiles they reached.
  * - A move that ends on a storm storms the player one tile off it in a random
- *   direction. If that tile is off the board, full, or (unless they are a
- *   Cloudborn) a wall, void or ice, they stay on the storm instead.
+ *   direction. A direction that would put them off the board, on a full tile,
+ *   or (unless they are a Cloudborn) on a wall, void or ice is re-rolled, up
+ *   to 8 times; if every roll is refused they stay on the storm.
  *
  * parse/run/present per TESTING.md Part 1. run() takes plain data and a deps
  * bundle and returns a CommandResult; it never sees an interaction.
@@ -42,6 +43,9 @@ const defaultDeps = require('../_deps.js');
 /** Class_ID 19 is Robot, 15 is Stormchaser - both get a bonus on storm tiles. */
 const ROBOT_CLASS_ID = 19;
 const STORMCHASER_CLASS_ID = 15;
+
+/** how many times a storm re-rolls a direction it may not move a player in */
+const STORM_REROLLS = 8;
 
 /** terrain only a Cloudborn may move onto */
 const WALL_TILE_TYPES = ['Wall', 'Wall_Damaged', 'Void'];
@@ -554,18 +558,31 @@ async function run(input, deps = defaultDeps) {
     }
     if (effect && effect.stormedBy) {
       // a storm is only ever the last tile: the player ends wherever it
-      // moves them, or on the storm if it has nowhere legal to move them
-      const landingAt = [walk[cord + 1][0] + effect.stormedBy[0], walk[cord + 1][1] + effect.stormedBy[1]];
-      const landing = await findWalkTile(landingAt, originalTile.Layer_ID, deps);
-      const refusal = stormLandingRefusal(landing, playerClass.Class_Name, deps);
-      const direction = directionName(effect.stormedBy);
-      if (refusal) {
-        trace('stormedNowhere', { at: walk[cord + 1], refused: landingAt, refusal });
-        note(`A storm tried to move you ${direction}, but that way was blocked, so you stayed on the storm! \n`);
-      } else {
-        trace('stormed', { from: walk[cord + 1], to: landingAt });
+      // moves them. A direction it may not move them in is re-rolled, up to
+      // STORM_REROLLS times, before they are left on the storm itself
+      const stormAt = walk[cord + 1];
+      let direction = effect.stormedBy;
+      let landingAt = null;
+      for (let roll = 0; roll <= STORM_REROLLS; roll++) {
+        if (roll > 0) direction = rollStormDirection(deps);
+        const candidate = direction && [stormAt[0] + direction[0], stormAt[1] + direction[1]];
+        const landing = candidate && await findWalkTile(candidate, originalTile.Layer_ID, deps);
+        const refusal = candidate ? stormLandingRefusal(landing, playerClass.Class_Name, deps) : 'noDirection';
+        if (!refusal) {
+          landingAt = candidate;
+          break;
+        }
+        // a re-roll is invisible in the reply, so the log is the only place
+        // that says why a storm moved a player a way they did not expect
+        trace('stormReroll', { roll, refused: candidate, refusal });
+      }
+      if (landingAt) {
+        trace('stormed', { from: stormAt, to: landingAt });
         walk[cord + 1] = landingAt;
-        note(`You were stormed one tile ${direction}! \n`);
+        note(`You were stormed one tile ${directionName(direction)}! \n`);
+      } else {
+        trace('stormedNowhere', { at: stormAt });
+        note('A storm tried to move you, but every way was blocked, so you stayed on the storm! \n');
       }
       continue;
     }

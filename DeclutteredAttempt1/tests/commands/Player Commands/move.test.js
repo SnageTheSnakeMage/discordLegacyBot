@@ -789,17 +789,44 @@ describe('move.run success', () => {
     ['off the board', {}, 6],
     ['a wall', { '2,2': { Tile_Type: 'Wall' } }, 2],
     ['ice', { '2,2': { Tile_Type: 'Ice' } }, 2],
-  ])('leaves a player on the storm when the tile it would move them onto is %s', async (_what, tiles, direction) => {
+  ])('leaves a player on the storm when every roll lands on a tile that is %s', async (_what, tiles, direction) => {
+    const random = jest.fn((max) => (max === 7 ? direction : 0));
     const { deps } = makeDeps({
       board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, ...tiles }),
-      random: stormsInOrder(direction),
+      random,
     });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
     expect([result.data.newX, result.data.newY]).toEqual([2, 1]);
     expect(result.data.spentAP).toBe(1);
-    expect(result.data.response).toContain('so you stayed on the storm!');
+    expect(result.data.response).toContain('every way was blocked, so you stayed on the storm!');
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1, BODY_1);
+    // the first roll and 8 re-rolls
+    expect(random.mock.calls.filter(([max]) => max === 7)).toHaveLength(9);
+  });
+
+  it('re-rolls a refused storm direction and moves the player the first legal way', async () => {
+    const { deps } = makeDeps({
+      board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '2,2': { Tile_Type: 'Wall' } }),
+      // south is a wall, north is off the board, east is (3,1)
+      random: stormsInOrder(2, 6, 4),
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([3, 1]);
+    expect(result.data.response).toContain('You were stormed one tile east!');
+  });
+
+  it('never storms a Cloudborn onto a full tile', async () => {
+    const { deps } = makeDeps({
+      board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '2,2': FULL }),
+      player: createFakePlayer({ Player_ID: 1, Class_ID: 6, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10 }),
+      playerClass: createFakeClass({ Class_ID: 6, Class_Name: 'Cloudborn' }),
+      random: () => 2,
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([2, 1]);
   });
 
   it('lets a storm move a Cloudborn onto ice', async () => {
