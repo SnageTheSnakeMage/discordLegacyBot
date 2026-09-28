@@ -140,7 +140,7 @@ describe('grid_dev present', () => {
     expect(out).toEqual({ content: 'Only the dev can use this command.' });
   });
 
-  it('prefers a carried legacy message over the shared table', () => {
+  it('prefers a carried message over the shared table', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.NOT_DEV, data: { message: 'nope' } });
     expect(out).toEqual({ content: 'nope' });
   });

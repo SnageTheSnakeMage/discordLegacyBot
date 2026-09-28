@@ -72,7 +72,7 @@ describe('dig.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a player who is not in the game (looked up by Discord_ID, the old Player_ID lookup was a crash)', async () => {
+  it('rejects a player who is not in the game (looked up by Discord_ID)', async () => {
     const { deps } = happyDeps();
     deps.models.Players.findOne = jest.fn(async () => null);
     const result = await logic.run(INPUT, deps);
@@ -110,7 +110,7 @@ describe('dig.run rejections', () => {
     })).toEqual([]);
   });
 
-  it('gamestate gate runs before the missing-tile check (legacy order)', async () => {
+  it('gamestate gate runs before the missing-tile check', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.OVER }),
       tileToChange: null,
@@ -177,7 +177,7 @@ describe('dig.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('reports a gateway before the range check (legacy order)', async () => {
+  it('reports a gateway before the range check', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 9, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
     });
@@ -236,7 +236,7 @@ describe('dig.run success', () => {
     );
   });
 
-  it('lets a dead Gravedigger dig (no dead check - preserved quirk)', async () => {
+  it('lets a dead Gravedigger dig (no dead check)', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: DIGGER, Action_Points: 5, Range_: 3, Tile_ID: 1, Dead: true }),
     });
@@ -248,7 +248,7 @@ describe('dig.run success', () => {
     );
   });
 
-  it('re-digs a tile that is already Void (preserved quirk)', async () => {
+  it('re-digs a tile that is already Void', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Void' }),
     });
@@ -281,7 +281,7 @@ describe('dig.present', () => {
     })).toEqual([]);
   });
 
-  it('renders success naming the PRE-dig tile type, not Void (preserved quirk)', () => {
+  it('renders success naming the PRE-dig tile type, not Void', () => {
     const out = logic.present({
       ok: true,
       kind: 'dug',

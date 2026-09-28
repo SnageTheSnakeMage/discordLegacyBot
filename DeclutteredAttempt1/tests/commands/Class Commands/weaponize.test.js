@@ -71,7 +71,7 @@ describe('weaponize.parse', () => {
     });
   });
 
-  it('defaults an absent player option to the actor (the old code crashed here)', () => {
+  it('defaults an absent player option to the actor', () => {
     const input = logic.parse(
       { player: null, playerUsername: null, x: null, y: null, game: null },
       { discordId: SMITH, username: 'snage' },

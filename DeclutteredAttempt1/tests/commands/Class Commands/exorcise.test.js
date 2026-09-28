@@ -197,7 +197,7 @@ describe('exorcise.run rejections', () => {
 
   // quirk: tile mode gates on 3 AP but deducts 4, so exactly 3 AP passes
   // the gate and leaves the exorcist on -1
-  it('accepts tile mode at exactly 3 AP and deducts 4 (boundary: exact, pins the 3-gate/4-cost quirk)', async () => {
+  it('accepts tile mode at exactly 3 AP and deducts 4 (boundary: exact; the gate is 3 AP and the cost 4)', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: EXORCIST, Action_Points: 3, Range_: 3, Tile_ID: 1 }),
     });

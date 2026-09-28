@@ -107,7 +107,7 @@ describe('freeze.run rejections', () => {
     })).toEqual([]);
   });
 
-  it('gates on gamestate before even looking the tile up (legacy order, unlike /burn)', async () => {
+  it('gates on gamestate before even looking the tile up', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.OVER }),
       tileToChange: null,
@@ -124,7 +124,7 @@ describe('freeze.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('reports the missing tile before the class check (legacy order)', async () => {
+  it('reports the missing tile before the class check', async () => {
     const { deps } = happyDeps({
       tileToChange: null,
       playerClass: createFakeClass({ Class_Name: 'Average' }),
@@ -170,7 +170,7 @@ describe('freeze.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('reports a gateway before the range check (legacy order)', async () => {
+  it('reports a gateway before the range check', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 9, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
     });
@@ -229,7 +229,7 @@ describe('freeze.run success', () => {
     );
   });
 
-  it('lets a DEAD Snowman freeze (no dead check in the old command - preserved quirk)', async () => {
+  it('lets a DEAD Snowman freeze (there is no dead check)', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: SNOWMAN, Action_Points: 5, Range_: 3, Tile_ID: 1, Dead: true }),
     });
@@ -241,7 +241,7 @@ describe('freeze.run success', () => {
     );
   });
 
-  it('still freezes an occupied tile (no occupant check - preserved quirk)', async () => {
+  it('still freezes an occupied tile (no occupant check)', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1', Player1: 2 }),
     });
@@ -253,7 +253,7 @@ describe('freeze.run success', () => {
     );
   });
 
-  it('re-freezes a tile that is already Ice (preserved quirk)', async () => {
+  it('re-freezes a tile that is already Ice', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Ice' }),
     });
@@ -286,7 +286,7 @@ describe('freeze.present', () => {
     })).toEqual([]);
   });
 
-  it('renders success naming the PRE-freeze tile type with no username prefix (preserved quirk)', () => {
+  it('renders success naming the PRE-freeze tile type with no username prefix', () => {
     const out = logic.present({
       ok: true,
       kind: 'frozen',

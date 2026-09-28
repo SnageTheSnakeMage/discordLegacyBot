@@ -211,7 +211,7 @@ describe('punish.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a tile one beyond max range with the legacy distance message (boundary: one beyond)', async () => {
+  it('rejects a tile one beyond max range with its distance message (boundary: one beyond)', async () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, x: 5, y: 1 }, deps);
     expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
@@ -228,7 +228,7 @@ describe('punish.run rejections', () => {
   });
 });
 
-describe('punish.run preserved quirks', () => {
+describe('punish.run quirks', () => {
   // was: looked up by Discord_ID alone, so a player registered only in
   // another game could be named as the target
   it('scopes the target lookup to this game', async () => {
@@ -272,7 +272,7 @@ describe('punish.present', () => {
     })).toEqual([]);
   });
 
-  it('passes a carried legacy message straight through', () => {
+  it('passes a carried message straight through', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.OUT_OF_RANGE, data: { message: 'That tile is 2 tiles out of range!' } });
     expect(out).toEqual({ content: 'That tile is 2 tiles out of range!' });
   });

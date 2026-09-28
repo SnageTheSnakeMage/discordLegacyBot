@@ -172,7 +172,7 @@ describe('timestop.run success', () => {
 });
 
 describe('timestop.present', () => {
-  it('renders the wrong-class rejection with its legacy wording', () => {
+  it('renders the wrong-class rejection with its wording', () => {
     const out = logic.present({
       ok: false,
       reason: REJECTIONS.WRONG_CLASS,
@@ -181,7 +181,7 @@ describe('timestop.present', () => {
     expect(out).toEqual({ content: 'Only clockwatchers can stop time!' });
   });
 
-  it('renders the not-enough-AP rejection with its legacy wording', () => {
+  it('renders the not-enough-AP rejection with its wording', () => {
     const out = logic.present({
       ok: false,
       reason: REJECTIONS.NOT_ENOUGH_AP,

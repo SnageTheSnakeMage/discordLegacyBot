@@ -185,12 +185,12 @@ describe('timestop-dev run success', () => {
 });
 
 describe('timestop-dev present', () => {
-  it('renders the pause success with its exact legacy wording', () => {
+  it('renders the pause success with its exact wording', () => {
     const out = logic.present({ ok: true, kind: 'paused', data: { gameId: 3 } });
     expect(out).toEqual({ content: 'Game 3 has been paused!' });
   });
 
-  it('renders the unpause success with its exact legacy wording', () => {
+  it('renders the unpause success with its exact wording', () => {
     const out = logic.present({ ok: true, kind: 'unpaused', data: { gameId: 3 } });
     expect(out).toEqual({ content: 'Game 3 is unpaused!' });
   });

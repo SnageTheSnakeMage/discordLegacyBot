@@ -84,7 +84,7 @@ describe('stats.parse', () => {
 });
 
 describe('stats.run rejections', () => {
-  it('rejects a target not in the game with the exact legacy message (was a throw)', async () => {
+  it('rejects a target not in the game with its exact message', async () => {
     const deps = happyDeps();
     deps.models.Players.findOne = jest.fn(async () => null);
     const result = await logic.run(INPUT, deps);
@@ -96,7 +96,7 @@ describe('stats.run rejections', () => {
     assertNoWrites(deps);
   });
 
-  it('rejects an unknown game (the old code crashed on game.GAME_STATE)', async () => {
+  it('rejects an unknown game', async () => {
     const deps = happyDeps();
     deps.models.Games.findByPk = jest.fn(async () => null);
     const result = await logic.run(INPUT, deps);
@@ -490,7 +490,7 @@ describe('stats.present', () => {
     expect(out.embeds[0].fields).toContainEqual({ name: 'Meals', value: '2', inline: true });
   });
 
-  it('shows overflow Pharoh HP for a default class as a string (legacy passed a crashing number)', () => {
+  it('shows overflow Pharoh HP for a default class as a string', () => {
     const out = logic.present(ok({ pharohHp: 3 }));
     expect(out.embeds[0].fields.slice(-2)).toEqual([
       { name: '\u200B', value: '\u200B' },
@@ -498,7 +498,7 @@ describe('stats.present', () => {
     ]);
   });
 
-  it('shows overflow Pharoh HP for a Spy too (legacy default switch branch)', () => {
+  it('shows overflow Pharoh HP for a Spy too', () => {
     const out = logic.present(ok({ className: 'Spy', pharohHp: 3 }));
     expect(fieldNames(out)).toContain('Pharoh HP');
   });

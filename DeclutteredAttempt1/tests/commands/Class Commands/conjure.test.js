@@ -89,7 +89,7 @@ describe('conjure.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('reports the dead player before the missing tile (legacy order, unlike burn)', async () => {
+  it('reports the dead player before the missing tile', async () => {
     const { deps } = happyDeps({
       tileToChange: null,
       player: createFakePlayer({ Player_ID: 1, Discord_ID: DRUID, Dead: true, Range_: 3, Tile_ID: 1 }),
@@ -125,7 +125,7 @@ describe('conjure.run rejections', () => {
     })).toEqual([]);
   });
 
-  it('reports the gamestate before the missing tile (legacy order)', async () => {
+  it('reports the gamestate before the missing tile', async () => {
     const { deps } = happyDeps({
       tileToChange: null,
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.DEV_PAUSED }),
@@ -178,7 +178,7 @@ describe('conjure.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('reports a gateway before the range check (legacy order)', async () => {
+  it('reports a gateway before the range check', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 9, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
     });
@@ -237,7 +237,7 @@ describe('conjure.run success', () => {
     );
   });
 
-  it('still conjures on an occupied tile (no occupant check - preserved quirk)', async () => {
+  it('still conjures on an occupied tile (no occupant check)', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1', Player1: 2 }),
     });
@@ -249,7 +249,7 @@ describe('conjure.run success', () => {
     );
   });
 
-  it('re-conjures a tile that is already Storm (preserved quirk)', async () => {
+  it('re-conjures a tile that is already Storm', async () => {
     const { deps } = happyDeps({
       tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Storm' }),
     });
@@ -283,7 +283,7 @@ describe('conjure.present', () => {
     })).toEqual([]);
   });
 
-  it('renders success naming the PRE-conjure tile type, not Storm (preserved quirk)', () => {
+  it('renders success naming the PRE-conjure tile type, not Storm', () => {
     const out = logic.present({
       ok: true,
       kind: 'conjured',

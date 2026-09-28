@@ -68,7 +68,7 @@ describe('override.run rejections', () => {
   // preserved quirk: the legacy condition `!player.Dead || Class_Name != "Medium"`
   // only lets a player who is BOTH dead AND a Medium through, despite the
   // message saying "Dead or Medium" - these three pin that
-  it('rejects a living Medium (quirk: must be dead AND Medium)', async () => {
+  it('rejects a living Medium (must be dead AND Medium)', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: ACTOR, Dead: false, cCOverides: 3 }),
     });
@@ -77,7 +77,7 @@ describe('override.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it('rejects a dead non-Medium (quirk: must be dead AND Medium)', async () => {
+  it('rejects a dead non-Medium (must be dead AND Medium)', async () => {
     const { deps } = happyDeps({ playerClass: createFakeClass({ Class_Name: 'Average' }) });
     const result = await logic.run(INPUT, deps);
     expect(result.reason).toBe(REJECTIONS.NOT_DEAD_OR_MEDIUM);
@@ -160,12 +160,12 @@ describe('override.run success', () => {
 });
 
 describe('override.present', () => {
-  it('renders the not-dead-or-medium rejection with the exact legacy wording', () => {
+  it('renders the not-dead-or-medium rejection with its exact wording', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.NOT_DEAD_OR_MEDIUM });
     expect(out).toEqual({ content: 'Only Dead or Medium can override a chaos council poll!' });
   });
 
-  it('renders the no-overrides rejection with the exact legacy wording', () => {
+  it('renders the no-overrides rejection with its exact wording', () => {
     const out = logic.present({ ok: false, reason: REJECTIONS.NO_OVERRIDES });
     expect(out).toEqual({ content: "You don't have any overrides left!" });
   });

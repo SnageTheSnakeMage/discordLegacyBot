@@ -79,7 +79,7 @@ describe('getSpawnpointTile', () => {
     expect(await utils.getSpawnpointTile(1)).toBe(free);
   });
 
-  it('rerolls past a full tile and returns the reroll result (was undefined before the async fixes)', async () => {
+  it('rerolls past a full tile and returns the reroll result', async () => {
     jest.spyOn(utils.models.Layers, 'findAll').mockResolvedValue([{ Layer_ID: 1 }]);
     const full = createFakeTile({ Tile_ID: 5, Player1: 1, Player2: 2, Player3: 3, Player4: 4 });
     const free = createFakeTile({ Tile_ID: 6 });

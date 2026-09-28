@@ -51,7 +51,7 @@ const DEFAULT_ROW = {
 };
 
 describe('createGame.parse', () => {
-  it('applies every legacy default when no option is supplied', () => {
+  it('applies every default when no option is supplied', () => {
     expect(logic.parse({}, { discordId: DEV, username: 'snage' })).toEqual({
       apDistributionInterval: 720,
       chestAmount: 0,

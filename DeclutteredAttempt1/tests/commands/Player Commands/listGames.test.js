@@ -97,7 +97,7 @@ describe('listGames.run', () => {
 });
 
 describe('listGames.present', () => {
-  it('renders one game byte-identical to the legacy format', () => {
+  it('renders one game exactly', () => {
     const out = logic.present({ ok: true, kind: 'gameList', data: { games: [
       { gameId: 1, gameState: 'ACTIVE', flags: ['clock running'], chaosEvent: 'BOOOORRRINNNG', winner: null },
     ] } });
@@ -155,7 +155,7 @@ describe('listGames.present', () => {
     }
   });
 
-  it('preserves the old quirk: an unknown chaos event renders its description as "undefined"', () => {
+  it('an unknown chaos event renders its description as "undefined"', () => {
     const out = logic.present({ ok: true, kind: 'gameList', data: { games: [
       { gameId: 3, gameState: 'ACTIVE', chaosEvent: 'Not A Real Event', winner: null },
     ] } });

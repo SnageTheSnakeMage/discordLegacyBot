@@ -211,7 +211,7 @@ describe('store.run success', () => {
 });
 
 describe('store.present', () => {
-  it('renders the not-on-chest-tile rejection with the exact legacy string', () => {
+  it('renders the not-on-chest-tile rejection with its exact string', () => {
     const out = logic.present({
       ok: false,
       reason: REJECTIONS.WRONG_TILE_TYPE,
@@ -220,7 +220,7 @@ describe('store.present', () => {
     expect(out).toEqual({ content: 'You are not on a chest tile!' });
   });
 
-  it('renders the not-enough-AP rejection with the exact legacy string', () => {
+  it('renders the not-enough-AP rejection with its exact string', () => {
     const out = logic.present({
       ok: false,
       reason: REJECTIONS.NOT_ENOUGH_AP,
@@ -236,7 +236,7 @@ describe('store.present', () => {
 
   // quirk pin: an omitted amount renders as the string "null", as the old
   // string concatenation did
-  it('renders a null amount as "null", byte-identical to the legacy concat', () => {
+  it('renders a null amount as "null", exactly', () => {
     const out = logic.present({ ok: true, kind: 'stored', data: { amount: null } });
     expect(out).toEqual({ content: 'You have stored null AP in the chest!' });
   });
