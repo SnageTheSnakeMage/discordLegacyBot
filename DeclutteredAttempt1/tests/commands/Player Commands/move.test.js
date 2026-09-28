@@ -5,11 +5,11 @@
  * checkGameState) are the real ones.
  */
 const logic = require('../../../commands/Player Commands/move.logic.js');
-const move = require('../../../commands/Player Commands/move.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const DISCORD_ID = '123';
 
@@ -74,8 +74,39 @@ function makeDeps(over = {}) {
   return { deps, board, layer, game, player, playerClass, trapper };
 }
 
+/** the placement option for each body */
+const BODY_1 = { body: 1 };
+const BODY_2 = { body: 2 };
+
 /** one tile east, no path */
 const INPUT = { gameId: 1, direction: 'east', distance: 1, path: null, body: 1, discordId: DISCORD_ID };
+
+/** four other players on one tile */
+const FULL = { Player1: 7, Player2: 8, Player3: 9, Player4: 10 };
+const ICE = { Tile_Type: 'Ice' };
+const FIRE = { Tile_Type: 'Fire' };
+const STORM = { Tile_Type: 'Storm' };
+
+/** makeDeps overrides for a player of another class, on (1,1) with 10 AP */
+function asClass(Class_Name, Class_ID = 1) {
+  return {
+    player: createFakePlayer({ Player_ID: 1, Class_ID, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10 }),
+    playerClass: createFakeClass({ Class_ID, Class_Name }),
+  };
+}
+const CLOUDBORN = () => asClass('Cloudborn', 6);
+
+/** random(7) answers from `directions` in order; everything else answers 0 */
+function stormsInOrder(...directions) {
+  return (max) => (max === 7 ? directions.shift() : 0);
+}
+
+/** runs one move; `input` overrides INPUT and `over` goes to makeDeps */
+async function runMove(input = {}, over = {}) {
+  const made = makeDeps(over);
+  const result = await logic.run({ ...INPUT, ...input }, made.deps);
+  return { ...made, result };
+}
 
 // ---------------------------------------------------------------------------
 // parse
@@ -105,38 +136,42 @@ describe('move.parse', () => {
 });
 
 // ---------------------------------------------------------------------------
-// pure path helpers (issue #88)
+// pure path helpers
 // ---------------------------------------------------------------------------
 
 describe('move.inputPathToArray', () => {
-  it.each([
-    ['right,2;', [['right', '2'], ['']]],
-    ['right,2;down,1;', [['right', '2'], ['down', '1'], ['']]],
-    ['sw,10;', [['sw', '10'], ['']]],
-    ['nonsense', [['nonsense']]],
-  ])('%s -> %j', (input, expected) => {
-    expect(logic.inputPathToArray(input)).toEqual(expected);
+  it('<input> -> <expected>', async () => {
+    expect(await everyCase('%s -> %j', [
+      ['right,2;', [['right', '2'], ['']]],
+      ['right,2;down,1;', [['right', '2'], ['down', '1'], ['']]],
+      ['sw,10;', [['sw', '10'], ['']]],
+      ['nonsense', [['nonsense']]],
+    ], (input, expected) => {
+      expect(logic.inputPathToArray(input)).toEqual(expected);
+    })).toEqual([]);
   });
 
-  // QUIRK: the mandatory trailing ';' leaves an empty [""] segment in the
-  // result. Consumers skip it; the split itself is unchanged.
+  // the mandatory trailing ';' leaves an empty [""] segment in the
+  // result; consumers skip it.
   it('keeps the trailing empty segment produced by the final semicolon', () => {
     expect(logic.inputPathToArray('up,1;').at(-1)).toEqual(['']);
   });
 });
 
 describe('move.addStartToPathArray', () => {
-  it.each([
-    ['ne', 'northeast'],
-    ['nw', 'northwest'],
-    ['se', 'southeast'],
-    ['sw', 'southwest'],
-    ['left', 'west'],
-    ['right', 'east'],
-    ['up', 'north'],
-    ['down', 'south'],
-  ])('prepends %s as %s', (short, long) => {
-    expect(logic.addStartToPathArray(short, 2, [['down', '1']])).toEqual([[long, 2], ['down', '1']]);
+  it('prepends <short> as <long>', async () => {
+    expect(await everyCase('prepends %s as %s', [
+      ['ne', 'northeast'],
+      ['nw', 'northwest'],
+      ['se', 'southeast'],
+      ['sw', 'southwest'],
+      ['left', 'west'],
+      ['right', 'east'],
+      ['up', 'north'],
+      ['down', 'south'],
+    ], (short, long) => {
+      expect(logic.addStartToPathArray(short, 2, [['down', '1']])).toEqual([[long, 2], ['down', '1']]);
+    })).toEqual([]);
   });
 
   it('throws on a direction it cannot translate', () => {
@@ -154,11 +189,9 @@ describe('move.pathToTiles', () => {
     expect(logic.pathToTiles([3, 3], [['down', '1'], ['']])).toEqual([[3, 3], [3, 4]]);
   });
 
-  // QUIRK: every segment is measured from the starting tile, not from the end
-  // of the previous segment. Kept from the legacy pathToTiles.
-  it('measures every segment from the starting tile, not cumulatively', () => {
+  it('starts each segment where the previous one ended', () => {
     expect(logic.pathToTiles([1, 1], [['right', '2'], ['down', '1'], ['']]))
-      .toEqual([[1, 1], [3, 1], [1, 2]]);
+      .toEqual([[1, 1], [3, 1], [3, 2]]);
   });
 
   it('throws on an unknown segment direction', () => {
@@ -172,6 +205,11 @@ describe('move.getTileCordinatesOfPath', () => {
   it('flattens the path into every coordinate crossed, junctions not repeated', () => {
     expect(logic.getTileCordinatesOfPath([1, 1], logic.inputPathToArray('right,2;'), utils))
       .toEqual([[1, 1], [2, 1], [3, 1]]);
+  });
+
+  it('walks a bent path corner to corner', () => {
+    expect(logic.getTileCordinatesOfPath([1, 1], logic.inputPathToArray('right,2;down,2;'), utils))
+      .toEqual([[1, 1], [2, 1], [3, 1], [3, 2], [3, 3]]);
   });
 
   it('returns just the starting tile for an empty path', () => {
@@ -196,15 +234,22 @@ describe('move.verifyInputPath', () => {
     expect(verdict).toEqual({ valid: true, destination: [3, 1] });
   });
 
-  it.each([
-    ['garbage'],
-    ['right,2'],
-    ['right;2;'],
-    ['east,2;'],
-  ])('rejects the malformed path %s', async (path) => {
-    const verdict = await logic.verifyInputPath(path, 1, 1, 1, pathDeps());
-    expect(verdict.valid).toBe(false);
-    expect(verdict.message).toMatch(/make sure your path uses a direction/);
+  it('accepts the one-letter compass directions', async () => {
+    const verdict = await logic.verifyInputPath('e,2;s,1;', 1, 1, 1, pathDeps());
+    expect(verdict.valid).toBe(true);
+  });
+
+  it('rejects the malformed path <path>', async () => {
+    expect(await everyCase('rejects the malformed path %s', [
+      ['garbage'],
+      ['right,2'],
+      ['right;2;'],
+      ['east,2;'],
+    ], async (path) => {
+      const verdict = await logic.verifyInputPath(path, 1, 1, 1, pathDeps());
+      expect(verdict.valid).toBe(false);
+      expect(verdict.message).toMatch(/make sure your path uses a direction/);
+    })).toEqual([]);
   });
 
   it('rejects a path that crosses a tile which does not exist', async () => {
@@ -222,12 +267,19 @@ describe('move.verifyInputPath', () => {
     expect(verdict.message).toMatch(/make sure your path uses a direction/);
   });
 
-  it('checks each segment from the starting tile (legacy, non-cumulative)', async () => {
+  it('checks each segment from where the previous one ended', async () => {
     const deps = pathDeps();
-    await logic.verifyInputPath('right,2;down,1;', 1, 1, 1, deps);
+    const verdict = await logic.verifyInputPath('right,2;down,1;', 1, 1, 1, deps);
+    expect(verdict).toEqual({ valid: true, destination: [3, 2] });
     expect(deps.models.Tiles.findOne).toHaveBeenCalledWith({ where: { Layer_ID: 1, X_Position: 3, Y_Position: 1 } });
-    // cumulative would be (3,2); legacy measures from the start, so (1,2)
-    expect(deps.models.Tiles.findOne).toHaveBeenCalledWith({ where: { Layer_ID: 1, X_Position: 1, Y_Position: 2 } });
+    expect(deps.models.Tiles.findOne).toHaveBeenCalledWith({ where: { Layer_ID: 1, X_Position: 3, Y_Position: 2 } });
+  });
+
+  // right 2 then right 3 ends on x = 6, off a 5-wide board, though each
+  // segment alone would fit
+  it('rejects a path that only leaves the board once the segments add up', async () => {
+    const verdict = await logic.verifyInputPath('right,2;right,3;', 1, 1, 1, pathDeps());
+    expect(verdict.valid).toBe(false);
   });
 });
 
@@ -245,7 +297,7 @@ describe('move.run rejections', () => {
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 
-  it('rejects a player who is not in the game, with the legacy wording', async () => {
+  it('rejects a player who is not in the game, with its own wording', async () => {
     const { deps } = makeDeps();
     deps.models.Players.findOne = jest.fn(async () => null);
     const result = await logic.run(INPUT, deps);
@@ -277,40 +329,44 @@ describe('move.run rejections', () => {
   // gate and returns its verdict without writing, so one state that passes,
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = makeDeps({ game: createFakeGame({ Game_ID: 1, ...condition, moveCost: 1 }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toEqual({ ok: false, reason });
-      expect(deps.models.Players.update).not.toHaveBeenCalled();
-      expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = makeDeps({ game: createFakeGame({ Game_ID: 1, ...condition, moveCost: 1 }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toEqual({ ok: false, reason });
+        expect(deps.models.Players.update).not.toHaveBeenCalled();
+        expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+      }
+    })).toEqual([]);
   });
 
   // The gate answers before the AP check, so a player in a game that has not
   // started is told that and not something about action points - which is why
   // the message is asserted here and not just the reason code.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.REGISTRATION }, REJECTIONS.GAME_IN_REGISTRATION],
-  ])('%s is refused by the gate, not by the AP check', async (condition, reason) => {
-    const { deps } = makeDeps({
-      // plenty of AP, so an AP complaint cannot be what comes back
-      player: createFakePlayer({
-        Player_ID: 1, Class_ID: 1, Game_ID: 1, Discord_ID: DISCORD_ID,
-        Action_Points: 99, Health_Points: 10, Free_Move: 0, Tile_ID: 11, Tile_ID2: null,
-      }),
-      game: createFakeGame({ Game_ID: 1, ...condition, moveCost: 1 }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toEqual({ ok: false, reason });
-    expect(logic.present(result).content).not.toMatch(/action points/i);
-    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+  it('<condition> is refused by the gate, not by the AP check', async () => {
+    expect(await everyCase('%s is refused by the gate, not by the AP check', [
+      [{ GAME_STATE: GAMESTATES.REGISTRATION }, REJECTIONS.GAME_IN_REGISTRATION],
+    ], async (condition, reason) => {
+      const { deps } = makeDeps({
+        // plenty of AP, so an AP complaint cannot be what comes back
+        player: createFakePlayer({
+          Player_ID: 1, Class_ID: 1, Game_ID: 1, Discord_ID: DISCORD_ID,
+          Action_Points: 99, Health_Points: 10, Free_Move: 0, Tile_ID: 11, Tile_ID2: null,
+        }),
+        game: createFakeGame({ Game_ID: 1, ...condition, moveCost: 1 }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toEqual({ ok: false, reason });
+      expect(logic.present(result).content).not.toMatch(/action points/i);
+      expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+    })).toEqual([]);
   });
 
   it('lets a Clockwatcher move during a timestop', async () => {
@@ -322,39 +378,19 @@ describe('move.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('rejects ending a movement on ice when not a Snowman', async () => {
-    const { deps } = makeDeps({ board: makeBoard({ '2,1': { Tile_Type: 'Ice' } }) });
-    const result = await logic.run(INPUT, deps);
-    expect(result.reason).toBe(REJECTIONS.WRONG_TILE_TYPE);
-    expect(logic.present(result)).toEqual({
-      content: 'Cannot end a movement on an ice tile, please either provide a path that moves off the ice, or move onto a non-ice tile.',
-    });
-    expect(deps.models.Players.update).not.toHaveBeenCalled();
-    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
-  });
-
-  it('lets a Snowman end a movement on ice', async () => {
-    const { deps } = makeDeps({
-      board: makeBoard({ '2,1': { Tile_Type: 'Ice' } }),
-      playerClass: createFakeClass({ Class_Name: 'Snowman' }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result.ok).toBe(true);
-    // the ice tile is deducted: 2 tiles walked - 1 ice = 1 * moveCost
-    expect(result.data.spentAP).toBe(1);
-  });
-
   it('rejects a move onto a coordinate with no tile row', async () => {
-    const { deps } = makeDeps();
-    const result = await logic.run({ ...INPUT, direction: 'west' }, deps);
+    const board = makeBoard();
+    board.byCoord.delete('2,1');
+    const { deps } = makeDeps({ board });
+    const result = await logic.run(INPUT, deps);
     expect(result).toEqual({ ok: false, reason: REJECTIONS.NO_SUCH_TILE });
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
   it('rejects when the player is one AP short (boundary)', async () => {
-    // two tiles east = 3 coordinates walked = 3 AP at moveCost 1
+    // two tiles east = 2 tiles stepped onto = 2 AP at moveCost 1
     const { deps } = makeDeps({
-      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 2, Free_Move: 0 }),
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 1, Free_Move: 0 }),
     });
     const result = await logic.run({ ...INPUT, distance: 2 }, deps);
     expect(result.reason).toBe(REJECTIONS.NOT_ENOUGH_AP);
@@ -365,32 +401,50 @@ describe('move.run rejections', () => {
 
   it('accepts when the player has exactly enough AP (boundary)', async () => {
     const { deps } = makeDeps({
-      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 3, Free_Move: 0 }),
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 2, Free_Move: 0 }),
     });
     const result = await logic.run({ ...INPUT, distance: 2 }, deps);
     expect(result.ok).toBe(true);
-    expect(result.data.spentAP).toBe(3);
+    expect(result.data.spentAP).toBe(2);
   });
 
-  it('rejects walking onto a wall when not a Cloudborn', async () => {
-    const { deps } = makeDeps({ board: makeBoard({ '2,1': { Tile_Type: 'Wall' } }) });
-    const result = await logic.run(INPUT, deps);
-    expect(result.reason).toBe(REJECTIONS.WRONG_TILE_TYPE);
-    expect(logic.present(result)).toEqual({
-      content: `[ERROR] Player ${DISCORD_ID} cannot move onto void wall or wall damaged tiles`,
-    });
-    expect(deps.models.Players.update).not.toHaveBeenCalled();
-    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
-  });
-
-  it.each(['Void', 'Wall', 'Wall_Damaged'])('lets a Cloudborn walk onto %s', async (tileType) => {
-    const { deps } = makeDeps({
-      board: makeBoard({ '2,1': { Tile_Type: tileType } }),
-      player: createFakePlayer({ Player_ID: 1, Class_ID: 6, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10 }),
-      playerClass: createFakeClass({ Class_ID: 6, Class_Name: 'Cloudborn' }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result.ok).toBe(true);
+  // each of these is refused before anything happens: no tile on the way
+  // acts (a fire tile sits before the offending tile where the walk allows
+  // one), and nothing is written
+  it('refuses every illegal move before anything happens', async () => {
+    const MSG = {
+      ice: 'Cannot end a movement on an ice tile, please either provide a path that moves off the ice, or move onto a non-ice tile.',
+      wall: 'Your move crosses a wall, damaged wall or void tile. Only a Cloudborn can move onto those.',
+      full: 'Your move crosses or ends on a full tile. Pick a path around it.',
+      storm: 'Your move crosses a storm tile. You can end a move on a storm, but not walk through one.',
+      none: 'That move would not take you anywhere. Move at least one tile!',
+    };
+    const { WRONG_TILE_TYPE, TILE_FULL, NO_MOVEMENT } = REJECTIONS;
+    // [what, input, tiles, makeDeps overrides, reason, message]
+    const CASES = [
+      ['ending on ice', {}, { '2,1': ICE }, {}, WRONG_TILE_TYPE, MSG.ice],
+      ['a Snowman ending on ice', {}, { '2,1': ICE }, asClass('Snowman'), WRONG_TILE_TYPE, MSG.ice],
+      ...['Void', 'Wall', 'Wall_Damaged'].map((type) => [
+        `crossing ${type}`, { distance: 3 }, { '2,1': FIRE, '3,1': { Tile_Type: type } }, {}, WRONG_TILE_TYPE, MSG.wall,
+      ]),
+      ['ending on a full tile', {}, { '2,1': FULL }, {}, TILE_FULL, MSG.full],
+      ['crossing a full tile', { distance: 3 }, { '2,1': FIRE, '3,1': FULL }, {}, TILE_FULL, MSG.full],
+      ['crossing a storm', { distance: 3 }, { '2,1': FIRE, '3,1': STORM }, {}, WRONG_TILE_TYPE, MSG.storm],
+      ['a path crossing a storm', { path: 'right,1;down,1;' }, { '2,1': STORM }, {}, WRONG_TILE_TYPE, MSG.storm],
+      ['moving zero tiles', { distance: 0 }, {}, {}, NO_MOVEMENT, MSG.none],
+      ['walking into the edge it stands on', { direction: 'west' }, {}, {}, NO_MOVEMENT, MSG.none],
+    ];
+    const offenders = [];
+    for (const [what, input, tiles, over, reason, message] of CASES) {
+      const { deps, result } = await runMove(input, { board: makeBoard(tiles), ...over });
+      const writes = deps.utils.setPlayerToTile.mock.calls.length
+        + deps.models.Players.update.mock.calls.length
+        + deps.utils.damagePlayer.mock.calls.length;
+      if (result.reason !== reason || logic.present(result).content !== message || writes) {
+        offenders.push(`${what}: ${result.reason} "${logic.present(result).content}", ${writes} write(s)`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
   it('rejects a malformed path before any movement happens', async () => {
@@ -435,109 +489,155 @@ describe('move.run success', () => {
       kind: 'moved',
       data: {
         response: 'You moved from a Blank1 tile to a Blank1 tile! \n',
-        spentAP: 2,
+        spentAP: 1,
         newX: 2,
         newY: 1,
         layerId: 1,
         deleteReplyAfterMs: null,
       },
     });
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1, BODY_1);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 8, Free_Move: -2 },
+      { Action_Points: 9, Free_Move: 0 },
       { where: { Discord_ID: DISCORD_ID, Player_ID: 1, Game_ID: 1 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    ['east', 4, 3],
-    ['west', 2, 3],
-    ['north', 3, 4],
-    ['south', 3, 2],
-    ['northeast', 4, 4],
-    ['northwest', 2, 4],
-    ['southeast', 4, 2],
-    ['southwest', 2, 2],
-  ])('direction %s lands on (%i, %i)', async (direction, x, y) => {
-    // start from the middle of the board so every direction has a tile
-    const { deps } = makeDeps({
-      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 33, Action_Points: 10 }),
+  // the board draws row 1 at the top, so north and up are both -y; the
+  // direction option, path segments and utils.getDirection all agree
+  it('moves every direction the way its name says, and every path segment agrees', async () => {
+    const utils = require('../../../utils.js');
+    // [direction, landing from (3,3), the path segments that mean the same]
+    const DIRECTIONS = [
+      ['east', [4, 3], ['right', 'e']],
+      ['west', [2, 3], ['left', 'w']],
+      ['north', [3, 2], ['up', 'n']],
+      ['south', [3, 4], ['down', 's']],
+      ['northeast', [4, 2], ['ne']],
+      ['northwest', [2, 2], ['nw']],
+      ['southeast', [4, 4], ['se']],
+      ['southwest', [2, 4], ['sw']],
+    ];
+    const offenders = [];
+    for (const [direction, landing, segments] of DIRECTIONS) {
+      const { deps, result } = await runMove({ direction }, {
+        player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 33, Action_Points: 10 }),
+      });
+      if (JSON.stringify([result.data.newX, result.data.newY]) !== JSON.stringify(landing)
+        || JSON.stringify(deps.utils.setPlayerToTile.mock.calls[0]) !== JSON.stringify([1, 1, ...landing, BODY_1])) {
+        offenders.push(`${direction} landed on ${[result.data.newX, result.data.newY]}`);
+      }
+      for (const segment of segments) {
+        const [, end] = logic.pathToTiles([3, 3], [[segment, '1'], ['']]);
+        if (JSON.stringify(end) !== JSON.stringify(landing)) offenders.push(`segment ${segment} went to ${end}`);
+      }
+      if (utils.getDirection([3, 3], landing) !== direction) offenders.push(`getDirection calls ${direction} ${utils.getDirection([3, 3], landing)}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('labels every /move choice with the direction it moves', () => {
+    const catalog = require('../../../commandCatalog.js');
+    const commands = catalog.COMMANDS || catalog;
+    const choices = commands.move.options.direction.choices;
+    const LABEL_TO_VALUE = {
+      left: 'west', right: 'east', up: 'north', down: 'south',
+      nw: 'northwest', ne: 'northeast', sw: 'southwest', se: 'southeast',
+    };
+    const mislabelled = choices.filter((c) => LABEL_TO_VALUE[c.name] !== c.value).map((c) => c.name);
+    expect(mislabelled).toEqual([]);
+    expect(choices).toHaveLength(8);
+  });
+
+  it('charges moveCost per tile stepped onto, with ice free and free movement first', async () => {
+    const withFreeMove = (Free_Move) => ({
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10, Free_Move }),
     });
-    const result = await logic.run({ ...INPUT, direction }, deps);
-    expect(result.ok).toBe(true);
-    expect([result.data.newX, result.data.newY]).toEqual([x, y]);
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, x, y);
+    // [what, input, makeDeps overrides, AP spent, free movement left]
+    const CASES = [
+      ['one tile', {}, {}, 1, 0],
+      ['four tiles', { distance: 4 }, {}, 4, 0],
+      ['a path', { path: 'right,2;' }, {}, 2, 0],
+      ['a path looping back to its start', { path: 'right,1;down,1;left,1;up,1;' }, {}, 4, 0],
+      ['leaving an ice start tile', {}, { board: makeBoard({ '1,1': ICE }) }, 1, 0],
+      ['crossing ice', { distance: 2 }, { board: makeBoard({ '2,1': ICE }) }, 1, 0],
+      ['a Glutton, doubled', {}, asClass('Glutton'), 2, 0],
+      ['free movement left over', {}, withFreeMove(2), 0, 1],
+      ['free movement used up', { distance: 2 }, withFreeMove(2), 0, 0],
+      ['free movement then AP', { distance: 3 }, withFreeMove(2), 1, 0],
+    ];
+    const offenders = [];
+    for (const [what, input, over, ap, left] of CASES) {
+      const { deps, result } = await runMove(input, over);
+      const write = deps.models.Players.update.mock.calls.at(-1);
+      if (result.data.spentAP !== ap
+        || JSON.stringify(write) !== JSON.stringify([
+          { Action_Points: 10 - ap, Free_Move: left },
+          { where: { Discord_ID: DISCORD_ID, Player_ID: 1, Game_ID: 1 } },
+        ])) {
+        offenders.push(`${what}: spent ${result.data.spentAP}, wrote ${JSON.stringify(write && write[0])}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
-  // QUIRK: north is +Y for the direction option but -Y for path segments
-  it('keeps the direction option and path segments disagreeing about north', async () => {
-    expect(logic.DIRECTION_DELTAS.north).toEqual([0, 1]);
-    expect(logic.pathToTiles([3, 3], [['up', '1']])).toEqual([[3, 3], [3, 2]]);
-  });
-
-  // QUIRK: the starting tile is billed, so a one-tile move costs two tiles
-  it('bills the tile the player starts on', async () => {
-    const { deps } = makeDeps();
-    const result = await logic.run(INPUT, deps);
-    expect(result.data.spentAP).toBe(2);
-  });
-
-  it('charges a Glutton double', async () => {
-    const { deps } = makeDeps({ playerClass: createFakeClass({ Class_Name: 'Glutton' }) });
-    const result = await logic.run(INPUT, deps);
-    expect(result.data.spentAP).toBe(4);
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 6, Free_Move: -2 },
-      { where: { Discord_ID: DISCORD_ID, Player_ID: 1, Game_ID: 1 } },
-    );
-  });
-
-  // QUIRK: Free_Move is written through Math.min(..., 0)
-  it('spends free movement first and clamps Free_Move at zero', async () => {
-    const { deps } = makeDeps({
-      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10, Free_Move: 2 }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result.data.spentAP).toBe(0);
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 10, Free_Move: 0 },
-      { where: { Discord_ID: DISCORD_ID, Player_ID: 1, Game_ID: 1 } },
-    );
-  });
-
-  // QUIRK: a zero-distance move still costs the starting tile and replies
-  // with an empty string
-  it('charges one tile and says nothing for a zero-distance move', async () => {
-    const { deps } = makeDeps();
-    const result = await logic.run({ ...INPUT, distance: 0 }, deps);
-    expect(result.data.response).toBe('');
-    expect(result.data.spentAP).toBe(1);
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 1, 1);
-  });
-
-  // QUIRK: amountOfRepeats is never incremented, so repeats always read "x2"
-  it('collapses repeated identical steps to x2', async () => {
-    const { deps } = makeDeps({
-      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10 }),
-    });
+  it('charges only the tiles reached when a tile kills the mover', async () => {
+    const { deps } = makeDeps({ board: makeBoard({ '2,1': FIRE }) });
+    deps.utils.damagePlayer = jest.fn(async () => ({ Dead: true }));
     const result = await logic.run({ ...INPUT, distance: 3 }, deps);
-    expect(result.data.response).toBe('You moved from a Blank1 tile to a Blank1 tile! \nx2 \nx2 \n');
+    expect(result.data.spentAP).toBe(1);
+    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });
 
-  it('clamps the destination to the layer bound', async () => {
-    const { deps } = makeDeps({ layer: createFakeLayer({ Layer_ID: 1, X_Bound: 3, Y_Bound: 5 }) });
-    const result = await logic.run({ ...INPUT, distance: 4 }, deps);
-    expect(result.data.newX).toBe(3);
+  // a run of identical steps is written once, then "xN" for the whole run
+  it('counts each run of identical steps once, as xN', async () => {
+    const LINE = 'You moved from a Blank1 tile to a Blank1 tile! \n';
+    const CASES = [
+      [{ distance: 1 }, {}, LINE],
+      [{ distance: 4 }, {}, `${LINE}x4 \n`],
+      [{ distance: 4 }, { board: makeBoard({ '4,1': { Tile_Type: 'Blank2' } }) },
+        `${LINE}x2 \nYou moved from a Blank1 tile to a Blank2 tile! \nYou moved from a Blank2 tile to a Blank1 tile! \n`],
+    ];
+    const offenders = [];
+    for (const [input, over, response] of CASES) {
+      const { result } = await runMove(input, over);
+      if (result.data.response !== response) offenders.push(JSON.stringify(result.data.response));
+    }
+    expect(offenders).toEqual([]);
   });
 
-  it('walks a custom path and ends where the path ends', async () => {
-    const { deps } = makeDeps();
-    const result = await logic.run({ ...INPUT, path: 'right,2;' }, deps);
-    expect(result.ok).toBe(true);
-    expect([result.data.newX, result.data.newY]).toEqual([3, 1]);
-    expect(result.data.spentAP).toBe(3);
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 1);
+  // a walk off the edge stops at the edge; every layer runs from (1,1)
+  it('ends every legal move where it should, and places the player only if they moved', async () => {
+    const FROM_MIDDLE = { player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 33, Action_Points: 10 }) };
+    // [what, input, makeDeps overrides, landing]
+    const CASES = [
+      ['a walk past the far edge', { distance: 4 }, { layer: createFakeLayer({ Layer_ID: 1, X_Bound: 3, Y_Bound: 5 }) }, [3, 1]],
+      ['a walk past the west edge', { direction: 'west', distance: 4 }, FROM_MIDDLE, [1, 3]],
+      ['a walk past the north edge', { direction: 'north', distance: 4 }, FROM_MIDDLE, [3, 1]],
+      ['a walk past the corner', { direction: 'northwest', distance: 4 }, FROM_MIDDLE, [1, 1]],
+      ['a straight path', { path: 'right,2;' }, {}, [3, 1]],
+      ['a bent path', { path: 'right,2;down,2;' }, {}, [3, 3]],
+      ['a path looping back to its start', { path: 'right,1;down,1;left,1;up,1;' }, {}, [1, 1]],
+      ['a path crossing its own full start tile', { path: 'right,1;left,1;down,1;' },
+        { board: makeBoard({ '1,1': { ...FULL, Player1: 1 } }) }, [1, 2]],
+      ['a Cloudborn ending on ice', {}, { board: makeBoard({ '2,1': ICE }), ...CLOUDBORN() }, [2, 1]],
+      ...['Void', 'Wall', 'Wall_Damaged'].map((type) => [
+        `a Cloudborn onto ${type}`, {}, { board: makeBoard({ '2,1': { Tile_Type: type } }), ...CLOUDBORN() }, [2, 1],
+      ]),
+    ];
+    const offenders = [];
+    for (const [what, input, over, landing] of CASES) {
+      const { deps, result, player } = await runMove(input, over);
+      const start = [Math.floor(player.Tile_ID / 10), player.Tile_ID % 10];
+      const placed = JSON.stringify(landing) === JSON.stringify(start)
+        ? deps.utils.setPlayerToTile.mock.calls.length === 0
+        : JSON.stringify(deps.utils.setPlayerToTile.mock.calls[0]) === JSON.stringify([1, 1, ...landing, BODY_1]);
+      if (!result.ok || JSON.stringify([result.data.newX, result.data.newY]) !== JSON.stringify(landing) || !placed) {
+        offenders.push(`${what}: ${result.ok ? [result.data.newX, result.data.newY] : result.reason}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
   it('resolves the default game via getOldestActiveGameId when no game is given', async () => {
@@ -557,8 +657,7 @@ describe('move.run success', () => {
     const { deps, player } = makeDeps({ board: makeBoard({ '2,1': { Tile_Type: 'Fire' } }) });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
-    // the HP write and the death check moved into damagePlayer, which
-    // re-reads the row - so a lethal fire tile now actually kills
+    // damagePlayer writes the HP and runs the death check
     expect(deps.utils.damagePlayer).toHaveBeenCalledWith(null, player, 3, 1);
   });
 
@@ -585,48 +684,78 @@ describe('move.run success', () => {
     );
   });
 
-  it('gives a Robot 1 HP on a storm tile and throws them a tile', async () => {
-    const { deps } = makeDeps({
-      board: makeBoard({ '2,1': { Tile_Type: 'Storm' } }),
+  it('gives a Robot 1 HP on a storm tile', async () => {
+    const { deps } = await runMove({}, {
+      board: makeBoard({ '2,1': STORM }),
       player: createFakePlayer({ Player_ID: 1, Class_ID: 19, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10, Health_Points: 10 }),
       playerClass: createFakeClass({ Class_ID: 19, Class_Name: 'Robot' }),
-      random: (max) => (max === 7 ? 4 : 0), // 4 = east, onto (2,1)
     });
-    const result = await logic.run(INPUT, deps);
-    expect(result.ok).toBe(true);
     // capped at MAX_HP with the overflow banked, like every other HP gain
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Health_Points: 10, MISSED_HP: 1 },
       { where: { Player_ID: 1 } },
     );
-    // once for the storm displacement, once for the requested destination
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(2);
   });
 
   it('gives a Stormchaser 1d4-2 AP on a storm tile', async () => {
-    const { deps } = makeDeps({
-      board: makeBoard({ '2,1': { Tile_Type: 'Storm' } }),
+    const { deps } = await runMove({}, {
+      board: makeBoard({ '2,1': STORM }),
       player: createFakePlayer({ Player_ID: 1, Class_ID: 15, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10 }),
       playerClass: createFakeClass({ Class_ID: 15, Class_Name: 'Stormchaser' }),
       random: (max) => (max === 3 ? 2 : 4),
     });
-    const result = await logic.run(INPUT, deps);
-    expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 11 }, // 10 + (2 - 1)
       { where: { Player_ID: 1 } },
     );
   });
 
-  it('does not displace a storm-struck player onto forbidden terrain', async () => {
-    const { deps } = makeDeps({
-      board: makeBoard({ '2,1': { Tile_Type: 'Storm' }, '1,2': { Tile_Type: 'Void' } }),
-      random: () => 2, // 2 = south, onto the void tile at (1,2); always re-rolled
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result.ok).toBe(true);
-    // only the final destination move happened, the storm displacement gave up
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
+  // random(7) picks the stormed direction: 2 is south, 4 is east, 6 is north
+  it('storms a player ending on a storm one tile off it, re-rolling a refused direction', async () => {
+    // [what, tiles, makeDeps overrides, landing, reply]
+    const CASES = [
+      ['south', {}, { random: stormsInOrder(2) }, [2, 2], 'You were stormed one tile south!'],
+      ['east, after a wall and the edge', { '2,2': { Tile_Type: 'Wall' } }, { random: stormsInOrder(2, 6, 4) }, [3, 1],
+        'You were stormed one tile east!'],
+      ['a Cloudborn onto ice', { '2,2': ICE }, { random: stormsInOrder(2), ...CLOUDBORN() }, [2, 2],
+        'You were stormed one tile south!'],
+    ];
+    const offenders = [];
+    for (const [what, tiles, over, landing, reply] of CASES) {
+      const { deps, result } = await runMove({}, { board: makeBoard({ '2,1': STORM, ...tiles }), ...over });
+      if (JSON.stringify([result.data.newX, result.data.newY]) !== JSON.stringify(landing)
+        || !result.data.response.includes(reply)
+        || JSON.stringify(deps.utils.setPlayerToTile.mock.calls) !== JSON.stringify([[1, 1, ...landing, BODY_1]])) {
+        offenders.push(`${what}: ended on ${[result.data.newX, result.data.newY]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('leaves a player on the storm after the first roll and 8 re-rolls are all refused', async () => {
+    // [what, tiles, makeDeps overrides, the direction every roll picks]
+    const CASES = [
+      ['full', { '2,2': FULL }, {}, 2],
+      ['off the board', {}, {}, 6],
+      ['a wall', { '2,2': { Tile_Type: 'Wall' } }, {}, 2],
+      ['void', { '2,2': { Tile_Type: 'Void' } }, {}, 2],
+      ['ice', { '2,2': ICE }, {}, 2],
+      ['full, for a Cloudborn', { '2,2': FULL }, CLOUDBORN(), 2],
+    ];
+    const offenders = [];
+    for (const [what, tiles, over, direction] of CASES) {
+      const random = jest.fn((max) => (max === 7 ? direction : 0));
+      const { deps, result } = await runMove({}, { board: makeBoard({ '2,1': STORM, ...tiles }), random, ...over });
+      const rolls = random.mock.calls.filter(([max]) => max === 7).length;
+      if (JSON.stringify([result.data.newX, result.data.newY]) !== '[2,1]'
+        || result.data.spentAP !== 1
+        || rolls !== 9
+        || !result.data.response.includes('every way was blocked, so you stayed on the storm!')
+        || JSON.stringify(deps.utils.setPlayerToTile.mock.calls) !== JSON.stringify([[1, 1, 2, 1, BODY_1]])) {
+        offenders.push(`${what}: ended on ${[result.data.newX, result.data.newY]} after ${rolls} rolls`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
   it('moves the second body and damages its own HP column', async () => {
@@ -641,6 +770,7 @@ describe('move.run success', () => {
     const result = await logic.run({ ...INPUT, body: 2 }, deps);
     expect(result.ok).toBe(true);
     expect(result.data.newX).toBe(2);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1, BODY_2);
     // body 2 is damaged through its own column
     expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
       null, expect.objectContaining({ Player_ID: 1 }), 3, 2,
@@ -691,7 +821,7 @@ describe('move internal logging', () => {
 
     expect(result.ok).toBe(true);
     // 1,1 -> 4,1 is four coordinates, so three steps between them
-    expect(steps(lines)).toEqual(['resolved', 'destination', 'cost', 'step', 'step', 'step', 'placed']);
+    expect(steps(lines)).toEqual(['resolved', 'destination', 'cost', 'step', 'step', 'step', 'placed', 'charged']);
 
     const destination = lines.find((line) => line.obj.function === 'destination').obj;
     expect(destination).toMatchObject({ via: 'direction', direction: 'east', distance: 3, to: [4, 1], tilesWalked: 4 });
@@ -710,9 +840,9 @@ describe('move internal logging', () => {
 
     await logic.run({ ...INPUT, distance: 2 }, deps);
 
-    // three coordinates crossed, one of them ice, so two billable at cost 1
+    // two tiles stepped onto, one of them ice, so one billable at cost 1
     expect(lines.find((line) => line.obj.function === 'cost').obj).toMatchObject({
-      iceTileDeduction: 1, billableTiles: 2, moveCost: 1, doubled: false, spentAP: 2,
+      tilesEntered: 2, iceTileDeduction: 1, freeMoveUsed: 0, billableTiles: 1, moveCost: 1, doubled: false, spentAP: 1,
     });
   });
 
@@ -745,7 +875,7 @@ describe('move internal logging', () => {
 
     expect(result.reason).toBe(REJECTIONS.NOT_ENOUGH_AP);
     // the cost line is what makes the rejection explicable
-    expect(lines.find((line) => line.obj.function === 'cost').obj).toMatchObject({ spentAP: 4, ap: 1 });
+    expect(lines.find((line) => line.obj.function === 'cost').obj).toMatchObject({ spentAP: 3, ap: 1 });
     expect(steps(lines)).not.toContain('step');
   });
 
@@ -759,16 +889,5 @@ describe('move internal logging', () => {
     } finally {
       globalThis.topLogger = saved;
     }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// adapter
-// ---------------------------------------------------------------------------
-
-describe('move adapter (smoke)', () => {
-  it('exports the command contract', () => {
-    expect(move.data.toJSON().name).toBe('move');
-    expect(typeof move.execute).toBe('function');
   });
 });

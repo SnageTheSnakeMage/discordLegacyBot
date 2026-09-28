@@ -95,7 +95,7 @@ There is one writer for each direction, and neither is optional:
 
 - **`utils.clearPlayerFromBoard(playerId, tileId, column)`** takes a body off:
   vacates the tile slot and nulls the player's own column.
-- **`utils.placePlayerOnBoard(playerId, tile, { column, db })`** puts one on:
+- **`utils.placePlayerOnBoard(playerId, tile, { body, db })`** puts one on:
   claims a free slot, points the row at the tile, and clears `Dead` — all
   three in one call. It takes the tile *row* (every caller has already fetched
   it to check occupancy) and throws `"tile is full"` rather than returning, so

@@ -51,6 +51,29 @@ describe('movement', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
+  it('a /move that crosses or ends on a full tile is refused and changes nothing', async () => {
+    const { game, layer } = await board();
+    for (let i = 0; i < 4; i++) {
+      await seedPlayer(game.Game_ID, { discordId: `full${i}`, x: 3, y: 3, layerId: layer.Layer_ID });
+    }
+    const mover = await seedPlayer(game.Game_ID, {
+      discordId: '9', x: 1, y: 3, layerId: layer.Layer_ID, Action_Points: 8,
+    });
+    const before = await boardAscii(game.Game_ID);
+
+    for (const distance of [2, 3]) {
+      const result = await moveLogic.run(
+        { gameId: game.Game_ID, direction: 'east', distance, path: null, body: 1, discordId: '9' },
+        DEPS(),
+      );
+      expect(result).toMatchObject({ ok: false, reason: 'TILE_FULL' });
+    }
+
+    expect((await models.Players.findByPk(mover.Player_ID)).Action_Points).toBe(8);
+    expect(await boardAscii(game.Game_ID)).toBe(before);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
   it('a move relocates the player and keeps both sides of the invariant', async () => {
     const { game, layer } = await board();
     const walker = await seedPlayer(game.Game_ID, {
@@ -75,6 +98,30 @@ describe('movement', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
+  it('a /move ending on a storm leaves the player where the storm moved them', async () => {
+    const { game, layer } = await board();
+    await models.Tiles.update(
+      { Tile_Type: 'Storm' },
+      { where: { Layer_ID: layer.Layer_ID, X_Position: 2, Y_Position: 1 } },
+    );
+    const walker = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 8,
+    });
+
+    // random 2 storms them south: off the storm at (2,1) to (2,2)
+    const result = await moveLogic.run(
+      { gameId: game.Game_ID, direction: 'east', distance: 1, path: null, body: 1, discordId: '1' },
+      { ...DEPS(), random: () => 2 },
+    );
+
+    expect(result.ok).toBe(true);
+    const after = await models.Players.findByPk(walker.Player_ID);
+    const dest = await models.Tiles.findByPk(after.Tile_ID);
+    expect([dest.X_Position, dest.Y_Position]).toEqual([2, 2]);
+    expect(after.Action_Points).toBe(7);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
   it('a move costs AP', async () => {
     const { game, layer } = await board();
     const walker = await seedPlayer(game.Game_ID, {
@@ -86,7 +133,8 @@ describe('movement', () => {
       DEPS(),
     );
 
-    expect((await models.Players.findByPk(walker.Player_ID)).Action_Points).toBeLessThan(8);
+    // one tile stepped onto at moveCost 1
+    expect((await models.Players.findByPk(walker.Player_ID)).Action_Points).toBe(7);
     await assertBoardConsistent(game.Game_ID);
   });
 
