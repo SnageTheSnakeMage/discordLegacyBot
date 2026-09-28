@@ -99,9 +99,7 @@ describe('heal.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   //
-  // The old code passed isClockwatcher=false unconditionally, so
-  // TIMESTOPPED always blocks (a Doctor is never a Clockwatcher) -
-  // preserved.
+  // A Doctor is not a Clockwatcher, so the timestop blocks.
   it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
     expect(await everyCase('game %o -> %s', [
       [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
@@ -125,8 +123,8 @@ describe('heal.run rejections', () => {
       playerClass: createFakeClass({ Class_ID: 9, Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);
-    // the gate now consults the actor's class, so a timestop does not
-    // stop a Clockwatcher
+    // the gate consults the actor's class, so a timestop does not stop a
+    // Clockwatcher
     expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
     expectNoWrites(deps);
   });
@@ -305,7 +303,7 @@ describe('heal.run success', () => {
 });
 
 describe('heal.present', () => {
-  // every rejection heal can return renders as its exact legacy string
+  // every rejection heal can return renders as its exact player-facing string
   it('renders every rejection it returns as its player-facing message', async () => {
     expect(await everyCase('%s', [
       [REJECTIONS.NO_SUCH_TILE, { action: 'heal' }, 'Could not find tile to heal at the given coordinates.'],

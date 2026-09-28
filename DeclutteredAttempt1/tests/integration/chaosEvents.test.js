@@ -2,10 +2,9 @@
  * Chaos events at AP distribution, against the real schema.
  *
  * The third of the mandated integration areas. These belong here rather
- * than in unit tests because every one of the commented-out originals
- * failed on a *column name* or a real query shape - Free_Movement for
- * Free_Move, Tiles.X/Y for X_Position/Y_Position, a Game_ID column Tiles
- * does not have - and a mock accepts all of those happily.
+ * than in unit tests because they depend on *column names* and real query
+ * shapes - Free_Move, X_Position/Y_Position, Tiles having no Game_ID
+ * column - and a mock accepts a wrong one happily.
  */
 const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
 const {
@@ -31,7 +30,6 @@ describe('chaos events', () => {
   const tileOf = async (p) => models.Tiles.findByPk((await reload(p)).Tile_ID);
 
   it('Free Movement grants a free move, into Free_Move', async () => {
-    // the original wrote Free_Movement, which is not a column at all
     const { game, layer } = await board('Free Movement');
     const p = await seedPlayer(game.Game_ID, { discordId: '1', x: 2, y: 2, layerId: layer.Layer_ID, Free_Move: 0 });
 
@@ -54,8 +52,6 @@ describe('chaos events', () => {
   });
 
   it('Scorchers Joy burns players on blank tiles but spares Lava Divers', async () => {
-    // the original exemption was `id != lavaDiver || id != pyro`, true for
-    // every id, so nobody was ever spared
     const { game, layer } = await board('Scorchers Joy');
     const normal = await seedPlayer(game.Game_ID, {
       discordId: '1', x: 2, y: 2, layerId: layer.Layer_ID, Health_Points: 10,
@@ -163,13 +159,10 @@ describe('chaos events', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
-  // A gust used to check the tile TYPE and not whether anyone was standing
-  // there, so it blew players into a tile that already held four. That threw
-  // "tile is full" out of claimTileSlot, out of chaosGust, and out of
-  // distributeAP itself - so it was never "that player does not move": every
-  // player after them in the loop got no AP, the doomsday and the timestop
-  // never ticked, and game.save() never ran. The player was left alive and on
-  // no tile at all, because setPlayerToTile vacated the old one first.
+  // A gust checks whether the destination is full, not just its tile type.
+  // A "tile is full" thrown from claimTileSlot would escape chaosGust and
+  // distributeAP, so every later player would get no AP, the doomsday and
+  // the timestop would not tick, and game.save() would not run.
   it('a gust into a full tile takes the half step instead', async () => {
     const { game, layer } = await board('Eastern Gust');
     // (7,y) is the east edge: these four cannot be gusted anywhere themselves,

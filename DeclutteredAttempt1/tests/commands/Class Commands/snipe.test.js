@@ -166,16 +166,14 @@ describe('snipe.run rejections', () => {
     })).toEqual([]);
   });
 
-  // quirk pin: the old call was checkGameStateAndReply(state, false, ...), so
-  // unlike most commands even a Clockwatcher is frozen out by a timestop
   it('does not block a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true, shootCost: 2 }),
       sniperClass: createFakeClass({ Class_Name: 'Clockwatcher' }),
     });
     const result = await logic.run(INPUT, deps);
-    // the gate now consults the actor's class, so a timestop does not
-    // stop a Clockwatcher
+    // the gate consults the actor's class, so a timestop does not stop a
+    // Clockwatcher
     expect(result.reason).not.toBe(REJECTIONS.TIME_STOPPED);
     expectNoWrites(deps);
   });
@@ -215,7 +213,6 @@ describe('snipe.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // quirk pin: unlike /shoot, snipe filters the target lookup by Game_ID too
   it('looks the target up with a Game_ID filter', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);
@@ -235,10 +232,6 @@ describe('snipe.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // quirk pin: only the target's Tile_ID is ever compared - a Twin's second
-  // body (Tile_ID2) cannot be sniped
-  // was: only Tile_ID was compared, so a Twin's second body could not be
-  // sniped at all
   it("hits a Twin's second body when that is the one on the tile", async () => {
     const { deps } = happyDeps({
       target: createFakePlayer({
@@ -280,9 +273,7 @@ describe('snipe.run rejections', () => {
     expect(result.ok).toBe(true);
   });
 
-  // the legacy gate read player.Class, which is not a column on Players, so
-  // it was always undefined and nobody could ever snipe. Now the class row is
-  // read; the wording is unchanged.
+  // the class comes from the Classes row; Players has no Class column
   it('rejects a player whose class is not Sniper', async () => {
     const { deps } = happyDeps({ sniperClass: createFakeClass({ Class_Name: 'Average' }) });
     const result = await logic.run(INPUT, deps);
@@ -323,7 +314,7 @@ describe('snipe.run success', () => {
       { Action_Points: 4 }, // 6 - shootCost(2) * amount(1)
       { where: { Player_ID: 1, Game_ID: 1 } },
     );
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; the HP write moved to damagePlayer
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; the HP write goes through damagePlayer
   });
 
   it('resolves the default game via getOldestGameId with the sniper id', async () => {
@@ -340,8 +331,8 @@ describe('snipe.run success', () => {
     expect(result.data.events).toEqual([
       { type: 'zipped', x: 1, y: 1 },
       { type: 'hitWall', x: 2, y: 1 },
-      // quirk pin: the tile-type half of the legacy "zipped by" condition is a
-      // tautology, so an empty WALL tile reports both lines
+      // the tile-type half of the "zipped by" condition is a tautology, so
+      // an empty WALL tile reports both lines
       { type: 'zipped', x: 2, y: 1 },
       { type: 'hitTarget', username: 'victim', damage: 2, x: 3, y: 1 },
     ]);
@@ -382,7 +373,7 @@ describe('snipe.run success', () => {
     expect(deps.utils.revertTileToBlank).toHaveBeenCalledTimes(1);
   });
 
-  // quirk pin: collateral damage WRITTEN is one shot's worth, but the damage
+  // collateral damage WRITTEN is one shot's worth, but the damage
   // ANNOUNCED is amount shots' worth - the two disagree
   it('damages a bystander in the path for one shot while announcing the full amount', async () => {
     const { deps } = happyDeps({ midTileOccupant: 3 });
@@ -397,15 +388,14 @@ describe('snipe.run success', () => {
       expect.objectContaining({ Player_ID: 3 }),
       1,
     );
-    // was (bystander, sniper): the arguments reversed, so the SNIPER was
-    // checked for death and the victim never was. damagePlayer takes
-    // (attacker, victim), so both the bystander and the target are checked.
+    // damagePlayer takes (attacker, victim), so both the bystander and the
+    // target are checked for death
     expect(deps.utils.damagePlayer).toHaveBeenCalledTimes(2);
     // the bystander's tile is occupied, so no "zipped by" line for it
     expect(result.data.events).not.toContainEqual({ type: 'zipped', x: 2, y: 1 });
   });
 
-  // quirk pin: the sniper's own tile is the first tile of the path and is
+  // the sniper's own tile is the first tile of the path and is
   // never excluded, so a sniper occupying their tile shoots themselves
   it('treats the sniper standing on their own tile as collateral', async () => {
     const { deps } = happyDeps({ shooterTileOccupant: 1 });
@@ -418,7 +408,7 @@ describe('snipe.run success', () => {
     );
   });
 
-  // quirk pin: the DMG_BUFF reset is the LAST statement of the loop body, so
+  // the DMG_BUFF reset is the LAST statement of the loop body, so
   // it runs once per tile crossed and never on the tile the shot lands on
   it('resets a DMG buff once per crossed tile, after the damage is computed with it', async () => {
     const { deps } = happyDeps({
@@ -435,7 +425,8 @@ describe('snipe.run success', () => {
       expect.objectContaining({ Player_ID: 1 }), expect.objectContaining({ Player_ID: 2 }), 6, 1,
     );
     expect(deps.models.Players.update).toHaveBeenCalledWith({ Action_Points: 4 }, { where: { Player_ID: 1, Game_ID: 1 } });
-    // two crossed tiles -> two buff resets, plus the AP; the damage write moved
+    // two crossed tiles -> two buff resets, plus the AP; the damage itself
+    // goes through damagePlayer
     expect(deps.models.Players.update).toHaveBeenCalledTimes(3);
   });
 });
@@ -450,7 +441,7 @@ describe('snipe.present', () => {
     expect(out).toEqual({ content: "You don't have enough AP to shoot that much!" });
   });
 
-  // byte-identical legacy formatting: the newline BEFORE the "!" on the wall
+  // exact formatting: the newline BEFORE the "!" on the wall
   // and zip lines, the "$" after the damage number, the target named by
   // username while collateral is mentioned
   it('renders every event type exactly', () => {

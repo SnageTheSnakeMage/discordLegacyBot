@@ -1,7 +1,7 @@
 /**
  * registerPlayer against the real in-memory schema: a registration must
- * create the Players row AND claim a tile slot (the #78 invariant), and a
- * Twin must claim two distinct tiles.
+ * create the Players row AND claim a tile slot, and a Twin must claim two
+ * distinct tiles.
  *
  * Seams faked: downloadImageWithFetch (network) and getRandomInt
  * (determinism) - everything else runs for real.
@@ -33,7 +33,7 @@ describe('registerPlayer', () => {
     const tile = await models.Tiles.findByPk(player.Tile_ID);
     expect([tile.Player1, tile.Player2, tile.Player3, tile.Player4]).toContain(player.Player_ID);
     expect(player.Class_ID).toBe((await models.Classes.findOne({ where: { Class_Name: 'Soldier' } })).Class_ID);
-    // stats come from the class columns - the Start_MAX_Range_ fix from #92
+    // stats come from the class columns (MAX_RANGE from Start_MAX_Range_)
     expect(player.MAX_RANGE).toBe(5);
     await assertBoardConsistent(game.Game_ID);
   });

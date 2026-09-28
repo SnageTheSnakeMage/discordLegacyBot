@@ -128,8 +128,6 @@ describe('stab.run rejections', () => {
     })).toEqual([]);
   });
 
-  // quirk pin: the gamestate gate is called with isClockwatcher=false, so a
-  // Clockwatcher is blocked by a timestop here too
   it('blocks a Clockwatcher during a timestop', async () => {
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
@@ -260,10 +258,10 @@ describe('stab.run success', () => {
       { Action_Points: 4 }, // 5 - amount(1)
       { where: { Player_ID: 1, Game_ID: 1 } },
     );
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; the HP write moved to damagePlayer
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; the HP write goes through damagePlayer
   });
 
-  // quirk pin: the write doubles then caps, the message does neither
+  // the write doubles then caps, the message does neither
   it('caps the applied damage at MAX_DAMAGE while announcing the uncapped, undoubled number', async () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, amount: 2 }, deps);
@@ -297,10 +295,10 @@ describe('stab.run success', () => {
       { DMG_BUFF: 0 },
       { where: { Player_ID: 1, Game_ID: 1 } },
     );
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(2); // DMG_BUFF reset + AP; the HP write moved to damagePlayer
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(2); // DMG_BUFF reset + AP; the HP write goes through damagePlayer
   });
 
-  // quirk pin: the bush swallows the stab but the AP was already committed
+  // the bush swallows the stab but the AP is already committed
   it('misses in a bush, still writes a zero-damage hit and still charges the AP', async () => {
     const { deps } = happyDeps({
       tile: createFakeTile({
@@ -339,7 +337,7 @@ describe('stab.run success', () => {
     ); //
   });
 
-  // quirk pin: amount is never validated
+  // amount is never validated
   it('heals the target and refunds AP on a negative amount', async () => {
     const { deps } = happyDeps();
     const result = await logic.run({ ...INPUT, amount: -1 }, deps);
@@ -355,9 +353,6 @@ describe('stab.run success', () => {
     );
   });
 
-  // quirk pin: the target row is fetched by Discord_ID alone - no Game_ID
-  // was: looked up by Discord_ID alone, so a row from another game could
-  // satisfy it
   it('scopes the target lookup to this game', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);
