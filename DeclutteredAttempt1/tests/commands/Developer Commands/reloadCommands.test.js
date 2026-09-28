@@ -15,6 +15,7 @@ const logic = require('../../../commands/Developer Commands/reloadCommands.logic
 const reloadCommands = require('../../../commands/Developer Commands/reloadCommands.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame, expectNoWrites } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const ROOT = path.join('/fake', 'commands');
 
@@ -227,13 +228,15 @@ describe('reloadCommands run file selection', () => {
   // The gamestate table. This command deliberately has NO gamestate gate - the
   // dev reloads code no matter what any game is doing - so the table pins that
   // absence: adding a state that should block a reload breaks this test.
-  it.each([GAMESTATES.ACTIVE, GAMESTATES.OVER])('reloads regardless of gamestate %s', async (condition) => {
-    const deps = happyDeps({ game: createFakeGame({ ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    expect(result.ok).toBe(true);
-    expect(result.data.reloaded).toHaveLength(3);
-    // the gamestate is never even read: run() makes no database call
-    expect(deps.models.Games.findByPk).not.toHaveBeenCalled();
+  it('reloads regardless of gamestate <condition>', async () => {
+    expect(await everyCase('reloads regardless of gamestate %s', [GAMESTATES.ACTIVE, GAMESTATES.OVER], async (condition) => {
+      const deps = happyDeps({ game: createFakeGame({ ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      expect(result.ok).toBe(true);
+      expect(result.data.reloaded).toHaveLength(3);
+      // the gamestate is never even read: run() makes no database call
+      expect(deps.models.Games.findByPk).not.toHaveBeenCalled();
+    })).toEqual([]);
   });
 
 });

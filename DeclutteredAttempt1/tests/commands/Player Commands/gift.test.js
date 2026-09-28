@@ -8,6 +8,7 @@ const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const GIVER = '123';
 const RECEIVER = '456';
@@ -81,19 +82,21 @@ describe('gift.run rejections', () => {
   // gate and returns its verdict without writing, so one state that passes,
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expect(deps.models.Players.update).not.toHaveBeenCalled();
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expect(deps.models.Players.update).not.toHaveBeenCalled();
+      }
+    })).toEqual([]);
   });
 
   it('lets a Clockwatcher gift during a timestop', async () => {

@@ -8,6 +8,7 @@ const path = require('path');
 const {
   parseBoard, formatBoard, listPresets, loadPreset, checkerType, BOARDS_DIR, TILE_TYPES,
 } = require('../database/boardPresets.js');
+const { everyCase } = require('./helpers/everyCase.js');
 
 const SMALL = [
   'layer Top',
@@ -62,16 +63,18 @@ describe('parseBoard', () => {
     expect(board.layers[0].tiles.every((t) => t.Tile_Type === 'Ice')).toBe(true);
   });
 
-  test.each([
-    ['a ragged layer', 'layer One\n###\n##', /row is 2 tiles wide/],
-    ['an unknown character', 'layer One\n#?#', /unknown map character "\?"/],
-    ['a missing separator', 'layer One\n##\nlayer Two\n##', /separated by a "vvv" line/],
-    ['rows before any layer', '##\n##', /expected "layer <name>"/],
-    ['an empty board', '# nothing here\n', /no layers/],
-    ['an unknown tile type in a legend', 'legend Z Lava\nlayer One\nZZ', /unknown tile type "Lava"/],
-    ['a legend after a layer', 'layer One\n##\nlegend Z Ice', /must come before the first layer/],
-  ])('rejects %s', (_label, text, message) => {
-    expect(() => parseBoard(text)).toThrow(message);
+  test('rejects <label>', async () => {
+    expect(await everyCase('rejects %s', [
+      ['a ragged layer', 'layer One\n###\n##', /row is 2 tiles wide/],
+      ['an unknown character', 'layer One\n#?#', /unknown map character "\?"/],
+      ['a missing separator', 'layer One\n##\nlayer Two\n##', /separated by a "vvv" line/],
+      ['rows before any layer', '##\n##', /expected "layer <name>"/],
+      ['an empty board', '# nothing here\n', /no layers/],
+      ['an unknown tile type in a legend', 'legend Z Lava\nlayer One\nZZ', /unknown tile type "Lava"/],
+      ['a legend after a layer', 'layer One\n##\nlegend Z Ice', /must come before the first layer/],
+    ], (_label, text, message) => {
+      expect(() => parseBoard(text)).toThrow(message);
+    })).toEqual([]);
   });
 
   test('errors name the line they came from', () => {
@@ -107,27 +110,31 @@ describe('the presets shipped in database/boards', () => {
     expect(names.length).toBeGreaterThan(0);
   });
 
-  test.each(names)('%s parses, and every tile type is one the renderer can draw', (name) => {
-    const preset = loadPreset(name);
-    expect(preset.layers.length).toBeGreaterThan(0);
-    for (const layer of preset.layers) {
-      expect(layer.tiles).toHaveLength(layer.width * layer.height);
-      for (const tile of layer.tiles) {
-        expect(TILE_TYPES).toContain(tile.Tile_Type);
-        expect(fs.existsSync(path.join(__dirname, '..', 'tiles', 'environment', `${tile.Tile_Type}.png`))).toBe(true);
+  test('<name> parses, and every tile type is one the renderer can draw', async () => {
+    expect(await everyCase('%s parses, and every tile type is one the renderer can draw', names, (name) => {
+      const preset = loadPreset(name);
+      expect(preset.layers.length).toBeGreaterThan(0);
+      for (const layer of preset.layers) {
+        expect(layer.tiles).toHaveLength(layer.width * layer.height);
+        for (const tile of layer.tiles) {
+          expect(TILE_TYPES).toContain(tile.Tile_Type);
+          expect(fs.existsSync(path.join(__dirname, '..', 'tiles', 'environment', `${tile.Tile_Type}.png`))).toBe(true);
+        }
       }
-    }
+    })).toEqual([]);
   });
 
-  test.each(names)('%s is stored in the format the exporter writes', (name) => {
-    const onDisk = fs.readFileSync(path.join(BOARDS_DIR, `${name}.board`), 'utf8');
-    const reformatted = formatBoard(loadPreset(name));
-    // comments, the description header and the width of a "vvv" separator
-    // are the author's; the map body is what has to match
-    const rows = (text) => text.split('\n')
-      .filter((line) => line && !line.startsWith('#') && !line.startsWith('description:'))
-      .map((line) => (/^v+$/.test(line) ? 'v' : line));
-    expect(rows(reformatted)).toEqual(rows(onDisk));
+  test('<name> is stored in the format the exporter writes', async () => {
+    expect(await everyCase('%s is stored in the format the exporter writes', names, (name) => {
+      const onDisk = fs.readFileSync(path.join(BOARDS_DIR, `${name}.board`), 'utf8');
+      const reformatted = formatBoard(loadPreset(name));
+      // comments, the description header and the width of a "vvv" separator
+      // are the author's; the map body is what has to match
+      const rows = (text) => text.split('\n')
+        .filter((line) => line && !line.startsWith('#') && !line.startsWith('description:'))
+        .map((line) => (/^v+$/.test(line) ? 'v' : line));
+      expect(rows(reformatted)).toEqual(rows(onDisk));
+    })).toEqual([]);
   });
 });
 
@@ -136,7 +143,9 @@ describe('loadPreset', () => {
     expect(loadPreset('no-such-board')).toBeNull();
   });
 
-  test.each(['../secrets', 'a/b', '.', '', null, 42])('refuses the unsafe name %p', (name) => {
-    expect(loadPreset(name)).toBeNull();
+  test('refuses the unsafe name <name>', async () => {
+    expect(await everyCase('refuses the unsafe name %p', ['../secrets', 'a/b', '.', '', null, 42], (name) => {
+      expect(loadPreset(name)).toBeNull();
+    })).toEqual([]);
   });
 });

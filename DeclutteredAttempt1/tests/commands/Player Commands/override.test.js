@@ -12,6 +12,7 @@ const {
   createFakeClass,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const ACTOR = '123';
 
@@ -117,13 +118,15 @@ describe('override.run rejections', () => {
   // preserved quirk: the legacy command has NO gamestate gate - a dead Medium
   // can override in every state, OVER/DEV_PAUSED/TIMESTOPPED included; this
   // table pins that a new state cannot silently change it either
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }],
-    [{ GAME_STATE: GAMESTATES.OVER }],
-  ])('game %o -> succeeds (no gamestate gate)', async (condition) => {
-    const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    expect(result.ok).toBe(true);
+  it('succeeds whatever state the game is in', async () => {
+    expect(await everyCase('game %o -> succeeds (no gamestate gate)', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }],
+      [{ GAME_STATE: GAMESTATES.OVER }],
+    ], async (condition) => {
+      const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      expect(result.ok).toBe(true);
+    })).toEqual([]);
   });
 });
 

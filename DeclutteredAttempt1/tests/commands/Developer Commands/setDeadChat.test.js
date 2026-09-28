@@ -9,6 +9,7 @@ const logic = require('../../../commands/Developer Commands/setDeadChat.logic.js
 const setDeadChat = require('../../../commands/Developer Commands/setDeadChat.js');
 const { REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const DEV = '999';
 const CHANNEL = '1392574348333678633';
@@ -87,31 +88,35 @@ describe('setDeadChat.run', () => {
   // this used to assert only result.ok === false, which left both the reason
   // code and the wording free to change - and the branch is the one a dev
   // actually hits, by passing something that is not a channel
-  it.each([
-    ['no channel', null],
-    ['not a snowflake', 'general'],
-    ['a mention rather than an id', '<#1392574348333678633>'],
-    ['16 digits, one short', '1234567890123456'],
-    ['21 digits, one over', '123456789012345678901'],
-  ])('rejects %s and writes nothing', async (_label, channelId) => {
-    const { deps } = happyDeps();
-    const result = await logic.run({ ...INPUT, channelId }, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.INVALID_AMOUNT });
-    expect(result.data.message).toBe('That is not a channel this bot can post to.');
-    expect(deps.models.Games.update).not.toHaveBeenCalled();
+  it('rejects <label> and writes nothing', async () => {
+    expect(await everyCase('rejects %s and writes nothing', [
+      ['no channel', null],
+      ['not a snowflake', 'general'],
+      ['a mention rather than an id', '<#1392574348333678633>'],
+      ['16 digits, one short', '1234567890123456'],
+      ['21 digits, one over', '123456789012345678901'],
+    ], async (_label, channelId) => {
+      const { deps } = happyDeps();
+      const result = await logic.run({ ...INPUT, channelId }, deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.INVALID_AMOUNT });
+      expect(result.data.message).toBe('That is not a channel this bot can post to.');
+      expect(deps.models.Games.update).not.toHaveBeenCalled();
+    })).toEqual([]);
   });
 
   // the boundaries of the 17-20 digit snowflake range, from the inside
-  it.each([
-    ['17 digits', '12345678901234567'],
-    ['20 digits', '12345678901234567890'],
-  ])('accepts %s', async (_label, channelId) => {
-    const { deps } = happyDeps();
-    const result = await logic.run({ ...INPUT, channelId }, deps);
-    expect(result.ok).toBe(true);
-    expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { deadChatChannelId: channelId }, { where: { Game_ID: 1 } },
-    );
+  it('accepts <label>', async () => {
+    expect(await everyCase('accepts %s', [
+      ['17 digits', '12345678901234567'],
+      ['20 digits', '12345678901234567890'],
+    ], async (_label, channelId) => {
+      const { deps } = happyDeps();
+      const result = await logic.run({ ...INPUT, channelId }, deps);
+      expect(result.ok).toBe(true);
+      expect(deps.models.Games.update).toHaveBeenCalledWith(
+        { deadChatChannelId: channelId }, { where: { Game_ID: 1 } },
+      );
+    })).toEqual([]);
   });
 
   it('rejects a non-dev before looking at the channel at all', async () => {

@@ -8,6 +8,7 @@ const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const SMITH = '123';
 const TARGET = '456';
@@ -116,19 +117,21 @@ describe('weaponize.run rejections', () => {
   // gate and returns its verdict without writing, so one state that passes,
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expect(deps.models.Players.update).not.toHaveBeenCalled();
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expect(deps.models.Players.update).not.toHaveBeenCalled();
+      }
+    })).toEqual([]);
   });
 
   // quirk: isClockwatcher is hardcoded false, so a timestop blocks everyone
@@ -310,18 +313,20 @@ describe('weaponize.present', () => {
     });
   });
 
-  it.each([
-    [REJECTIONS.NO_SUCH_GAME, { gameId: 1 }, 'Could not find game #1!'],
-    [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
-    [REJECTIONS.NO_TARGET, undefined, 'Could not find target player!'],
-    [REJECTIONS.OUT_OF_RANGE, undefined, 'Your target is not in range!'],
-    [REJECTIONS.WRONG_CLASS, { className: 'Blacksmith' }, 'You are not a Blacksmith!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'weaponize' }, 'You dont have enough AP to weaponize!'],
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
-    [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
-  ])('renders %s as its player-facing message', (reason, data, text) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: text });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.NO_SUCH_GAME, { gameId: 1 }, 'Could not find game #1!'],
+      [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
+      [REJECTIONS.NO_TARGET, undefined, 'Could not find target player!'],
+      [REJECTIONS.OUT_OF_RANGE, undefined, 'Your target is not in range!'],
+      [REJECTIONS.WRONG_CLASS, { className: 'Blacksmith' }, 'You are not a Blacksmith!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'weaponize' }, 'You dont have enough AP to weaponize!'],
+      [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+      [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
+      [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
+    ], (reason, data, text) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: text });
+    })).toEqual([]);
   });
 });
 

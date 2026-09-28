@@ -6,6 +6,7 @@ const logic = require('../../../commands/Developer Commands/timestop_dev.logic.j
 const timestopDev = require('../../../commands/Developer Commands/timestop_dev.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const DEV_INPUT = { gameId: 1, isDev: true, discordId: '123' };
 
@@ -91,17 +92,19 @@ describe('timestop-dev run gamestate table', () => {
     expect(outcomes.map(([state]) => state).sort()).toEqual(Object.values(GAMESTATES).sort());
   });
 
-  it.each(outcomes)('%s -> %s', async (state, kind, written) => {
-    const deps = depsForState({ GAME_STATE: state });
-    const result = await logic.run(DEV_INPUT, deps);
-    expect(result).toEqual({ ok: true, kind, data: { gameId: 1 } });
-    // the clock travels with the state, and REGISTRATION and OVER cannot have
-    // one running whatever is asked for
-    expect(deps.models.Games.update).toHaveBeenCalledWith(
-      expect.objectContaining({ GAME_STATE: written, gameActive: kind === 'unpaused' }),
-      { where: { Game_ID: 1 } },
-    );
-    expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
+  it('<state> -> <kind>', async () => {
+    expect(await everyCase('%s -> %s', outcomes, async (state, kind, written) => {
+      const deps = depsForState({ GAME_STATE: state });
+      const result = await logic.run(DEV_INPUT, deps);
+      expect(result).toEqual({ ok: true, kind, data: { gameId: 1 } });
+      // the clock travels with the state, and REGISTRATION and OVER cannot have
+      // one running whatever is asked for
+      expect(deps.models.Games.update).toHaveBeenCalledWith(
+        expect.objectContaining({ GAME_STATE: written, gameActive: kind === 'unpaused' }),
+        { where: { Game_ID: 1 } },
+      );
+      expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
+    })).toEqual([]);
   });
 
 });

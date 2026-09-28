@@ -14,6 +14,7 @@ const {
   createFakeTile,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const DIGGER = '123';
 
@@ -93,19 +94,21 @@ describe('dig.run rejections', () => {
   // The old code passed isClockwatcher=false unconditionally, so
   // TIMESTOPPED always blocks (a Gravedigger is never a Clockwatcher) -
   // preserved.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expectNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   it('gamestate gate runs before the missing-tile check (legacy order)', async () => {
@@ -131,26 +134,30 @@ describe('dig.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it.each(['Gateway_Open', 'Gateway_Locked'])('rejects digging a %s tile', async (type) => {
-    const { deps } = happyDeps({
-      tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
-    expect(result.data.message).toBe('You cannot dig a gateway tile!');
-    expectNoWrites(deps);
+  it('rejects digging a <type> tile', async () => {
+    expect(await everyCase('rejects digging a %s tile', ['Gateway_Open', 'Gateway_Locked'], async (type) => {
+      const { deps } = happyDeps({
+        tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+      expect(result.data.message).toBe('You cannot dig a gateway tile!');
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
-  it.each(['Player1', 'Player2', 'Player3', 'Player4'])('rejects an occupied tile (%s set)', async (slot) => {
-    const { deps } = happyDeps({
-      tileToChange: createFakeTile({
-        Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1', [slot]: 9,
-      }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TILE_OCCUPIED });
-    expect(result.data.message).toBe('There is a player on this tile!');
-    expectNoWrites(deps);
+  it('rejects an occupied tile (<slot> set)', async () => {
+    expect(await everyCase('rejects an occupied tile (%s set)', ['Player1', 'Player2', 'Player3', 'Player4'], async (slot) => {
+      const { deps } = happyDeps({
+        tileToChange: createFakeTile({
+          Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: 'Blank1', [slot]: 9,
+        }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.TILE_OCCUPIED });
+      expect(result.data.message).toBe('There is a player on this tile!');
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
   it('rejects a tile one beyond max range (boundary: one beyond)', async () => {
@@ -262,15 +269,17 @@ describe('dig.run success', () => {
 
 describe('dig.present', () => {
   // every rejection dig can return renders as its exact legacy string
-  it.each([
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
-    [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
-    [REJECTIONS.NO_SUCH_TILE, { action: 'dig' }, 'Could not find tile to dig at the given coordinates.'],
-    [REJECTIONS.WRONG_CLASS, { className: 'Gravedigger' }, 'You are not a Gravedigger!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'dig a tile' }, 'You dont have enough AP to dig a tile!'],
-  ])('renders %s as its legacy message', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+      [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
+      [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
+      [REJECTIONS.NO_SUCH_TILE, { action: 'dig' }, 'Could not find tile to dig at the given coordinates.'],
+      [REJECTIONS.WRONG_CLASS, { className: 'Gravedigger' }, 'You are not a Gravedigger!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'dig a tile' }, 'You dont have enough AP to dig a tile!'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   it('renders success naming the PRE-dig tile type, not Void (preserved quirk)', () => {

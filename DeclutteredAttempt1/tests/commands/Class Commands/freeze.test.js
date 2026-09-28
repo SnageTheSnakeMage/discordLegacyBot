@@ -14,6 +14,7 @@ const {
   createFakeTile,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const SNOWMAN = '123';
 
@@ -90,19 +91,21 @@ describe('freeze.run rejections', () => {
   // The old code passed isClockwatcher=false unconditionally, so
   // TIMESTOPPED always blocks (a Snowman is never a Clockwatcher) -
   // preserved.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expectNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   it('gates on gamestate before even looking the tile up (legacy order, unlike /burn)', async () => {
@@ -138,14 +141,16 @@ describe('freeze.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it.each(['Gateway_Open', 'Gateway_Locked'])('rejects freezing a %s tile', async (type) => {
-    const { deps } = happyDeps({
-      tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
-    expect(result.data.message).toBe('You cannot freeze a gateway tile!');
-    expectNoWrites(deps);
+  it('rejects freezing a <type> tile', async () => {
+    expect(await everyCase('rejects freezing a %s tile', ['Gateway_Open', 'Gateway_Locked'], async (type) => {
+      const { deps } = happyDeps({
+        tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+      expect(result.data.message).toBe('You cannot freeze a gateway tile!');
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
   it('rejects a tile one beyond max range (boundary: one beyond)', async () => {
@@ -269,15 +274,17 @@ describe('freeze.run success', () => {
 
 describe('freeze.present', () => {
   // every rejection freeze can return renders as its exact legacy string
-  it.each([
-    [REJECTIONS.NO_SUCH_TILE, { action: 'freeze' }, 'Could not find tile to freeze at the given coordinates.'],
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
-    [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
-    [REJECTIONS.WRONG_CLASS, { className: 'Snowman' }, 'You are not a Snowman!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'freeze a tile' }, 'You dont have enough AP to freeze a tile!'],
-  ])('renders %s as its legacy message', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.NO_SUCH_TILE, { action: 'freeze' }, 'Could not find tile to freeze at the given coordinates.'],
+      [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+      [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
+      [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
+      [REJECTIONS.WRONG_CLASS, { className: 'Snowman' }, 'You are not a Snowman!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'freeze a tile' }, 'You dont have enough AP to freeze a tile!'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   it('renders success naming the PRE-freeze tile type with no username prefix (preserved quirk)', () => {

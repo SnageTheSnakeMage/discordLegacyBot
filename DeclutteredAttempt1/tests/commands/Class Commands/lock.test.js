@@ -14,6 +14,7 @@ const {
   createFakeTile,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const ACTOR = '123';
 
@@ -209,19 +210,21 @@ describe('lock.run rejections', () => {
   // gate and returns its verdict without writing, so one state that passes,
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expectNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   it('blocks a Guardian during a timestop (the gate is asked with isClockwatcher false)', async () => {
@@ -302,11 +305,13 @@ describe('lock.present', () => {
     expect(out).toEqual({ content: 'You have made a Gateway_Locked tile on coordinates (2, 4) on layer 3!' });
   });
 
-  it.each([
-    [REJECTIONS.WRONG_CLASS, { className: 'Guardian' }, 'You are not a Guardian!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'lock/unlock a tile' }, 'You dont have enough AP to lock/unlock a tile!'],
-  ])('renders %s with the legacy wording', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.WRONG_CLASS, { className: 'Guardian' }, 'You are not a Guardian!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'lock/unlock a tile' }, 'You dont have enough AP to lock/unlock a tile!'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 });
 

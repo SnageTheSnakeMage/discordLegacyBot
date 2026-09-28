@@ -14,6 +14,7 @@ const {
   createFakeTile,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const SMOKER = '123';
 
@@ -110,20 +111,22 @@ describe('smoke.run rejections', () => {
   // The dead switch this replaces blocked TIMESTOPPED, DEV_PAUSED, "FINISHED"
   // (really OVER) and REGISTRATION, with no Clockwatcher exemption -
   // preserved.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-    [{ GAME_STATE: GAMESTATES.REGISTRATION }, REJECTIONS.GAME_IN_REGISTRATION],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expectNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+      [{ GAME_STATE: GAMESTATES.REGISTRATION }, REJECTIONS.GAME_IN_REGISTRATION],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   it('does not block a Clockwatcher during a timestop', async () => {
@@ -152,17 +155,19 @@ describe('smoke.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it.each(['Blank2', 'Fire', 'Wall', 'Smoke', 'Gateway_Open'])('rejects smoking a %s tile', async (type) => {
-    const { deps } = happyDeps({
-      tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({
-      ok: false,
-      reason: REJECTIONS.WRONG_TILE_TYPE,
-      data: { message: 'You can only smoke blank tiles!' },
-    });
-    expectNoWrites(deps);
+  it('rejects smoking a <type> tile', async () => {
+    expect(await everyCase('rejects smoking a %s tile', ['Blank2', 'Fire', 'Wall', 'Smoke', 'Gateway_Open'], async (type) => {
+      const { deps } = happyDeps({
+        tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({
+        ok: false,
+        reason: REJECTIONS.WRONG_TILE_TYPE,
+        data: { message: 'You can only smoke blank tiles!' },
+      });
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
   it('reports the wrong class before the tile type (legacy order)', async () => {
@@ -285,19 +290,21 @@ describe('smoke.run success', () => {
 
 describe('smoke.present', () => {
   // every rejection smoke can return renders as its exact legacy string
-  it.each([
-    [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],
-    [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
-    [REJECTIONS.PLAYER_DEAD, undefined, "Dead players can't use this command."],
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
-    [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
-    [REJECTIONS.GAME_IN_REGISTRATION, undefined, 'Game is in registration phase!\n Please wait for the game to start.'],
-    [REJECTIONS.NO_SUCH_TILE, { action: 'smoke' }, 'Could not find tile to smoke at the given coordinates.'],
-    [REJECTIONS.WRONG_CLASS, { className: 'Smoker' }, 'You are not a Smoker!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'smoke a tile' }, 'You dont have enough AP to smoke a tile!'],
-  ])('renders %s as its legacy message', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],
+      [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
+      [REJECTIONS.PLAYER_DEAD, undefined, "Dead players can't use this command."],
+      [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+      [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
+      [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
+      [REJECTIONS.GAME_IN_REGISTRATION, undefined, 'Game is in registration phase!\n Please wait for the game to start.'],
+      [REJECTIONS.NO_SUCH_TILE, { action: 'smoke' }, 'Could not find tile to smoke at the given coordinates.'],
+      [REJECTIONS.WRONG_CLASS, { className: 'Smoker' }, 'You are not a Smoker!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'smoke a tile' }, 'You dont have enough AP to smoke a tile!'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   it('renders success naming the PRE-smoke tile type, not Smoke (preserved quirk)', () => {

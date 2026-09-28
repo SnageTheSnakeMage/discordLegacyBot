@@ -6,6 +6,7 @@
  * error, every command breaks at once - so those two are pinned first.
  */
 const { runLogged, stepLogger, summarise, describe: describeResult } = require('../commands/_logging.js');
+const { everyCase } = require('./helpers/everyCase.js');
 
 function fakeLogger() {
   const lines = { debug: [], info: [], error: [] };
@@ -78,12 +79,14 @@ describe('summarise', () => {
 });
 
 describe('describe', () => {
-  it.each([
-    [{ ok: true, kind: 'burned' }, { outcome: 'ok', kind: 'burned' }],
-    [{ ok: false, reason: 'GAME_OVER' }, { outcome: 'rejected', reason: 'GAME_OVER' }],
-    [null, { outcome: 'empty' }],
-  ])('flattens %j', (result, expected) => {
-    expect(describeResult(result)).toEqual(expected);
+  it('flattens <result>', async () => {
+    expect(await everyCase('flattens %j', [
+      [{ ok: true, kind: 'burned' }, { outcome: 'ok', kind: 'burned' }],
+      [{ ok: false, reason: 'GAME_OVER' }, { outcome: 'rejected', reason: 'GAME_OVER' }],
+      [null, { outcome: 'empty' }],
+    ], (result, expected) => {
+      expect(describeResult(result)).toEqual(expected);
+    })).toEqual([]);
   });
 });
 

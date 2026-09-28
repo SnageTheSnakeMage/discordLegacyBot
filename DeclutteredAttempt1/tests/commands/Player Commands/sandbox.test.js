@@ -9,6 +9,7 @@ const logic = require('../../../commands/Player Commands/sandbox.logic.js');
 const sandbox = require('../../../commands/Player Commands/sandbox.js');
 const { GAMESTATES, REJECTIONS, ChaosEvents } = require('../../../enums.js');
 const { createDeps, createFakeGame, createFakePlayer, createFakeTile, createFakeLayer, createFakeClass } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const PLAYER = '123';
 
@@ -153,24 +154,28 @@ describe('sandbox view-chaos', () => {
 });
 
 describe('the read-only subcommands stay read-only', () => {
-  it.each(['get-tile-id', 'get-classes', 'view-chaos'])('%s writes nothing', async (subcommand) => {
-    const deps = happyDeps();
-    await logic.run(input({ subcommand }), deps);
-    for (const model of ['Games', 'Players', 'Tiles', 'Layers']) {
-      expect(deps.models[model].update).not.toHaveBeenCalled();
-      expect(deps.models[model].create).not.toHaveBeenCalled();
-      expect(deps.models[model].destroy).not.toHaveBeenCalled();
-    }
+  it('<subcommand> writes nothing', async () => {
+    expect(await everyCase('%s writes nothing', ['get-tile-id', 'get-classes', 'view-chaos'], async (subcommand) => {
+      const deps = happyDeps();
+      await logic.run(input({ subcommand }), deps);
+      for (const model of ['Games', 'Players', 'Tiles', 'Layers']) {
+        expect(deps.models[model].update).not.toHaveBeenCalled();
+        expect(deps.models[model].create).not.toHaveBeenCalled();
+        expect(deps.models[model].destroy).not.toHaveBeenCalled();
+      }
+    })).toEqual([]);
   });
 });
 
 describe('the writing subcommands require membership', () => {
-  it.each(['reset', 'set-stat', 'set-meta'])('%s refuses a caller who is not in the game', async (subcommand) => {
-    const deps = happyDeps({ player: null });
-    const result = await logic.run(input({ subcommand, column: 'Health_Points', value: 1 }), deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NOT_IN_GAME });
-    expect(deps.models.Players.update).not.toHaveBeenCalled();
-    expect(deps.models.Players.destroy).not.toHaveBeenCalled();
+  it('<subcommand> refuses a caller who is not in the game', async () => {
+    expect(await everyCase('%s refuses a caller who is not in the game', ['reset', 'set-stat', 'set-meta'], async (subcommand) => {
+      const deps = happyDeps({ player: null });
+      const result = await logic.run(input({ subcommand, column: 'Health_Points', value: 1 }), deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.NOT_IN_GAME });
+      expect(deps.models.Players.update).not.toHaveBeenCalled();
+      expect(deps.models.Players.destroy).not.toHaveBeenCalled();
+    })).toEqual([]);
   });
 });
 
@@ -190,20 +195,22 @@ describe('sandbox set-stat / set-meta', () => {
     expect(where).toEqual({ where: { Player_ID: 5 } });
   });
 
-  it.each([
-    ['set-stat', 'Discord_ID'],
-    ['set-stat', 'Game_ID'],
-    ['set-stat', 'Player_ID'],
-    ['set-stat', 'Class_ID'],
-    ['set-meta', 'Health_Points'],
-  ])('%s refuses to write %s', async (subcommand, column) => {
-    // the identity columns are the ones that matter: a player must never be
-    // able to rewrite whose row it is. Class_ID/Health_Points are here to pin
-    // that the two allowlists really are separate.
-    const deps = happyDeps();
-    const result = await logic.run(input({ subcommand, column, value: 1 }), deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.INVALID_AMOUNT });
-    expect(deps.models.Players.update).not.toHaveBeenCalled();
+  it('<subcommand> refuses to write <column>', async () => {
+    expect(await everyCase('%s refuses to write %s', [
+      ['set-stat', 'Discord_ID'],
+      ['set-stat', 'Game_ID'],
+      ['set-stat', 'Player_ID'],
+      ['set-stat', 'Class_ID'],
+      ['set-meta', 'Health_Points'],
+    ], async (subcommand, column) => {
+      // the identity columns are the ones that matter: a player must never be
+      // able to rewrite whose row it is. Class_ID/Health_Points are here to pin
+      // that the two allowlists really are separate.
+      const deps = happyDeps();
+      const result = await logic.run(input({ subcommand, column, value: 1 }), deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.INVALID_AMOUNT });
+      expect(deps.models.Players.update).not.toHaveBeenCalled();
+    })).toEqual([]);
   });
 
   it('lists the legal columns when one is refused', async () => {

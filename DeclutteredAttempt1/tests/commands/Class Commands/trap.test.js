@@ -14,6 +14,7 @@ const {
   createFakeTile,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const MINESWEEPER = '123';
 
@@ -92,20 +93,22 @@ describe('trap.run rejections', () => {
 
   // One row per outcome this command's own gate call can produce; the full
   // state table belongs to utils.checkGameState and tests/utils.pure.test.js.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.REGISTRATION }, REJECTIONS.GAME_IN_REGISTRATION],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expectNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.REGISTRATION }, REJECTIONS.GAME_IN_REGISTRATION],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   it('does not block a Clockwatcher during a timestop', async () => {
@@ -262,20 +265,19 @@ describe('trap.run success', () => {
     );
   });
 
-  it.each(['Wall', 'Void', 'Fire', 'Blank2', 'Gateway_Open'])(
-    'traps a %s tile too - there is no tile-type check (preserved quirk)',
-    async (type) => {
-      const { deps } = happyDeps({
-        tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
-      });
-      const result = await logic.run(INPUT, deps);
-      expect(result.ok).toBe(true);
-      expect(deps.models.Tiles.update).toHaveBeenCalledWith(
-        { trapped: true, trapper: 1 },
-        { where: { Tile_ID: 42 } },
-      );
-    },
-  );
+  it('traps a <type> tile too - there is no tile-type check (preserved quirk)', async () => {
+    expect(await everyCase('traps a %s tile too - there is no tile-type check (preserved quirk)', ['Wall', 'Void', 'Fire', 'Blank2', 'Gateway_Open'], async (type) => {
+        const { deps } = happyDeps({
+          tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
+        });
+        const result = await logic.run(INPUT, deps);
+        expect(result.ok).toBe(true);
+        expect(deps.models.Tiles.update).toHaveBeenCalledWith(
+          { trapped: true, trapper: 1 },
+          { where: { Tile_ID: 42 } },
+        );
+      },)).toEqual([]);
+  });
 
   it('traps an occupied tile (no occupant check - preserved quirk)', async () => {
     const { deps } = happyDeps({
@@ -330,17 +332,19 @@ describe('trap.run success', () => {
 
 describe('trap.present', () => {
   // every rejection trap can return renders as its exact legacy string
-  it.each([
-    [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],
-    [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
-    [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
-    [REJECTIONS.NO_SUCH_TILE, { action: 'trap' }, 'Could not find tile to trap at the given coordinates.'],
-    [REJECTIONS.WRONG_CLASS, { className: 'Minesweeper' }, 'You are not a Minesweeper!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'trap a tile' }, 'You dont have enough AP to trap a tile!'],
-  ])('renders %s as its legacy message', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],
+      [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
+      [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+      [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
+      [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
+      [REJECTIONS.NO_SUCH_TILE, { action: 'trap' }, 'Could not find tile to trap at the given coordinates.'],
+      [REJECTIONS.WRONG_CLASS, { className: 'Minesweeper' }, 'You are not a Minesweeper!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'trap a tile' }, 'You dont have enough AP to trap a tile!'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   it('renders success with the coordinates and layer', () => {

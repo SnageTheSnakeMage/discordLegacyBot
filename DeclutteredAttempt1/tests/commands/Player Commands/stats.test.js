@@ -11,6 +11,7 @@ const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeClass, createFakeTile, createFakeLayer,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const ACTOR = '123';
 const TARGET = '456';
@@ -110,22 +111,24 @@ describe('stats.run rejections', () => {
   // gate and returns its verdict without writing, so one state that passes,
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    // blocked for anything that acts; /stats reads, so it passes readOnly and
-    // these two are open to it. These rows fail if that argument is dropped.
-    [{ GAME_STATE: GAMESTATES.REGISTRATION }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const deps = happyDeps({ game: createFakeGame({ ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      assertNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      // blocked for anything that acts; /stats reads, so it passes readOnly and
+      // these two are open to it. These rows fail if that argument is dropped.
+      [{ GAME_STATE: GAMESTATES.REGISTRATION }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const deps = happyDeps({ game: createFakeGame({ ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        assertNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   it('does not block a Clockwatcher during a timestop', async () => {

@@ -14,6 +14,7 @@ const {
   createFakeTile,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const DOCTOR = '123';
 
@@ -102,19 +103,21 @@ describe('heal.run rejections', () => {
   // The old code passed isClockwatcher=false unconditionally, so
   // TIMESTOPPED always blocks (a Doctor is never a Clockwatcher) -
   // preserved.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expectNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   it('does not block a Clockwatcher during a timestop', async () => {
@@ -154,14 +157,16 @@ describe('heal.run rejections', () => {
     expect(result.reason).toBe(REJECTIONS.NO_SUCH_TILE);
   });
 
-  it.each(['Gateway_Open', 'Gateway_Locked'])('rejects healing a %s tile', async (type) => {
-    const { deps } = happyDeps({
-      tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
-    expect(result.data.message).toBe('You cannot heal a gateway tile!');
-    expectNoWrites(deps);
+  it('rejects healing a <type> tile', async () => {
+    expect(await everyCase('rejects healing a %s tile', ['Gateway_Open', 'Gateway_Locked'], async (type) => {
+      const { deps } = happyDeps({
+        tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+      expect(result.data.message).toBe('You cannot heal a gateway tile!');
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
   it('rejects a tile one beyond max range (boundary: one beyond)', async () => {
@@ -302,16 +307,18 @@ describe('heal.run success', () => {
 
 describe('heal.present', () => {
   // every rejection heal can return renders as its exact legacy string
-  it.each([
-    [REJECTIONS.NO_SUCH_TILE, { action: 'heal' }, 'Could not find tile to heal at the given coordinates.'],
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
-    [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
-    [REJECTIONS.WRONG_CLASS, { className: 'Doctor' }, 'You are not a Doctor!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'heal a tile' }, 'You dont have enough AP to heal a tile!'],
-    [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
-  ])('renders %s as its legacy message', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.NO_SUCH_TILE, { action: 'heal' }, 'Could not find tile to heal at the given coordinates.'],
+      [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+      [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
+      [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
+      [REJECTIONS.WRONG_CLASS, { className: 'Doctor' }, 'You are not a Doctor!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'heal a tile' }, 'You dont have enough AP to heal a tile!'],
+      [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   it('renders the unknown-game rejection with the game id', () => {

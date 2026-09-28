@@ -14,6 +14,7 @@
 const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
 const { seedPlayer, seedPopulatedGame } = require('./helpers/seed.js');
 const { GAMESTATES } = require('../../enums.js');
+const { everyCase } = require('../helpers/everyCase.js');
 
 const MINUTE = 60000;
 const FAKE_CLIENT = {};
@@ -130,29 +131,30 @@ describe('apCheckTick', () => {
 
   // the states that cannot have a running clock at all. setGameState is what
   // enforces that, so these go through it rather than writing the column.
-  it.each([GAMESTATES.REGISTRATION, GAMESTATES.OVER])(
-    'pays nothing for a game moved to %s, which cannot run a clock',
-    async (state) => {
-      const { game, player } = await seedBehind();
-      await utils.setGameState(game.Game_ID, state, { gameActive: true });
+  it('pays nothing for a game moved to <state>, which cannot run a clock', async () => {
+    expect(await everyCase('pays nothing for a game moved to %s, which cannot run a clock', [GAMESTATES.REGISTRATION, GAMESTATES.OVER], async (state) => {
+        const { game, player } = await seedBehind();
+        await utils.setGameState(game.Game_ID, state, { gameActive: true });
 
-      await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
+        await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
 
-      expect(await apOf(player)).toBe(0);
-    },
-  );
+        expect(await apOf(player)).toBe(0);
+      },)).toEqual([]);
+  });
 
   // the other flags do not stop the clock: a timestopped or finale game is
   // still paid
-  it.each([
-    ['no flags', {}],
-    ['in the finale', { finale: true }],
-    ['with time stopped', { timeStopped: true, timestopTurns: 3 }],
-  ])('pays a running game %s', async (_label, flags) => {
-    const { game, player } = await seedBehind();
-    await models.Games.update(flags, { where: { Game_ID: game.Game_ID } });
-    await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
-    expect(await apOf(player)).toBeGreaterThan(0);
+  it('pays a running game <label>', async () => {
+    expect(await everyCase('pays a running game %s', [
+      ['no flags', {}],
+      ['in the finale', { finale: true }],
+      ['with time stopped', { timeStopped: true, timestopTurns: 3 }],
+    ], async (_label, flags) => {
+      const { game, player } = await seedBehind();
+      await models.Games.update(flags, { where: { Game_ID: game.Game_ID } });
+      await utils.apCheckTick(game.Game_ID, FAKE_CLIENT);
+      expect(await apOf(player)).toBeGreaterThan(0);
+    })).toEqual([]);
   });
 
   it('posts no council poll while the game is paused', async () => {

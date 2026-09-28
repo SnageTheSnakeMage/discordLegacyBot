@@ -6,6 +6,7 @@ const logic = require('../../../commands/Developer Commands/createGame.logic.js'
 const createGame = require('../../../commands/Developer Commands/createGame.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const DEV = '123';
 
@@ -166,16 +167,18 @@ describe('createGame.run gamestate', () => {
   // mint a new REGISTRATION game. The table below pins that - whatever state
   // any existing game is in, the command still creates a REGISTRATION game
   // and is never blocked. A new GAMESTATES value fails here if that changes.
-  it.each(Object.values(GAMESTATES))('is not gated by an existing game in %s', async (condition) => {
-    const deps = happyDeps();
-    deps.models.Games.findByPk = jest.fn(async () => createFakeGame({ ...condition }));
-    deps.models.Games.findAll = jest.fn(async () => [createFakeGame({ ...condition })]);
+  it('is not gated by an existing game in <condition>', async () => {
+    expect(await everyCase('is not gated by an existing game in %s', Object.values(GAMESTATES), async (condition) => {
+      const deps = happyDeps();
+      deps.models.Games.findByPk = jest.fn(async () => createFakeGame({ ...condition }));
+      deps.models.Games.findAll = jest.fn(async () => [createFakeGame({ ...condition })]);
 
-    const result = await logic.run(DEFAULT_INPUT, deps);
+      const result = await logic.run(DEFAULT_INPUT, deps);
 
-    expect(result.ok).toBe(true);
-    expect(deps.models.Games.create).toHaveBeenCalledTimes(1);
-    expect(deps.models.Games.create.mock.calls[0][0].GAME_STATE).toBe(GAMESTATES.REGISTRATION);
+      expect(result.ok).toBe(true);
+      expect(deps.models.Games.create).toHaveBeenCalledTimes(1);
+      expect(deps.models.Games.create.mock.calls[0][0].GAME_STATE).toBe(GAMESTATES.REGISTRATION);
+    })).toEqual([]);
   });
 });
 

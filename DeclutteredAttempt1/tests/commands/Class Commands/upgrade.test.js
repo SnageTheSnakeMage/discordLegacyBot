@@ -7,6 +7,7 @@ const logic = require('../../../commands/Class Commands/upgrade.logic.js');
 const upgrade = require('../../../commands/Class Commands/upgrade.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeClass, createFakeGame, createFakePlayer } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const ACTOR = '123';
 
@@ -97,15 +98,17 @@ describe('upgrade.run rejections', () => {
     [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
   ];
 
-  it.each(GAMESTATE_TABLE)('game %o -> %s', async (condition, reason) => {
-    const deps = makeDeps({ game: createFakeGame({ ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expect(deps.models.Players.update).not.toHaveBeenCalled();
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', GAMESTATE_TABLE, async (condition, reason) => {
+      const deps = makeDeps({ game: createFakeGame({ ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expect(deps.models.Players.update).not.toHaveBeenCalled();
+      }
+    })).toEqual([]);
   });
 
   it('rejects one AP short of the price, and says how much is missing', async () => {

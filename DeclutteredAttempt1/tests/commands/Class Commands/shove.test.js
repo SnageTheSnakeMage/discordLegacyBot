@@ -11,6 +11,7 @@ const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const {
   createDeps, createFakeGame, createFakePlayer, createFakeTile, createFakeClass,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const BULLY = '111';
 const VICTIM = '222';
@@ -88,15 +89,17 @@ describe('shove.run success', () => {
 
   // victim stands EAST of the bully, so the bully faces east: their left
   // hand points north (NE) and their right hand south (SE)
-  it.each([
-    ['back', 4, 2],
-    ['left', 4, 1],
-    ['right', 4, 3],
-  ])('shoves %s to (%i, %i) for a victim standing east', async (direction, x, y) => {
-    const { deps } = happyDeps({ board: true });
-    const result = await logic.run({ ...INPUT, direction }, deps);
-    expect(result).toMatchObject({ ok: true, data: { x, y, layerId: 1 } });
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(2, 1, x, y);
+  it('shoves <direction> to (<x>, <y>) for a victim standing east', async () => {
+    expect(await everyCase('shoves %s to (%i, %i) for a victim standing east', [
+      ['back', 4, 2],
+      ['left', 4, 1],
+      ['right', 4, 3],
+    ], async (direction, x, y) => {
+      const { deps } = happyDeps({ board: true });
+      const result = await logic.run({ ...INPUT, direction }, deps);
+      expect(result).toMatchObject({ ok: true, data: { x, y, layerId: 1 } });
+      expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(2, 1, x, y);
+    })).toEqual([]);
   });
 
   it('a Cloudborn can be shoved onto terrain nobody else can stand on', async () => {
@@ -163,18 +166,20 @@ describe('shove.run rejections', () => {
 
   // the bully reaches exactly one tile. `board: true` puts a tile everywhere
   // on layer 1, so nothing but the adjacency check can stop these.
-  it.each([
-    ['two tiles east', 4, 2],
-    ['two tiles diagonally', 4, 4],
-    ['two tiles north', 2, 0],
-  ])('rejects a victim %s away', async (_label, x, y) => {
-    const { result, deps } = await rejects({
-      board: true,
-      victimTile: createFakeTile({ Tile_ID: 11, Layer_ID: 1, X_Position: x, Y_Position: y }),
-    });
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
-    expect(result.data.message).toBe('You can only shove someone on a tile next to you!');
-    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+  it('rejects a victim <label> away', async () => {
+    expect(await everyCase('rejects a victim %s away', [
+      ['two tiles east', 4, 2],
+      ['two tiles diagonally', 4, 4],
+      ['two tiles north', 2, 0],
+    ], async (_label, x, y) => {
+      const { result, deps } = await rejects({
+        board: true,
+        victimTile: createFakeTile({ Tile_ID: 11, Layer_ID: 1, X_Position: x, Y_Position: y }),
+      });
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.OUT_OF_RANGE });
+      expect(result.data.message).toBe('You can only shove someone on a tile next to you!');
+      expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+    })).toEqual([]);
   });
 
   it('accepts a victim exactly one tile away, diagonally (boundary: adjacent)', async () => {
@@ -201,13 +206,15 @@ describe('shove.run rejections', () => {
 
   // the message interpolates the tile type, so each impassable kind renders
   // its own wording
-  it.each(['Wall', 'Wall_Damaged', 'Void'])('rejects a shove onto a %s tile', async (tileType) => {
-    const { result, deps } = await rejects({
-      behind: createFakeTile({ Tile_ID: 12, Layer_ID: 1, X_Position: 4, Y_Position: 2, Tile_Type: tileType }),
-    });
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
-    expect(result.data.message).toBe(`You cannot shove anyone onto a ${tileType} tile!`);
-    expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+  it('rejects a shove onto a <tileType> tile', async () => {
+    expect(await everyCase('rejects a shove onto a %s tile', ['Wall', 'Wall_Damaged', 'Void'], async (tileType) => {
+      const { result, deps } = await rejects({
+        behind: createFakeTile({ Tile_ID: 12, Layer_ID: 1, X_Position: 4, Y_Position: 2, Tile_Type: tileType }),
+      });
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+      expect(result.data.message).toBe(`You cannot shove anyone onto a ${tileType} tile!`);
+      expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
+    })).toEqual([]);
   });
 
   it('rejects a shove toward a tile that does not exist', async () => {
@@ -257,21 +264,23 @@ describe('shoveVector', () => {
   };
   const name = (v) => Object.keys(DIRS).find((k) => DIRS[k][0] === v[0] && DIRS[k][1] === v[1]);
 
-  it.each([
-    // facing, back, left, right
-    ['N', 'N', 'NW', 'NE'],
-    ['NE', 'NE', 'N', 'E'],
-    ['E', 'E', 'NE', 'SE'],
-    ['SE', 'SE', 'E', 'S'],
-    ['S', 'S', 'SE', 'SW'],
-    ['SW', 'SW', 'S', 'W'],
-    ['W', 'W', 'SW', 'NW'],
-    ['NW', 'NW', 'W', 'N'],
-  ])('a victim %s of the bully: back=%s left=%s right=%s', (away, back, left, right) => {
-    const [dx, dy] = DIRS[away];
-    expect(name(shoveVector(dx, dy, 'back'))).toBe(back);
-    expect(name(shoveVector(dx, dy, 'left'))).toBe(left);
-    expect(name(shoveVector(dx, dy, 'right'))).toBe(right);
+  it('a victim <away> of the bully: back=<back> left=<left> right=<right>', async () => {
+    expect(await everyCase('a victim %s of the bully: back=%s left=%s right=%s', [
+      // facing, back, left, right
+      ['N', 'N', 'NW', 'NE'],
+      ['NE', 'NE', 'N', 'E'],
+      ['E', 'E', 'NE', 'SE'],
+      ['SE', 'SE', 'E', 'S'],
+      ['S', 'S', 'SE', 'SW'],
+      ['SW', 'SW', 'S', 'W'],
+      ['W', 'W', 'SW', 'NW'],
+      ['NW', 'NW', 'W', 'N'],
+    ], (away, back, left, right) => {
+      const [dx, dy] = DIRS[away];
+      expect(name(shoveVector(dx, dy, 'back'))).toBe(back);
+      expect(name(shoveVector(dx, dy, 'left'))).toBe(left);
+      expect(name(shoveVector(dx, dy, 'right'))).toBe(right);
+    })).toEqual([]);
   });
 
   // The facing rule stated as maths, so it holds for all 8 facings at once
@@ -362,19 +371,21 @@ describe('shove on a shared tile', () => {
     return deps;
   }
 
-  it.each([
-    // bully slot, victim slot, away direction, back lands at (x,y) from (3,3)
-    ['Player1', 'Player2', 'east', 4, 3],
-    ['Player2', 'Player1', 'west', 2, 3],
-    ['Player1', 'Player3', 'south', 3, 4],
-    ['Player3', 'Player1', 'north', 3, 2],
-    ['Player1', 'Player4', 'south-east', 4, 4],
-    ['Player4', 'Player1', 'north-west', 2, 2],
-  ])('%s shoving %s reads as %s, landing back at (%i, %i)', async (b, v, _dir, x, y) => {
-    const deps = sharedDeps(b, v);
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: true, data: { x, y } });
-    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(2, 1, x, y);
+  it('<b> shoving <v> reads as <dir>, landing back at (<x>, <y>)', async () => {
+    expect(await everyCase('%s shoving %s reads as %s, landing back at (%i, %i)', [
+      // bully slot, victim slot, away direction, back lands at (x,y) from (3,3)
+      ['Player1', 'Player2', 'east', 4, 3],
+      ['Player2', 'Player1', 'west', 2, 3],
+      ['Player1', 'Player3', 'south', 3, 4],
+      ['Player3', 'Player1', 'north', 3, 2],
+      ['Player1', 'Player4', 'south-east', 4, 4],
+      ['Player4', 'Player1', 'north-west', 2, 2],
+    ], async (b, v, _dir, x, y) => {
+      const deps = sharedDeps(b, v);
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({ ok: true, data: { x, y } });
+      expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(2, 1, x, y);
+    })).toEqual([]);
   });
 
   it('still leaves the shared tile rather than reseating them in it', async () => {

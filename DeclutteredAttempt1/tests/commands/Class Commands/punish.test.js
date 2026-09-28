@@ -19,6 +19,7 @@ const {
   createFakeClass,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const ATTACKER = '123';
 const TARGET = '456';
@@ -126,16 +127,18 @@ describe('punish.run rejections', () => {
   //
   // Passing the gate lands on the unimplemented-class rejection, because
   // punish has no success path.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    expect(result.ok).toBe(false);
-    expect(result.reason).toBe(reason === null ? REJECTIONS.WRONG_CLASS : reason);
-    expectNoWrites(deps);
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe(reason === null ? REJECTIONS.WRONG_CLASS : reason);
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
   it('does not block a Clockwatcher during a timestop', async () => {
@@ -256,16 +259,18 @@ describe('punish.run preserved quirks', () => {
 });
 
 describe('punish.present', () => {
-  it.each([
-    [REJECTIONS.WRONG_CLASS, { className: 'Punisher' }, 'You are not a Punisher!'],
-    [REJECTIONS.NO_SUCH_TILE, undefined, 'That tile is not on the board!'],
-    [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
-    [REJECTIONS.GAME_OVER, undefined, "Game is over!\n Please register on a new game."],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
-    [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
-    [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],
-  ])('renders %s with the legacy wording', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.WRONG_CLASS, { className: 'Punisher' }, 'You are not a Punisher!'],
+      [REJECTIONS.NO_SUCH_TILE, undefined, 'That tile is not on the board!'],
+      [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
+      [REJECTIONS.GAME_OVER, undefined, "Game is over!\n Please register on a new game."],
+      [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
+      [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
+      [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   it('passes a carried legacy message straight through', () => {

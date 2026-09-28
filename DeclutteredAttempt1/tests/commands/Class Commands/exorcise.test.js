@@ -15,6 +15,7 @@ const {
   createFakeTile,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const EXORCIST = '123';
 const TARGET = '456';
@@ -104,19 +105,21 @@ describe('exorcise.run rejections', () => {
   //
   // The old code hard-coded isClockwatcher=false, so TIMESTOPPED blocks
   // everyone.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expectNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   it('rejects when no tile exists at the coordinates', async () => {
@@ -133,14 +136,16 @@ describe('exorcise.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it.each(['Gateway_Open', 'Gateway_Locked'])('rejects a %s tile in tile mode', async (tileType) => {
-    const { deps } = happyDeps({
-      tileToChange: createFakeTile({ Tile_ID: 5, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: tileType }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
-    expect(result.data.message).toBe('You cannot exorcise a gateway tile!');
-    expectNoWrites(deps);
+  it('rejects a <tileType> tile in tile mode', async () => {
+    expect(await everyCase('rejects a %s tile in tile mode', ['Gateway_Open', 'Gateway_Locked'], async (tileType) => {
+      const { deps } = happyDeps({
+        tileToChange: createFakeTile({ Tile_ID: 5, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: tileType }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+      expect(result.data.message).toBe('You cannot exorcise a gateway tile!');
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
   // quirk: the gateway check requires !targetPlayer, so class removal works
@@ -278,14 +283,16 @@ describe('exorcise.run success', () => {
 
 describe('exorcise.present', () => {
   // every rejection renders its exact legacy wording
-  it.each([
-    [REJECTIONS.NO_SUCH_TILE, { action: 'exorcise' }, 'Could not find tile to exorcise at the given coordinates.'],
-    [REJECTIONS.WRONG_CLASS, { className: 'Exorcist' }, 'You are not a Exorcist!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'dig a tile' }, 'You dont have enough AP to dig a tile!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'remove a class' }, 'You dont have enough AP to remove a class!'],
-    [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
-  ])('renders %s as its player-facing message', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.NO_SUCH_TILE, { action: 'exorcise' }, 'Could not find tile to exorcise at the given coordinates.'],
+      [REJECTIONS.WRONG_CLASS, { className: 'Exorcist' }, 'You are not a Exorcist!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'dig a tile' }, 'You dont have enough AP to dig a tile!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'remove a class' }, 'You dont have enough AP to remove a class!'],
+      [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   it('renders tile-mode success with the pre-revert tile type', () => {

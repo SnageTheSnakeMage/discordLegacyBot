@@ -11,6 +11,7 @@
 const { Sequelize } = require('sequelize');
 const initModels = require('../../database/init-models.js');
 const { migrateGameFlags } = require('../../scripts/bootstrap-db.js');
+const { everyCase } = require('../helpers/everyCase.js');
 
 const LEGACY_STATES = ['REGISTRATION', 'ACTIVE', 'DEV_PAUSED', 'OVER', 'TIMESTOPPED', 'FINALE', 'SANDBOX', 'INACTIVE'];
 
@@ -66,24 +67,26 @@ describe('migrateGameFlags', () => {
 
   // the three states that described a game being played all become ACTIVE plus
   // their flag; the one that meant "finished" becomes OVER
-  it.each([
-    ['REGISTRATION', 'REGISTRATION', { gameActive: 0, timeStopped: 0, finale: 0, sandbox: 0 }],
-    ['ACTIVE', 'ACTIVE', { gameActive: 1, timeStopped: 0, finale: 0, sandbox: 0 }],
-    ['DEV_PAUSED', 'DEV_PAUSED', { gameActive: 0, timeStopped: 0, finale: 0, sandbox: 0 }],
-    ['OVER', 'OVER', { gameActive: 0, timeStopped: 0, finale: 0, sandbox: 0 }],
-    ['TIMESTOPPED', 'ACTIVE', { gameActive: 1, timeStopped: 1, finale: 0, sandbox: 0 }],
-    ['FINALE', 'ACTIVE', { gameActive: 1, timeStopped: 0, finale: 1, sandbox: 0 }],
-    ['SANDBOX', 'ACTIVE', { gameActive: 0, timeStopped: 0, finale: 0, sandbox: 1 }],
-    ['INACTIVE', 'OVER', { gameActive: 0, timeStopped: 0, finale: 0, sandbox: 0 }],
-  ])('%s becomes %s with the right flags', async (was, becomes, flags) => {
-    await legacyDb();
-    await migrateGameFlags({ sequelize, models });
-    const row = (await byStartingState())[was];
-    expect(row.GAME_STATE).toBe(becomes);
-    expect({
-      gameActive: row.gameActive, timeStopped: row.timeStopped,
-      finale: row.finale, sandbox: row.sandbox,
-    }).toEqual(flags);
+  it('<was> becomes <becomes> with the right flags', async () => {
+    expect(await everyCase('%s becomes %s with the right flags', [
+      ['REGISTRATION', 'REGISTRATION', { gameActive: 0, timeStopped: 0, finale: 0, sandbox: 0 }],
+      ['ACTIVE', 'ACTIVE', { gameActive: 1, timeStopped: 0, finale: 0, sandbox: 0 }],
+      ['DEV_PAUSED', 'DEV_PAUSED', { gameActive: 0, timeStopped: 0, finale: 0, sandbox: 0 }],
+      ['OVER', 'OVER', { gameActive: 0, timeStopped: 0, finale: 0, sandbox: 0 }],
+      ['TIMESTOPPED', 'ACTIVE', { gameActive: 1, timeStopped: 1, finale: 0, sandbox: 0 }],
+      ['FINALE', 'ACTIVE', { gameActive: 1, timeStopped: 0, finale: 1, sandbox: 0 }],
+      ['SANDBOX', 'ACTIVE', { gameActive: 0, timeStopped: 0, finale: 0, sandbox: 1 }],
+      ['INACTIVE', 'OVER', { gameActive: 0, timeStopped: 0, finale: 0, sandbox: 0 }],
+    ], async (was, becomes, flags) => {
+      await legacyDb();
+      await migrateGameFlags({ sequelize, models });
+      const row = (await byStartingState())[was];
+      expect(row.GAME_STATE).toBe(becomes);
+      expect({
+        gameActive: row.gameActive, timeStopped: row.timeStopped,
+        finale: row.finale, sandbox: row.sandbox,
+      }).toEqual(flags);
+    })).toEqual([]);
   });
 
   // the clock column has to reproduce exactly which games used to be paid, or

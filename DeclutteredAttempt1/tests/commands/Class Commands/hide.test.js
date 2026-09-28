@@ -14,6 +14,7 @@ const {
   createFakeTile,
   expectNoWrites,
 } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const HUNTER = '123';
 
@@ -95,19 +96,21 @@ describe('hide.run rejections', () => {
   // The old code passed isClockwatcher=false unconditionally, so
   // TIMESTOPPED always blocks (a Hunter is never a Clockwatcher) -
   // preserved.
-  it.each([
-    [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
-    [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
-    [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
-  ])('game %o -> %s', async (condition, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({ ok: false, reason });
-      expectNoWrites(deps);
-    }
+  it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
+    expect(await everyCase('game %o -> %s', [
+      [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
+      [{ GAME_STATE: GAMESTATES.OVER }, REJECTIONS.GAME_OVER],
+      [{ GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }, REJECTIONS.TIME_STOPPED],
+    ], async (condition, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ Game_ID: 1, ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({ ok: false, reason });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   it('gates on gamestate before even looking the tile up (legacy order)', async () => {
@@ -144,14 +147,16 @@ describe('hide.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  it.each(['Gateway_Open', 'Gateway_Locked'])('rejects hiding a %s tile', async (type) => {
-    const { deps } = happyDeps({
-      tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
-    });
-    const result = await logic.run(INPUT, deps);
-    expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
-    expect(result.data.message).toBe('You cannot hide a gateway tile!');
-    expectNoWrites(deps);
+  it('rejects hiding a <type> tile', async () => {
+    expect(await everyCase('rejects hiding a %s tile', ['Gateway_Open', 'Gateway_Locked'], async (type) => {
+      const { deps } = happyDeps({
+        tileToChange: createFakeTile({ Tile_ID: 42, X_Position: 2, Y_Position: 1, Layer_ID: 1, Tile_Type: type }),
+      });
+      const result = await logic.run(INPUT, deps);
+      expect(result).toMatchObject({ ok: false, reason: REJECTIONS.WRONG_TILE_TYPE });
+      expect(result.data.message).toBe('You cannot hide a gateway tile!');
+      expectNoWrites(deps);
+    })).toEqual([]);
   });
 
   it('rejects a tile one beyond max range (boundary: one beyond)', async () => {
@@ -298,17 +303,19 @@ describe('hide.run success', () => {
 
 describe('hide.present', () => {
   // every rejection hide can return renders as its exact legacy string
-  it.each([
-    [REJECTIONS.NO_SUCH_TILE, { action: 'hide' }, 'Could not find tile to hide at the given coordinates.'],
-    [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],
-    [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
-    [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
-    [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
-    [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
-    [REJECTIONS.WRONG_CLASS, { className: 'Hunter' }, 'You are not a Hunter!'],
-    [REJECTIONS.NOT_ENOUGH_AP, { action: 'hide a tile' }, 'You dont have enough AP to hide a tile!'],
-  ])('renders %s as its legacy message', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.NO_SUCH_TILE, { action: 'hide' }, 'Could not find tile to hide at the given coordinates.'],
+      [REJECTIONS.NO_SUCH_GAME, { gameId: 3 }, 'Could not find game #3!'],
+      [REJECTIONS.NOT_IN_GAME, undefined, 'Player not found in game!, please register for the game you wish to play in.'],
+      [REJECTIONS.GAME_OVER, undefined, 'Game is over!\n Please register on a new game.'],
+      [REJECTIONS.GAME_PAUSED, undefined, 'Game is paused! No one can use commands for this game until it is unpaused.'],
+      [REJECTIONS.TIME_STOPPED, undefined, 'Time is stopped! only Clockwatchers can use commands at this time.'],
+      [REJECTIONS.WRONG_CLASS, { className: 'Hunter' }, 'You are not a Hunter!'],
+      [REJECTIONS.NOT_ENOUGH_AP, { action: 'hide a tile' }, 'You dont have enough AP to hide a tile!'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   it('renders success naming the PRE-hide tile type with no username prefix (preserved quirk)', () => {

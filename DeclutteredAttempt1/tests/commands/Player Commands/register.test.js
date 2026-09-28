@@ -8,6 +8,7 @@ const logic = require('../../../commands/Player Commands/register.logic.js');
 const register = require('../../../commands/Player Commands/register.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame, createFakePlayer, expectNoWrites } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const ACTOR = '123';
 const PNG_ICON = { contentType: 'image/png', width: 80, height: 80, url: 'https://cdn.example/icon.png' };
@@ -65,19 +66,21 @@ describe('register.run rejections', () => {
     state, state === GAMESTATES.REGISTRATION ? null : REJECTIONS.GAME_NOT_IN_REGISTRATION,
   ]);
 
-  it.each(outcomes)('%s -> %s', async (state, reason) => {
-    const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
-    const result = await logic.run(INPUT, deps);
-    if (reason === null) {
-      expect(result.ok).toBe(true);
-    } else {
-      expect(result).toMatchObject({
-        ok: false,
-        reason,
-        data: { message: 'Cannot register for games not in registration phase.' },
-      });
-      expectNoWrites(deps);
-    }
+  it('<state> -> <reason>', async () => {
+    expect(await everyCase('%s -> %s', outcomes, async (state, reason) => {
+      const { deps } = happyDeps({ game: createFakeGame({ GAME_STATE: state }) });
+      const result = await logic.run(INPUT, deps);
+      if (reason === null) {
+        expect(result.ok).toBe(true);
+      } else {
+        expect(result).toMatchObject({
+          ok: false,
+          reason,
+          data: { message: 'Cannot register for games not in registration phase.' },
+        });
+        expectNoWrites(deps);
+      }
+    })).toEqual([]);
   });
 
   // the table is built from the enum, so this only has to say that the enum is
@@ -114,19 +117,18 @@ describe('register.run rejections', () => {
   // node-canvas here decodes PNG and JPEG only, so anything else would upload
   // and then render as default.png with nothing in the logs. Registration is
   // the last point at which the player can be told why.
-  it.each(['image/webp', 'image/avif', 'image/gif', 'video/mp4', 'application/pdf'])(
-    'rejects a %s icon and writes nothing',
-    async (contentType) => {
-      const { deps } = happyDeps();
-      const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, contentType } }, deps);
-      expect(result).toMatchObject({
-        ok: false,
-        reason: REJECTIONS.WRONG_TILE_TYPE,
-        data: { message: `The file is a ${contentType} file. Player icon must be a PNG or JPEG image` },
-      });
-      expectNoWrites(deps);
-    },
-  );
+  it('rejects a <contentType> icon and writes nothing', async () => {
+    expect(await everyCase('rejects a %s icon and writes nothing', ['image/webp', 'image/avif', 'image/gif', 'video/mp4', 'application/pdf'], async (contentType) => {
+        const { deps } = happyDeps();
+        const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, contentType } }, deps);
+        expect(result).toMatchObject({
+          ok: false,
+          reason: REJECTIONS.WRONG_TILE_TYPE,
+          data: { message: `The file is a ${contentType} file. Player icon must be a PNG or JPEG image` },
+        });
+        expectNoWrites(deps);
+      },)).toEqual([]);
+  });
 
   it('accepts a JPEG', async () => {
     const { deps } = happyDeps();
@@ -136,29 +138,27 @@ describe('register.run rejections', () => {
 
   // the renderer scales the icon into a quadrant of a tile, so any square
   // size draws correctly
-  it.each([[16, 16], [80, 80], [512, 512], [1024, 1024]])(
-    'accepts a square %dx%d icon',
-    async (width, height) => {
-      const { deps } = happyDeps();
-      const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, width, height } }, deps);
-      expect(result.ok).toBe(true);
-      expect(deps.utils.registerPlayer).toHaveBeenCalled();
-    },
-  );
+  it('accepts a square <width>x<height> icon', async () => {
+    expect(await everyCase('accepts a square %dx%d icon', [[16, 16], [80, 80], [512, 512], [1024, 1024]], async (width, height) => {
+        const { deps } = happyDeps();
+        const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, width, height } }, deps);
+        expect(result.ok).toBe(true);
+        expect(deps.utils.registerPlayer).toHaveBeenCalled();
+      },)).toEqual([]);
+  });
 
-  it.each([[80, 79], [79, 80], [160, 80], [1, 1000]])(
-    'rejects a %dx%d icon for not being square',
-    async (width, height) => {
-      const { deps } = happyDeps();
-      const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, width, height } }, deps);
-      expect(result).toMatchObject({
-        ok: false,
-        reason: REJECTIONS.INVALID_AMOUNT,
-        data: { message: `Player icon must be square - that one is ${width}x${height}. Any size is fine, it gets scaled to the tile.` },
-      });
-      expectNoWrites(deps);
-    },
-  );
+  it('rejects a <width>x<height> icon for not being square', async () => {
+    expect(await everyCase('rejects a %dx%d icon for not being square', [[80, 79], [79, 80], [160, 80], [1, 1000]], async (width, height) => {
+        const { deps } = happyDeps();
+        const result = await logic.run({ ...INPUT, icon: { ...PNG_ICON, width, height } }, deps);
+        expect(result).toMatchObject({
+          ok: false,
+          reason: REJECTIONS.INVALID_AMOUNT,
+          data: { message: `Player icon must be square - that one is ${width}x${height}. Any size is fine, it gets scaled to the tile.` },
+        });
+        expectNoWrites(deps);
+      },)).toEqual([]);
+  });
 
   it('rejects an already registered player with the legacy message', async () => {
     const { deps } = happyDeps({ existingPlayer: createFakePlayer({ Discord_ID: ACTOR, Game_ID: 1 }) });
@@ -233,10 +233,12 @@ describe('register.run success', () => {
 
 describe('register.present', () => {
   // every rejection carries its byte-identical legacy string in data.message
-  it.each([
-    [REJECTIONS.NO_SUCH_GAME, { gameId: 1, message: 'Game not found. Please check the game ID.' }, 'Game not found. Please check the game ID.'],
-  ])('renders %s as its legacy message', (reason, data, expected) => {
-    expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+  it('renders every rejection it returns as its player-facing message', async () => {
+    expect(await everyCase('%s', [
+      [REJECTIONS.NO_SUCH_GAME, { gameId: 1, message: 'Game not found. Please check the game ID.' }, 'Game not found. Please check the game ID.'],
+    ], (reason, data, expected) => {
+      expect(logic.present({ ok: false, reason, data })).toEqual({ content: expected });
+    })).toEqual([]);
   });
 
   it('renders success with the legacy confirmation', () => {

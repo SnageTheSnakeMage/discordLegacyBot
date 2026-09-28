@@ -7,6 +7,7 @@ const logic = require('../../../commands/Developer Commands/grid_dev.logic.js');
 const gridDev = require('../../../commands/Developer Commands/grid_dev.js');
 const { GAMESTATES, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const FAKE_PNG = Buffer.from('not-a-real-png');
 
@@ -107,13 +108,15 @@ describe('grid_dev run success', () => {
   // The gamestate table. This command deliberately has NO gamestate gate -
   // the dev can look at any game in any state - so the table pins that
   // absence: adding a state that should block the dev view breaks this test.
-  it.each([GAMESTATES.ACTIVE, GAMESTATES.OVER])('renders regardless of gamestate %s', async (condition) => {
-    const deps = happyDeps({ game: createFakeGame({ ...condition }) });
-    const result = await logic.run(INPUT, deps);
-    expect(result.ok).toBe(true);
-    expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith('1', '3');
-    // the gamestate is never even read: run() makes no database call
-    expect(deps.models.Games.findByPk).not.toHaveBeenCalled();
+  it('renders regardless of gamestate <condition>', async () => {
+    expect(await everyCase('renders regardless of gamestate %s', [GAMESTATES.ACTIVE, GAMESTATES.OVER], async (condition) => {
+      const deps = happyDeps({ game: createFakeGame({ ...condition }) });
+      const result = await logic.run(INPUT, deps);
+      expect(result.ok).toBe(true);
+      expect(deps.utils.GenerateGameGridImage).toHaveBeenCalledWith('1', '3');
+      // the gamestate is never even read: run() makes no database call
+      expect(deps.models.Games.findByPk).not.toHaveBeenCalled();
+    })).toEqual([]);
   });
 
   // QUIRK (preserved): no existence check on either id. A game or layer that

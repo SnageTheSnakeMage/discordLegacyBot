@@ -7,6 +7,7 @@ const logic = require('../../../commands/Developer Commands/gameflags.logic.js')
 const gameflags = require('../../../commands/Developer Commands/gameflags.js');
 const { GAMESTATES, GAME_FLAGS, REJECTIONS } = require('../../../enums.js');
 const { createDeps, createFakeGame, createFakePlayer, expectNoWrites } = require('../../helpers/mockModels.js');
+const { everyCase } = require('../../helpers/everyCase.js');
 
 const DEV = { discordId: '123', username: 'snage', isDev: true };
 const PLAYER = { discordId: '456', username: 'someone', isDev: false };
@@ -78,23 +79,23 @@ describe('gameflags set', () => {
 
   // the three flags the gamestate has no say in are written straight, one
   // column at a time, so setting one never disturbs another
-  it.each([GAME_FLAGS.timeStopped, GAME_FLAGS.finale, GAME_FLAGS.sandbox])(
-    'writes %s on its own', async (flag) => {
-      const deps = depsFor({ GAME_STATE: GAMESTATES.ACTIVE });
-      const result = await logic.run(setInput({ flag, value: true }), deps);
-      expect(result).toMatchObject({ ok: true, kind: 'flagSet', data: { flag, value: true } });
-      expect(deps.models.Games.update).toHaveBeenCalledWith({ [flag]: true }, { where: { Game_ID: 1 } });
-      expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
-    },
-  );
+  it('writes <flag> on its own', async () => {
+    expect(await everyCase('writes %s on its own', [GAME_FLAGS.timeStopped, GAME_FLAGS.finale, GAME_FLAGS.sandbox], async (flag) => {
+        const deps = depsFor({ GAME_STATE: GAMESTATES.ACTIVE });
+        const result = await logic.run(setInput({ flag, value: true }), deps);
+        expect(result).toMatchObject({ ok: true, kind: 'flagSet', data: { flag, value: true } });
+        expect(deps.models.Games.update).toHaveBeenCalledWith({ [flag]: true }, { where: { Game_ID: 1 } });
+        expect(deps.models.Games.update).toHaveBeenCalledTimes(1);
+      },)).toEqual([]);
+  });
 
-  it.each([GAME_FLAGS.timeStopped, GAME_FLAGS.finale, GAME_FLAGS.sandbox])(
-    'turns %s off again', async (flag) => {
-      const deps = depsFor({ GAME_STATE: GAMESTATES.ACTIVE, [flag]: true });
-      await logic.run(setInput({ flag, value: false }), deps);
-      expect(deps.models.Games.update).toHaveBeenCalledWith({ [flag]: false }, { where: { Game_ID: 1 } });
-    },
-  );
+  it('turns <flag> off again', async () => {
+    expect(await everyCase('turns %s off again', [GAME_FLAGS.timeStopped, GAME_FLAGS.finale, GAME_FLAGS.sandbox], async (flag) => {
+        const deps = depsFor({ GAME_STATE: GAMESTATES.ACTIVE, [flag]: true });
+        await logic.run(setInput({ flag, value: false }), deps);
+        expect(deps.models.Games.update).toHaveBeenCalledWith({ [flag]: false }, { where: { Game_ID: 1 } });
+      },)).toEqual([]);
+  });
 
   // the clock goes through utils.setGameState, which keeps it honest against
   // the gamestate and keeps the game's place in its AP interval across a stop:
@@ -139,27 +140,27 @@ describe('gameflags set', () => {
 
   // the invariant, refused out loud rather than silently ignored: setGameState
   // would force it false and the reply would claim the clock was on
-  it.each([GAMESTATES.REGISTRATION, GAMESTATES.OVER])(
-    'refuses to start the clock on a %s game, and writes nothing', async (state) => {
-      const deps = depsFor({ GAME_STATE: state, gameActive: false });
-      const result = await logic.run(setInput({ flag: GAME_FLAGS.gameActive, value: true }), deps);
-      expect(result).toMatchObject({
-        ok: false,
-        reason: REJECTIONS.CLOCK_NOT_ALLOWED,
-        data: { gameId: 1, gamestate: state },
-      });
-      expect(deps.models.Games.update).not.toHaveBeenCalled();
-    },
-  );
+  it('refuses to start the clock on a <state> game, and writes nothing', async () => {
+    expect(await everyCase('refuses to start the clock on a %s game, and writes nothing', [GAMESTATES.REGISTRATION, GAMESTATES.OVER], async (state) => {
+        const deps = depsFor({ GAME_STATE: state, gameActive: false });
+        const result = await logic.run(setInput({ flag: GAME_FLAGS.gameActive, value: true }), deps);
+        expect(result).toMatchObject({
+          ok: false,
+          reason: REJECTIONS.CLOCK_NOT_ALLOWED,
+          data: { gameId: 1, gamestate: state },
+        });
+        expect(deps.models.Games.update).not.toHaveBeenCalled();
+      },)).toEqual([]);
+  });
 
   // stopping it is always allowed: there is nothing to keep honest about a
   // clock that is not running
-  it.each([GAMESTATES.REGISTRATION, GAMESTATES.OVER])(
-    'allows stopping the clock on a %s game', async (state) => {
-      const deps = depsFor({ GAME_STATE: state, gameActive: false });
-      expect((await logic.run(setInput({ flag: GAME_FLAGS.gameActive, value: false }), deps)).ok).toBe(true);
-    },
-  );
+  it('allows stopping the clock on a <state> game', async () => {
+    expect(await everyCase('allows stopping the clock on a %s game', [GAMESTATES.REGISTRATION, GAMESTATES.OVER], async (state) => {
+        const deps = depsFor({ GAME_STATE: state, gameActive: false });
+        expect((await logic.run(setInput({ flag: GAME_FLAGS.gameActive, value: false }), deps)).ok).toBe(true);
+      },)).toEqual([]);
+  });
 });
 
 describe('gameflags set - resolving the game', () => {
@@ -217,12 +218,12 @@ describe('gameflags sandbox', () => {
     expect(deps.models.Games.update).not.toHaveBeenCalled();
   });
 
-  it.each([GAME_FLAGS.gameActive, GAME_FLAGS.timeStopped, GAME_FLAGS.finale])(
-    'may set %s', async (flag) => {
-      const deps = depsFor({ GAME_STATE: GAMESTATES.ACTIVE, sandbox: true });
-      expect((await logic.run(sandboxInput({ flag, value: true }), deps)).ok).toBe(true);
-    },
-  );
+  it('may set <flag>', async () => {
+    expect(await everyCase('may set %s', [GAME_FLAGS.gameActive, GAME_FLAGS.timeStopped, GAME_FLAGS.finale], async (flag) => {
+        const deps = depsFor({ GAME_STATE: GAMESTATES.ACTIVE, sandbox: true });
+        expect((await logic.run(sandboxInput({ flag, value: true }), deps)).ok).toBe(true);
+      },)).toEqual([]);
+  });
 
   it('does not need the dev flag', async () => {
     const deps = depsFor({ sandbox: true });
