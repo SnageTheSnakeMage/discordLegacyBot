@@ -2,15 +2,14 @@
  * The rule: a logic file over 200 lines, comments excluded, logs its own
  * internals - not just the entry/exit pair that runLogged puts around run().
  *
- * This is a structural guard, like tests/clockwatcherGate.test.js. It is here
- * so the rule survives the next command conversion: a logic file that grows
- * past the threshold fails this test until it is given step logging, and the
- * failure names the file.
+ * This is a structural guard, like tests/clockwatcherGate.test.js: a logic
+ * file that grows past the threshold fails this test until it is given step
+ * logging, and the failure names the file.
  *
  * Counting: comment-only lines (// and /* ... *\/ ) and blank lines are not
  * code. That is the reading of "200 lines excluding comments" that does not
  * let a file dodge the rule by carrying a long banner comment - move.logic.js
- * has 89 lines of preamble explaining what it fixed.
+ * has 89 lines of preamble.
  */
 const fs = require('fs');
 const path = require('path');
@@ -85,9 +84,9 @@ describe('logic files over 200 non-comment lines log their internals', () => {
   it('<relative> actually calls its step logger', async () => {
     expect(await everyCase('%s actually calls its step logger', large.map((entry) => [entry.relative, entry]), (_relative, entry) => {
       // stepLogger returns the logging function; a file that requires it and
-      // never calls it has the import and none of the logging. Counting to a
-      // fixed minimum was churn, not a guard: merging two trace() calls while
-      // logging exactly as much used to fail this.
+      // never calls it has the import and none of the logging. Any call
+      // passes: a fixed minimum would fail on merging two trace() calls that
+      // log exactly as much.
       const calls = entry.source.match(/(?<![\w.])trace\(/g) || [];
       expect(calls.length).toBeGreaterThan(0);
     })).toEqual([]);
@@ -96,12 +95,8 @@ describe('logic files over 200 non-comment lines log their internals', () => {
 
 describe('logic files under the threshold', () => {
   it('are the majority - the wrapper around run() is their whole logging story', () => {
-    // This used to also assert
-    //   small.length === files.length - files.filter(over threshold).length
-    // which is the same partition computed twice: true for any file set and
-    // any threshold, including an empty one. It could not fail. What is worth
-    // pinning is that the rule applies to a minority, so the guard above is
-    // about a few large files rather than quietly covering everything.
+    // The rule applies to a minority, so the guard above is about a few
+    // large files rather than quietly covering everything.
     const small = files.filter((entry) => entry.codeLines <= THRESHOLD);
     expect(small.length).toBeGreaterThan(30);
     expect(small.length).toBeGreaterThan(files.length - small.length);

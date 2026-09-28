@@ -92,9 +92,8 @@ describe('hide.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   //
-  // The old code passed isClockwatcher=false unconditionally, so
-  // TIMESTOPPED always blocks (a Hunter is never a Clockwatcher) -
-  // preserved.
+  // A timestop always blocks this command (a Hunter is never a
+  // Clockwatcher).
   it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
     expect(await everyCase('game %o -> %s', [
       [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
@@ -301,7 +300,7 @@ describe('hide.run success', () => {
 });
 
 describe('hide.present', () => {
-  // every rejection hide can return renders as its exact legacy string
+  // every rejection hide can return renders as its exact player-facing string
   it('renders every rejection it returns as its player-facing message', async () => {
     expect(await everyCase('%s', [
       [REJECTIONS.NO_SUCH_TILE, { action: 'hide' }, 'Could not find tile to hide at the given coordinates.'],

@@ -138,7 +138,7 @@ describe('reloadCommands run file selection', () => {
     await logic.run(INPUT, deps);
     expect(deps.loadCommand).toHaveBeenCalledWith(path.join(ROOT, 'Player Commands', 'gift.js'));
     expect(deps.loadCommand).toHaveBeenCalledWith(path.join(ROOT, 'Developer Commands', 'reloadCommands.js'));
-    // the old code asked for ./<slash name>.js inside Developer Commands
+    // the slash name is not a file name
     expect(deps.loadCommand).not.toHaveBeenCalledWith(path.join(ROOT, 'Developer Commands', 'reload-commands.js'));
   });
 
@@ -206,7 +206,7 @@ describe('reloadCommands run file selection', () => {
     expect(deps.loadCommand).not.toHaveBeenCalled();
   });
 
-  // QUIRK (preserved): the walk has no allow-list of folders - every directory
+  // the walk has no allow-list of folders - every directory
   // under commands/ is scanned, decommissioned code included, exactly as
   // index.js does when it builds the collection at boot.
   it('scans every directory, including decommissioned', async () => {

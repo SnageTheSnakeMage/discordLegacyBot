@@ -105,9 +105,8 @@ describe('conjure.run rejections', () => {
   // one that blocks, and the timestop (whose answer depends on the
   // isClockwatcher argument this command passes) cover it here.
   //
-  // The old code passed isClockwatcher=false unconditionally, so
-  // TIMESTOPPED always blocks (a Druid is never a Clockwatcher) -
-  // preserved.
+  // A timestop always blocks this command (a Druid is never a
+  // Clockwatcher).
   it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
     expect(await everyCase('game %o -> %s', [
       [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
@@ -268,7 +267,7 @@ describe('conjure.run success', () => {
 });
 
 describe('conjure.present', () => {
-  // every rejection conjure can return renders as its exact legacy string
+  // every rejection conjure can return renders as its exact player-facing string
   it('renders every rejection it returns as its player-facing message', async () => {
     expect(await everyCase('%s', [
       [REJECTIONS.PLAYER_DEAD, undefined, "Dead players can't use this command."],
