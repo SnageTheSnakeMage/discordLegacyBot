@@ -154,11 +154,9 @@ describe('move.pathToTiles', () => {
     expect(logic.pathToTiles([3, 3], [['down', '1'], ['']])).toEqual([[3, 3], [3, 4]]);
   });
 
-  // QUIRK: every segment is measured from the starting tile, not from the end
-  // of the previous segment. Kept from the legacy pathToTiles.
-  it('measures every segment from the starting tile, not cumulatively', () => {
+  it('starts each segment where the previous one ended', () => {
     expect(logic.pathToTiles([1, 1], [['right', '2'], ['down', '1'], ['']]))
-      .toEqual([[1, 1], [3, 1], [1, 2]]);
+      .toEqual([[1, 1], [3, 1], [3, 2]]);
   });
 
   it('throws on an unknown segment direction', () => {
@@ -172,6 +170,11 @@ describe('move.getTileCordinatesOfPath', () => {
   it('flattens the path into every coordinate crossed, junctions not repeated', () => {
     expect(logic.getTileCordinatesOfPath([1, 1], logic.inputPathToArray('right,2;'), utils))
       .toEqual([[1, 1], [2, 1], [3, 1]]);
+  });
+
+  it('walks a bent path corner to corner', () => {
+    expect(logic.getTileCordinatesOfPath([1, 1], logic.inputPathToArray('right,2;down,2;'), utils))
+      .toEqual([[1, 1], [2, 1], [3, 1], [3, 2], [3, 3]]);
   });
 
   it('returns just the starting tile for an empty path', () => {
@@ -227,12 +230,19 @@ describe('move.verifyInputPath', () => {
     expect(verdict.message).toMatch(/make sure your path uses a direction/);
   });
 
-  it('checks each segment from the starting tile (legacy, non-cumulative)', async () => {
+  it('checks each segment from where the previous one ended', async () => {
     const deps = pathDeps();
-    await logic.verifyInputPath('right,2;down,1;', 1, 1, 1, deps);
+    const verdict = await logic.verifyInputPath('right,2;down,1;', 1, 1, 1, deps);
+    expect(verdict).toEqual({ valid: true, destination: [3, 2] });
     expect(deps.models.Tiles.findOne).toHaveBeenCalledWith({ where: { Layer_ID: 1, X_Position: 3, Y_Position: 1 } });
-    // cumulative would be (3,2); legacy measures from the start, so (1,2)
-    expect(deps.models.Tiles.findOne).toHaveBeenCalledWith({ where: { Layer_ID: 1, X_Position: 1, Y_Position: 2 } });
+    expect(deps.models.Tiles.findOne).toHaveBeenCalledWith({ where: { Layer_ID: 1, X_Position: 3, Y_Position: 2 } });
+  });
+
+  // right 2 then right 3 ends on x = 6, off a 5-wide board, though each
+  // segment alone would fit
+  it('rejects a path that only leaves the board once the segments add up', async () => {
+    const verdict = await logic.verifyInputPath('right,2;right,3;', 1, 1, 1, pathDeps());
+    expect(verdict.valid).toBe(false);
   });
 });
 
@@ -571,6 +581,14 @@ describe('move.run success', () => {
     expect([result.data.newX, result.data.newY]).toEqual([3, 1]);
     expect(result.data.spentAP).toBe(3);
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 1);
+  });
+
+  it('walks a bent path to the end of its last segment', async () => {
+    const { deps } = makeDeps();
+    const result = await logic.run({ ...INPUT, path: 'right,2;down,2;' }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual([3, 3]);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 3);
   });
 
   it('resolves the default game via getOldestActiveGameId when no game is given', async () => {

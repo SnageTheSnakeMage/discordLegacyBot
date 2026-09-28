@@ -195,24 +195,23 @@ function addStartToPathArray(initalMoveDirection, initalMoveDistance, pathArray)
 
 /**
  * Turns a path into the [x, y] of the start plus the end of every segment.
- * startingTile is an [x, y] array.
- *
- * QUIRK PRESERVED: every segment is measured from the STARTING tile, not from
- * the end of the previous segment.
+ * Each segment starts where the previous one ended. startingTile is an
+ * [x, y] array.
  */
 function pathToTiles(startingTile, path) {
   const tiles = [[startingTile[0], startingTile[1]]];
+  let [x, y] = startingTile;
   for (const segment of path) {
     // a well-formed path ends in ';', so split() leaves a trailing [""]
-    // segment; skipping it is what makes any path usable at all (legacy
-    // threw on it every time)
     if (!segment[0]) continue;
     const delta = PATH_DELTAS[segment[0]];
     if (!delta) {
       throw new Error('Invalid input path, your are using a direction that isnt: left,w,right,e,up,n,down,s,nw,ne,sw, or se contact snage as this should not be possible.');
     }
     const distance = parseInt(segment[1], 10);
-    tiles.push([startingTile[0] + delta[0] * distance, startingTile[1] + delta[1] * distance]);
+    x += delta[0] * distance;
+    y += delta[1] * distance;
+    tiles.push([x, y]);
   }
   return tiles;
 }
@@ -233,14 +232,10 @@ function getTileCordinatesOfPath(startingTile, path, utils) {
 }
 
 /**
- * Checks a raw path string: right shape, every segment lands on a tile that
- * exists, and the destination is inside the layer's bounds.
- *
- * Legacy threw strings from here; it returns a verdict now so run() can turn
- * it into a rejection code. The wording is unchanged.
- *
- * QUIRK PRESERVED: each segment is checked from the STARTING tile, so only
- * the corner tiles are checked and only relative to where the walk began.
+ * Checks a raw path string: right shape, the end of every segment is a tile
+ * that exists, and the destination is inside the layer's bounds. Segments
+ * chain, as in pathToTiles. Returns a verdict so run() can turn it into a
+ * rejection code.
  */
 async function verifyInputPath(inputPath, layerId, startingTileXPosition, startingTileYPosition, deps = defaultDeps) {
   const { models } = deps;
@@ -248,23 +243,19 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
     return { valid: false, message: MSG_BAD_PATH_FORMAT };
   }
   const path = inputPathToArray(inputPath);
-  let destination = [startingTileXPosition, startingTileYPosition];
   for (const segment of path) {
-    // trailing [""] from the mandatory final ';' - see pathToTiles
-    if (!segment[0]) continue;
-    const delta = PATH_DELTAS[segment[0]];
-    if (!delta) {
+    if (segment[0] && !PATH_DELTAS[segment[0]]) {
       return { valid: false, message: MSG_BAD_PATH_DIRECTION };
     }
-    const distance = parseInt(segment[1], 10);
-    const x = startingTileXPosition + delta[0] * distance;
-    const y = startingTileYPosition + delta[1] * distance;
+  }
+  const corners = pathToTiles([startingTileXPosition, startingTileYPosition], path);
+  for (const [x, y] of corners.slice(1)) {
     const tile = await models.Tiles.findOne({ where: { Layer_ID: layerId, X_Position: x, Y_Position: y } });
     if (tile == null) {
       return { valid: false, message: MSG_BAD_PATH_TILE };
     }
-    destination = [x, y];
   }
+  const destination = corners[corners.length - 1];
   const curLayer = await models.Layers.findByPk(layerId);
   if (curLayer && (curLayer.X_Bound < destination[0] || curLayer.Y_Bound < destination[1])) {
     return { valid: false, message: MSG_BAD_PATH_FORMAT };
