@@ -8,13 +8,18 @@
  * - Every layer runs from (1,1) to (X_Bound, Y_Bound); a direction move that
  *   would leave it stops at the edge. A path that would leave it is refused.
  * - Each path segment starts where the previous one ended.
- * - A player pays moveCost (doubled for a Glutton) per tile stepped onto, not
- *   for the tile they start on. Ice stepped onto is free, free movement pays
- *   before AP does, and nobody but a Snowman may stop on ice.
- * - A player who steps onto a storm is stormed: moved one tile off it in a
- *   random direction, and the rest of the walk, destination included, moves
- *   with them. Unless they are a Cloudborn, a storm never storms them onto,
- *   or leaves their walk ending on, a wall, void or ice tile.
+ * - A walk stops on the tile before a full one.
+ * - A player pays moveCost (doubled for a Glutton) per tile they actually
+ *   step onto, not for the tile they start on and not for tiles a stop or a
+ *   storm kept them from. Ice stepped onto is free, free movement pays before
+ *   AP does, and a move never costs more than the walk as planned. Nobody but
+ *   a Snowman may plan to end on ice.
+ * - A player who steps onto a storm is stormed one tile off it in a random
+ *   direction, and the rest of the walk, destination included, moves with
+ *   them. If the tile they would be stormed onto is off the board, full, or
+ *   (unless they are a Cloudborn) a wall, void or ice, they stay on the storm
+ *   and the walk ends there. Otherwise the shifted walk stops before the
+ *   first tile they may not enter, and backs off an ice tile at its end.
  *
  * parse/run/present per TESTING.md Part 1. run() takes plain data and a deps
  * bundle and returns a CommandResult; it never sees an interaction.
@@ -38,7 +43,7 @@ const CLOUDBORN_CLASS_ID = 6;
 const ROBOT_CLASS_ID = 19;
 const STORMCHASER_CLASS_ID = 15;
 
-/** terrain a storm may not dump a non-Cloudborn onto */
+/** terrain a stormed non-Cloudborn may not enter, or, for ice, end on */
 const STORM_FORBIDDEN_TILE_TYPES = ['Wall', 'Wall_Damaged', 'Void', 'Ice'];
 
 /**
@@ -205,18 +210,17 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
  * One tile of movement: what the tile being left does, what the tile being
  * entered does, and whether it was mined. Returns undefined normally,
  * { blocked: true, ... } when the player may not enter the tile at all,
- * { died: true } when the tile killed them, or { stormedTo: [x, y] } when a
- * storm moved them somewhere else.
+ * { died: true } when the tile killed them, or { stormedBy: [dx, dy] } when
+ * a storm is moving them; the walk decides where that leaves them.
  *
- * secondBody selects the twin's second body's columns. rest is the walk still
- * to come after endTile, which being stormed shifts.
+ * secondBody selects the twin's second body's columns.
  */
-async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, deps, rest = []) {
+async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, deps) {
   const { models, utils, random } = deps;
   const trace = stepLogger('move', deps);
   const body = secondBody ? 2 : 1;
   const currentHp = secondBody ? player.Health_Points2 : player.Health_Points;
-  let stormedTo = null;
+  let stormedBy = null;
 
   switch (startTile.Tile_Type) {
     // leaving a fire tile burns the player
@@ -258,7 +262,7 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
         await models.Players.update({ Action_Points: player.Action_Points + (random(3) - 1) }, { where: { Player_ID: player.Player_ID } });
       }
       // and everyone is stormed one tile off it in a random direction
-      stormedTo = await movePlayerToRandomSurroundingTile(player.Player_ID, endTile.Layer_ID, endTile.X_Position, endTile.Y_Position, deps, { rest });
+      stormedBy = rollStormDirection(deps);
       break;
     case 'Void':
     case 'Wall':
@@ -290,64 +294,90 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
     await models.Tiles.update({ trapped: false, trapper: null }, { where: { Tile_ID: endTile.Tile_ID } });
     if (afterMine.Dead) return { died: true };
   }
-  return stormedTo ? { stormedTo } : undefined;
+  return stormedBy ? { stormedBy } : undefined;
+}
+
+/** A storm picks one direction at random; the walk decides what happens. */
+function rollStormDirection(deps) {
+  return RANDOM_DIRECTION_DELTAS[deps.random(7)] || null;
+}
+
+/** the DIRECTION_DELTAS name of a one-tile step, for the reply */
+function directionName([dx, dy]) {
+  const entry = Object.entries(DIRECTION_DELTAS).find(([, d]) => d[0] === dx && d[1] === dy);
+  return entry ? entry[0] : 'somewhere';
 }
 
 /**
- * The tile a walk finishes on once being stormed has shifted it: the last tile of
- * `rest` moved by `delta`, or, if the shift takes it off the board, the last
- * tile before it leaves. `rest` is the walk still to come after the storm.
+ * How far along `walk` a player can go from index `from` on: they stop
+ * before the first tile they may not enter, then back off any tiles at the
+ * end they may not stop on. Never shortens the walk below `from`. Returns the
+ * new length and why it was cut, or null when it was not.
  */
-async function stormStopTile(landingTile, rest, delta, layer, models) {
-  let stop = landingTile;
-  for (const [x, y] of rest) {
-    const tile = await models.Tiles.findOne({ where: { Layer_ID: layer, X_Position: x + delta[0], Y_Position: y + delta[1] } });
-    if (!tile) break;
-    stop = tile;
+async function reachableLength(walk, from, rules, deps) {
+  const tiles = [];
+  let length = walk.length;
+  let cutBy = null;
+  for (let j = from; j < walk.length; j++) {
+    const tile = await findWalkTile(walk[j], rules.layerId, deps);
+    const refusal = rules.mayEnter(tile);
+    if (refusal) {
+      length = j;
+      cutBy = refusal;
+      break;
+    }
+    tiles.push(tile);
   }
-  return stop;
+  while (length > from && !rules.mayStopOn(tiles[length - 1 - from])) {
+    length--;
+    cutBy = cutBy || 'cannotStop';
+  }
+  return { length, cutBy };
+}
+
+function findWalkTile([x, y], layerId, deps) {
+  return deps.models.Tiles.findOne({ where: { Layer_ID: layerId, X_Position: x, Y_Position: y } });
 }
 
 /**
- * Picks the tile a storm at (x, y) moves a stormed player onto: one tile in a random
- * direction, re-rolled a bounded number of times when the terrain would be
- * illegal for their class. The rest of the walk moves with them, so a
- * direction is also refused when the shifted walk would finish on such terrain.
- * Returns [x, y], or null when every roll failed and the player stays on the
- * storm. It does not move anyone; the walk does.
+ * What a walk may enter and stop on. Every walk stops before a full tile; a
+ * stormed walk also stops before the board's edge and, unless the player is
+ * a Cloudborn, before a wall or void, and may not end on ice. A planned walk
+ * may end on ice only for a Snowman. The tile the player is moving from
+ * always has room for them.
  */
-async function movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, { rest = [], attempt = 0 } = {}) {
-  const { models, random } = deps;
-  const trace = stepLogger('move', deps);
-  const player = await models.Players.findByPk(playerId);
-  const playerClass = player ? await models.Classes.findByPk(player.Class_ID) : null;
+function walkRules({ layerId, fromTileId, className, stormed }, deps) {
+  const hasRoom = (tile) => tile.Tile_ID === fromTileId || deps.utils.tileHasRoom(tile);
+  const cloudborn = className == 'Cloudborn';
+  return {
+    layerId,
+    mayEnter(tile) {
+      if (!tile) return 'offBoard';
+      if (!hasRoom(tile)) return 'full';
+      if (stormed && !cloudborn && STORM_FORBIDDEN_TILE_TYPES.includes(tile.Tile_Type) && tile.Tile_Type != 'Ice') return 'terrain';
+      return null;
+    },
+    mayStopOn(tile) {
+      if (tile.Tile_Type != 'Ice') return true;
+      return stormed ? cloudborn : className == 'Snowman';
+    },
+  };
+}
 
-  const delta = RANDOM_DIRECTION_DELTAS[random(7)];
-  if (!delta) return null;
-  const newX = x + delta[0];
-  const newY = y + delta[1];
-  const newTile = await models.Tiles.findOne({ where: { Layer_ID: layer, X_Position: newX, Y_Position: newY } });
-
-  // a storm may not put a player, or leave them at the end of their walk,
-  // somewhere they could not normally walk, unless they are a Cloudborn
-  const restricted = (tile) => playerClass && playerClass.Class_Name != 'Cloudborn'
-    && STORM_FORBIDDEN_TILE_TYPES.includes(tile.Tile_Type);
-  const stop = newTile && await stormStopTile(newTile, rest, delta, layer, models);
-  const forbidden = !newTile || restricted(newTile) || restricted(stop);
-  if (forbidden) {
-    // a re-roll is invisible in the reply, so the log is the only place that
-    // says why a stormed player ended up two tiles away from where they expected
-    trace('stormReroll', {
-      attempt,
-      rejected: [newX, newY],
-      tileType: newTile ? newTile.Tile_Type : null,
-      stopTileType: stop ? stop.Tile_Type : null,
-    });
-    if (attempt >= RANDOM_DIRECTION_DELTAS.length) return null;
-    return movePlayerToRandomSurroundingTile(playerId, layer, x, y, deps, { rest, attempt: attempt + 1 });
-  }
-  trace('stormed', { playerId, from: [x, y], to: [newX, newY], attempts: attempt });
-  return [newX, newY];
+/**
+ * What a move costs: moveCost (doubled for a Glutton) per tile stepped onto,
+ * with ice free and free movement paying before AP does.
+ */
+function moveCost(enteredTileTypes, player, className, game) {
+  const tilesEntered = enteredTileTypes.length;
+  const iceTileDeduction = enteredTileTypes.filter((type) => type == 'Ice').length;
+  const payableTiles = Math.max(tilesEntered - iceTileDeduction, 0);
+  const freeMoveUsed = Math.min(Math.max(player.Free_Move || 0, 0), payableTiles);
+  const billableTiles = payableTiles - freeMoveUsed;
+  const spentAP = className == 'Glutton'
+    ? (2 * game.moveCost) * billableTiles
+    : game.moveCost * billableTiles;
+  return { tilesEntered, iceTileDeduction, freeMoveUsed, billableTiles, spentAP };
 }
 
 // ---------------------------------------------------------------------------
@@ -456,55 +486,47 @@ async function run(input, deps = defaultDeps) {
     tilesWalked: iceChecklistAndTileList.length,
   });
 
-  // a player pays for each tile they step onto, not the one they start on.
-  // An ice tile stepped onto is free, and nobody but a Snowman may stop on one
-  let iceTileDeduction = 0;
+  // every tile on the planned walk must exist, and nobody but a Snowman may
+  // plan to end on ice
   for (let cord = 0; cord < iceChecklistAndTileList.length; cord++) {
-    const tile = await models.Tiles.findOne({
-      where: {
-        Layer_ID: originalTile.Layer_ID,
-        X_Position: iceChecklistAndTileList[cord][0],
-        Y_Position: iceChecklistAndTileList[cord][1],
-      },
-    });
+    const tile = await findWalkTile(iceChecklistAndTileList[cord], originalTile.Layer_ID, deps);
     if (!tile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE };
-    if (cord > 0 && tile.Tile_Type == 'Ice') {
-      iceTileDeduction++;
-    }
     if (cord == iceChecklistAndTileList.length - 1 && tile.Tile_Type == 'Ice' && playerClass.Class_Name != 'Snowman') {
       return { ok: false, reason: REJECTIONS.WRONG_TILE_TYPE, data: { message: MSG_ICE_END } };
     }
   }
 
-  const tilesEntered = iceChecklistAndTileList.length - 1;
-  const payableTiles = Math.max(tilesEntered - iceTileDeduction, 0);
-  // free movement pays for tiles before AP does
-  const freeMoveUsed = Math.min(Math.max(player.Free_Move || 0, 0), payableTiles);
-  const billableTiles = payableTiles - freeMoveUsed;
-  const spentAP = playerClass.Class_Name == 'Glutton'
-    ? (2 * game.moveCost) * billableTiles
-    : game.moveCost * billableTiles;
+  // the walk as it actually happens: cut short before a full tile, and
+  // shifted by a storm
+  const walk = iceChecklistAndTileList.map(([x, y]) => [x, y]);
+  const ruleContext = { layerId: originalTile.Layer_ID, fromTileId: originalTile.Tile_ID, className: playerClass.Class_Name };
+  const planned = await reachableLength(walk, 1, walkRules({ ...ruleContext, stormed: false }, deps), deps);
+  walk.length = planned.length;
+  if (planned.cutBy) trace('cutShort', { cutBy: planned.cutBy, stopAt: walk[walk.length - 1] });
+
+  // the price of the walk as planned. A player pays only for tiles they
+  // actually step onto, so a storm or a stop can make it cheaper, never dearer
+  const plannedTypes = [];
+  for (let cord = 1; cord < walk.length; cord++) {
+    plannedTypes.push((await findWalkTile(walk[cord], originalTile.Layer_ID, deps)).Tile_Type);
+  }
+  const quote = moveCost(plannedTypes, player, playerClass.Class_Name, game);
 
   // the numbers a player disputes most often: how many tiles they were
   // charged for, what the ice and free movement took off, and what the
   // Glutton doubling did
   trace('cost', {
-    tilesEntered,
-    iceTileDeduction,
-    freeMoveUsed,
-    billableTiles,
+    ...quote,
     moveCost: game.moveCost,
     doubled: playerClass.Class_Name == 'Glutton',
-    spentAP,
     ap: player.Action_Points,
   });
 
-  if (player.Action_Points < spentAP) {
+  if (player.Action_Points < quote.spentAP) {
     return { ok: false, reason: REJECTIONS.NOT_ENOUGH_AP, data: { message: MSG_NO_AP } };
   }
 
   // set when a fire tile or mine kills the mover mid-walk
-
   let died = false;
 
   // a run of identical steps is written once, followed by "xN" for the
@@ -513,21 +535,17 @@ async function run(input, deps = defaultDeps) {
   let lastStringAddedToResponse = '';
   let amountOfRepeats = 0;
   let repeatLine = '';
+  const note = (line) => {
+    response += repeatLine + line;
+    repeatLine = '';
+    lastStringAddedToResponse = '';
+  };
 
-  // the walk as it actually happens: a storm shifts everything after it
-  const walk = iceChecklistAndTileList.map(([x, y]) => [x, y]);
-  let stormed = false;
+  const enteredTileTypes = [];
 
   for (let cord = 0; cord < walk.length - 1; cord++) {
-    const cur_Tile = await models.Tiles.findOne({ where: { X_Position: walk[cord][0], Y_Position: walk[cord][1], Layer_ID: originalTile.Layer_ID } });
-    const nxt_Tile = await models.Tiles.findOne({ where: { X_Position: walk[cord + 1][0], Y_Position: walk[cord + 1][1], Layer_ID: originalTile.Layer_ID } });
-    // a storm can push the rest of the walk off the board; the player then
-    // stops where the storm left them
-    if (stormed && cur_Tile && !nxt_Tile) {
-      trace('stormCutShort', { index: cord, at: walk[cord], wouldReach: walk[cord + 1] });
-      walk.length = cord + 1;
-      break;
-    }
+    const cur_Tile = await findWalkTile(walk[cord], originalTile.Layer_ID, deps);
+    const nxt_Tile = await findWalkTile(walk[cord + 1], originalTile.Layer_ID, deps);
     if (!cur_Tile || !nxt_Tile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE };
 
     if (lastStringAddedToResponse != `You moved from a ${cur_Tile.Tile_Type} tile to a ${nxt_Tile.Tile_Type} tile! \n`) {
@@ -557,24 +575,40 @@ async function run(input, deps = defaultDeps) {
       trapped: !!nxt_Tile.trapped,
     });
 
+    enteredTileTypes.push(nxt_Tile.Tile_Type);
+
     // also holds the trapped-tile damage logic
-    const blocked = await moveFromTiletoTile(cur_Tile, nxt_Tile, player, secondBody, game, deps, walk.slice(cord + 2));
+    const blocked = await moveFromTiletoTile(cur_Tile, nxt_Tile, player, secondBody, game, deps);
     // a tile can kill the mover. playerDeathLogic has already taken them off
     // the board, so the walk stops here rather than placing a corpse.
     if (blocked && blocked.died) {
       trace('diedMidWalk', { index: cord, at: [nxt_Tile.X_Position, nxt_Tile.Y_Position], tileType: nxt_Tile.Tile_Type });
       died = true;
+      walk.length = cord + 2;
       break;
     }
-    if (blocked && blocked.stormedTo) {
+    if (blocked && blocked.stormedBy) {
+      const [dx, dy] = blocked.stormedBy;
+      const stormRules = walkRules({ ...ruleContext, stormed: true }, deps);
+      const landingAt = [walk[cord + 1][0] + dx, walk[cord + 1][1] + dy];
+      const landing = await findWalkTile(landingAt, originalTile.Layer_ID, deps);
+      const refusal = stormRules.mayEnter(landing) || (stormRules.mayStopOn(landing) ? null : 'cannotStop');
+      if (refusal) {
+        // nowhere to be stormed to: they stay on the storm and stop there
+        trace('stormedNowhere', { at: walk[cord + 1], refused: landingAt, refusal });
+        walk.length = cord + 2;
+        note(`A storm tried to move you ${directionName(blocked.stormedBy)}, but that way was blocked, so you stopped on the storm! \n`);
+        break;
+      }
       // the storm moves the player, and the rest of the walk moves with them
-      const dx = blocked.stormedTo[0] - walk[cord + 1][0];
-      const dy = blocked.stormedTo[1] - walk[cord + 1][1];
       for (let later = cord + 1; later < walk.length; later++) {
         walk[later] = [walk[later][0] + dx, walk[later][1] + dy];
       }
-      stormed = true;
-      trace('destinationShifted', { by: [dx, dy], to: walk[walk.length - 1] });
+      const stormedWalk = await reachableLength(walk, cord + 2, stormRules, deps);
+      walk.length = stormedWalk.length;
+      trace('destinationShifted', { by: [dx, dy], to: walk[walk.length - 1], cutBy: stormedWalk.cutBy });
+      note(`You were stormed one tile ${directionName(blocked.stormedBy)}! \n`);
+      if (stormedWalk.cutBy) note('The storm left your path blocked, so you stopped early! \n');
       continue;
     }
     if (blocked) {
@@ -583,21 +617,27 @@ async function run(input, deps = defaultDeps) {
     }
   }
 
-  [newX, newY] = walk[walk.length - 1];
-
+  if (planned.cutBy) note('A tile on your path was full, so you stopped before it! \n');
   response += repeatLine;
 
+  [newX, newY] = walk[walk.length - 1];
+
   // put the player on the destination tile (and take them off the old one)
-  if (!died) {
+  const moved = newX !== originalTile.X_Position || newY !== originalTile.Y_Position;
+  if (!died && moved) {
     await utils.setPlayerToTile(player.Player_ID, originalTile.Layer_ID, newX, newY);
     trace('placed', { at: [newX, newY], layerId: originalTile.Layer_ID });
   }
 
+  const actual = moveCost(enteredTileTypes, player, playerClass.Class_Name, game);
+  const charged = actual.spentAP > quote.spentAP ? quote : actual;
+  trace('charged', { ...charged, quoted: quote.spentAP });
+
   // deduct action points & update free movement
   await models.Players.update(
     {
-      Action_Points: player.Action_Points - spentAP,
-      Free_Move: Math.max(player.Free_Move || 0, 0) - freeMoveUsed,
+      Action_Points: player.Action_Points - charged.spentAP,
+      Free_Move: Math.max(player.Free_Move || 0, 0) - charged.freeMoveUsed,
     },
     {
       where: {
@@ -613,7 +653,7 @@ async function run(input, deps = defaultDeps) {
     kind: 'moved',
     data: {
       response,
-      spentAP,
+      spentAP: charged.spentAP,
       newX,
       newY,
       layerId: originalTile.Layer_ID,
@@ -639,6 +679,6 @@ module.exports = {
   pathToTiles,
   getTileCordinatesOfPath,
   moveFromTiletoTile,
-  movePlayerToRandomSurroundingTile,
+  rollStormDirection,
   DIRECTION_DELTAS,
 };
