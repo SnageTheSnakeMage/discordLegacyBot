@@ -496,8 +496,8 @@ async function run(input, deps = defaultDeps) {
     tilesWalked: iceChecklistAndTileList.length,
   });
 
-  // ice: every ice tile crossed is a tile the player does not pay for, and
-  // nobody but a Snowman may stop on one
+  // a player pays for each tile they step onto, not the one they start on.
+  // An ice tile stepped onto is free, and nobody but a Snowman may stop on one
   let iceTileDeduction = 0;
   for (let cord = 0; cord < iceChecklistAndTileList.length; cord++) {
     // NOTE: no Layer_ID in this where clause - legacy behaviour, kept
@@ -508,7 +508,7 @@ async function run(input, deps = defaultDeps) {
       },
     });
     if (!tile) return { ok: false, reason: REJECTIONS.NO_SUCH_TILE };
-    if (tile.Tile_Type == 'Ice') {
+    if (cord > 0 && tile.Tile_Type == 'Ice') {
       iceTileDeduction++;
     }
     if (cord == iceChecklistAndTileList.length - 1 && tile.Tile_Type == 'Ice' && playerClass.Class_Name != 'Snowman') {
@@ -516,15 +516,22 @@ async function run(input, deps = defaultDeps) {
     }
   }
 
-  const billableTiles = iceChecklistAndTileList.length - (iceTileDeduction + player.Free_Move);
+  const tilesEntered = iceChecklistAndTileList.length - 1;
+  const payableTiles = Math.max(tilesEntered - iceTileDeduction, 0);
+  // free movement pays for tiles before AP does
+  const freeMoveUsed = Math.min(Math.max(player.Free_Move || 0, 0), payableTiles);
+  const billableTiles = payableTiles - freeMoveUsed;
   const spentAP = playerClass.Class_Name == 'Glutton'
     ? (2 * game.moveCost) * billableTiles
     : game.moveCost * billableTiles;
 
-  // the three numbers a player disputes most often: how many tiles they were
-  // charged for, what the ice took off, and what the Glutton doubling did
+  // the numbers a player disputes most often: how many tiles they were
+  // charged for, what the ice and free movement took off, and what the
+  // Glutton doubling did
   trace('cost', {
+    tilesEntered,
     iceTileDeduction,
+    freeMoveUsed,
     billableTiles,
     moveCost: game.moveCost,
     doubled: playerClass.Class_Name == 'Glutton',
@@ -600,7 +607,7 @@ async function run(input, deps = defaultDeps) {
   await models.Players.update(
     {
       Action_Points: player.Action_Points - spentAP,
-      Free_Move: Math.max(player.Free_Move - billableTiles, 0),
+      Free_Move: Math.max(player.Free_Move || 0, 0) - freeMoveUsed,
     },
     {
       where: {

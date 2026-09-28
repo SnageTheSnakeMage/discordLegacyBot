@@ -86,7 +86,8 @@ describe('movement', () => {
       DEPS(),
     );
 
-    expect((await models.Players.findByPk(walker.Player_ID)).Action_Points).toBeLessThan(8);
+    // one tile stepped onto at moveCost 1
+    expect((await models.Players.findByPk(walker.Player_ID)).Action_Points).toBe(7);
     await assertBoardConsistent(game.Game_ID);
   });
 

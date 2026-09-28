@@ -355,8 +355,8 @@ describe('move.run rejections', () => {
     });
     const result = await logic.run(INPUT, deps);
     expect(result.ok).toBe(true);
-    // the ice tile is deducted: 2 tiles walked - 1 ice = 1 * moveCost
-    expect(result.data.spentAP).toBe(1);
+    // the one tile stepped onto is ice, so the move is free
+    expect(result.data.spentAP).toBe(0);
   });
 
   it('rejects a move onto a coordinate with no tile row', async () => {
@@ -369,9 +369,9 @@ describe('move.run rejections', () => {
   });
 
   it('rejects when the player is one AP short (boundary)', async () => {
-    // two tiles east = 3 coordinates walked = 3 AP at moveCost 1
+    // two tiles east = 2 tiles stepped onto = 2 AP at moveCost 1
     const { deps } = makeDeps({
-      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 2, Free_Move: 0 }),
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 1, Free_Move: 0 }),
     });
     const result = await logic.run({ ...INPUT, distance: 2 }, deps);
     expect(result.reason).toBe(REJECTIONS.NOT_ENOUGH_AP);
@@ -382,11 +382,11 @@ describe('move.run rejections', () => {
 
   it('accepts when the player has exactly enough AP (boundary)', async () => {
     const { deps } = makeDeps({
-      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 3, Free_Move: 0 }),
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 2, Free_Move: 0 }),
     });
     const result = await logic.run({ ...INPUT, distance: 2 }, deps);
     expect(result.ok).toBe(true);
-    expect(result.data.spentAP).toBe(3);
+    expect(result.data.spentAP).toBe(2);
   });
 
   it('rejects walking onto a wall when not a Cloudborn', async () => {
@@ -452,7 +452,7 @@ describe('move.run success', () => {
       kind: 'moved',
       data: {
         response: 'You moved from a Blank1 tile to a Blank1 tile! \n',
-        spentAP: 2,
+        spentAP: 1,
         newX: 2,
         newY: 1,
         layerId: 1,
@@ -461,7 +461,7 @@ describe('move.run success', () => {
     });
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 2, 1);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 8, Free_Move: -2 },
+      { Action_Points: 9, Free_Move: 0 },
       { where: { Discord_ID: DISCORD_ID, Player_ID: 1, Game_ID: 1 } },
     );
     expect(deps.models.Players.update).toHaveBeenCalledTimes(1);
@@ -521,43 +521,51 @@ describe('move.run success', () => {
     expect(choices).toHaveLength(8);
   });
 
-  // QUIRK: the starting tile is billed, so a one-tile move costs two tiles
-  it('bills the tile the player starts on', async () => {
+  it.each([1, 2, 4])('charges a %i-tile move %i AP at moveCost 1', async (distance) => {
     const { deps } = makeDeps();
+    const result = await logic.run({ ...INPUT, distance }, deps);
+    expect(result.data.spentAP).toBe(distance);
+  });
+
+  it('does not charge for leaving the tile the player starts on, even if it is ice', async () => {
+    const { deps } = makeDeps({ board: makeBoard({ '1,1': { Tile_Type: 'Ice' } }) });
     const result = await logic.run(INPUT, deps);
-    expect(result.data.spentAP).toBe(2);
+    expect(result.data.spentAP).toBe(1);
   });
 
   it('charges a Glutton double', async () => {
     const { deps } = makeDeps({ playerClass: createFakeClass({ Class_Name: 'Glutton' }) });
     const result = await logic.run(INPUT, deps);
-    expect(result.data.spentAP).toBe(4);
+    expect(result.data.spentAP).toBe(2);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 6, Free_Move: -2 },
+      { Action_Points: 8, Free_Move: 0 },
       { where: { Discord_ID: DISCORD_ID, Player_ID: 1, Game_ID: 1 } },
     );
   });
 
-  // QUIRK: Free_Move is written through Math.min(..., 0)
-  it('spends free movement first and clamps Free_Move at zero', async () => {
+  it.each([
+    // [free movement, tiles walked, AP spent, free movement left]
+    [2, 1, 0, 1],
+    [2, 2, 0, 0],
+    [2, 3, 1, 0],
+    [0, 2, 2, 0],
+  ])('with %i free movement, a %i-tile move spends %i AP and leaves %i', async (freeMove, distance, ap, left) => {
     const { deps } = makeDeps({
-      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10, Free_Move: 2 }),
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 11, Action_Points: 10, Free_Move: freeMove }),
     });
-    const result = await logic.run(INPUT, deps);
-    expect(result.data.spentAP).toBe(0);
+    const result = await logic.run({ ...INPUT, distance }, deps);
+    expect(result.data.spentAP).toBe(ap);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 10, Free_Move: 0 },
+      { Action_Points: 10 - ap, Free_Move: left },
       { where: { Discord_ID: DISCORD_ID, Player_ID: 1, Game_ID: 1 } },
     );
   });
 
-  // QUIRK: a zero-distance move still costs the starting tile and replies
-  // with an empty string
-  it('charges one tile and says nothing for a zero-distance move', async () => {
+  it('charges nothing for a zero-distance move', async () => {
     const { deps } = makeDeps();
     const result = await logic.run({ ...INPUT, distance: 0 }, deps);
     expect(result.data.response).toBe('');
-    expect(result.data.spentAP).toBe(1);
+    expect(result.data.spentAP).toBe(0);
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 1, 1);
   });
 
@@ -595,7 +603,7 @@ describe('move.run success', () => {
     const result = await logic.run({ ...INPUT, path: 'right,2;' }, deps);
     expect(result.ok).toBe(true);
     expect([result.data.newX, result.data.newY]).toEqual([3, 1]);
-    expect(result.data.spentAP).toBe(3);
+    expect(result.data.spentAP).toBe(2);
     expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, 3, 1);
   });
 
@@ -777,9 +785,9 @@ describe('move internal logging', () => {
 
     await logic.run({ ...INPUT, distance: 2 }, deps);
 
-    // three coordinates crossed, one of them ice, so two billable at cost 1
+    // two tiles stepped onto, one of them ice, so one billable at cost 1
     expect(lines.find((line) => line.obj.function === 'cost').obj).toMatchObject({
-      iceTileDeduction: 1, billableTiles: 2, moveCost: 1, doubled: false, spentAP: 2,
+      tilesEntered: 2, iceTileDeduction: 1, freeMoveUsed: 0, billableTiles: 1, moveCost: 1, doubled: false, spentAP: 1,
     });
   });
 
@@ -812,7 +820,7 @@ describe('move internal logging', () => {
 
     expect(result.reason).toBe(REJECTIONS.NOT_ENOUGH_AP);
     // the cost line is what makes the rejection explicable
-    expect(lines.find((line) => line.obj.function === 'cost').obj).toMatchObject({ spentAP: 4, ap: 1 });
+    expect(lines.find((line) => line.obj.function === 'cost').obj).toMatchObject({ spentAP: 3, ap: 1 });
     expect(steps(lines)).not.toContain('step');
   });
 
