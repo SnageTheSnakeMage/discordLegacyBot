@@ -393,13 +393,13 @@ describe('move.run rejections', () => {
     expect(result.data.spentAP).toBe(2);
   });
 
-  it('rejects walking onto a wall when not a Cloudborn', async () => {
-    const { deps } = makeDeps({ board: makeBoard({ '2,1': { Tile_Type: 'Wall' } }) });
-    const result = await logic.run(INPUT, deps);
+  it.each(['Void', 'Wall', 'Wall_Damaged'])('refuses a non-Cloudborn crossing %s, before any tile on the way acts', async (tileType) => {
+    const { deps } = makeDeps({ board: makeBoard({ '2,1': { Tile_Type: 'Fire' }, '3,1': { Tile_Type: tileType } }) });
+    const result = await logic.run({ ...INPUT, distance: 3 }, deps);
     expect(result.reason).toBe(REJECTIONS.WRONG_TILE_TYPE);
-    expect(logic.present(result)).toEqual({
-      content: `[ERROR] Player ${DISCORD_ID} cannot move onto void wall or wall damaged tiles`,
-    });
+    expect(logic.present(result).content)
+      .toBe('Your move crosses a wall, damaged wall or void tile. Only a Cloudborn can move onto those.');
+    expect(deps.utils.damagePlayer).not.toHaveBeenCalled();
     expect(deps.models.Players.update).not.toHaveBeenCalled();
     expect(deps.utils.setPlayerToTile).not.toHaveBeenCalled();
   });

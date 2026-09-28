@@ -11,9 +11,10 @@
  * - A move that takes no steps is refused. A path may loop back to where it
  *   started.
  * - A move is checked before anything happens, and refused if any tile on
- *   it is full (the tile the player starts on aside), if it crosses a storm,
- *   or if it ends on ice and the player is not a Snowman. A storm may only be
- *   where a move ends.
+ *   it is full (the tile the player starts on aside), if it crosses a wall,
+ *   damaged wall or void and the player is not a Cloudborn, if it crosses a
+ *   storm, or if it ends on ice and the player is not a Snowman. A storm may
+ *   only be where a move ends.
  * - A player pays moveCost (doubled for a Glutton) per tile they step onto,
  *   not for the tile they start on. Ice stepped onto is free and free
  *   movement pays before AP does. A player killed partway pays only for the
@@ -38,11 +39,12 @@ const { messageFor } = require('../_messages.js');
 const { stepLogger } = require('../_logging.js');
 const defaultDeps = require('../_deps.js');
 
-/** Class_ID 6 is Cloudborn - the only class allowed on wall/void terrain. */
-const CLOUDBORN_CLASS_ID = 6;
 /** Class_ID 19 is Robot, 15 is Stormchaser - both get a bonus on storm tiles. */
 const ROBOT_CLASS_ID = 19;
 const STORMCHASER_CLASS_ID = 15;
+
+/** terrain only a Cloudborn may move onto */
+const WALL_TILE_TYPES = ['Wall', 'Wall_Damaged', 'Void'];
 
 /** terrain a non-Cloudborn may not be stormed onto */
 const STORM_FORBIDDEN_TILE_TYPES = ['Wall', 'Wall_Damaged', 'Void', 'Ice'];
@@ -94,6 +96,7 @@ const MSG_NO_PLAYER = 'Player not found in game!, please register for the game y
 const MSG_NO_TILE = "Current tile not found! please register, or ask a Dev about why your not on the board";
 const MSG_ICE_END = 'Cannot end a movement on an ice tile, please either provide a path that moves off the ice, or move onto a non-ice tile.';
 const MSG_FULL_TILE = 'Your move crosses or ends on a full tile. Pick a path around it.';
+const MSG_WALL = 'Your move crosses a wall, damaged wall or void tile. Only a Cloudborn can move onto those.';
 const MSG_STORM_ON_PATH = 'Your move crosses a storm tile. You can end a move on a storm, but not walk through one.';
 const MSG_NO_AP = 'Player does not enough action points for movement requested.';
 const MSG_BAD_PATH_TILE = 'Invalid input path, your path goes to a nonexistent tile or a tile your path goes on could not be found. If you think this is a mistake contact snage.';
@@ -212,7 +215,6 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
 /**
  * One tile of movement: what the tile being left does, what the tile being
  * entered does, and whether it was mined. Returns undefined normally,
- * { blocked: true, ... } when the player may not enter the tile at all,
  * { died: true } when the tile killed them, or { stormedBy: [dx, dy] } when
  * a storm is moving them; the walk decides where that leaves them.
  *
@@ -266,19 +268,6 @@ async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, 
       }
       // and everyone is stormed one tile off it in a random direction
       stormedBy = rollStormDirection(deps);
-      break;
-    case 'Void':
-    case 'Wall':
-    case 'Wall_Damaged':
-      // only a Cloudborn may stand on these
-      if (player.Class_ID != CLOUDBORN_CLASS_ID) {
-        trace('tileEffect', { effect: 'terrainBlocked', tileType: endTile.Tile_Type, classId: player.Class_ID });
-        return {
-          blocked: true,
-          reason: REJECTIONS.WRONG_TILE_TYPE,
-          data: { message: '[ERROR] Player ' + player.Discord_ID + ' cannot move onto void wall or wall damaged tiles' },
-        };
-      }
       break;
     default:
       break;
@@ -457,7 +446,8 @@ async function run(input, deps = defaultDeps) {
 
   // the whole walk is checked before anything happens: every tile exists,
   // none is full (the tile the player is moving from always has room for
-  // them), a storm may only be where the walk ends, and nobody but a Snowman
+  // them), only a Cloudborn may cross a wall or void, a storm may only be
+  // where the walk ends, and nobody but a Snowman
   // may end on ice
   const walk = iceChecklistAndTileList;
   const plannedTypes = [];
@@ -469,6 +459,10 @@ async function run(input, deps = defaultDeps) {
       if (tile.Tile_ID !== originalTile.Tile_ID && !utils.tileHasRoom(tile)) {
         trace('refused', { reason: 'full', at: walk[cord] });
         return { ok: false, reason: REJECTIONS.TILE_FULL, data: { message: MSG_FULL_TILE } };
+      }
+      if (WALL_TILE_TYPES.includes(tile.Tile_Type) && playerClass.Class_Name != 'Cloudborn') {
+        trace('refused', { reason: 'wall', at: walk[cord], tileType: tile.Tile_Type });
+        return { ok: false, reason: REJECTIONS.WRONG_TILE_TYPE, data: { message: MSG_WALL } };
       }
       if (!last && tile.Tile_Type == 'Storm') {
         trace('refused', { reason: 'stormOnPath', at: walk[cord] });
@@ -549,22 +543,22 @@ async function run(input, deps = defaultDeps) {
     enteredTileTypes.push(nxt_Tile.Tile_Type);
 
     // also holds the trapped-tile damage logic
-    const blocked = await moveFromTiletoTile(cur_Tile, nxt_Tile, player, secondBody, game, deps);
+    const effect = await moveFromTiletoTile(cur_Tile, nxt_Tile, player, secondBody, game, deps);
     // a tile can kill the mover. playerDeathLogic has already taken them off
     // the board, so the walk stops here rather than placing a corpse.
-    if (blocked && blocked.died) {
+    if (effect && effect.died) {
       trace('diedMidWalk', { index: cord, at: [nxt_Tile.X_Position, nxt_Tile.Y_Position], tileType: nxt_Tile.Tile_Type });
       died = true;
       walk.length = cord + 2;
       break;
     }
-    if (blocked && blocked.stormedBy) {
+    if (effect && effect.stormedBy) {
       // a storm is only ever the last tile: the player ends wherever it
       // moves them, or on the storm if it has nowhere legal to move them
-      const landingAt = [walk[cord + 1][0] + blocked.stormedBy[0], walk[cord + 1][1] + blocked.stormedBy[1]];
+      const landingAt = [walk[cord + 1][0] + effect.stormedBy[0], walk[cord + 1][1] + effect.stormedBy[1]];
       const landing = await findWalkTile(landingAt, originalTile.Layer_ID, deps);
       const refusal = stormLandingRefusal(landing, playerClass.Class_Name, deps);
-      const direction = directionName(blocked.stormedBy);
+      const direction = directionName(effect.stormedBy);
       if (refusal) {
         trace('stormedNowhere', { at: walk[cord + 1], refused: landingAt, refusal });
         note(`A storm tried to move you ${direction}, but that way was blocked, so you stayed on the storm! \n`);
@@ -574,10 +568,6 @@ async function run(input, deps = defaultDeps) {
         note(`You were stormed one tile ${direction}! \n`);
       }
       continue;
-    }
-    if (blocked) {
-      trace('blocked', { index: cord, reason: blocked.reason, tileType: nxt_Tile.Tile_Type });
-      return { ok: false, reason: blocked.reason, data: blocked.data };
     }
   }
 
