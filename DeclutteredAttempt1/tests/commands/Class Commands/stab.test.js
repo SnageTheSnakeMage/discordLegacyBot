@@ -128,13 +128,17 @@ describe('stab.run rejections', () => {
     })).toEqual([]);
   });
 
-  it('blocks a Clockwatcher during a timestop', async () => {
+  it('does not block a Clockwatcher during a timestop', async () => {
+    const clockwatcher = createFakeClass({ Class_ID: 7, Class_Name: 'Clockwatcher' });
     const { deps } = happyDeps({
       game: createFakeGame({ Game_ID: 1, GAME_STATE: GAMESTATES.ACTIVE, timeStopped: true }),
-      stabberClass: createFakeClass({ Class_ID: 7, Class_Name: 'Clockwatcher' }),
+      stabberClass: clockwatcher,
     });
+    // utils.isClockwatcher reads the class by primary key
+    deps.models.Classes.findByPk = jest.fn(async () => clockwatcher);
     const result = await logic.run(INPUT, deps);
-    expect(result.reason).toBe(REJECTIONS.TIME_STOPPED);
+    // past the gate, stab's own class check turns a non-Fencer away
+    expect(result.reason).toBe(REJECTIONS.WRONG_CLASS);
     expectNoWrites(deps);
   });
 

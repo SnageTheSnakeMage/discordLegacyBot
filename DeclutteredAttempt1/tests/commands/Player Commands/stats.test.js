@@ -285,7 +285,7 @@ describe('stats.run success', () => {
     expect(result.data.tileType).toBe('Blank2');
   });
 
-  it('renders a Layer_ID missing from the game layers as "0" (indexOf + 1, as before)', async () => {
+  it('renders a Layer_ID missing from the game layers as "0" (indexOf + 1)', async () => {
     const deps = happyDeps({
       tile1: createFakeTile({ Tile_ID: 1, Layer_ID: 99, X_Position: 3, Y_Position: 4 }),
     });
