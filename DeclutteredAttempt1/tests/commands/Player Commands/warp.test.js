@@ -366,15 +366,8 @@ describe('warp.run success', () => {
 });
 
 describe('warp.run AP cost', () => {
-  it.each([
-    ['a hopper on a blank tile', {}],
-    ['a non-hopper on an open gateway', {
-      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD, Class_ID: 2, Tile_ID: 1, Action_Points: 5 }),
-      currentTile: createFakeTile({ Tile_ID: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
-      destinationTiles: [openGateway(65)],
-    }],
-  ])('charges %s 2AP, after the move', async (_who, over) => {
-    const { deps } = setup(over);
+  it('charges a Hopper warping from an ordinary tile 2AP, after the move', async () => {
+    const { deps } = setup();
     const order = [];
     deps.utils.setPlayerToTile.mockImplementation(async () => { order.push('move'); });
     deps.models.Players.update.mockImplementation(async () => { order.push('charge'); return [1]; });
@@ -387,6 +380,22 @@ describe('warp.run AP cost', () => {
       { Action_Points: 3 }, { where: { Player_ID: 1 } },
     );
     expect(order).toEqual(['move', 'charge']);
+  });
+
+  // a gateway is free whoever takes it, so even 0AP is enough
+  it.each([
+    ['a non-hopper', 2],
+    ['a Hopper', HOPPER_CLASS_ID],
+  ])('lets %s through an open gateway for free', async (_who, classId) => {
+    const { deps } = setup({
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD, Class_ID: classId, Tile_ID: 1, Action_Points: 0 }),
+      currentTile: createFakeTile({ Tile_ID: 1, Layer_ID: 1, Tile_Type: 'Gateway_Open' }),
+      destinationTiles: [openGateway(65)],
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result).toMatchObject({ ok: true, data: { viaGateway: true, tileId: 65 } });
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledTimes(1);
+    expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
 
   it('warps with exactly 2AP, down to 0', async () => {
