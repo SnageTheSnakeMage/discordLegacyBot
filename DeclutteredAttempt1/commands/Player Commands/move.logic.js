@@ -607,7 +607,7 @@ async function run(input, deps = defaultDeps) {
   await models.Players.update(
     {
       Action_Points: player.Action_Points - spentAP,
-      Free_Move: Math.min(player.Free_Move - billableTiles, 0),
+      Free_Move: Math.max(player.Free_Move - billableTiles, 0),
     },
     {
       where: {
