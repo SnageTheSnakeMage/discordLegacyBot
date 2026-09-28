@@ -360,8 +360,10 @@ describe('move.run rejections', () => {
   });
 
   it('rejects a move onto a coordinate with no tile row', async () => {
-    const { deps } = makeDeps();
-    const result = await logic.run({ ...INPUT, direction: 'west' }, deps);
+    const board = makeBoard();
+    board.byCoord.delete('2,1');
+    const { deps } = makeDeps({ board });
+    const result = await logic.run(INPUT, deps);
     expect(result).toEqual({ ok: false, reason: REJECTIONS.NO_SUCH_TILE });
     expect(deps.models.Players.update).not.toHaveBeenCalled();
   });
@@ -572,6 +574,20 @@ describe('move.run success', () => {
     const { deps } = makeDeps({ layer: createFakeLayer({ Layer_ID: 1, X_Bound: 3, Y_Bound: 5 }) });
     const result = await logic.run({ ...INPUT, distance: 4 }, deps);
     expect(result.data.newX).toBe(3);
+  });
+
+  it.each([
+    ['west', [1, 3]],
+    ['north', [3, 1]],
+    ['northwest', [1, 1]],
+  ])('stops a walk %s off the board at the layer\'s (1,1) edge', async (direction, landing) => {
+    const { deps } = makeDeps({
+      player: createFakePlayer({ Player_ID: 1, Discord_ID: DISCORD_ID, Tile_ID: 33, Action_Points: 10 }),
+    });
+    const result = await logic.run({ ...INPUT, direction, distance: 4 }, deps);
+    expect(result.ok).toBe(true);
+    expect([result.data.newX, result.data.newY]).toEqual(landing);
+    expect(deps.utils.setPlayerToTile).toHaveBeenCalledWith(1, 1, ...landing);
   });
 
   it('walks a custom path and ends where the path ends', async () => {

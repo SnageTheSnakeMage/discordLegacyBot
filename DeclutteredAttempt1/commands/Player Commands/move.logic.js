@@ -257,7 +257,8 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
   }
   const destination = corners[corners.length - 1];
   const curLayer = await models.Layers.findByPk(layerId);
-  if (curLayer && (curLayer.X_Bound < destination[0] || curLayer.Y_Bound < destination[1])) {
+  if (curLayer && (destination[0] < 1 || destination[1] < 1
+    || curLayer.X_Bound < destination[0] || curLayer.Y_Bound < destination[1])) {
     return { valid: false, message: MSG_BAD_PATH_FORMAT };
   }
   return { valid: true, destination };
@@ -471,10 +472,11 @@ async function run(input, deps = defaultDeps) {
     newY += delta[1] * input.distance;
   }
 
-  // clamp to the layer's far edge (upper bound only, as before)
+  // a walk off the edge stops at the edge: every layer runs from (1,1) to
+  // (X_Bound, Y_Bound)
   const currentLayer = await models.Layers.findByPk(originalTile.Layer_ID);
-  newX = Math.min(currentLayer.X_Bound, newX);
-  newY = Math.min(currentLayer.Y_Bound, newY);
+  newX = Math.max(1, Math.min(currentLayer.X_Bound, newX));
+  newY = Math.max(1, Math.min(currentLayer.Y_Bound, newY));
 
   if (input.path == null) {
     iceChecklistAndTileList = utils.getTileCordinatesOfLine(
