@@ -4,10 +4,10 @@
  *
  * deploy-commands.js PUTs the whole GUILD set, so a stale guild command is
  * deleted by the next registration. Global commands are a separate list that
- * PUT never reaches: `/upgrade-range` outlived its implementation there, in
- * every guild, with nothing behind it. These cover the decisions - what counts
- * as a match, and what happens when nothing does - without a token or a
- * network, because `api` is the only way out of the logic.
+ * PUT never reaches, so a global command outlives its implementation, in
+ * every guild, until something deletes it. These cover the decisions - what
+ * counts as a match, and what happens when nothing does - without a token or
+ * a network, because `api` is the only way out of the logic.
  */
 const { parseArgs, run, present } = require('../scripts/globalCommands.logic.js');
 
@@ -37,8 +37,8 @@ describe('global-commands argument parsing', () => {
     expect(parseArgs(['--delete-all'])).toEqual({ mode: 'delete-all' });
   });
 
-  // Every one of these used to be a plausible way to delete the wrong thing,
-  // or nothing, while looking like it worked.
+  // Each of these is a plausible way to delete the wrong thing, or nothing,
+  // while looking like it worked.
   it('refuses anything ambiguous rather than guessing', () => {
     const offenders = [];
     const bad = [

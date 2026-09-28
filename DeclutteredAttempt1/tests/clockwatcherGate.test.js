@@ -2,14 +2,13 @@
  * Structural guard for the Clockwatcher exemption.
  *
  * The gamestate gate's second argument decides whether a timestop applies.
- * Every one of the 27 call sites used to pass a literal `false`, so the
- * Clockwatcher's entire ability - acting while time is stopped - did
- * nothing for anyone.
+ * A call site that passes a literal `false` takes away the Clockwatcher's
+ * entire ability - acting while time is stopped - for that command.
  *
  * utils.isClockwatcher has its own tests. This one exists because those
- * cannot notice a single command quietly going back to `false`: each
- * command's own suite mostly does not exercise a Clockwatcher, so the
- * regression would pass unseen in 14 of the 27 files. Checking the shape
+ * cannot notice a single command quietly passing `false`: each command's
+ * own suite mostly does not exercise a Clockwatcher, so the mistake would
+ * pass unseen in most of the files. Checking the shape
  * of the call covers all of them at once, the same way the no-discord.js
  * boundary is enforced.
  */

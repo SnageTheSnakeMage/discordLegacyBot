@@ -85,11 +85,8 @@ describe('freeze.run rejections', () => {
   // newly added one. What is this command's own is only that run() asks the
   // gate and returns its verdict without writing, so one state that passes,
   // one that blocks, and the timestop (whose answer depends on the
-  // isClockwatcher argument this command passes) cover it here.
-  //
-  // The old code passed isClockwatcher=false unconditionally, so
-  // TIMESTOPPED always blocks (a Snowman is never a Clockwatcher) -
-  // preserved.
+  // isClockwatcher argument this command passes) cover it here. A timestop
+  // blocks this command: a Snowman is never a Clockwatcher.
   it('returns the gamestate gate\'s verdict for every game, writing nothing when it blocks', async () => {
     expect(await everyCase('game %o -> %s', [
       [{ GAME_STATE: GAMESTATES.ACTIVE }, null],
@@ -272,7 +269,7 @@ describe('freeze.run success', () => {
 });
 
 describe('freeze.present', () => {
-  // every rejection freeze can return renders as its exact legacy string
+  // every rejection freeze can return renders as its exact string
   it('renders every rejection it returns as its player-facing message', async () => {
     expect(await everyCase('%s', [
       [REJECTIONS.NO_SUCH_TILE, { action: 'freeze' }, 'Could not find tile to freeze at the given coordinates.'],

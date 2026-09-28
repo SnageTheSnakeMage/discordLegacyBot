@@ -65,9 +65,9 @@ describe('override.run rejections', () => {
     expectNoWrites(deps);
   });
 
-  // preserved quirk: the legacy condition `!player.Dead || Class_Name != "Medium"`
-  // only lets a player who is BOTH dead AND a Medium through, despite the
-  // message saying "Dead or Medium" - these three pin that
+  // the condition `!player.Dead || Class_Name != "Medium"` only lets a player
+  // who is BOTH dead AND a Medium through, despite the message saying "Dead
+  // or Medium" - these three pin that
   it('rejects a living Medium (must be dead AND Medium)', async () => {
     const { deps } = happyDeps({
       player: createFakePlayer({ Player_ID: 1, Discord_ID: ACTOR, Dead: false, cCOverides: 3 }),
@@ -114,8 +114,8 @@ describe('override.run rejections', () => {
     );
   });
 
-  // preserved quirk: the legacy command has NO gamestate gate - a dead Medium
-  // can override in every state, OVER/DEV_PAUSED/TIMESTOPPED included; this
+  // the command has NO gamestate gate - a dead Medium can override in every
+  // state, OVER/DEV_PAUSED/TIMESTOPPED included; this
   // table pins that a new state cannot silently change it either
   it('succeeds whatever state the game is in', async () => {
     expect(await everyCase('game %o -> succeeds (no gamestate gate)', [
@@ -170,8 +170,7 @@ describe('override.present', () => {
     expect(out).toEqual({ content: "You don't have any overrides left!" });
   });
 
-  // preserved quirk (issue #85): the poll is never touched; success says so
-  // instead of the legacy behaviour of never editing the deferred reply
+  // the poll is never touched, and success says so
   it('renders success as the not-implemented notice', () => {
     const out = logic.present({
       ok: true,

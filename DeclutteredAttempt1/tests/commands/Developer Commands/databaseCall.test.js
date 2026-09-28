@@ -2,9 +2,7 @@
  * /call-db - logic tests. Plain data in, plain data out: no jest.mock, no
  * discord.js, no interaction. deps carries fake models.
  *
- * The old databaseCall.js was commented out in its entirety, so there was no
- * old test file and no runtime behaviour to pin. What these tests pin is the
- * converted shape: the dev gate, the option whitelist, the two subcommands
+ * These tests pin the dev gate, the option whitelist, the two subcommands
  * that `data` cannot supply inputs for, the one read path, and the invariant
  * that this command never writes.
  */

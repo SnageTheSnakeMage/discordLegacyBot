@@ -379,7 +379,7 @@ describe('stats.present', () => {
       { name: 'Y Position', value: '4', inline: true },
       { name: 'Layer', value: '1', inline: true },
     ]);
-    // legacy attachment order: icon first, then thumbnail; plain objects only
+    // attachment order: icon first, then thumbnail; plain objects only
     expect(out.files).toEqual([
       { path: `./tiles/players/${ACTOR}_1.png`, name: 'icon.png' },
       { path: './tiles/environment/Blank1.png', name: 'tileThumbnail.png' },
@@ -388,10 +388,9 @@ describe('stats.present', () => {
   });
 
   // An AttachmentBuilder does not read its path until the message is sent, so
-  // a path that is not on disk used to fail at send time as an unhandled
-  // error - the player was told "There was an error while executing this
-  // command!" because their icon was missing. present() now only ever
-  // attaches a path run() resolved, and drops the embed reference with it.
+  // a path that is not on disk fails at send time as an unhandled error.
+  // present() only ever attaches a path run() resolved, and drops the embed
+  // reference with it.
   it('drops the image rather than attaching an icon path that does not exist', () => {
     const out = logic.present(ok({ iconPath: null }));
     expect(out.files).toEqual([{ path: './tiles/environment/Blank1.png', name: 'tileThumbnail.png' }]);
