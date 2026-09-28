@@ -1573,11 +1573,15 @@ async setPlayerToTile(playerId, layer, x, y, { body = 1 } = {}) {
  * of claimTileSlot because that calls tile.save() on a model instance and so
  * cannot run against a plain row.
  *
+ * `body` is 1, or 2 for a Twin's second body (Tile_ID2), as in
+ * setPlayerToTile and damagePlayer.
+ *
  * `db` defaults to the module-level models, and a logic file passes its own
  * deps.models - so the invariant is written once and still exercised by the
  * unit tests rather than stubbed out of them.
  */
-async placePlayerOnBoard(playerId, tile, { column = 'Tile_ID', db = models } = {}) {
+async placePlayerOnBoard(playerId, tile, { body = 1, db = models } = {}) {
+  const column = body === 2 ? 'Tile_ID2' : 'Tile_ID';
   // takes the row, not an id: every caller has already fetched the tile to
   // check whether it is free, so re-reading it here would be a second query
   // for a row we were just handed
@@ -1779,7 +1783,7 @@ async playerDeathLogic(killer, victim) {
     {
       //same swap the other way round: body 2 died, so body 2 comes back
       await this.clearPlayerFromBoard(victim.Player_ID, victim.Tile_ID2, 'Tile_ID2');
-      await this.placePlayerOnBoard(victim.Player_ID, await this.getSpawnpointTile(victim.Game_ID), {column: 'Tile_ID2'});
+      await this.placePlayerOnBoard(victim.Player_ID, await this.getSpawnpointTile(victim.Game_ID), {body: 2});
       await models.Players.update({Health_Points2: victim.Pharoh_HP, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
     }
     else if(firstDown)
