@@ -250,13 +250,13 @@ describe('stab.run success', () => {
     expect(result).toEqual({
       ok: true,
       kind: 'stabbed',
-      data: { missed: false, targetDiscordId: TARGET, damage: 1, x: 4, y: 7 },
+      data: { missed: false, targetDiscordId: TARGET, damage: 2, x: 4, y: 7 },
     });
     expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
       expect.objectContaining({ Player_ID: 1 }),
       expect.objectContaining({ Player_ID: 2 }),
       2,
-    ); // 10 - min(1 * Damage(1) * (DMG_BUFF 0 + 1) * 2, MAX_DAMAGE 3) = 10 - 2
+    ); // 1 stab * min(Damage 1 * (DMG_BUFF 0 + 1) * 2, MAX_DAMAGE 3)
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 4 }, // 5 - amount(1)
       { where: { Player_ID: 1, Game_ID: 1 } },
@@ -264,20 +264,29 @@ describe('stab.run success', () => {
     expect(deps.models.Players.update).toHaveBeenCalledTimes(1); // AP only; the HP write goes through damagePlayer
   });
 
-  // the write doubles then caps, the message does neither
-  it('caps the applied damage at MAX_DAMAGE while announcing the uncapped, undoubled number', async () => {
-    const { deps } = happyDeps();
-    const result = await logic.run({ ...INPUT, amount: 2 }, deps);
-    expect(result.data.damage).toBe(2); // announced: 2 * 1 * 1
-    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
-      expect.objectContaining({ Player_ID: 1 }),
-      expect.objectContaining({ Player_ID: 2 }),
-      3,
-    ); // applied: min(2 * 1 * 1 * 2 = 4, MAX_DAMAGE 3) = 3
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 3 }, // 5 - amount(2)
-      { where: { Player_ID: 1, Game_ID: 1 } },
-    );
+  // [stabs, Damage, MAX_DAMAGE, dealt]: each stab is doubled, then capped on
+  // its own, and the reply announces exactly what was dealt
+  it('caps each stab at MAX_DAMAGE, so every stab paid for counts', async () => {
+    const CASES = [
+      [2, 1, 3, 4], // min(2, 3) = 2 a stab
+      [3, 1, 3, 6], // min(2, 3) = 2 a stab: three stabs out-damage two
+      [2, 2, 3, 6], // min(4, 3) = 3 a stab
+    ];
+    const offenders = [];
+    for (const [amount, Damage, MAX_DAMAGE, dealt] of CASES) {
+      const { deps } = happyDeps({
+        stabber: createFakePlayer({
+          Player_ID: 1, Discord_ID: STABBER, Class_ID: 7, Action_Points: 5,
+          Damage, MAX_DAMAGE, DMG_BUFF: 0, Tile_ID: 1,
+        }),
+      });
+      const result = await logic.run({ ...INPUT, amount }, deps);
+      const applied = deps.utils.damagePlayer.mock.calls[0][2];
+      if (applied !== dealt || result.data.damage !== dealt) {
+        offenders.push(`${amount} stabs at Damage ${Damage}, cap ${MAX_DAMAGE}: dealt ${applied}, announced ${result.data.damage}, expected ${dealt}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
   it('spends a DMG_BUFF and resets it', async () => {
@@ -288,12 +297,12 @@ describe('stab.run success', () => {
       }),
     });
     const result = await logic.run(INPUT, deps);
-    expect(result.data.damage).toBe(3); // 1 * 1 * (2 + 1)
+    expect(result.data.damage).toBe(6);
     expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
       expect.objectContaining({ Player_ID: 1 }),
       expect.objectContaining({ Player_ID: 2 }),
       6,
-    ); // 10 - min(1 * 1 * 3 * 2 = 6, MAX_DAMAGE 9)
+    ); // min(1 * (2 + 1) * 2 = 6, MAX_DAMAGE 9)
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { DMG_BUFF: 0 },
       { where: { Player_ID: 1, Game_ID: 1 } },
@@ -332,12 +341,12 @@ describe('stab.run success', () => {
       random: () => 1,
     });
     const result = await logic.run(INPUT, deps);
-    expect(result.data).toMatchObject({ missed: false, damage: 1 });
+    expect(result.data).toMatchObject({ missed: false, damage: 2 });
     expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
       expect.objectContaining({ Player_ID: 1 }),
       expect.objectContaining({ Player_ID: 2 }),
       2,
-    ); //
+    );
   });
 
   // amount is never validated
@@ -349,7 +358,7 @@ describe('stab.run success', () => {
       expect.objectContaining({ Player_ID: 1 }),
       expect.objectContaining({ Player_ID: 2 }),
       -2,
-    ); // 10 - min(-2, 3)
+    ); // -1 * min(2, 3)
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 6 }, // 5 - (-1)
       { where: { Player_ID: 1, Game_ID: 1 } },
@@ -388,7 +397,7 @@ describe('stab.present', () => {
       ok: true, kind: 'stabbed',
       data: { missed: false, targetDiscordId: TARGET, damage: 2, x: 4, y: 7 },
     });
-    expect(out).toEqual({ content: `You hit <@${TARGET}> for 2$ damage at 4,7!\n` });
+    expect(out).toEqual({ content: `You hit <@${TARGET}> for 2 damage at 4,7!\n` });
   });
 
   it('prefixes a bush miss before the hit line', () => {
@@ -397,7 +406,7 @@ describe('stab.present', () => {
       data: { missed: true, targetDiscordId: TARGET, damage: 0, x: 4, y: 7 },
     });
     expect(out).toEqual({
-      content: `You missed the target in the bush!\nYou hit <@${TARGET}> for 0$ damage at 4,7!\n`,
+      content: `You missed the target in the bush!\nYou hit <@${TARGET}> for 0 damage at 4,7!\n`,
     });
   });
 });
