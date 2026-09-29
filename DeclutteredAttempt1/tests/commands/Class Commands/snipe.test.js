@@ -371,14 +371,13 @@ describe('snipe.run success', () => {
     expect(deps.utils.revertTileToBlank).toHaveBeenCalledTimes(1);
   });
 
-  // collateral damage WRITTEN is one shot's worth, but the damage
-  // ANNOUNCED is amount shots' worth - the two disagree
-  it('damages a bystander in the path for one shot while announcing the full amount', async () => {
+  // a bystander in the path takes one shot, whatever the amount
+  it('damages a bystander in the path for one shot, and says so', async () => {
     const { deps } = happyDeps({ midTileOccupant: 3 });
     const result = await logic.run({ ...INPUT, amount: 3 }, deps);
     expect(result.data.events).toEqual([
       { type: 'zipped', x: 1, y: 1 },
-      { type: 'hitCollateral', targetDiscordId: BYSTANDER, damage: 3, x: 2, y: 1 },
+      { type: 'hitCollateral', targetDiscordId: BYSTANDER, damage: 1, x: 2, y: 1 },
       { type: 'hitTarget', username: 'victim', damage: 3, x: 3, y: 1 },
     ]);
     expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
@@ -461,8 +460,8 @@ describe('snipe.present', () => {
         'You destroyed a wall at 2,1\n!'
         + 'You hit a wall at 2,1\n!'
         + 'Your shot zipped by 2,1\n!'
-        + `You hit <@${BYSTANDER}> for 3$ damage at 2,1!\n`
-        + 'You hit victim for 3$ damage at 3,1!\n',
+        + `You hit <@${BYSTANDER}> for 3 damage at 2,1!\n`
+        + 'You hit victim for 3 damage at 3,1!\n',
     });
   });
 

@@ -198,7 +198,7 @@ function present(result) {
       case 'hitWall': response += `You hit a wall at ${e.x},${e.y}\n!`; break;
       case 'destroyedWall': response += `You destroyed a wall at ${e.x},${e.y}\n!`; break;
       case 'missTarget': response += 'You missed the target tile!\n'; break;
-      case 'hitTarget': response += `You hit <@${e.targetDiscordId}> for ${e.damage}$ damage at ${e.x},${e.y}!\n`; break;
+      case 'hitTarget': response += `You hit <@${e.targetDiscordId}> for ${e.damage} damage at ${e.x},${e.y}!\n`; break;
     }
   }
   return { content: response };

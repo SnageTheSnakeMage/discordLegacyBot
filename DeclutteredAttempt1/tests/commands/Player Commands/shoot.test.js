@@ -469,7 +469,7 @@ describe('shoot.present', () => {
         + 'You hit a wall at 2,1\n!'
         + 'You destroyed a wall at 2,1\n!'
         + 'You missed the target tile!\n'
-        + `You hit <@${TARGET}> for 3$ damage at 3,1!\n`,
+        + `You hit <@${TARGET}> for 3 damage at 3,1!\n`,
     });
   });
 });

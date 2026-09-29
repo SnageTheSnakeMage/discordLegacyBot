@@ -30,11 +30,6 @@
  *   !targetPlayer half stays where it was.
  *
  * Preserved as-is (each pinned by a test):
- * - collateral players take `1 * Damage * (DMG_BUFF + 1)` damage but the
- *   message they get reports `amount * Damage * (DMG_BUFF + 1)`; the number
- *   written and the number announced disagree
- * - playerDeathLogic is called as (victim, sniper) - i.e. with the arguments
- *   in the opposite order from /shoot, so the sniper is passed as the victim
  * - the "zipped by" line's tile-type test
  *   `(Tile_Type != 'Wall' || Tile_Type != 'Wall_Damaged')` is a tautology, so
  *   an empty wall tile reports both the wall hit AND the shot zipping by
@@ -139,7 +134,7 @@ async function run(input, deps = defaultDeps) {
   }
 
   const collateralDamage = 1 * player.Damage * (player.DMG_BUFF + 1);
-  const announcedDamage = amount * player.Damage * (player.DMG_BUFF + 1);
+  const targetDamage = amount * player.Damage * (player.DMG_BUFF + 1);
 
   const events = [];
   for (let i = 0; i < attackPath.length; i++) {
@@ -200,8 +195,7 @@ async function run(input, deps = defaultDeps) {
         events.push({
           type: 'hitCollateral',
           targetDiscordId: collateralPlayer.Discord_ID,
-          // announced, not applied - the write above used a single shot
-          damage: announcedDamage,
+          damage: collateralDamage,
           x: px,
           y: py,
         });
@@ -211,11 +205,11 @@ async function run(input, deps = defaultDeps) {
     if (tile.X_Position == input.x && tile.Y_Position == input.y) {
       // same reversal fixed here, and the hit lands on whichever of a
       // Twin's bodies is actually standing on the tile
-      await utils.damagePlayer(player, targetPlayer, announcedDamage, targetBody);
+      await utils.damagePlayer(player, targetPlayer, targetDamage, targetBody);
       events.push({
         type: 'hitTarget',
         username: input.targetUsername,
-        damage: announcedDamage,
+        damage: targetDamage,
         x: px,
         y: py,
       });
@@ -249,9 +243,9 @@ function present(result) {
       case 'destroyedWall': response += `You destroyed a wall at ${e.x},${e.y}\n!`; break;
       case 'hitWall': response += `You hit a wall at ${e.x},${e.y}\n!`; break;
       case 'zipped': response += `Your shot zipped by ${e.x},${e.y}\n!`; break;
-      case 'hitCollateral': response += `You hit <@${e.targetDiscordId}> for ${e.damage}$ damage at ${e.x},${e.y}!\n`; break;
+      case 'hitCollateral': response += `You hit <@${e.targetDiscordId}> for ${e.damage} damage at ${e.x},${e.y}!\n`; break;
       // the target is named by username, everyone else by mention
-      case 'hitTarget': response += `You hit ${e.username} for ${e.damage}$ damage at ${e.x},${e.y}!\n`; break;
+      case 'hitTarget': response += `You hit ${e.username} for ${e.damage} damage at ${e.x},${e.y}!\n`; break;
     }
   }
   return { content: response };
