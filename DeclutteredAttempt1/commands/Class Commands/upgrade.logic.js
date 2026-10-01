@@ -48,6 +48,7 @@
 const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
 const defaultDeps = require('../_deps.js');
+const { amountRejection } = require('../_amount.js');
 
 // the two cost ladders, copied from the old rangeAndHpCostArray /
 // damageCostArray
@@ -114,6 +115,9 @@ function parse(raw, actor) {
 }
 
 async function run(input, deps = defaultDeps) {
+  const badAmount = amountRejection(input.amount);
+  if (badAmount) return badAmount;
+
   const { models, utils } = deps;
 
   const gameId = input.gameId ?? await utils.getOldestActiveGameId(input.discordId);
