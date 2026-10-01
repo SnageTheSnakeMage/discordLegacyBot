@@ -34,12 +34,20 @@ function stubClasses({ killerClass = 'Average', victimClass = 'Average' } = {}) 
 }
 
 function stubBoringGame() {
-  jest.spyOn(utils.models.Games, 'findByPk').mockResolvedValue(createFakeGame({ CURR_CC_EVENT: 'BOOOORRRINNNG' }));
+  jest.spyOn(utils.models.Games, 'findByPk').mockResolvedValue(createFakeGame({ CURR_CC_EVENT: 'BOOOORRRINNNG', maxIncreaseOnKill: 2 }));
 }
 
 function killer(overrides = {}) {
-  return createFakePlayer({ Player_ID: 10, Class_ID: 1, Kills: 2, Action_Points: 5, MAX_AP: 10, ...overrides });
+  return createFakePlayer({
+    Player_ID: 10, Class_ID: 1, Kills: 2, Action_Points: 5,
+    MAX_AP: 10, MAX_HP: 10, MAX_DAMAGE: 3, MAX_RANGE: 5,
+    ...overrides,
+  });
 }
+
+// what a kill credits the killer above: one more kill, and every maximum
+// raised by the game's maxIncreaseOnKill
+const KILL_CREDIT = { Kills: 3, MAX_AP: 12, MAX_HP: 12, MAX_DAMAGE: 5, MAX_RANGE: 7 };
 
 function victim(overrides = {}) {
   return createFakePlayer({ Player_ID: 20, Class_ID: 2, Health_Points: 0, Pharoh_HP: 0, Tile_ID: 7, ...overrides });
@@ -57,7 +65,7 @@ describe('playerDeathLogic - normal kill', () => {
     await utils.playerDeathLogic(killer(), victim());
 
     expect(update).toHaveBeenCalledWith({ Tile_ID: null, Dead: true }, { where: { Player_ID: 20 } });
-    expect(update).toHaveBeenCalledWith({ Kills: 3 }, { where: { Player_ID: 10 } });
+    expect(update).toHaveBeenCalledWith(KILL_CREDIT, { where: { Player_ID: 10 } });
     // removePlayerFromTile cleared the slot and saved the tile
     expect(tile.Player1).toBeNull();
     expect(tile.save).toHaveBeenCalled();
@@ -105,7 +113,7 @@ describe('playerDeathLogic - pharaoh revive', () => {
       { Health_Points: 3, Pharoh_HP: 0 },
       { where: { Player_ID: 20 } },
     );
-    expect(update).toHaveBeenCalledWith({ Kills: 3 }, { where: { Player_ID: 10 } });
+    expect(update).toHaveBeenCalledWith(KILL_CREDIT, { where: { Player_ID: 10 } });
     // and never marked dead
     expect(update).not.toHaveBeenCalledWith(expect.objectContaining({ Dead: true }), expect.anything());
   });
@@ -314,10 +322,8 @@ describe('playerDeathLogic - killer classes', () => {
     stubBoringGame();
     const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
     await utils.playerDeathLogic(killer({ Hitman_Target: 20 }), victim());
-    expect(update).toHaveBeenCalledWith(
-      { Kills: 3, Action_Points: 9 },
-      { where: { Player_ID: 10 } },
-    );
+    expect(update).toHaveBeenCalledWith(KILL_CREDIT, { where: { Player_ID: 10 } });
+    expect(update).toHaveBeenCalledWith({ Action_Points: 9 }, { where: { Player_ID: 10 } });
   });
 
   it('a Hitman killing someone else gets only the kill', async () => {
@@ -325,7 +331,7 @@ describe('playerDeathLogic - killer classes', () => {
     stubBoringGame();
     const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
     await utils.playerDeathLogic(killer({ Hitman_Target: 999 }), victim());
-    expect(update).toHaveBeenCalledWith({ Kills: 3 }, { where: { Player_ID: 10 } });
+    expect(update).toHaveBeenCalledWith(KILL_CREDIT, { where: { Player_ID: 10 } });
     expect(update).not.toHaveBeenCalledWith(expect.objectContaining({ Action_Points: expect.anything() }), expect.anything());
   });
 
@@ -334,11 +340,13 @@ describe('playerDeathLogic - killer classes', () => {
     stubBoringGame();
     const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
     await utils.playerDeathLogic(killer(), victim({ Action_Points: 10, MAX_AP: 10 }));
-    expect(update).toHaveBeenCalledWith({ Kills: 3, Action_Points: 11 }, { where: { Player_ID: 10 } });
+    expect(update).toHaveBeenCalledWith(KILL_CREDIT, { where: { Player_ID: 10 } });
+    expect(update).toHaveBeenCalledWith({ Action_Points: 11 }, { where: { Player_ID: 10 } });
 
     update.mockClear();
     await utils.playerDeathLogic(killer(), victim({ Action_Points: 2, MAX_AP: 10 }));
-    expect(update).toHaveBeenCalledWith({ Kills: 3, Action_Points: 6 }, { where: { Player_ID: 10 } });
+    expect(update).toHaveBeenCalledWith(KILL_CREDIT, { where: { Player_ID: 10 } });
+    expect(update).toHaveBeenCalledWith({ Action_Points: 6 }, { where: { Player_ID: 10 } });
   });
 
   it("killing a Minesweeper clears every mine they planted", async () => {
@@ -351,7 +359,7 @@ describe('playerDeathLogic - killer classes', () => {
       { trapped: false, trapper: null },
       { where: { trapper: 20 } },
     );
-    expect(pUpdate).toHaveBeenCalledWith({ Kills: 3 }, { where: { Player_ID: 10 } });
+    expect(pUpdate).toHaveBeenCalledWith(KILL_CREDIT, { where: { Player_ID: 10 } });
   });
 });
 

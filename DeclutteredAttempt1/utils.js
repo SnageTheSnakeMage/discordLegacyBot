@@ -747,17 +747,18 @@ async  commandResolutionErrorThrower() {
   throw "Command Resolution Error";
 },
 
-  //Used whenver we tick a kill up and increase a players maximums
-  //killer should be a sequelize player object
+//Credits a kill: one more Kills, and every maximum raised by the game's
+//maxIncreaseOnKill. killer is the killer's Players row.
 async attributeKill(killer){
-  killersGame = await models.Games.findByPk(killer.GameID)
+  const killersGame = await models.Games.findByPk(killer.Game_ID);
+  const increase = killersGame ? killersGame.maxIncreaseOnKill : 0;
   await models.Players.update({
     Kills: killer.Kills + 1,
-    MAX_AP: killer.MAX_AP + killersGame.maxIncreaseOnKill,
-    MAX_HP: killer.MAX_HP + killersGame.maxIncreaseOnKill,
-    MAX_DAMAGE: killer.MAX_DAMAGE + killersGame.maxIncreaseOnKill,
-    MAX_RANGE: killer.MAX_RANGE + killersGame.maxIncreaseOnKill,
-    }, {where: {Player_ID: killer.PLayer_ID}})
+    MAX_AP: killer.MAX_AP + increase,
+    MAX_HP: killer.MAX_HP + increase,
+    MAX_DAMAGE: killer.MAX_DAMAGE + increase,
+    MAX_RANGE: killer.MAX_RANGE + increase,
+  }, {where: {Player_ID: killer.Player_ID}});
 },
 
 
@@ -772,7 +773,7 @@ async classRemoval(victim, excorist){
     case "Twin":
       //TODO make sure any given free movement is also given to the twins other body
       await models.Players.update({Class_ID: avgClass.Class_ID, Health_Points2: 0, Damage2: 0, Tile_ID2: null, Free_Move2: 0, Range2: 0}, {where: {Player_ID: victim.Player_ID}});
-      await attributeKill(excorist);
+      await this.attributeKill(excorist);
       break;
     //if the player is a cloudborn make sure they aren't put on a tile they can't be on
     case "Cloudborn":
@@ -792,7 +793,7 @@ async classRemoval(victim, excorist){
     case "Pharoh":
       await models.Players.update({Class_ID: avgClass.Class_ID, Pharoh_HP: 0}, {where: {Player_ID: victim.Player_ID}});
       if(victim.Pharoh_HP > 0){
-        await attributeKill(excorist);
+        await this.attributeKill(excorist);
       }
       break;
     //if the player is a robot remove their extra Max HP
@@ -1737,7 +1738,7 @@ async playerDeathLogic(killer, victim) {
     await this.removePlayerFromTile(victim.Player_ID, victimTile.Layer_ID, victimTile.X_Position, victimTile.Y_Position)
     await models.Players.update({Tile_ID: null, Dead: true}, {where: {Player_ID: victim.Player_ID}});
     await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
-    await attributeKill(killer);
+    await this.attributeKill(killer);
     return
   }
 
@@ -1761,7 +1762,7 @@ async playerDeathLogic(killer, victim) {
     //killer.Action_Points - which matches the ordinary-death branch above,
     //where the whole branch is conditional on killer != null.
     if(killer != null){
-      await attributeKill(killer);
+      await this.attributeKill(killer);
       await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
     }
     return
@@ -1859,13 +1860,13 @@ async playerDeathLogic(killer, victim) {
       //Weird death case #2 hitman gets 4AP for every killed target, do normal death logic but also update the hitman's AP
       case "Hitman":
         if(killer.Hitman_Target == victim.Player_ID ){
-          await attributeKill(killer);
+          await this.attributeKill(killer);
           await models.Players.update({Action_Points: killer.Action_Points + 4}, {where: {Player_ID: killer.Player_ID}});
           await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return
         }
         else if(victim.Health_Points <= 0){
-          await attributeKill(killer);
+          await this.attributeKill(killer);
           await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return
         }
@@ -1873,19 +1874,19 @@ async playerDeathLogic(killer, victim) {
       //Weird death case #3 cannibal gets 1AP for every kill, 6AP if the victim has max ap, do normal death logic but also update the cannibal's AP
       case "Cannibal":
         if(victim.Action_Points == victim.MAX_AP){
-          await attributeKill(killer);
+          await this.attributeKill(killer);
           await models.Players.update({Action_Points: killer.Action_Points + 6}, {where: {Player_ID: killer.Player_ID}});
           await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return
         }else {
-          await attributeKill(killer);
+          await this.attributeKill(killer);
           await models.Players.update({Action_Points: killer.Action_Points + 1}, {where: {Player_ID: killer.Player_ID}});
           await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return
         }
       //Weird death case #4 minesweeper needs their mines destroyed, do normal death logic but also destroy their mines
         case "Minesweeper":
-          await attributeKill(killer);
+          await this.attributeKill(killer);
           await models.Tiles.update({trapped: false, trapper: null}, {where: {trapper: victim.Player_ID}});
           await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return;
