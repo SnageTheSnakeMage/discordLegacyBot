@@ -151,12 +151,11 @@ async function run(input, deps = defaultDeps) {
     // Tile_Type off null would end the whole command in the central handler.
     if (!tile) continue;
 
-    // the shot leaves from the sniper's own tile: a wall they are standing on
-    // (a Cloudborn can) is behind it, and so is everyone sharing the tile, the
-    // sniper included. Only the target can still be hit there.
+    // the shot leaves from the sniper's own tile, so everyone sharing it, the
+    // sniper included, is behind the shot; only the target can be hit there
     const fromOwnTile = tile.Tile_ID == shootersTile.Tile_ID;
 
-    if (!fromOwnTile && tile.Tile_Type == 'Wall') {
+    if (tile.Tile_Type == 'Wall') {
       // more than two shots blows the wall away outright
       if (amount > 2) {
         await utils.revertTileToBlank(tile);
@@ -171,7 +170,7 @@ async function run(input, deps = defaultDeps) {
     }
     // the in-memory row still says "Wall" after the update above, so this
     // only fires for a tile that was already damaged
-    if (!fromOwnTile && tile.Tile_Type == 'Wall_Damaged') {
+    if (tile.Tile_Type == 'Wall_Damaged') {
       await utils.revertTileToBlank(tile);
       events.push({ type: 'destroyedWall', x: px, y: py });
     }

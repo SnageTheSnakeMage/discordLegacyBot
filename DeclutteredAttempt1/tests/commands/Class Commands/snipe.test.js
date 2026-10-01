@@ -387,31 +387,26 @@ describe('snipe.run success', () => {
     expect(result.data.events).not.toContainEqual({ type: 'zipped', x: 2, y: 1 });
   });
 
-  // the shot leaves from the sniper's own tile, so nothing there is in its
-  // way: not a wall they are standing on (a Cloudborn can), not the sniper,
-  // and not anyone sharing the tile with them
-  it("leaves the sniper's own tile untouched, whatever is on it", async () => {
-    expect(await everyCase('sniper on %s', ['Blank1', 'Wall', 'Wall_Damaged'], async (shooterTileType) => {
-      const { deps } = happyDeps({
-        tiles: [
-          createFakeTile({ Tile_ID: 1, Layer_ID: 1, X_Position: 1, Y_Position: 1, Tile_Type: shooterTileType, Player1: 1, Player2: 3 }),
-          createFakeTile({ Tile_ID: 2, Layer_ID: 1, X_Position: 2, Y_Position: 1, Tile_Type: 'Blank2' }),
-          createFakeTile({ Tile_ID: 3, Layer_ID: 1, X_Position: 3, Y_Position: 1, Tile_Type: 'Blank1', Player1: 2 }),
-        ],
-        bystander: createFakePlayer({ Player_ID: 3, Class_ID: 1, Discord_ID: BYSTANDER, Game_ID: 1, Health_Points: 8, Tile_ID: 1 }),
-      });
-      const result = await logic.run(INPUT, deps);
-      expect(result.data.events).toEqual([
-        { type: 'zipped', x: 2, y: 1 },
-        { type: 'hitTarget', username: 'victim', damage: 1, x: 3, y: 1 },
-      ]);
-      expect(deps.models.Tiles.update).not.toHaveBeenCalled();
-      expect(deps.utils.revertTileToBlank).not.toHaveBeenCalled();
-      expect(deps.utils.damagePlayer).toHaveBeenCalledTimes(1);
-      expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
-        expect.objectContaining({ Player_ID: 1 }), expect.objectContaining({ Player_ID: 2 }), 1, 1,
-      );
-    })).toEqual([]);
+  // the shot leaves from the sniper's own tile, so neither the sniper nor
+  // anyone sharing the tile with them is in its way
+  it("never hits the sniper or anyone sharing their tile", async () => {
+    const { deps } = happyDeps({
+      tiles: [
+        createFakeTile({ Tile_ID: 1, Layer_ID: 1, X_Position: 1, Y_Position: 1, Tile_Type: 'Blank1', Player1: 1, Player2: 3 }),
+        createFakeTile({ Tile_ID: 2, Layer_ID: 1, X_Position: 2, Y_Position: 1, Tile_Type: 'Blank2' }),
+        createFakeTile({ Tile_ID: 3, Layer_ID: 1, X_Position: 3, Y_Position: 1, Tile_Type: 'Blank1', Player1: 2 }),
+      ],
+      bystander: createFakePlayer({ Player_ID: 3, Class_ID: 1, Discord_ID: BYSTANDER, Game_ID: 1, Health_Points: 8, Tile_ID: 1 }),
+    });
+    const result = await logic.run(INPUT, deps);
+    expect(result.data.events).toEqual([
+      { type: 'zipped', x: 2, y: 1 },
+      { type: 'hitTarget', username: 'victim', damage: 1, x: 3, y: 1 },
+    ]);
+    expect(deps.utils.damagePlayer).toHaveBeenCalledTimes(1);
+    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ Player_ID: 1 }), expect.objectContaining({ Player_ID: 2 }), 1, 1,
+    );
   });
 
   // the DMG_BUFF reset is the LAST statement of the loop body, so
