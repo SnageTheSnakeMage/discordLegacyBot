@@ -151,7 +151,12 @@ async function run(input, deps = defaultDeps) {
     // Tile_Type off null would end the whole command in the central handler.
     if (!tile) continue;
 
-    if (tile.Tile_Type == 'Wall') {
+    // the shot leaves from the sniper's own tile: a wall they are standing on
+    // (a Cloudborn can) is behind it, and so is everyone sharing the tile, the
+    // sniper included. Only the target can still be hit there.
+    const fromOwnTile = tile.Tile_ID == shootersTile.Tile_ID;
+
+    if (!fromOwnTile && tile.Tile_Type == 'Wall') {
       // more than two shots blows the wall away outright
       if (amount > 2) {
         await utils.revertTileToBlank(tile);
@@ -166,7 +171,7 @@ async function run(input, deps = defaultDeps) {
     }
     // the in-memory row still says "Wall" after the update above, so this
     // only fires for a tile that was already damaged
-    if (tile.Tile_Type == 'Wall_Damaged') {
+    if (!fromOwnTile && tile.Tile_Type == 'Wall_Damaged') {
       await utils.revertTileToBlank(tile);
       events.push({ type: 'destroyedWall', x: px, y: py });
     }
@@ -174,7 +179,7 @@ async function run(input, deps = defaultDeps) {
     // the legacy tile-type half of this condition,
     // `(Tile_Type != 'Wall' || Tile_Type != 'Wall_Damaged')`, is true for
     // every possible value, so only the empty-tile half ever mattered
-    if (tile.Player1 == null && tile.Player2 == null && tile.Player3 == null && tile.Player4 == null) {
+    if (!fromOwnTile && tile.Player1 == null && tile.Player2 == null && tile.Player3 == null && tile.Player4 == null) {
       events.push({ type: 'zipped', x: px, y: py });
     }
 
@@ -182,7 +187,7 @@ async function run(input, deps = defaultDeps) {
     // worth of damage
     for (const slot of PLAYER_SLOTS) {
       const occupant = tile[slot];
-      if (occupant != null && occupant != targetPlayer.Player_ID) {
+      if (!fromOwnTile && occupant != null && occupant != targetPlayer.Player_ID) {
         const collateralPlayer = await models.Players.findOne({
           where: { Player_ID: occupant, Game_ID: game.Game_ID },
         });
