@@ -349,22 +349,6 @@ describe('stab.run success', () => {
     );
   });
 
-  // amount is never validated
-  it('heals the target and refunds AP on a negative amount', async () => {
-    const { deps } = happyDeps();
-    const result = await logic.run({ ...INPUT, amount: -1 }, deps);
-    expect(result.ok).toBe(true);
-    expect(deps.utils.damagePlayer).toHaveBeenCalledWith(
-      expect.objectContaining({ Player_ID: 1 }),
-      expect.objectContaining({ Player_ID: 2 }),
-      -2,
-    ); // -1 * min(2, 3)
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 6 }, // 5 - (-1)
-      { where: { Player_ID: 1, Game_ID: 1 } },
-    );
-  });
-
   it('scopes the target lookup to this game', async () => {
     const { deps } = happyDeps();
     await logic.run(INPUT, deps);

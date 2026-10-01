@@ -14,12 +14,12 @@
  * - the target must stand on the Fencer's body-1 tile, so a Twin's second
  *   body can neither stab nor be stabbed
  * - the not-enough-AP message talks about shooting
- * - `amount` is not validated, so a negative amount heals the target and
- *   refunds AP
+ * - the amount must be a whole number of at least 1
  */
 const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
 const defaultDeps = require('../_deps.js');
+const { amountRejection } = require('../_amount.js');
 
 const PLAYER_SLOTS = ['Player1', 'Player2', 'Player3', 'Player4'];
 
@@ -33,6 +33,9 @@ function parse(raw, actor) {
 }
 
 async function run(input, deps = defaultDeps) {
+  const badAmount = amountRejection(input.amount);
+  if (badAmount) return badAmount;
+
   const { models, utils, random } = deps;
 
   const gameId = input.gameId ?? await utils.getOldestActiveGameId(input.discordId);

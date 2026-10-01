@@ -40,11 +40,9 @@ describe('retrieve.parse', () => {
     expect(input).toEqual({ amount: 3, gameId: null, discordId: ACTOR });
   });
 
-  // the option description says "defaults to 1", but parse applies no
-  // default - an omitted amount stays null
-  it('does NOT default an omitted amount to 1', () => {
+  it('defaults an omitted amount to 1', () => {
     const input = logic.parse({ amount: null, game: 2 }, { discordId: ACTOR, username: 'snage' });
-    expect(input).toEqual({ amount: null, gameId: 2, discordId: ACTOR });
+    expect(input).toEqual({ amount: 1, gameId: 2, discordId: ACTOR });
   });
 });
 
@@ -176,38 +174,6 @@ describe('retrieve.run success', () => {
     expect(result.ok).toBe(true);
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 8, MISSED_AP: 0 },
-      { where: { Player_ID: 1 } },
-    );
-  });
-
-  // an omitted amount is null, which coerces to 0 - both writes
-  // happen with unchanged values and the result carries amount: null
-  it('treats an omitted amount as 0 in the arithmetic (null coercion)', async () => {
-    const { deps } = happyDeps();
-    const result = await logic.run({ ...INPUT, amount: null }, deps);
-    expect(result).toEqual({ ok: true, kind: 'retrieved', data: { amount: null } });
-    expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { CHEST_AMOUNT: 10 }, // 10 - null
-      { where: { Game_ID: 1 } },
-    );
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 5, MISSED_AP: 0 }, // 5 + null
-      { where: { Player_ID: 1 } },
-    );
-  });
-
-  // the amount option has no minimum, and a negative amount passes
-  // every check (CHEST_AMOUNT < -3 is false) - it deposits into the chest
-  it('lets a negative amount deposit AP into the chest', async () => {
-    const { deps } = happyDeps();
-    const result = await logic.run({ ...INPUT, amount: -3 }, deps);
-    expect(result.ok).toBe(true);
-    expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { CHEST_AMOUNT: 13 }, // 10 - (-3)
-      { where: { Game_ID: 1 } },
-    );
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 2, MISSED_AP: 0 }, // 5 + (-3)
       { where: { Player_ID: 1 } },
     );
   });

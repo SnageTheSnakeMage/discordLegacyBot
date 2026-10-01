@@ -136,7 +136,7 @@ const COMMANDS = {
   'retrieve': {
     description: 'retrieves AP from a game\'s chest',
     options: {
-      'amount': { kind: 'integer', description: '# of AP you wish to take out of the chest defaults to 1' },
+      'amount': { kind: 'integer', description: '# of AP you wish to take out of the chest defaults to 1', min: 1 },
       'game': { kind: 'integer', description: 'which game, defaults to oldest active game' },
     },
   },
@@ -147,7 +147,7 @@ const COMMANDS = {
       'x': { kind: 'integer', description: 'X coordinate of which tile to attack', required: true },
       'y': { kind: 'integer', description: 'Y coordinate of which tile to attack', required: true },
       'target': { kind: 'user', description: 'who you are attacking', required: true },
-      'amount': { kind: 'integer', description: '# of times you wish to attack the target defaults to 1' },
+      'amount': { kind: 'integer', description: '# of times you wish to attack the target defaults to 1', min: 1 },
       'game': { kind: 'integer', description: 'which game, defaults to oldest active game' },
       'body': {
         kind: 'integer',
@@ -174,7 +174,7 @@ const COMMANDS = {
   'store': {
     description: 'stores AP in a game\'s chest',
     options: {
-      'amount': { kind: 'integer', description: '# of AP you wish to take out of the chest defaults to 1' },
+      'amount': { kind: 'integer', description: '# of AP you wish to put in the chest, defaults to 1', min: 1 },
       'game': { kind: 'integer', description: 'which game, defaults to oldest active game' },
     },
   },
@@ -495,7 +495,7 @@ const COMMANDS = {
       'x': { kind: 'integer', description: 'X coordinate of which tile to attack', required: true },
       'y': { kind: 'integer', description: 'Y coordinate of which tile to attack', required: true },
       'target': { kind: 'user', description: 'who you are attacking', required: true },
-      'amount': { kind: 'integer', description: '# of times you wish to attack the target defaults to 1' },
+      'amount': { kind: 'integer', description: '# of times you wish to attack the target defaults to 1', min: 1 },
       'game': { kind: 'integer', description: 'which game, defaults to oldest active game' },
     },
   },
@@ -504,7 +504,7 @@ const COMMANDS = {
     description: 'spend 1 AP to deal x2 dmg(up to max) to another player on your tile',
     options: {
       'target': { kind: 'user', description: 'who you are attacking', required: true },
-      'amount': { kind: 'integer', description: '# of times you wish to stab the target defaults to 1' },
+      'amount': { kind: 'integer', description: '# of times you wish to stab the target defaults to 1', min: 1 },
       'game': { kind: 'integer', description: 'which game, defaults to oldest active game' },
     },
   },
@@ -542,7 +542,7 @@ const COMMANDS = {
         required: true,
         choices: [{ name: 'health', value: 'Health_Points' }, { name: 'damage', value: 'Damage' }, { name: 'range', value: 'Range_' }],
       },
-      'amount': { kind: 'integer', description: '# of times you wish to upgrade the stat defaults to 1' },
+      'amount': { kind: 'integer', description: '# of times you wish to upgrade the stat defaults to 1', min: 1 },
       'game': { kind: 'integer', description: 'which game, defaults to oldest active game' },
       'body': {
         kind: 'integer',

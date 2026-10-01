@@ -41,11 +41,9 @@ describe('store.parse', () => {
     expect(input).toEqual({ amount: 3, gameId: null, discordId: ACTOR });
   });
 
-  // the option description says "defaults to 1", but no default is
-  // applied - an omitted amount stays null
-  it('does NOT default an omitted amount to 1', () => {
+  it('defaults an omitted amount to 1', () => {
     const input = logic.parse({ amount: null, game: 2 }, { discordId: ACTOR, username: 'snage' });
-    expect(input).toEqual({ amount: null, gameId: 2, discordId: ACTOR });
+    expect(input).toEqual({ amount: 1, gameId: 2, discordId: ACTOR });
   });
 });
 
@@ -172,38 +170,6 @@ describe('store.run success', () => {
     );
   });
 
-  // an omitted amount is null - it passes the AP check
-  // (Action_Points < null is false), coerces to 0 in the arithmetic, both
-  // writes happen with unchanged values and the result carries amount: null
-  it('treats an omitted amount as 0 in the arithmetic (null coercion)', async () => {
-    const { deps } = happyDeps();
-    const result = await logic.run({ ...INPUT, amount: null }, deps);
-    expect(result).toEqual({ ok: true, kind: 'stored', data: { amount: null } });
-    expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { CHEST_AMOUNT: 10 }, // 10 + null
-      { where: { Game_ID: 1 } },
-    );
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 5 }, // 5 - null
-      { where: { Player_ID: 1 } },
-    );
-  });
-
-  // the amount option has no minimum, and a negative amount passes
-  // every check (Action_Points < -3 is false) - it withdraws from the chest
-  it('lets a negative amount withdraw AP from the chest', async () => {
-    const { deps } = happyDeps();
-    const result = await logic.run({ ...INPUT, amount: -3 }, deps);
-    expect(result.ok).toBe(true);
-    expect(deps.models.Games.update).toHaveBeenCalledWith(
-      { CHEST_AMOUNT: 7 }, // 10 + (-3)
-      { where: { Game_ID: 1 } },
-    );
-    expect(deps.models.Players.update).toHaveBeenCalledWith(
-      { Action_Points: 8 }, // 5 - (-3)
-      { where: { Player_ID: 1 } },
-    );
-  });
 });
 
 describe('store.present', () => {
