@@ -758,7 +758,7 @@ async attributeKill(killer){
     MAX_DAMAGE: killer.MAX_DAMAGE + killersGame.maxIncreaseOnKill,
     MAX_RANGE: killer.MAX_RANGE + killersGame.maxIncreaseOnKill,
     }, {where: {Player_ID: killer.PLayer_ID}})
-}
+},
 
 
 //removes a class from a player
