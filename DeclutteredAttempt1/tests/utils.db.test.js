@@ -3,7 +3,7 @@
  * instance-patching seam as utils.deathLogic.test.js. Real logic, fake rows.
  */
 const utils = require('../utils.js');
-const { createFakePlayer, createFakeClass, createFakeTile } = require('./helpers/mockModels.js');
+const { createFakePlayer, createFakeClass, createFakeTile, createFakeGame } = require('./helpers/mockModels.js');
 
 describe('getAllPlayersOnTile', () => {
   it('returns the Players rows for the occupied slots only', async () => {
@@ -115,16 +115,20 @@ describe('classRemoval', () => {
 
   it('removing a Twin zeroes the second body and credits the exorcist a kill', async () => {
     stubClassLookup('Twin');
+    jest.spyOn(utils.models.Games, 'findByPk').mockResolvedValue(createFakeGame({ maxIncreaseOnKill: 2 }));
     const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
     await utils.classRemoval(
       createFakePlayer({ Player_ID: 20, Class_ID: 2 }),
-      createFakePlayer({ Player_ID: 10, Kills: 1 }),
+      createFakePlayer({ Player_ID: 10, Kills: 1, MAX_AP: 10, MAX_HP: 10, MAX_DAMAGE: 3, MAX_RANGE: 5 }),
     );
     expect(update).toHaveBeenCalledWith(
       { Class_ID: 1, Health_Points2: 0, Damage2: 0, Tile_ID2: null, Free_Move2: 0, Range2: 0 },
       { where: { Player_ID: 20 } },
     );
-    expect(update).toHaveBeenCalledWith({ Kills: 2 }, { where: { Player_ID: 10 } });
+    expect(update).toHaveBeenCalledWith(
+      { Kills: 2, MAX_AP: 12, MAX_HP: 12, MAX_DAMAGE: 5, MAX_RANGE: 7 },
+      { where: { Player_ID: 10 } },
+    );
   });
 });
 
