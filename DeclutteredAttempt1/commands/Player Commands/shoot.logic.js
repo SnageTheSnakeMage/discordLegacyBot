@@ -34,7 +34,6 @@
 const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
 const defaultDeps = require('../_deps.js');
-const { amountRejection } = require('../_amount.js');
 
 function parse(raw, actor) {
   return {
@@ -49,7 +48,7 @@ function parse(raw, actor) {
 }
 
 async function run(input, deps = defaultDeps) {
-  const badAmount = amountRejection(input.amount);
+  const badAmount = deps.utils.amountRejection(input.amount);
   if (badAmount) return badAmount;
 
   const { models, utils, random } = deps;
