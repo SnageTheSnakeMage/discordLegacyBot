@@ -1358,6 +1358,24 @@ async getOldestActiveGameId(playerDiscordID, { db = models } = {}) {
   return game ? game.Game_ID : null;
 },
 
+//The gate every command's `amount` option passes before anything else. An
+//amount counts something the player does or hands over - stabs, shots, AP,
+//upgrades - so it is a whole number of at least 1: zero does nothing for
+//nothing, and a negative one runs the command backwards, healing instead of
+//hurting and paying AP back instead of charging it. The catalogue declares
+//`min: 1` on each of these options, so Discord refuses a bad amount before it
+//is sent; this is the same rule for commands registered before that minimum,
+//and for anything that calls run() without going through Discord. Returns the
+//rejection to send back, or null for a good amount.
+amountRejection(amount) {
+  if (Number.isInteger(amount) && amount >= 1) return null;
+  return {
+    ok: false,
+    reason: REJECTIONS.INVALID_AMOUNT,
+    data: { message: 'The amount has to be a whole number of at least 1!' },
+  };
+},
+
 //Does this player act through a timestop? checkGameState takes the answer as
 //its second argument. models is passed in because the callers are command
 //logic, which owns its own (injected) models rather than reaching for the

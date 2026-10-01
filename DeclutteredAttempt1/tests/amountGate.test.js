@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { COMMANDS } = require('../commandCatalog.js');
 const { REJECTIONS } = require('../enums.js');
+const utils = require('../utils.js');
 
 const COMMANDS_DIR = path.join(__dirname, '..', 'commands');
 
@@ -57,8 +58,9 @@ describe('the amount option of every command', () => {
       const logic = require(file);
       for (const amount of BAD_AMOUNTS) {
         const input = logic.parse({ amount }, { discordId: '1' });
-        // deps are empty: the gate has to answer before anything is looked up
-        const result = await logic.run(input, {}).catch((e) => ({ threw: String(e) }));
+        // deps carry no models: the gate has to answer before anything is
+        // looked up
+        const result = await logic.run(input, { utils }).catch((e) => ({ threw: String(e) }));
         if (result.reason !== REJECTIONS.INVALID_AMOUNT) {
           offenders.push(`${name} amount ${amount}: ${JSON.stringify(result)}`);
         }
