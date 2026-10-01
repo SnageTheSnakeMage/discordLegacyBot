@@ -332,6 +332,20 @@ describe('shoot.run success', () => {
     expect(deps.utils.revertTileToBlank).toHaveBeenCalledWith(tiles[1]);
   });
 
+  // a Cloudborn can stand on a wall; the shot leaves from that tile, so the
+  // wall is behind it and every shot still reaches the target
+  it("never hits the wall the shooter is standing on", async () => {
+    expect(await everyCase('shooter on %s', ['Wall', 'Wall_Damaged'], async (shooterTileType) => {
+      const { deps } = happyDeps({ shooterTileType });
+      const result = await logic.run(INPUT, deps);
+      expect(result.data.events).toEqual([
+        { type: 'hitTarget', targetDiscordId: TARGET, damage: 1, x: 3, y: 1 },
+      ]);
+      expect(deps.models.Tiles.update).not.toHaveBeenCalled();
+      expect(deps.utils.revertTileToBlank).not.toHaveBeenCalled();
+    })).toEqual([]);
+  });
+
   // the full shootCost * requested amount is deducted even when every
   // shot is spent on walls and the target is never reached
   it('charges the full AP cost when shots run out on walls before the target', async () => {

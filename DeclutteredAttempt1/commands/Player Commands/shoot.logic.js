@@ -132,8 +132,11 @@ async function run(input, deps = defaultDeps) {
     // board. Skipping it keeps the shot travelling; reading Tile_Type off null
     // would end the whole command in the central handler instead.
     if (!tile) continue;
+    // the shot leaves from the shooter's own tile, so a wall they are standing
+    // on (a Cloudborn can) is behind the shot rather than in its way
+    const fromOwnTile = tile.Tile_ID == shootersTile.Tile_ID;
     // an intact wall takes damage
-    if (tile.Tile_Type == 'Wall') {
+    if (!fromOwnTile && tile.Tile_Type == 'Wall') {
       // shooting out of a bush misses 50% of the time unless a Hunter
       if (shootersTile.Tile_Type == 'Bush' && random(1) == 0 && playerClass.Class_Name != 'Hunter') {
         amount--;
@@ -146,7 +149,7 @@ async function run(input, deps = defaultDeps) {
       if (amount == 0) break;
     }
     // a damaged wall is destroyed
-    if (tile.Tile_Type == 'Wall_Damaged') {
+    if (!fromOwnTile && tile.Tile_Type == 'Wall_Damaged') {
       if (shootersTile.Tile_Type == 'Bush' && random(1) == 0 && playerClass.Class_Name != 'Hunter') {
         amount--;
         events.push({ type: 'missWall', x: px, y: py });
