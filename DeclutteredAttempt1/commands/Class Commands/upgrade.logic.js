@@ -9,8 +9,8 @@
  * - the price comes from utils.upgradePrice, over the cost ladders in
  *   utils.upgradeLadders (HP/RANGE 4,5,7,10 - DAMAGE 12,14,16); a cost column
  *   off its ladder throws
- * - the cost ladder advances exactly ONE step per command, however many
- *   steps were bought, and stops at the top of the ladder
+ * - the cost ladder advances one rung per step bought, and stops at the top
+ *   of the ladder
  * - buying for body 2 checks the BODY 1 stat against the max, and pays out
  *   of the shared Action_Points / cost columns
  * - the default-game lookup is getOldestActiveGameId (not getOldestGameId)
@@ -113,8 +113,8 @@ async function run(input, deps = defaultDeps) {
   }
 
   const statColumn = input.body === 1 ? spec.column : spec.column2;
-  const topOfLadder = ladder[ladder.length - 1];
-  const nextCost = buyIndex === ladder.length - 1 ? topOfLadder : ladder[buyIndex + 1];
+  // the cost climbs one rung per step bought, and stays on the top rung
+  const nextCost = ladder[Math.min(buyIndex + input.amount, ladder.length - 1)];
 
   await models.Players.update(
     { Action_Points: player.Action_Points - price },
