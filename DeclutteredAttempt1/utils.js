@@ -416,6 +416,7 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
       // Chaos Council event effects that fire at every AP distribution
       await this.applyChaosEventToPlayer(game, player, chaosClasses, chaosTimes);
   }
+  await this.healOnHealTiles(game, chaosTimes);
   //also damage any players that are on the same tile as a lava diver and arent lava divers themselves
   //first get all the lava divers
   const allLavaDivers = await models.Players.findAll({where: {Game_ID: game.Game_ID, Class_ID: lavaDiverClass.Class_ID}});
@@ -498,6 +499,29 @@ async finaleTick(game, chaosTimes){
     await this.damagePlayer(null, player, game.fireDmg);
   }
   return chaosTimes * 2;
+},
+
+//Everyone standing on a Heal tile gains the game's healAmount for each
+//distribution in `times`, banking any overflow like every other HP gain. The
+//rows are read here rather than handed in, because the AP pass before this has
+//already written to them, and a Medkit Airdrop may have raised their HP.
+async healOnHealTiles(game, times){
+  const heal = game.healAmount * times;
+  if(!(heal > 0)) return;
+  const layerIds = await this.getGameLayerIds(game.Game_ID);
+  const healTiles = await models.Tiles.findAll({where: {Layer_ID: {[Op.in]: layerIds}, Tile_Type: "Heal"}});
+  for(const tile of healTiles){
+    for(const player of await this.getAllPlayersOnTile(null, tile)){
+      if(player.Dead) continue;
+      //either of a Twin's bodies can be the one standing on the tile, or both
+      if(player.Tile_ID == tile.Tile_ID){
+        await models.Players.update(this.hpGain(player, heal), {where: {Player_ID: player.Player_ID}});
+      }
+      if(player.Tile_ID2 != null && player.Tile_ID2 == tile.Tile_ID){
+        await models.Players.update({Health_Points2: Math.min(player.Health_Points2 + heal, player.MAX_HP)}, {where: {Player_ID: player.Player_ID}});
+      }
+    }
+  }
 },
 
 async getAllPlayersOnTileType(gameId, tileType){

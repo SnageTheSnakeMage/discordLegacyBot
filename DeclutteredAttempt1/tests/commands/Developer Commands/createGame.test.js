@@ -40,6 +40,7 @@ const DEFAULT_ROW = {
   shootCost: 2,
   fireDmg: 1,
   mineDmg: 1,
+  healAmount: 1,
   classBlacklist: '',
   classDupelicateMax: 2,
   maxIncreaseOnKill: 1,
@@ -60,6 +61,7 @@ describe('createGame.parse', () => {
       shootCost: 2,
       fireDamage: 1,
       mineDamage: 1,
+      healAmount: 1,
       classBlacklist: '',
       chaosCouncilBoolean: true,
       classDupeLimit: 2,
@@ -81,6 +83,7 @@ describe('createGame.parse', () => {
       'shoot-cost': 4,
       'fire-damage': 5,
       'mine-damage': 6,
+      'heal-amount': 3,
       'class-blacklist': 'Twin,Oracle',
       'chaos-council-boolean': 0,
       'class-dupe-limit': 9,
@@ -98,6 +101,7 @@ describe('createGame.parse', () => {
       shootCost: 4,
       fireDamage: 5,
       mineDamage: 6,
+      healAmount: 3,
       classBlacklist: 'Twin,Oracle',
       chaosCouncilBoolean: 0,
       classDupeLimit: 9,
@@ -202,6 +206,7 @@ describe('createGame.run success', () => {
       'shoot-cost': 4,
       'fire-damage': 5,
       'mine-damage': 6,
+      'heal-amount': 3,
       'class-blacklist': 'Twin,Oracle',
       'chaos-council-boolean': 0,
       'class-dupe-limit': 9,
@@ -229,6 +234,7 @@ describe('createGame.run success', () => {
       shootCost: 4,
       fireDmg: 5,
       mineDmg: 6,
+      healAmount: 3,
       classBlacklist: 'Twin,Oracle',
       classDupelicateMax: 9,
       maxIncreaseOnKill: 2,
@@ -270,7 +276,7 @@ describe('createGame.present', () => {
 });
 
 describe('createGame adapter (smoke)', () => {
-  it('declares all fourteen options', () => {
+  it('declares all fifteen options', () => {
     expect(createGame.data.toJSON().options.map((o) => o.name)).toEqual([
       'ap-distribution-interval',
       'chest-amount',
@@ -279,6 +285,7 @@ describe('createGame adapter (smoke)', () => {
       'shoot-cost',
       'fire-damage',
       'mine-damage',
+      'heal-amount',
       'class-blacklist',
       'chaos-council-boolean',
       'class-dupe-limit',
