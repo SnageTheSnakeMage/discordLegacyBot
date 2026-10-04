@@ -40,18 +40,8 @@ const { messageFor } = require('../_messages.js');
 const { stepLogger } = require('../_logging.js');
 const defaultDeps = require('../_deps.js');
 
-/** Class_ID 19 is Robot, 15 is Stormchaser - both get a bonus on storm tiles. */
-const ROBOT_CLASS_ID = 19;
-const STORMCHASER_CLASS_ID = 15;
-
-/** how many times a storm re-rolls a direction it may not move a player in */
-const STORM_REROLLS = 8;
-
 /** terrain only a Cloudborn may move onto */
 const WALL_TILE_TYPES = ['Wall', 'Wall_Damaged', 'Void'];
-
-/** terrain a non-Cloudborn may not be stormed onto */
-const STORM_FORBIDDEN_TILE_TYPES = ['Wall', 'Wall_Damaged', 'Void', 'Ice'];
 
 /**
  * The board's y grows downwards (row 1 is drawn at the top), so north is -y
@@ -80,18 +70,6 @@ const PATH_DELTAS = {
   sw: DIRECTION_DELTAS.southwest,
   se: DIRECTION_DELTAS.southeast,
 };
-
-/** random 0-7 -> [dx, dy] for being stormed */
-const RANDOM_DIRECTION_DELTAS = [
-  [-1, 0],  // 0 west
-  [-1, 1],  // 1 southwest
-  [0, 1],   // 2 south
-  [1, 1],   // 3 southeast
-  [1, 0],   // 4 east
-  [1, -1],  // 5 northeast
-  [0, -1],  // 6 north
-  [-1, -1], // 7 northwest
-];
 
 const PATH_REGEX = /^((?:left|right|up|down|ne|nw|se|sw|n|s|e|w),\d+;)+$/;
 
@@ -216,88 +194,6 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
 // tile-to-tile effects
 // ---------------------------------------------------------------------------
 
-/**
- * One tile of movement: what the tile being left does, what the tile being
- * entered does, and whether it was mined. Returns undefined normally,
- * { died: true } when the tile killed them, or { stormedBy: [dx, dy] } when
- * a storm is moving them; the walk decides where that leaves them.
- *
- * secondBody selects the twin's second body's columns.
- */
-async function moveFromTiletoTile(startTile, endTile, player, secondBody, game, deps) {
-  const { models, utils, random } = deps;
-  const trace = stepLogger('move', deps);
-  const body = secondBody ? 2 : 1;
-  const currentHp = secondBody ? player.Health_Points2 : player.Health_Points;
-  let stormedBy = null;
-
-  switch (startTile.Tile_Type) {
-    // leaving a fire tile burns the player
-    case 'Fire':
-      // damagePlayer re-reads the row before the death check, so a lethal
-      // fire tile kills
-      trace('tileEffect', { effect: 'fireOnExit', damage: game.fireDmg, body, playerId: player.Player_ID });
-      if ((await utils.damagePlayer(null, player, game.fireDmg, body)).Dead) return { died: true };
-      break;
-    // leaving a smoke tile disperses it
-    case 'Smoke':
-      trace('tileEffect', { effect: 'smokeDispersed', tileId: startTile.Tile_ID });
-      await utils.revertTileToBlank(startTile);
-      break;
-    default:
-      break;
-  }
-
-  switch (endTile.Tile_Type) {
-    // entering a fire tile burns the player
-    case 'Fire':
-      trace('tileEffect', { effect: 'fireOnEntry', damage: game.fireDmg, body, playerId: player.Player_ID });
-      if ((await utils.damagePlayer(null, player, game.fireDmg, body)).Dead) return { died: true };
-      break;
-    case 'Storm':
-      trace('tileEffect', { effect: 'storm', classId: player.Class_ID, playerId: player.Player_ID });
-      // a Robot gains 1 HP
-      if (player.Class_ID == ROBOT_CLASS_ID) {
-        // capped, with the overflow banked as MISSED_HP like every other gain
-        await models.Players.update(
-          secondBody
-            ? { Health_Points2: Math.min(currentHp + 1, player.MAX_HP) }
-            : utils.hpGain(player, 1),
-          { where: { Player_ID: player.Player_ID } },
-        );
-      }
-      // a Stormchaser gains 1d4-2 AP
-      if (player.Class_ID == STORMCHASER_CLASS_ID) {
-        await models.Players.update({ Action_Points: player.Action_Points + (random(3) - 1) }, { where: { Player_ID: player.Player_ID } });
-      }
-      // and everyone is stormed one tile off it in a random direction
-      stormedBy = rollStormDirection(deps);
-      break;
-    default:
-      break;
-  }
-
-  if (endTile.trapped) {
-    const trapper = await models.Players.findByPk(endTile.trapper);
-    if (!trapper) {
-      // a real invariant violation, not something a player can cause
-      throw new Error('Mine without trapper found. Please contact snage.');
-    }
-    const mineDmg = game.mineDmg;
-    trace('tileEffect', { effect: 'mine', damage: mineDmg, body, trapperId: trapper.Player_ID, tileId: endTile.Tile_ID });
-    // a lethal mine kills, and credits the trapper
-    const afterMine = await utils.damagePlayer(trapper, player, mineDmg, body);
-    await models.Tiles.update({ trapped: false, trapper: null }, { where: { Tile_ID: endTile.Tile_ID } });
-    if (afterMine.Dead) return { died: true };
-  }
-  return stormedBy ? { stormedBy } : undefined;
-}
-
-/** A storm picks one direction at random; the walk decides what happens. */
-function rollStormDirection(deps) {
-  return RANDOM_DIRECTION_DELTAS[deps.random(7)] || null;
-}
-
 /** the DIRECTION_DELTAS name of a one-tile step, for the reply */
 function directionName([dx, dy]) {
   const entry = Object.entries(DIRECTION_DELTAS).find(([, d]) => d[0] === dx && d[1] === dy);
@@ -306,17 +202,6 @@ function directionName([dx, dy]) {
 
 function findWalkTile([x, y], layerId, deps) {
   return deps.models.Tiles.findOne({ where: { Layer_ID: layerId, X_Position: x, Y_Position: y } });
-}
-
-/**
- * Why a player may not be stormed onto `tile`, or null when they may: it is
- * off the board, full, or, unless they are a Cloudborn, a wall, void or ice.
- */
-function stormLandingRefusal(tile, className, deps) {
-  if (!tile) return 'offBoard';
-  if (!deps.utils.tileHasRoom(tile)) return 'full';
-  if (className != 'Cloudborn' && STORM_FORBIDDEN_TILE_TYPES.includes(tile.Tile_Type)) return 'terrain';
-  return null;
 }
 
 /**
@@ -547,7 +432,9 @@ async function run(input, deps = defaultDeps) {
     enteredTileTypes.push(nxt_Tile.Tile_Type);
 
     // also holds the trapped-tile damage logic
-    const effect = await moveFromTiletoTile(cur_Tile, nxt_Tile, player, secondBody, game, deps);
+    const effect = await utils.tileStepEffects(cur_Tile, nxt_Tile, player, {
+      body: secondBody ? 2 : 1, game, db: models, random: deps.random, trace,
+    });
     // a tile can kill the mover. playerDeathLogic has already taken them off
     // the board, so the walk stops here rather than placing a corpse.
     if (effect && effect.died) {
@@ -559,29 +446,17 @@ async function run(input, deps = defaultDeps) {
     if (effect && effect.stormedBy) {
       // a storm is only ever the last tile: the player ends wherever it
       // moves them. A direction it may not move them in is re-rolled, up to
-      // STORM_REROLLS times, before they are left on the storm itself
-      const stormAt = walk[cord + 1];
-      let direction = effect.stormedBy;
-      let landingAt = null;
-      for (let roll = 0; roll <= STORM_REROLLS; roll++) {
-        if (roll > 0) direction = rollStormDirection(deps);
-        const candidate = direction && [stormAt[0] + direction[0], stormAt[1] + direction[1]];
-        const landing = candidate && await findWalkTile(candidate, originalTile.Layer_ID, deps);
-        const refusal = candidate ? stormLandingRefusal(landing, playerClass.Class_Name, deps) : 'noDirection';
-        if (!refusal) {
-          landingAt = candidate;
-          break;
-        }
-        // a re-roll is invisible in the reply, so the log is the only place
-        // that says why a storm moved a player a way they did not expect
-        trace('stormReroll', { roll, refused: candidate, refusal });
-      }
-      if (landingAt) {
-        trace('stormed', { from: stormAt, to: landingAt });
+      // 8 times, before they are left on the storm itself
+      const landing = await utils.stormLanding(nxt_Tile, effect.stormedBy, playerClass.Class_Name == 'Cloudborn', {
+        db: models, random: deps.random, trace,
+      });
+      if (landing) {
+        const landingAt = [landing.tile.X_Position, landing.tile.Y_Position];
+        trace('stormed', { from: walk[cord + 1], to: landingAt });
         walk[cord + 1] = landingAt;
-        note(`You were stormed one tile ${directionName(direction)}! \n`);
+        note(`You were stormed one tile ${directionName(landing.direction)}! \n`);
       } else {
-        trace('stormedNowhere', { at: stormAt });
+        trace('stormedNowhere', { at: walk[cord + 1] });
         note('A storm tried to move you, but every way was blocked, so you stayed on the storm! \n');
       }
       continue;
@@ -648,7 +523,5 @@ module.exports = {
   verifyInputPath,
   pathToTiles,
   getTileCordinatesOfPath,
-  moveFromTiletoTile,
-  rollStormDirection,
   DIRECTION_DELTAS,
 };
