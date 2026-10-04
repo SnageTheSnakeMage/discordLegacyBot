@@ -25,6 +25,18 @@ describe('death', () => {
   }
   const reload = (p) => models.Players.findByPk(p.Player_ID);
 
+  // a caller that hits one player twice holds a row from before the first hit,
+  // and the second hit still lands on top of it
+  it('two hits from the same row both land', async () => {
+    const { game, layer } = await board();
+    const victim = await seedPlayer(game.Game_ID, { discordId: '2', x: 2, y: 1, layerId: layer.Layer_ID, Health_Points: 10 });
+
+    await utils.damagePlayer(null, victim, 1);
+    await utils.damagePlayer(null, victim, 2);
+
+    expect((await reload(victim)).Health_Points).toBe(7);
+  });
+
   it('a killed player is flagged dead, taken off the board, and credited', async () => {
     const { game, layer } = await board();
     const killer = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Kills: 0 });

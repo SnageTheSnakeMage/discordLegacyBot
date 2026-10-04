@@ -1665,8 +1665,11 @@ async swapPlayerTiles(playerId1, playerId2) {
 //playerDeathLogic already requires BOTH bodies at zero before a Twin dies.
 async damagePlayer(attacker, victim, damage, body = 1) {
   const column = body === 2 ? 'Health_Points2' : 'Health_Points';
-  const current = body === 2 ? victim.Health_Points2 : victim.Health_Points;
-  await models.Players.update({[column]: current - damage}, {where: {Player_ID: victim.Player_ID}});
+  //the damage comes off the HP in the database, not off the row handed in:
+  //a caller that hits the same player twice (onto a fire tile and off it
+  //again) holds a row that predates the first hit
+  const fresh = (await models.Players.findByPk(victim.Player_ID)) || victim;
+  await models.Players.update({[column]: fresh[column] - damage}, {where: {Player_ID: victim.Player_ID}});
   //re-read: the death check must see the damage it is checking for
   const damaged = await models.Players.findByPk(victim.Player_ID);
   await this.playerDeathLogic(attacker, damaged);
