@@ -164,7 +164,7 @@ function createFakePlayer(overrides = {}) {
     Kills: 0,
     HP_COST: 4,
     RANGE_COST: 4,
-    DAMAGE_COST: 8,
+    DAMAGE_COST: 12,
     Dead: false,
     Tile_ID2: null,
     DMG_BUFF: 0,

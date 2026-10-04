@@ -97,6 +97,14 @@ async function run(input, deps = defaultDeps) {
     }
   }
 
+  // what one more of each upgrade costs, priced exactly as /upgrade prices it;
+  // null for a cost column that is off its ladder, which /upgrade refuses
+  const upgradeCosts = {};
+  for (const [stat, column] of Object.entries(utils.upgradeCostColumns)) {
+    const buyIndex = utils.upgradeLadders[stat].indexOf(player[column]);
+    upgradeCosts[stat] = buyIndex === -1 ? null : utils.upgradePrice(stat, buyIndex, 1);
+  }
+
   return {
     ok: true,
     kind: 'stats',
@@ -124,6 +132,7 @@ async function run(input, deps = defaultDeps) {
       yPosition: onBoard ? playerTile.Y_Position : null,
       commonLayerId,
       kills: player.Kills,
+      upgradeCosts,
       pharohHp: player.Pharoh_HP,
       meals: player.Meals,
       gameId: player.Game_ID,
@@ -154,6 +163,11 @@ function present(result) {
     { name: 'Current/Max...', value: `Damage: ${(d.damage * (d.dmgBuff + 1)).toString()}/${d.maxDamage.toString()}\nRange: ${d.range.toString()}/${d.maxRange.toString()}`, inline: true },
   ];
   fields.push({ name: 'Kills', value: d.kills.toString() });
+  const cost = (stat) => (d.upgradeCosts[stat] == null ? 'unavailable' : `${d.upgradeCosts[stat]} AP`);
+  fields.push({
+    name: 'Next Upgrade Costs',
+    value: `Health: ${cost('Health_Points')}\nDamage: ${cost('Damage')}\nRange: ${cost('Range_')}`,
+  });
   // A player off the board has no tile to describe. Say so once, in place of
   // the position fields, rather than dropping them and leaving the reader to
   // wonder whether the command half-worked.
