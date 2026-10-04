@@ -58,17 +58,19 @@ describe('/create-board on a real database', () => {
     }
   });
 
-  it('chains the layers top to bottom the way the file is drawn', async () => {
+  // layer 1 - the first Layers row, and the first block in the file - is the
+  // bottom of the stack, so up always means a higher layer number
+  it('chains the layers upward from layer 1 at the bottom', async () => {
     const game = await seedGame();
     await run({ preset: 'legacy-fourlayer', game: game.Game_ID });
 
-    const layers = await models.Layers.findAll({ where: { Game_ID: game.Game_ID } });
+    const layers = await models.Layers.findAll({ where: { Game_ID: game.Game_ID }, order: [['Layer_ID', 'ASC']] });
     expect(layers).toHaveLength(4);
-    expect(layers[0].Layer_Above).toBeNull();
-    expect(layers[layers.length - 1].Layer_Below).toBeNull();
+    expect(layers[0].Layer_Below).toBeNull();
+    expect(layers[layers.length - 1].Layer_Above).toBeNull();
     for (let i = 0; i < layers.length - 1; i++) {
-      expect(layers[i].Layer_Below).toBe(layers[i + 1].Layer_ID);
-      expect(layers[i + 1].Layer_Above).toBe(layers[i].Layer_ID);
+      expect(layers[i].Layer_Above).toBe(layers[i + 1].Layer_ID);
+      expect(layers[i + 1].Layer_Below).toBe(layers[i].Layer_ID);
     }
   });
 

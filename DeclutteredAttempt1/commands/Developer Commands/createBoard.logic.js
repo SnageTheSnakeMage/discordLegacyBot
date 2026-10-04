@@ -4,8 +4,9 @@
  *
  * This replaces hand-running database/tileTableHydration.sql, which inserted
  * 630 tiles at fixed Layer_IDs into whatever database happened to be open.
- * A preset carries no ids: layers are created for the game you name, chained
- * top-to-bottom as they appear in the file, and the tiles follow.
+ * A preset carries no ids: layers are created for the game you name, in the
+ * order they appear in the file, stacked upward from layer 1 at the bottom,
+ * and the tiles follow.
  *
  * parse/run/present per TESTING.md Part 1. run() takes plain data and a deps
  * bundle and returns a CommandResult; it never sees an interaction. The
@@ -76,8 +77,8 @@ async function run(input, deps = defaultDeps) {
   }
 
   // Layers first, in file order: a player's "layer 1" is the first Layers
-  // row of their game (board.logic.js maps it that way), so the top of the
-  // file has to be the first row created.
+  // row of their game (board.logic.js maps it that way), so the first block
+  // in the file has to be the first row created.
   const created = [];
   for (const layer of preset.layers) {
     const row = await models.Layers.create({
@@ -90,11 +91,12 @@ async function run(input, deps = defaultDeps) {
     created.push(row);
   }
 
-  // the stack, drawn in the preset as the "vvv" separators
+  // the stack: layer 1 is the bottom, so each layer sits above the one created
+  // before it, and /warp up climbs towards the last layer in the file
   for (let i = 0; i < created.length; i++) {
     await models.Layers.update({
-      Layer_Above: i > 0 ? created[i - 1].Layer_ID : null,
-      Layer_Below: i < created.length - 1 ? created[i + 1].Layer_ID : null,
+      Layer_Above: i < created.length - 1 ? created[i + 1].Layer_ID : null,
+      Layer_Below: i > 0 ? created[i - 1].Layer_ID : null,
     }, { where: { Layer_ID: created[i].Layer_ID } });
   }
 

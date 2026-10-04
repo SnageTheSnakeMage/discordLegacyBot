@@ -289,7 +289,7 @@ const COMMANDS = {
     options: {
       'up-or-down': {
         kind: 'boolean',
-        description: 'teleport up or down, true = up, false = down',
+        description: 'true = up to the next higher-numbered layer, false = down to the next lower one',
         required: true,
       },
       'game': { kind: 'integer', description: 'which game, defaults to oldest registering game' },
