@@ -1145,7 +1145,8 @@ upgradePrice(stat, buyIndex, amount) {
     case 3:
         return 4 + 5 + 7;
     default:
-      return 4 + 5 + 7 + (10 * amount - 3);
+      //every step past the ladder's top costs the top rung again
+      return 4 + 5 + 7 + 10 * (amount - 3);
 }
 },
 
@@ -1158,7 +1159,7 @@ upgradePrice(stat, buyIndex, amount) {
     case 3:
         return 12 + 14 + 16;
     default:
-      return 12 + 14 + 16 + (16 * amount - 3);
+      return 12 + 14 + 16 + 16 * (amount - 3);
 }
 },
 
