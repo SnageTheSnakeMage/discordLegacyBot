@@ -191,7 +191,7 @@ async function verifyInputPath(inputPath, layerId, startingTileXPosition, starti
 }
 
 // ---------------------------------------------------------------------------
-// tile-to-tile effects
+// walk helpers
 // ---------------------------------------------------------------------------
 
 /** the DIRECTION_DELTAS name of a one-tile step, for the reply */
