@@ -1110,8 +1110,8 @@ async downloadImageWithFetch(url, filepath) {
 },
 
 //The cost ladder each upgradable stat climbs. A player's HP_COST, RANGE_COST
-//or DAMAGE_COST is always a rung of its ladder, and each /upgrade moves it one
-//rung up, stopping at the top.
+//or DAMAGE_COST is always a rung of its ladder, and /upgrade moves it one rung
+//up per step bought, stopping at the top.
 upgradeLadders: Object.freeze({
   Health_Points: Object.freeze([4, 5, 7, 10]),
   Range_: Object.freeze([4, 5, 7, 10]),
@@ -1126,44 +1126,16 @@ upgradeCostColumns: Object.freeze({
 }),
 
 //What `amount` more upgrades of a stat cost a player on rung `buyIndex` of
-//its ladder: the scaled running total for buyIndex + amount steps, less what
-//the rungs below buyIndex cost.
+//its ladder: each step costs its rung, and every step past the top of the
+//ladder costs the top rung again.
 upgradePrice(stat, buyIndex, amount) {
-  const alreadyPaid = this.upgradeLadders[stat].slice(0, buyIndex).reduce((sum, cost) => sum + cost, 0);
-  const scaled = stat === "Damage"
-    ? this.getDamagePriceScaled(amount + buyIndex)
-    : this.getHPAndRangePriceScaled(amount + buyIndex);
-  return scaled - alreadyPaid;
+  const ladder = this.upgradeLadders[stat];
+  let price = 0;
+  for (let step = buyIndex; step < buyIndex + amount; step++) {
+    price += ladder[Math.min(step, ladder.length - 1)];
+  }
+  return price;
 },
-
- getHPAndRangePriceScaled(amount) {
-  switch(amount) {
-    case 1:
-        return 4;
-    case 2:
-        return 4 + 5;
-    case 3:
-        return 4 + 5 + 7;
-    default:
-      //every step past the ladder's top costs the top rung again
-      return 4 + 5 + 7 + 10 * (amount - 3);
-}
-},
-
- getDamagePriceScaled(amount){
-  switch(amount) {
-    case 1:
-        return 12;
-    case 2:
-        return 12 + 14;
-    case 3:
-        return 12 + 14 + 16;
-    default:
-      return 12 + 14 + 16 + 16 * (amount - 3);
-}
-},
-
-
 
 //turns a given tile into a its corresponding blank tile to preserve the checkerboard pattern
 async  revertTileToBlank(startTile){
