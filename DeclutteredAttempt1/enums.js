@@ -36,7 +36,6 @@ const ChaosEvents = Object.freeze({
   "Scorchers Joy": "Everyone on a blank tile that isnt a lava diver or pyromainiac takes 1 Damage every AP distribution while this chaos event is in play.",
   "Winters Hollow": "The first movement after every AP distribution costs an additional tile of movement for everyone except for Snowmen while this chaos event is in play.",
   "Blockade": "Walls can not be damaged while this chaos event is in play, sniper's snipes go through walls still.",
-  //TODO update gust implementation
   "Northern Gust": "move everyone two spaces up every AP distribution while this chaos event is in play(cannot move players onto ice,void, or wall tiles unless the player is a Cloudborn)",
   "Western Gust": "move everyone two spaces left every AP distribution while this chaos event is in play(cannot move players onto ice,void, or wall tiles unless the player is a Cloudborn)",
   "Eastern Gust": "move everyone two spaces right every AP distribution while this chaos event is in play(cannot move players onto ice,void, or wall tiles unless the player is a Cloudborn)",

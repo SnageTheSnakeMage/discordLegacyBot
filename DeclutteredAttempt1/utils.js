@@ -40,6 +40,24 @@ const FIRE_SPREAD_EXEMPT = ["Void", "Wall", "Gateway_Open", "Gateway_Locked", "F
 //are already one. "Gateway_Closed" is not a tile type this codebase has; the
 //locked one is spelt Gateway_Locked everywhere else.
 const FINALE_GATEWAY_EXEMPT = ["Gateway_Open", "Gateway_Locked"];
+//Class_ID 19 is Robot, 15 is Stormchaser - both get a bonus on storm tiles.
+const ROBOT_CLASS_ID = 19;
+const STORMCHASER_CLASS_ID = 15;
+//how many times a storm re-rolls a direction it may not move a player in
+const STORM_REROLLS = 8;
+//terrain a non-Cloudborn may not be stormed or gusted onto
+const STORM_FORBIDDEN_TILE_TYPES = ["Wall", "Wall_Damaged", "Void", "Ice"];
+//random 0-7 -> [dx, dy] for being stormed
+const RANDOM_DIRECTION_DELTAS = [
+  [-1, 0],  // 0 west
+  [-1, 1],  // 1 southwest
+  [0, 1],   // 2 south
+  [1, 1],   // 3 southeast
+  [1, 0],   // 4 east
+  [1, -1],  // 5 northeast
+  [0, -1],  // 6 north
+  [-1, -1], // 7 northwest
+];
 var logger150 = globalThis.topLogger.child({file: 'utils.js'})
 //#endregion BOILERPLATE
 module.exports = {
@@ -175,35 +193,156 @@ async chaosBurnOnBlankTile(game, player, classes) {
   await this.damagePlayer(null, player, 1);
 },
 
-//Blows a player dx,dy tiles across their own layer. Falls back to half the
-//distance when the full step is blocked, and gives up rather than dropping
-//anyone onto terrain they cannot stand on.
+//Blows a player dx,dy tiles across their own layer, one tile at a time, with
+//each tile doing to them exactly what it does to a player who walks it: fire
+//burns on the way off and on, smoke disperses behind them, a mine goes off and
+//a storm throws them on. The gust stops on the last tile it could reach,
+//before the board edge, a full tile, or (unless they are a Cloudborn) a wall,
+//damaged wall, void or ice. Gusts are free; nothing is charged.
 async chaosGust(game, player, classes, dx, dy) {
-  const tile = await models.Tiles.findByPk(player.Tile_ID);
-  if (!tile) return;
-  const canStand = (candidate) => {
-    if (!candidate) return false;
-    //A full tile is as unstandable as a wall, and not even a Cloudborn can
-    //make a fifth slot. This used to check the tile TYPE only, so a gust
-    //blew a player into a tile with four players on it, claimTileSlot threw
-    //"tile is full", and the throw came out of distributeAP: everyone after
-    //that player in the loop got no AP, the doomsday and timestop never
-    //ticked, and game.save() never ran. Being unstandable instead means the
-    //half step below is tried, and if that is full too the gust does nothing
-    //- which is what a gust into a crowd should do.
-    if (!this.tileHasRoom(candidate)) return false;
-    const blocked = ["Wall", "Wall_Damaged", "Ice", "Void"].includes(candidate.Tile_Type);
-    const cloudborn = classes.cloudborn && player.Class_ID == classes.cloudborn.Class_ID;
-    return !blocked || cloudborn;
-  };
-  const at = (x, y) => models.Tiles.findOne({where: {Layer_ID: tile.Layer_ID, X_Position: x, Y_Position: y}});
+  const start = await models.Tiles.findByPk(player.Tile_ID);
+  if (!start) return;
+  const cloudborn = Boolean(classes.cloudborn && player.Class_ID == classes.cloudborn.Class_ID);
+  const random = (max) => this.getRandomInt(max);
+  const stepX = Math.sign(dx);
+  const stepY = Math.sign(dy);
+  const steps = Math.max(Math.abs(dx), Math.abs(dy));
 
-  let target = await at(tile.X_Position + dx, tile.Y_Position + dy);
-  if (!canStand(target)) {
-    target = await at(tile.X_Position + Math.trunc(dx / 2), tile.Y_Position + Math.trunc(dy / 2));
+  let current = start;
+  try {
+    for (let i = 0; i < steps; i++) {
+      const next = await models.Tiles.findOne({where: {
+        Layer_ID: current.Layer_ID, X_Position: current.X_Position + stepX, Y_Position: current.Y_Position + stepY,
+      }});
+      if (this.stormLandingRefusal(next, cloudborn)) break;
+      const effect = await this.tileStepEffects(current, next, player, { game, random });
+      //the tile killed them and playerDeathLogic has already taken them off
+      //the board, so there is nobody left to place
+      if (effect && effect.died) return;
+      current = next;
+      //a storm takes over from the gust: it throws them one tile on, and the
+      //gust ends wherever that leaves them
+      if (effect && effect.stormedBy) {
+        const landing = await this.stormLanding(next, effect.stormedBy, cloudborn, { random });
+        if (landing) current = landing.tile;
+        break;
+      }
+    }
+  } catch (err) {
+    //distributeAP runs every gust in one loop, so a throw here would cost every
+    //player after this one their AP; a bad row ends this player's gust only
+    logger150.error({function: "chaosGust", err: String(err), playerId: player.Player_ID}, "gust stopped on an error");
   }
-  if (!canStand(target)) return;
-  await this.setPlayerToTile(player.Player_ID, target.Layer_ID, target.X_Position, target.Y_Position);
+  if (current.Tile_ID !== start.Tile_ID) {
+    await this.setPlayerToTile(player.Player_ID, current.Layer_ID, current.X_Position, current.Y_Position);
+  }
+},
+
+//One tile of movement: what the tile being left does, what the tile being
+//entered does, and whether it was mined. Returns undefined normally,
+//{ died: true } when a tile killed them, or { stormedBy: [dx, dy] } when a
+//storm is moving them on; the caller decides where that leaves them. /move
+//and gusts both walk through this. `body` 2 selects a Twin's second body's
+//columns, and `db` lets a logic file pass deps.models.
+async tileStepEffects(startTile, endTile, player, { body = 1, game, db = models, random, trace = () => {} }) {
+  const secondBody = body === 2;
+  const currentHp = secondBody ? player.Health_Points2 : player.Health_Points;
+  let stormedBy = null;
+
+  switch (startTile.Tile_Type) {
+    //leaving a fire tile burns the player; damagePlayer re-reads the row
+    //before the death check, so a lethal fire tile kills
+    case "Fire":
+      trace("tileEffect", { effect: "fireOnExit", damage: game.fireDmg, body, playerId: player.Player_ID });
+      if ((await this.damagePlayer(null, player, game.fireDmg, body)).Dead) return { died: true };
+      break;
+    //leaving a smoke tile disperses it
+    case "Smoke":
+      trace("tileEffect", { effect: "smokeDispersed", tileId: startTile.Tile_ID });
+      await this.revertTileToBlank(startTile);
+      break;
+    default:
+      break;
+  }
+
+  switch (endTile.Tile_Type) {
+    //entering a fire tile burns the player
+    case "Fire":
+      trace("tileEffect", { effect: "fireOnEntry", damage: game.fireDmg, body, playerId: player.Player_ID });
+      if ((await this.damagePlayer(null, player, game.fireDmg, body)).Dead) return { died: true };
+      break;
+    case "Storm":
+      trace("tileEffect", { effect: "storm", classId: player.Class_ID, playerId: player.Player_ID });
+      //a Robot gains 1 HP, capped, with the overflow banked as MISSED_HP like
+      //every other gain
+      if (player.Class_ID == ROBOT_CLASS_ID) {
+        await db.Players.update(
+          secondBody
+            ? { Health_Points2: Math.min(currentHp + 1, player.MAX_HP) }
+            : this.hpGain(player, 1),
+          { where: { Player_ID: player.Player_ID } },
+        );
+      }
+      //a Stormchaser gains 1d4-2 AP
+      if (player.Class_ID == STORMCHASER_CLASS_ID) {
+        await db.Players.update({ Action_Points: player.Action_Points + (random(3) - 1) }, { where: { Player_ID: player.Player_ID } });
+      }
+      //and everyone is stormed one tile off it in a random direction
+      stormedBy = this.rollStormDirection(random);
+      break;
+    default:
+      break;
+  }
+
+  if (endTile.trapped) {
+    const trapper = await db.Players.findByPk(endTile.trapper);
+    if (!trapper) {
+      //a real invariant violation, not something a player can cause
+      throw new Error("Mine without trapper found. Please contact snage.");
+    }
+    trace("tileEffect", { effect: "mine", damage: game.mineDmg, body, trapperId: trapper.Player_ID, tileId: endTile.Tile_ID });
+    //a lethal mine kills, and credits the trapper
+    const afterMine = await this.damagePlayer(trapper, player, game.mineDmg, body);
+    await db.Tiles.update({ trapped: false, trapper: null }, { where: { Tile_ID: endTile.Tile_ID } });
+    if (afterMine.Dead) return { died: true };
+  }
+  return stormedBy ? { stormedBy } : undefined;
+},
+
+//A storm picks one direction at random.
+rollStormDirection(random) {
+  return RANDOM_DIRECTION_DELTAS[random(7)] || null;
+},
+
+//Why a player may not be stormed or gusted onto `tile`, or null when they may:
+//it is off the board, full, or, unless they are a Cloudborn, a wall, damaged
+//wall, void or ice.
+stormLandingRefusal(tile, cloudborn) {
+  if (!tile) return "offBoard";
+  if (!this.tileHasRoom(tile)) return "full";
+  if (!cloudborn && STORM_FORBIDDEN_TILE_TYPES.includes(tile.Tile_Type)) return "terrain";
+  return null;
+},
+
+//Where a storm throws a player standing on `stormTile`: one tile in
+//`firstDirection`, or, when that tile refuses them, a re-rolled direction, up
+//to STORM_REROLLS times. Returns { tile, direction }, or null when every roll
+//was refused and they stay on the storm.
+async stormLanding(stormTile, firstDirection, cloudborn, { db = models, random, trace = () => {} }) {
+  let direction = firstDirection;
+  for (let roll = 0; roll <= STORM_REROLLS; roll++) {
+    if (roll > 0) direction = this.rollStormDirection(random);
+    const candidate = direction && [stormTile.X_Position + direction[0], stormTile.Y_Position + direction[1]];
+    const landing = candidate && await db.Tiles.findOne({where: {
+      Layer_ID: stormTile.Layer_ID, X_Position: candidate[0], Y_Position: candidate[1],
+    }});
+    const refusal = candidate ? this.stormLandingRefusal(landing, cloudborn) : "noDirection";
+    if (!refusal) return { tile: landing, direction };
+    //a re-roll is invisible in the reply, so the log is the only place that
+    //says why a storm moved a player a way they did not expect
+    trace("stormReroll", { roll, refused: candidate, refusal });
+  }
+  return null;
 },
 
 //Builds the poll the chaos council votes on. The question names the game:
