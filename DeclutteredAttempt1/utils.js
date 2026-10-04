@@ -1312,10 +1312,11 @@ upgradePrice(stat, buyIndex, amount) {
   return price;
 },
 
-//turns a given tile into a its corresponding blank tile to preserve the checkerboard pattern
+//turns a given tile into its blank tile, keeping the checkerboard the boards
+//are drawn with: Blank1 on an even X+Y, Blank2 on an odd one
 async  revertTileToBlank(startTile){
 
-    if(startTile.X_Position + startTile.Y_Position % 2 == 0) {
+    if((startTile.X_Position + startTile.Y_Position) % 2 == 0) {
       await models.Tiles.update({Tile_Type: "Blank1"}, {where: {Layer_ID: startTile.Layer_ID, X_Position: startTile.X_Position, Y_Position: startTile.Y_Position}});
      return;
     }

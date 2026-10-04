@@ -27,6 +27,24 @@ describe('movement', () => {
     return { game, layer };
   }
 
+  // a tile reverted to blank (smoke dispersing, a wall destroyed) rejoins the
+  // checkerboard the boards are drawn with
+  it('reverts a tile to the blank its coordinates call for', async () => {
+    const { layer } = await board();
+    const cases = [[1, 1, 'Blank1'], [1, 2, 'Blank2'], [2, 3, 'Blank2'], [3, 3, 'Blank1']];
+    for (const [x, y] of cases) {
+      await models.Tiles.update({ Tile_Type: 'Smoke' }, { where: { Layer_ID: layer.Layer_ID, X_Position: x, Y_Position: y } });
+    }
+    const wrong = [];
+    for (const [x, y, blank] of cases) {
+      const tile = await models.Tiles.findOne({ where: { Layer_ID: layer.Layer_ID, X_Position: x, Y_Position: y } });
+      await utils.revertTileToBlank(tile);
+      await tile.reload();
+      if (tile.Tile_Type !== blank) wrong.push(`(${x},${y}) became ${tile.Tile_Type}, expected ${blank}`);
+    }
+    expect(wrong).toEqual([]);
+  });
+
   // setPlayerToTile is how five different things move a player - a move, a
   // shove, a warp, a storm displacement and a chaos gust - and only the gust
   // checked the destination first. It vacated the old tile and THEN called
