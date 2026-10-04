@@ -244,14 +244,22 @@ describe('upgrade.run success', () => {
   });
 });
 
-describe('upgrade.run quirks', () => {
-  it('advances the cost ladder exactly one rung however many steps are bought', async () => {
-    const deps = makeDeps();
-    const result = await logic.run({ ...INPUT, amount: 3 }, deps);
-    // three steps at once cost 4 + 5 + 7, but HP_COST moves 4 -> 5 only
-    expect(result.data).toMatchObject({ price: 16, newCost: 5 });
-    expect(deps.models.Players.update).toHaveBeenCalledWith({ Health_Points: 8 }, { where: { Player_ID: 7 } });
-    expect(deps.models.Players.update).toHaveBeenCalledWith({ HP_COST: 5 }, { where: { Player_ID: 7 } });
+describe('upgrade.run cost ladder', () => {
+  // the cost column lands on the rung after the last step bought, so the next
+  // upgrade costs what one more step really costs, never a rung already paid
+  it('advances the cost one rung per step bought, stopping at the top', async () => {
+    expect(await everyCase('%s from cost %s, %s steps -> pays %s, cost now %s', [
+      ['Health_Points', 4, 3, 16, 10],
+      ['Health_Points', 4, 2, 9, 7],
+      ['Range_', 7, 3, 27, 10],
+      ['Damage', 12, 2, 26, 16],
+    ], async (stat, cost, amount, price, newCost) => {
+      const column = { Health_Points: 'HP_COST', Range_: 'RANGE_COST', Damage: 'DAMAGE_COST' }[stat];
+      const deps = makeDeps({ player: basePlayer({ [column]: cost, Action_Points: 100, MAX_HP: 99, MAX_RANGE: 99, MAX_DAMAGE: 99 }) });
+      const result = await logic.run({ ...INPUT, stat, amount }, deps);
+      expect(result.data).toMatchObject({ price, newCost });
+      expect(deps.models.Players.update).toHaveBeenCalledWith({ [column]: newCost }, { where: { Player_ID: 7 } });
+    })).toEqual([]);
   });
 
   // once a stat's cost reaches the top rung, every further step costs that
