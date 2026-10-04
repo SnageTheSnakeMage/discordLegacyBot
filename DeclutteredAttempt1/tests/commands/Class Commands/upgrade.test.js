@@ -254,14 +254,21 @@ describe('upgrade.run quirks', () => {
     expect(deps.models.Players.update).toHaveBeenCalledWith({ HP_COST: 5 }, { where: { Player_ID: 7 } });
   });
 
-  it('keeps the cost at the top of the ladder, at utils\' own scaled price', async () => {
-    // utils.getHPAndRangePriceScaled(4) is 4+5+7+(10*4-3) = 53, so the fourth
-    // rung prices at 53 - 16 = 37 rather than 10; that maths lives in utils
-    const deps = makeDeps({ player: basePlayer({ HP_COST: 10, Action_Points: 40 }) });
-    const result = await logic.run(INPUT, deps);
-    expect(result.data).toMatchObject({ price: 37, newCost: 10 });
-    expect(deps.models.Players.update).toHaveBeenCalledWith({ Action_Points: 3 }, { where: { Player_ID: 7 } });
-    expect(deps.models.Players.update).toHaveBeenCalledWith({ HP_COST: 10 }, { where: { Player_ID: 7 } });
+  // once a stat's cost reaches the top rung, every further step costs that
+  // rung again: 10 for health and range, 16 for damage
+  it('charges the top rung for every step past the top of the ladder', async () => {
+    expect(await everyCase('%s from cost %s, %s steps -> %s AP', [
+      ['Health_Points', 10, 1, 10],
+      ['Health_Points', 10, 2, 20],
+      ['Range_', 7, 2, 17],
+      ['Damage', 16, 1, 16],
+      ['Damage', 16, 2, 32],
+    ], async (stat, cost, amount, price) => {
+      const column = { Health_Points: 'HP_COST', Range_: 'RANGE_COST', Damage: 'DAMAGE_COST' }[stat];
+      const deps = makeDeps({ player: basePlayer({ [column]: cost, Action_Points: 100, MAX_HP: 99, MAX_RANGE: 99, MAX_DAMAGE: 99 }) });
+      const result = await logic.run({ ...INPUT, stat, amount }, deps);
+      expect(result.data.price).toBe(price);
+    })).toEqual([]);
   });
 
   it('checks the body-1 stat against the cap even when buying for body 2', async () => {
