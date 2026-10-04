@@ -270,6 +270,23 @@ describe('chaos events', () => {
     await assertBoardConsistent(game.Game_ID);
   });
 
+  it("blows both of a Twin's bodies", async () => {
+    const { game, layer } = await board('Eastern Gust');
+    const twin = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 2, layerId: layer.Layer_ID, className: 'Twin',
+      Health_Points2: 5, secondBody: { x: 1, y: 4 },
+    });
+
+    await utils.distributeAP(game, 1, CLIENT);
+
+    const after = await reload(twin);
+    const body1 = await models.Tiles.findByPk(after.Tile_ID);
+    const body2 = await models.Tiles.findByPk(after.Tile_ID2);
+    expect([body1.X_Position, body1.Y_Position]).toEqual([3, 2]);
+    expect([body2.X_Position, body2.Y_Position]).toEqual([3, 4]);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
   it('BOOOORRRINNNG does nothing beyond the ordinary grant', async () => {
     const { game, layer } = await board('BOOOORRRINNNG');
     const p = await seedPlayer(game.Game_ID, {
