@@ -1109,63 +1109,31 @@ async downloadImageWithFetch(url, filepath) {
     fs.writeFileSync(filepath, Buffer.from(buffer));
 },
 
-async getUpgradePrice(stat, playerId, amount) {
-  logger150.debug({function: "getUpgradePrice"}, "running getUpgradePrice with \n stat: " + stat + " playerId: " + playerId + " amount: " + amount);
-  const player = await models.Players.findByPk(playerId);
-  var initalCost = 0;
-  var returnedCost = 0;
-  switch(stat) {
-    case "Health_Points":
-      initalCost = player.HP_COST;
-      break;
-    case "Range_":
-      initalCost = player.RANGE_COST;
-      break;
-    case "Damage":
-      initalCost = player.DAMAGE_COST;
-      break;
-  }
-  logger150.debug({function: "getUpgradePrice"}, "initalCost: " + initalCost);
-  logger150.debug({function: "getUpgradePrice"}, "stat: " + stat);
-  logger150.debug({function: "getUpgradePrice"}, "costs: " + player.RANGE_COST + "\n" + player.HP_COST + "\n" + player.DAMAGE_COST);
-  // +1 Range (4 -> 5 -> 7 -> 10 AP)
-// +1 HP (4 -> 5 -> 7 -> 10 AP)
-// +1 Damage (12 -> 14 -> 16 AP)
+//The cost ladder each upgradable stat climbs. A player's HP_COST, RANGE_COST
+//or DAMAGE_COST is always a rung of its ladder, and each /upgrade moves it one
+//rung up, stopping at the top.
+upgradeLadders: Object.freeze({
+  Health_Points: Object.freeze([4, 5, 7, 10]),
+  Range_: Object.freeze([4, 5, 7, 10]),
+  Damage: Object.freeze([12, 14, 16]),
+}),
 
-    if(stat == "Range_" || stat == "Health_Points") {
-      switch(initalCost) {
-        case 4:
-          returnedCost = this.getHPAndRangePriceScaled(amount);
-          break;
-        case 5:
-          returnedCost = this.getHPAndRangePriceScaled(amount + 1) - 4;
-          break;
-        case 7:
-          returnedCost = this.getHPAndRangePriceScaled(amount + 2) - (4 + 5);
-          break;
-        case 10:
-          returnedCost = this.getHPAndRangePriceScaled(amount + 3) - (4 + 5 + 7);
-          break;
-        default:
-          throw new Error("Incorrect initial range and/or health cost for player.\n Expected: 4, 5, 7, or 10\n Received: " + initalCost);
-      }
-    }
+//The column holding each stat's current rung.
+upgradeCostColumns: Object.freeze({
+  Health_Points: "HP_COST",
+  Range_: "RANGE_COST",
+  Damage: "DAMAGE_COST",
+}),
 
-    if(initalCost == 12 && stat == "Damage") {
-      switch(initalCost){
-        case 12:
-          returnedCost = getDamagePriceScaled(amount);
-          break;
-        case 14:
-          returnedCost = getDamagePriceScaled(amount + 1) - 12;
-          break;
-        case 16:
-          returnedCost = getDamagePriceScaled(amount + 2) - (12 + 14);
-          break;
-        default:
-          throw new Error("Incorrect initial damage cost for player");
-      }
-    }
+//What `amount` more upgrades of a stat cost a player on rung `buyIndex` of
+//its ladder: the scaled running total for buyIndex + amount steps, less what
+//the rungs below buyIndex cost.
+upgradePrice(stat, buyIndex, amount) {
+  const alreadyPaid = this.upgradeLadders[stat].slice(0, buyIndex).reduce((sum, cost) => sum + cost, 0);
+  const scaled = stat === "Damage"
+    ? this.getDamagePriceScaled(amount + buyIndex)
+    : this.getHPAndRangePriceScaled(amount + buyIndex);
+  return scaled - alreadyPaid;
 },
 
  getHPAndRangePriceScaled(amount) {

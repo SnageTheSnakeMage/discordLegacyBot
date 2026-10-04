@@ -173,6 +173,7 @@ describe('stats.run success', () => {
         yPosition: 4,
         commonLayerId: '1',
         kills: 0,
+        upgradeCosts: { Health_Points: 4, Damage: 12, Range_: 4 },
         pharohHp: 0,
         meals: 0,
         gameId: 1,
@@ -194,6 +195,20 @@ describe('stats.run success', () => {
   // A dead player has Tile_ID null (playerDeathLogic writes it). Their final
   // stats are exactly what someone wants to look up afterwards, so this is
   // not a rejection - only the board-position fields go.
+  // the costs shown are the prices /upgrade would charge for one more step,
+  // so a player can plan an upgrade without trying it
+  it('prices one more of each upgrade from the player\'s own cost ladder', async () => {
+    const deps = happyDeps({
+      player: createFakePlayer({ Discord_ID: ACTOR, Tile_ID: 1, HP_COST: 7, DAMAGE_COST: 16, RANGE_COST: 3 }),
+    });
+    const result = await logic.run(INPUT, deps);
+    // RANGE_COST 3 is off the ladder, which /upgrade refuses too
+    expect(result.data.upgradeCosts).toEqual({ Health_Points: 7, Damage: 16, Range_: null });
+    expect(logic.present(result).embeds[0].fields).toContainEqual(
+      { name: 'Next Upgrade Costs', value: 'Health: 7 AP\nDamage: 16 AP\nRange: unavailable' },
+    );
+  });
+
   it('still returns stats for a dead player, minus the position fields', async () => {
     const deps = happyDeps({
       player: createFakePlayer({ Discord_ID: ACTOR, Tile_ID: null, Tile_ID2: null, Dead: true, Kills: 4 }),
@@ -212,6 +227,7 @@ describe('stats.run success', () => {
       tileThumbnailPath: null,
       // the stats that do not depend on a tile survive
       kills: 4,
+      upgradeCosts: { Health_Points: 4, Damage: 12, Range_: 4 },
       className: 'Average',
     });
     assertNoWrites(deps);
@@ -331,6 +347,7 @@ describe('stats.present', () => {
     yPosition: 4,
     commonLayerId: '1',
     kills: 6,
+    upgradeCosts: { Health_Points: 7, Damage: 14, Range_: 4 },
     pharohHp: 0,
     meals: 0,
     gameId: 1,
@@ -374,6 +391,7 @@ describe('stats.present', () => {
       // current damage is Damage * (DMG_BUFF + 1): 2 * 2 = 4
       { name: 'Current/Max...', value: 'Damage: 4/3\nRange: 3/5', inline: true },
       { name: 'Kills', value: '6' },
+      { name: 'Next Upgrade Costs', value: 'Health: 7 AP\nDamage: 14 AP\nRange: 4 AP' },
       { name: 'Current Tile', value: 'Blank1', inline: true },
       { name: 'X Position', value: '3', inline: true },
       { name: 'Y Position', value: '4', inline: true },
