@@ -12,12 +12,12 @@
  *   description: four-layer board from the 2025 playtest
  *   legend G Gateway_Open        <- optional overrides, before the first layer
  *
- *   layer Surface
+ *   layer Caverns                <- layer 1, the bottom of the stack
  *   VVVVV
  *   V.~.V
  *   VVVVV
  *   vvvvv                        <- separates one layer from the next
- *   layer Caverns
+ *   layer Surface
  *   #####
  *   #.G.#
  *   #####
