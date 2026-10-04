@@ -53,10 +53,11 @@ the same orientation `utils.GenerateGameGridImage` draws in, so the file
 looks like the rendered board. Every row in a layer must be the same width;
 the width and height become the layer's `X_Bound` and `Y_Bound`.
 
-**Stacking.** A line of `v` characters between two layer blocks means *the
-next layer is below this one*. Layers are created in file order, so the top
-of the file is the top of the stack and is layer 1 to a player
-(`/board layer:1`), with `Layer_Above` / `Layer_Below` chained for you.
+**Stacking.** A line of `v` characters separates two layer blocks. Layers are
+created in file order, and the first block is layer 1 (`/board layer:1`), the
+**bottom** of the stack. Each block after it sits one layer above the one
+before, so `/warp` up always lands on a higher layer number. `Layer_Above` /
+`Layer_Below` are chained for you.
 
 **No implicit border.** What you draw is what you get. If you want a Void rim,
 draw one (`legacy-fourlayer` does); if you want the map to run to the edge,

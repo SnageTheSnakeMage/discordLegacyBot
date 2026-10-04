@@ -91,12 +91,12 @@ describe('run', () => {
     expect(d.models.Layers.create.mock.calls[1][0]).toMatchObject({ X_Bound: 2, Y_Bound: 1 });
   });
 
-  test('chains the stack: the first layer is the top, the last has nothing below', async () => {
+  test('chains the stack: the first layer is the bottom, the last has nothing above', async () => {
     const d = deps();
     await logic.run(input(), d);
     const updates = d.models.Layers.update.mock.calls;
-    expect(updates[0]).toEqual([{ Layer_Above: null, Layer_Below: 101 }, { where: { Layer_ID: 100 } }]);
-    expect(updates[1]).toEqual([{ Layer_Above: 100, Layer_Below: null }, { where: { Layer_ID: 101 } }]);
+    expect(updates[0]).toEqual([{ Layer_Above: 101, Layer_Below: null }, { where: { Layer_ID: 100 } }]);
+    expect(updates[1]).toEqual([{ Layer_Above: null, Layer_Below: 100 }, { where: { Layer_ID: 101 } }]);
   });
 
   test('inserts every tile against its own layer, coordinates intact', async () => {

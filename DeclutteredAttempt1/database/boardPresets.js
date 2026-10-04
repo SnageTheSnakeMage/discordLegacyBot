@@ -16,16 +16,16 @@
  *   VVVVV
  *   V.~.V
  *   VVVVV
- *   vvvvv                        <- the next layer sits BELOW this one
+ *   vvvvv                        <- separates one layer from the next
  *   layer Caverns
  *   #####
  *   #.G.#
  *   #####
  *
  * Row 1 is Y_Position 1 and column 1 is X_Position 1, matching the draw
- * order in utils.GenerateGameGridImage (canvasX from X, canvasY from Y). The
- * 'vvv' separator is the stacking: layers come out in file order, each one
- * Layer_Below the one before it, so /board layer:1 is the top of the file.
+ * order in utils.GenerateGameGridImage (canvasX from X, canvasY from Y).
+ * Layers come out in file order: the first block is layer 1, the bottom of
+ * the stack, and each block after it sits one layer above the one before.
  *
  * There is no implicit border. What you draw is what you get - a board that
  * wants a Void rim draws one.
@@ -131,7 +131,7 @@ function parseBoard(text) {
 
     if (line.toLowerCase().startsWith('layer')) {
       if (layers.length && !sawSeparator) {
-        fail('layers must be separated by a "vvv" line saying the next layer is below');
+        fail('layers must be separated by a "vvv" line');
       }
       current = { name: line.slice('layer'.length).trim() || `Layer ${layers.length + 1}`, rows: [] };
       layers.push(current);
