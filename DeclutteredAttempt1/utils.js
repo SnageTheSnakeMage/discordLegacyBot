@@ -198,11 +198,23 @@ async chaosBurnOnBlankTile(game, player, classes) {
 //burns on the way off and on, smoke disperses behind them, a mine goes off and
 //a storm throws them on. The gust stops on the last tile it could reach,
 //before the board edge, a full tile, or (unless they are a Cloudborn) a wall,
-//damaged wall, void or ice. Gusts are free; nothing is charged.
+//damaged wall, void or ice. Gusts are free; nothing is charged. A Twin's
+//second body is blown too, after the first.
 async chaosGust(game, player, classes, dx, dy) {
-  const start = await models.Tiles.findByPk(player.Tile_ID);
-  if (!start) return;
   const cloudborn = Boolean(classes.cloudborn && player.Class_ID == classes.cloudborn.Class_ID);
+  await this.gustBody(game, player, 1, cloudborn, dx, dy);
+  //re-read: the first body's walk may have hurt the player, or killed that
+  //body and moved the survivor into body 1
+  const after = await models.Players.findByPk(player.Player_ID);
+  if (after && !after.Dead && after.Tile_ID2 != null) {
+    await this.gustBody(game, after, 2, cloudborn, dx, dy);
+  }
+},
+
+//One body's walk for chaosGust.
+async gustBody(game, player, body, cloudborn, dx, dy) {
+  const start = await models.Tiles.findByPk(body === 2 ? player.Tile_ID2 : player.Tile_ID);
+  if (!start) return;
   const random = (max) => this.getRandomInt(max);
   const stepX = Math.sign(dx);
   const stepY = Math.sign(dy);
@@ -215,9 +227,9 @@ async chaosGust(game, player, classes, dx, dy) {
         Layer_ID: current.Layer_ID, X_Position: current.X_Position + stepX, Y_Position: current.Y_Position + stepY,
       }});
       if (this.stormLandingRefusal(next, cloudborn)) break;
-      const effect = await this.tileStepEffects(current, next, player, { game, random });
-      //the tile killed them and playerDeathLogic has already taken them off
-      //the board, so there is nobody left to place
+      const effect = await this.tileStepEffects(current, next, player, { body, game, random });
+      //the tile killed them and playerDeathLogic has already taken the body
+      //off the board, so there is nothing left to place
       if (effect && effect.died) return;
       current = next;
       //a storm takes over from the gust: it throws them one tile on, and the
@@ -231,10 +243,10 @@ async chaosGust(game, player, classes, dx, dy) {
   } catch (err) {
     //distributeAP runs every gust in one loop, so a throw here would cost every
     //player after this one their AP; a bad row ends this player's gust only
-    logger150.error({function: "chaosGust", err: String(err), playerId: player.Player_ID}, "gust stopped on an error");
+    logger150.error({function: "gustBody", err: String(err), playerId: player.Player_ID, body}, "gust stopped on an error");
   }
   if (current.Tile_ID !== start.Tile_ID) {
-    await this.setPlayerToTile(player.Player_ID, current.Layer_ID, current.X_Position, current.Y_Position);
+    await this.setPlayerToTile(player.Player_ID, current.Layer_ID, current.X_Position, current.Y_Position, { body });
   }
 },
 
