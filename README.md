@@ -64,7 +64,7 @@ Mine - Upon stepping onto this tile lose 1 HP then it becomes a blank tile(with 
 Bush - attacks on people on this tile and from people on this tile have a 1/2 chance of missing, with the exception of hunters.
 Wall - You cant move onto this tile (with the exception of people with the Cloudborn class, see Classes section), If shot twice it will be destroyed, when destroyed leaves behind a blank tile(with the exception of gateway and locked gateway tile which will stay the same). Blocks shots 
 Chest - Anyone can store/take AP here, all chests pull from the same storage of AP
-Heal - players on this tile receive 1 HP when AP is distributed
+Heal - players on this tile receive HP when AP is distributed (1 by default, set per game with /create-game heal-amount)
 
 Gateway - while on this you can warp up or down a layer(can only be changed by Guardian, see Classes section)
 Locked Gateway - acts as a blank tile(unless unlocked by a Guardian, see Classes section). players can warp from another layer and end up on it but unless unlocked the cannot warp again.

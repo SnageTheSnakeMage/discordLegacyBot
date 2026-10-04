@@ -708,6 +708,11 @@ const COMMANDS = {
         kind: 'integer',
         description: 'how much damage moving onto a mine/trapped tile does, defaults to 1',
       },
+      'heal-amount': {
+        kind: 'integer',
+        description: 'how much HP a heal tile gives each AP distribution, defaults to 1',
+        min: 0,
+      },
       'class-blacklist': {
         kind: 'string',
         description: 'a comma separated list of classes that cannot be in this game, defaults to null',

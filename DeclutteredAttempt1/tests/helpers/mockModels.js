@@ -124,6 +124,7 @@ function createFakeGame(overrides = {}) {
     shootCost: 2,
     fireDmg: 1,
     mineDmg: 1,
+    healAmount: 1,
     classBlacklist: '',
     classDupelicateMax: 2,
     maxIncreaseOnKill: 1,

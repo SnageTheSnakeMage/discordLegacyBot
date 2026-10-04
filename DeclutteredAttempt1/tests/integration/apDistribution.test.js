@@ -99,4 +99,55 @@ describe('distributeAP', () => {
     expect(after.timestopTurns).toBe(0);
     expect(after.GAME_STATE).toBe(GAMESTATES.ACTIVE);
   });
+
+  describe('heals everyone standing on a Heal tile', () => {
+
+    const reload = (player) => models.Players.findByPk(player.Player_ID);
+    const makeHeal = (layer, x, y) => models.Tiles.update(
+      { Tile_Type: 'Heal' }, { where: { Layer_ID: layer.Layer_ID, X_Position: x, Y_Position: y } },
+    );
+
+    it('gives healAmount for each distribution, banking overflow past MAX_HP', async () => {
+      const { game, layer } = await seedPopulatedGame({ healAmount: 2 });
+      await makeHeal(layer, 1, 1);
+      const hurt = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Health_Points: 5, MAX_HP: 10 });
+      const nearlyFull = await seedPlayer(game.Game_ID, { discordId: '2', x: 1, y: 1, layerId: layer.Layer_ID, Health_Points: 9, MAX_HP: 10 });
+      const offTile = await seedPlayer(game.Game_ID, { discordId: '3', x: 2, y: 2, layerId: layer.Layer_ID, Health_Points: 5, MAX_HP: 10 });
+
+      await utils.distributeAP(game, 2, FAKE_CLIENT);
+
+      // 2 HP for each of the 2 distributions
+      expect((await reload(hurt)).Health_Points).toBe(9);
+      const full = await reload(nearlyFull);
+      expect(full.Health_Points).toBe(10);
+      expect(full.MISSED_HP).toBe(3);
+      expect((await reload(offTile)).Health_Points).toBe(5);
+      await assertBoardConsistent(game.Game_ID);
+    });
+
+    it("heals a Twin's second body when that is the one on the tile", async () => {
+      const { game, layer } = await seedPopulatedGame();
+      await makeHeal(layer, 2, 2);
+      const twin = await seedPlayer(game.Game_ID, {
+        discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, className: 'Twin',
+        Health_Points: 5, Health_Points2: 5, MAX_HP: 10, secondBody: { x: 2, y: 2 },
+      });
+
+      await utils.distributeAP(game, 1, FAKE_CLIENT);
+
+      const after = await reload(twin);
+      expect(after.Health_Points).toBe(5);
+      expect(after.Health_Points2).toBe(6);
+    });
+
+    it('heals nobody in a game whose healAmount is 0', async () => {
+      const { game, layer } = await seedPopulatedGame({ healAmount: 0 });
+      await makeHeal(layer, 1, 1);
+      const player = await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Health_Points: 5 });
+
+      await utils.distributeAP(game, 1, FAKE_CLIENT);
+
+      expect((await reload(player)).Health_Points).toBe(5);
+    });
+  });
 });

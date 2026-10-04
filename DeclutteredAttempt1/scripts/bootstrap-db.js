@@ -180,6 +180,25 @@ async function migrateGameFlags({ sequelize, models }) {
   return { migrated: true, added: missing, rows };
 }
 
+// Games columns that need no rows rewritten: SQLite gives every existing row
+// the default when a NOT NULL DEFAULT column is added, and that default is the
+// value an existing game should have.
+const ADDED_GAME_COLUMNS = {
+  healAmount: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 1 },
+};
+
+/** Adds whichever of ADDED_GAME_COLUMNS the Games table is missing. */
+async function addMissingGameColumns({ sequelize }) {
+  const queryInterface = sequelize.getQueryInterface();
+  const columns = await queryInterface.describeTable('Games');
+  const missing = Object.keys(ADDED_GAME_COLUMNS).filter((c) => !(c in columns));
+  for (const column of missing) {
+    await queryInterface.addColumn('Games', column, ADDED_GAME_COLUMNS[column]);
+    console.log(`[bootstrap] added Games.${column}`);
+  }
+  return { added: missing };
+}
+
 async function bootstrap() {
   const storage = process.env.LEGACY_DB_STORAGE || './database/database.db';
   const sequelize = new Sequelize({
@@ -196,6 +215,7 @@ async function bootstrap() {
     // sync() never alters an existing table, so a volume from before the flag
     // columns existed needs them added by hand
     await migrateGameFlags({ sequelize, models });
+    await addMissingGameColumns({ sequelize });
 
     const existing = await models.Classes.count();
     if (existing > 0) {
@@ -265,7 +285,7 @@ async function syncClasses({ dryRun = false, models: injected = null } = {}) {
   }
 }
 
-module.exports = { parseCsv, readSeed, syncClasses, migrateGameFlags };
+module.exports = { parseCsv, readSeed, syncClasses, migrateGameFlags, addMissingGameColumns };
 
 if (require.main === module) {
   const argv = process.argv.slice(2);

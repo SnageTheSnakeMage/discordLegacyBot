@@ -71,6 +71,11 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       defaultValue: 1
     },
+    healAmount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1
+    },
     classBlacklist: {
       type: DataTypes.TEXT,
       allowNull: true
