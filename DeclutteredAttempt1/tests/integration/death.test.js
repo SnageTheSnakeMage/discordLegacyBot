@@ -13,6 +13,7 @@ const { freshDb, closeDb, models, utils } = require('./helpers/testDb.js');
 const {
   seedGame, seedLayer, seedPlayer, assertBoardConsistent,
 } = require('./helpers/seed.js');
+const resurrectLogic = require('../../commands/Class Commands/resurrect.logic.js');
 
 describe('death', () => {
   beforeEach(freshDb);
@@ -35,6 +36,28 @@ describe('death', () => {
     await utils.damagePlayer(null, victim, 2);
 
     expect((await reload(victim)).Health_Points).toBe(7);
+  });
+
+  // a resurrected player comes back alive, on the board, and with 1 HP - not
+  // the HP they died on
+  it('a resurrected player comes back on the named tile with 1 HP', async () => {
+    const { game, layer } = await board();
+    await seedPlayer(game.Game_ID, { discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, className: 'Necromancer', Action_Points: 12 });
+    const victim = await seedPlayer(game.Game_ID, { discordId: '2', x: 2, y: 1, layerId: layer.Layer_ID, Health_Points: 2 });
+    await utils.damagePlayer(null, victim, 5);
+    expect((await reload(victim)).Dead).toBeTruthy();
+
+    const result = await resurrectLogic.run({
+      gameId: game.Game_ID, discordId: '1', targetDiscordId: '2', targetUsername: 'ghost', x: 4, y: 4, layer: null,
+    }, { models, utils });
+
+    expect(result.ok).toBe(true);
+    const back = await reload(victim);
+    expect(back.Dead).toBeFalsy();
+    expect(back.Health_Points).toBe(1);
+    const tile = await models.Tiles.findByPk(back.Tile_ID);
+    expect([tile.X_Position, tile.Y_Position]).toEqual([4, 4]);
+    await assertBoardConsistent(game.Game_ID);
   });
 
   it('a killed player is flagged dead, taken off the board, and credited', async () => {
