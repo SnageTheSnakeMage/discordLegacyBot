@@ -123,6 +123,14 @@ async function run(input, deps = defaultDeps) {
     };
   }
 
+  // charged before the attack lands: a kill credits the attacker (Leftovers AP,
+  // a Hitman or Cannibal bonus), and a charge written after it from this row
+  // would overwrite that
+  await models.Players.update(
+    { Action_Points: player.Action_Points - requiredAP },
+    { where: { Player_ID: player.Player_ID, Game_ID: gameId } },
+  );
+
   const events = [];
   for (let i = 0; i < attackPath.length; i++) {
     const px = attackPath[i][0];
@@ -184,11 +192,6 @@ async function run(input, deps = defaultDeps) {
       break;
     }
   }
-
-  await models.Players.update(
-    { Action_Points: player.Action_Points - requiredAP },
-    { where: { Player_ID: player.Player_ID, Game_ID: gameId } },
-  );
 
   return { ok: true, kind: 'shot', data: { events } };
 }
