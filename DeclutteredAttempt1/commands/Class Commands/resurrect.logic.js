@@ -5,46 +5,16 @@
  * parse/run/present per TESTING.md Part 1. run() takes plain data and a deps
  * bundle and returns a CommandResult; it never sees an interaction.
  *
- * Ported from the old execute with these fixes, each of which was a crash or
- * a write whose where-clause could never match:
- * - `models.Games.findByPk(...) ?? utils.getOldestGameId()` produced a Games
- *   ROW (or an id) and then used it as `Game_ID` in three where-clauses, so
- *   the player, the resurrectee and the layer lookup all searched for a game
- *   id that was actually a model instance and matched nothing; the game id is
- *   now resolved first and the row fetched from it
- * - getOldestGameId was called with NO argument, and that overload throws
- *   "missing playerDiscordID", so the no-game-option default always crashed;
- *   it now receives the actor's discord id like the other converted commands
- * - a missing game returns NO_SUCH_GAME and a missing player returns
- *   NOT_IN_GAME instead of crashing on player.Tile_ID
- * - `utils.commonLayerIDtoDbLayerID` does not exist on the real utils (only
- *   on the deleted __mocks__ copy), so EVERY invocation of this command threw
- *   TypeError before reaching a single check; the common-layer-number ->
- *   Layer_ID mapping is now done inline against deps.models.Layers, exactly
- *   as board.logic.js does it
- * - `player.Class` is not a column on Players, so `player.Class != "Necromancer"`
- *   was always true and the command could never get past its own class gate;
- *   the class row is now loaded via Classes.findByPk(player.Class_ID) and
- *   compared on Class_Name
- *
- * Preserved as-is (see the pinning tests):
+ * The rules:
+ * - the resurrectee comes back on the tile the caster names, with 1 HP
+ * - the layer is a 1-based layer number; an absent or out-of-range one falls
+ *   back to the caster's own layer
+ * - the tile must exist, must not be Void, Wall or Ice, and must be empty
  * - there is no dead-check on the CASTER: a dead Necromancer may resurrect
- * - the `?? playersTile.Layer_ID` fallback: an out-of-range layer number
- *   silently falls back to the caster's own layer rather than rejecting
  * - `resurrectee.Dead === 0` is a strict integer compare (Dead is an INTEGER
  *   column defaulting to 0)
- * - `{ Dead: 0 }` is written as the number 0, not false
  * - rejection order: gamestate, class, tile, target-in-game, target-dead, AP,
  *   tile type, tile occupancy
- *
- * Fixed here: the tile write claimed the Player1 slot of the resurrectee's
- * OLD tile (`where: { Tile_ID: resurrectee.Tile_ID }`) and never repointed
- * Players.Tile_ID. The comment said the body "lands back where it died", but
- * a dead player's Tile_ID is null - playerDeathLogic nulls it - so the
- * where-clause matched no row at all and the resurrectee came back alive and
- * off the board: invisible to the renderer, and refused by every command that
- * needs a tile. utils.placePlayerOnBoard now writes both halves of the
- * position and clears Dead together, onto the tile the caster asked for.
  */
 const { REJECTIONS } = require('../../enums.js');
 const { messageFor } = require('../_messages.js');
@@ -130,14 +100,12 @@ async function run(input, deps = defaultDeps) {
     return { ok: false, reason: REJECTIONS.TILE_OCCUPIED, data: { message: 'You cannot resurrect to that tile!' } };
   }
 
-  // Both halves of the position, and Dead, in one helper. The old code wrote
-  // { Dead: 0 } and then claimed a slot on `resurrectee.Tile_ID` - the
-  // resurrectee's OWN tile - without ever repointing Players.Tile_ID. A dead
-  // player's Tile_ID is null, so that where-clause matched no row: the
-  // resurrectee came back alive and off the board, invisible to the renderer
-  // and refused by every command that needs a tile. The tile the caster
-  // actually asked for is the one they land on.
+  // placePlayerOnBoard writes both halves of the position and clears Dead
+  // together, onto the tile the caster asked for: a dead player has no tile
+  // of their own to come back to
   await utils.placePlayerOnBoard(resurrectee.Player_ID, inputtedTile, { db: models });
+  // a player died at 0 HP or below, so they come back with 1
+  await models.Players.update({ Health_Points: 1 }, { where: { Player_ID: resurrectee.Player_ID } });
   await models.Players.update(
     { Action_Points: player.Action_Points - RESURRECT_COST },
     { where: { Player_ID: player.Player_ID } },

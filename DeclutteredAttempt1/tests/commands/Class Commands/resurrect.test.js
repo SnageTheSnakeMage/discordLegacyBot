@@ -270,10 +270,14 @@ describe('resurrect.run success', () => {
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Tile_ID: INPUTTED_TILE_ID, Dead: 0 }, { where: { Player_ID: 2 } },
     );
+    // they come back with 1 HP, not the 0 or less they died on
+    expect(deps.models.Players.update).toHaveBeenCalledWith(
+      { Health_Points: 1 }, { where: { Player_ID: 2 } },
+    );
     expect(deps.models.Players.update).toHaveBeenCalledWith(
       { Action_Points: 0 }, { where: { Player_ID: 1 } },
     );
-    expect(deps.models.Players.update).toHaveBeenCalledTimes(2);
+    expect(deps.models.Players.update).toHaveBeenCalledTimes(3);
     expect(deps.models.Tiles.update).toHaveBeenCalledTimes(1);
   });
 
