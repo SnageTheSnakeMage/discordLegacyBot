@@ -320,6 +320,8 @@ describe('playerDeathLogic - killer classes', () => {
   it('a Hitman killing their marked target gets 4 bonus AP with the kill', async () => {
     stubClasses({ killerClass: 'Hitman' });
     stubBoringGame();
+    // the bonus is added to the killer's current row
+    jest.spyOn(utils.models.Players, 'findByPk').mockResolvedValue(killer());
     const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
     await utils.playerDeathLogic(killer({ Hitman_Target: 20 }), victim());
     expect(update).toHaveBeenCalledWith(KILL_CREDIT, { where: { Player_ID: 10 } });
@@ -338,6 +340,7 @@ describe('playerDeathLogic - killer classes', () => {
   it('a Cannibal eating a full-AP victim gets 6 AP; otherwise 1', async () => {
     stubClasses({ killerClass: 'Cannibal' });
     stubBoringGame();
+    jest.spyOn(utils.models.Players, 'findByPk').mockResolvedValue(killer());
     const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
     await utils.playerDeathLogic(killer(), victim({ Action_Points: 10, MAX_AP: 10 }));
     expect(update).toHaveBeenCalledWith(KILL_CREDIT, { where: { Player_ID: 10 } });
@@ -364,11 +367,14 @@ describe('playerDeathLogic - killer classes', () => {
 });
 
 describe('ChaosEventDeathCheck', () => {
-  it('Leftovers gives the killer the victim missed AP, capped at MAX_AP', async () => {
+  // the killer is re-read: the row handed in predates the kill credit and the
+  // attacking command's own AP charge
+  it('Leftovers gives the killer the victim missed AP from their current row, banking overflow', async () => {
     jest.spyOn(utils.models.Games, 'findByPk').mockResolvedValue(createFakeGame({ CURR_CC_EVENT: 'Leftovers' }));
+    jest.spyOn(utils.models.Players, 'findByPk').mockResolvedValue(killer({ Action_Points: 8, MAX_AP: 11, MISSED_AP: 0 }));
     const update = jest.spyOn(utils.models.Players, 'update').mockResolvedValue([1]);
-    await utils.ChaosEventDeathCheck(1, killer({ Action_Points: 8, MAX_AP: 10 }), victim({ MISSED_AP: 5 }));
-    expect(update).toHaveBeenCalledWith({ Action_Points: 10 }, { where: { Player_ID: 10 } });
+    await utils.ChaosEventDeathCheck(1, killer({ Action_Points: 99, MAX_AP: 10 }), victim({ MISSED_AP: 5 }));
+    expect(update).toHaveBeenCalledWith({ Action_Points: 11, MISSED_AP: 2 }, { where: { Player_ID: 10 } });
   });
 
   it('Corpse Explosion damages every neighbour except the victim and runs their death logic', async () => {

@@ -140,13 +140,16 @@ async function run(input, deps = defaultDeps) {
   // sitting on a full bar.
   const damage = (targetPlayer.MISSED_AP || 0) + (targetPlayer.MISSED_HP || 0);
 
-  if (damage > 0) {
-    await utils.damagePlayer(player, targetPlayer, damage, targetBody);
-  }
+  // charged before the attack lands: a kill credits the attacker (Leftovers AP,
+  // a Hitman or Cannibal bonus), and a charge written after it from this row
+  // would overwrite that
   await models.Players.update(
     { Action_Points: player.Action_Points - REQUIRED_AP },
     { where: { Player_ID: player.Player_ID, Game_ID: gameId } },
   );
+  if (damage > 0) {
+    await utils.damagePlayer(player, targetPlayer, damage, targetBody);
+  }
 
   return {
     ok: true,

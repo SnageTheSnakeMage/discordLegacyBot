@@ -26,6 +26,46 @@ describe('shooting', () => {
     discordId: '1', targetDiscordId: '2', ...over,
   }, DEPS());
 
+  // a kill under Leftovers pays the victim's missed AP into the shooter's AP
+  // after the shot is charged and after the kill has raised MAX_AP
+  it('Leftovers pays a killing shot the victim\'s missed AP, up to the raised MAX_AP', async () => {
+    const game = await seedGame({ shootCost: 2, CURR_CC_EVENT: 'Leftovers', maxIncreaseOnKill: 1 });
+    const layer = await seedLayer(game.Game_ID, { width: 6, height: 6 });
+    const shooter = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, Action_Points: 10, MAX_AP: 10, MISSED_AP: 0, Damage: 5, Range_: 3,
+    });
+    await seedPlayer(game.Game_ID, {
+      discordId: '2', x: 3, y: 1, layerId: layer.Layer_ID, Health_Points: 1, MISSED_AP: 5,
+    });
+
+    const result = await shoot(game);
+
+    expect(result.ok).toBe(true);
+    const after = await models.Players.findByPk(shooter.Player_ID);
+    // 10 - 2 for the shot = 8, + 5 leftovers = 13, against MAX_AP 10 + 1 = 11
+    expect(after.MAX_AP).toBe(11);
+    expect(after.Action_Points).toBe(11);
+    expect(after.MISSED_AP).toBe(2);
+    await assertBoardConsistent(game.Game_ID);
+  });
+
+  // a kill bonus lands on top of the shot's charge, not on the row from
+  // before it
+  it('a Hitman killing their target pays for the shot and still gets the bonus', async () => {
+    const game = await seedGame({ shootCost: 2 });
+    const layer = await seedLayer(game.Game_ID, { width: 6, height: 6 });
+    const hitman = await seedPlayer(game.Game_ID, {
+      discordId: '1', x: 1, y: 1, layerId: layer.Layer_ID, className: 'Hitman', Action_Points: 6, Damage: 5, Range_: 3,
+    });
+    const target = await seedPlayer(game.Game_ID, { discordId: '2', x: 3, y: 1, layerId: layer.Layer_ID, Health_Points: 1 });
+    await hitman.update({ Hitman_Target: target.Player_ID });
+
+    await shoot(game);
+
+    // 6 - 2 for the shot + 4 for the mark
+    expect((await models.Players.findByPk(hitman.Player_ID)).Action_Points).toBe(8);
+  });
+
   it('damages the target and charges the shooter', async () => {
     const { game, layer } = await board();
     const shooter = await seedPlayer(game.Game_ID, {

@@ -98,17 +98,20 @@ async function run(input, deps = defaultDeps) {
   const perStab = Math.min(player.Damage * (player.DMG_BUFF + 1) * 2, player.MAX_DAMAGE);
   const appliedDamage = amount * perStab;
 
+  // charged before the attack lands: a kill credits the attacker (Leftovers AP,
+  // a Hitman or Cannibal bonus), and a charge written after it from this row
+  // would overwrite that
+  await models.Players.update(
+    { Action_Points: player.Action_Points - requiredAP },
+    { where: { Player_ID: player.Player_ID, Game_ID: gameId } },
+  );
+
   await utils.damagePlayer(player, targetPlayer, appliedDamage);
 
   // if there was a DMG buff make sure to reset it
   if (player.DMG_BUFF > 0) {
     await models.Players.update({ DMG_BUFF: 0 }, { where: { Player_ID: player.Player_ID, Game_ID: gameId } });
   }
-
-  await models.Players.update(
-    { Action_Points: player.Action_Points - requiredAP },
-    { where: { Player_ID: player.Player_ID, Game_ID: gameId } },
-  );
 
   return {
     ok: true,

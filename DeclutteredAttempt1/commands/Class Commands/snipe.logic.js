@@ -139,6 +139,14 @@ async function run(input, deps = defaultDeps) {
   const collateralDamage = 1 * player.Damage * (player.DMG_BUFF + 1);
   const targetDamage = amount * player.Damage * (player.DMG_BUFF + 1);
 
+  // charged before the attack lands: a kill credits the attacker (Leftovers AP,
+  // a Hitman or Cannibal bonus), and a charge written after it from this row
+  // would overwrite that
+  await models.Players.update(
+    { Action_Points: player.Action_Points - requiredAP },
+    { where: { Player_ID: player.Player_ID, Game_ID: game.Game_ID } },
+  );
+
   const events = [];
   for (let i = 0; i < attackPath.length; i++) {
     const px = attackPath[i][0];
@@ -231,11 +239,6 @@ async function run(input, deps = defaultDeps) {
       );
     }
   }
-
-  await models.Players.update(
-    { Action_Points: player.Action_Points - requiredAP },
-    { where: { Player_ID: player.Player_ID, Game_ID: game.Game_ID } },
-  );
 
   return { ok: true, kind: 'sniped', data: { events } };
 }

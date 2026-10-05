@@ -1638,12 +1638,26 @@ async  getOldestGamestateGameId(playerDiscordID, gamestate) {
   return games[games.length - 1].Game_ID;
 },
 
+//A Hitman's or Cannibal's AP for a kill, added to the killer's current row:
+//the one handed in predates the attacking command's own AP charge, and adding
+//to it would hand that charge back.
+async killBonusAP(killer, amount) {
+  const current = (await models.Players.findByPk(killer.Player_ID)) || killer;
+  await models.Players.update({Action_Points: current.Action_Points + amount}, {where: {Player_ID: killer.Player_ID}});
+},
+
 async ChaosEventDeathCheck(gameId, killer, victim) {
   var game = await models.Games.findByPk(gameId);
   switch(game.CURR_CC_EVENT) {
-    case "Leftovers":
-      await models.Players.update({Action_Points: Math.min(killer.Action_Points + victim.MISSED_AP, killer.MAX_AP)}, {where: {Player_ID: killer.Player_ID}});
+    //the killer's row is read here: the kill credit has just raised their
+    //MAX_AP, and the command that made the kill may have charged them since
+    //the row it handed in was read. Overflow past MAX_AP banks like any gain.
+    case "Leftovers": {
+      const current = await models.Players.findByPk(killer.Player_ID);
+      if (!current) break;
+      await models.Players.update(this.apGain(current, victim.MISSED_AP || 0), {where: {Player_ID: killer.Player_ID}});
       break;
+    }
     case "Corpse Explosion":
       var playersToHurt = [] 
       var surroundingSquares = await this.getSurroundingTiles(victim.Player_ID, victim.Tile_ID)
@@ -1857,8 +1871,10 @@ async playerDeathLogic(killer, victim) {
     var victimTile = await models.Tiles.findByPk(victim.Tile_ID)
     await this.removePlayerFromTile(victim.Player_ID, victimTile.Layer_ID, victimTile.X_Position, victimTile.Y_Position)
     await models.Players.update({Tile_ID: null, Dead: true}, {where: {Player_ID: victim.Player_ID}});
-    await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
+    //the kill credit first: chaos events that pay out on a kill pay into the
+    //maximums it has just raised
     await this.attributeKill(killer);
+    await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
     return
   }
 
@@ -1981,7 +1997,7 @@ async playerDeathLogic(killer, victim) {
       case "Hitman":
         if(killer.Hitman_Target == victim.Player_ID ){
           await this.attributeKill(killer);
-          await models.Players.update({Action_Points: killer.Action_Points + 4}, {where: {Player_ID: killer.Player_ID}});
+          await this.killBonusAP(killer, 4);
           await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return
         }
@@ -1995,12 +2011,12 @@ async playerDeathLogic(killer, victim) {
       case "Cannibal":
         if(victim.Action_Points == victim.MAX_AP){
           await this.attributeKill(killer);
-          await models.Players.update({Action_Points: killer.Action_Points + 6}, {where: {Player_ID: killer.Player_ID}});
+          await this.killBonusAP(killer, 6);
           await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return
         }else {
           await this.attributeKill(killer);
-          await models.Players.update({Action_Points: killer.Action_Points + 1}, {where: {Player_ID: killer.Player_ID}});
+          await this.killBonusAP(killer, 1);
           await this.ChaosEventDeathCheck(victim.Game_ID, killer, victim);
           return
         }
