@@ -128,9 +128,14 @@ const REJECTIONS = Object.freeze({
   BOARD_IN_USE: "BOARD_IN_USE",
 })
 
+//the first council answer is the standing event, labelled with this. The
+//label is for voters only: CURR_CC_EVENT holds the bare enum key.
+const PREVIOUS_EVENT_PREFIX = "previous event: "
+
 module.exports = {
   GAMESTATES,
   GAME_FLAGS,
   ChaosEvents,
   REJECTIONS,
+  PREVIOUS_EVENT_PREFIX,
 }

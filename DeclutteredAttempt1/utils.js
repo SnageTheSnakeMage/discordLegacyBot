@@ -20,10 +20,7 @@ var GAMESTATES = require('./enums.js').GAMESTATES;
 var REJECTIONS = require('./enums.js').REJECTIONS;
 const ChaosEvents = require('./enums.js').ChaosEvents;
 const APCHECKINTERVAL_SECONDS = 30;
-//the first council answer is the standing event, labelled. Kept here because
-//buildChaosCouncilDescriptions has to strip it back off to find the event in
-//the ChaosEvents enum.
-const PREVIOUS_EVENT_PREFIX = "previous event: ";
+const PREVIOUS_EVENT_PREFIX = require('./enums.js').PREVIOUS_EVENT_PREFIX;
 //discord rejects a message body over 2000 characters
 const DISCORD_MESSAGE_LIMIT = 2000;
 //the live AP check interval per Game_ID. startAPCheckInterval is now called
@@ -393,9 +390,7 @@ buildChaosCouncilDescriptions(poll){
   const lines = [];
   for (const answer of answers) {
     const label = String(answer && answer.text != null ? answer.text : "");
-    //the standing event is labelled "previous event: X"; the enum is keyed by
-    //the bare name
-    const key = label.startsWith(PREVIOUS_EVENT_PREFIX) ? label.slice(PREVIOUS_EVENT_PREFIX.length) : label;
+    const key = this.chaosEventKey(label);
     //an event that is in the poll but not the enum is a bug, not a reason to
     //post nothing
     lines.push(`**${label}**\n${ChaosEvents[key] || "No description available."}`);
@@ -405,6 +400,17 @@ buildChaosCouncilDescriptions(poll){
   return body.length > DISCORD_MESSAGE_LIMIT
     ? body.slice(0, DISCORD_MESSAGE_LIMIT - 3) + "..."
     : body;
+},
+
+//A poll answer's label back to the ChaosEvents key it stands for: the
+//standing event is labelled "previous event: X", and the enum, CURR_CC_EVENT
+//and every check against it use the bare X. Strips the prefix however many
+//times it is stacked.
+chaosEventKey(label){
+  if (label == null) return label;
+  let key = String(label);
+  while (key.startsWith(PREVIOUS_EVENT_PREFIX)) key = key.slice(PREVIOUS_EVENT_PREFIX.length);
+  return key;
 },
 
 //Picks the winning answer from already-fetched votes. Pure on purpose: the
@@ -527,9 +533,16 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
     chaosTimes = await this.finaleTick(game, chaosTimes);
   }
   //Close out the chaos council poll from the last interval, if there is one.
+  //This distribution's effects belong to the event that ran during the
+  //interval it closes, so the in-memory row keeps that event until the next
+  //poll is built.
+  let newChaosEvent = null;
   if (runChaosPoll && game.chaosCouncilBool && game.currentChaosPollMsgId && game.deadChatChannelId ) {
-    const winner = await this.readChaosCouncilPoll(game, client);
-    if (winner) await models.Games.update({CURR_CC_EVENT: winner}, {where: {Game_ID: game.Game_ID}});
+    const winner = this.chaosEventKey(await this.readChaosCouncilPoll(game, client));
+    if (winner) {
+      await models.Games.update({CURR_CC_EVENT: winner}, {where: {Game_ID: game.Game_ID}});
+      newChaosEvent = winner;
+    }
     await models.Games.update({currentChaosPollMsgId: null}, {where: {Game_ID: game.Game_ID}});
   }
 
@@ -596,6 +609,8 @@ async distributeAP(game, times, client, { runChaosPoll = true } = {}){
   //Open the next council poll. Same story: client.channel.cache does not
   //exist (it is client.channels.cache), and the id was assigned to the
   //in-memory row inside a .then, after the save below had already run.
+  //The poll offers the event now in force as the standing one.
+  if (newChaosEvent) game.CURR_CC_EVENT = newChaosEvent;
   if (runChaosPoll && game.chaosCouncilBool && game.deadChatChannelId && areThereDeadPlayers == true ) {
     await this.postChaosCouncilPoll(game, client);
   }

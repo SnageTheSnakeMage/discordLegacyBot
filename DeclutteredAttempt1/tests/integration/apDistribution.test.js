@@ -100,6 +100,52 @@ describe('distributeAP', () => {
     expect(after.GAME_STATE).toBe(GAMESTATES.ACTIVE);
   });
 
+  describe('the chaos council', () => {
+    // one open poll whose answers carry these voters; send records the next
+    // poll and replies with its message id
+    function councilClient(votesByLabel) {
+      const sent = [];
+      const answers = new Map(Object.entries(votesByLabel).map(([text, ids], i) => [i, {
+        text, fetchVoters: async () => new Map(ids.map((id) => [id, { id }])),
+      }]));
+      const channel = {
+        messages: { fetch: async () => ({ poll: { answers } }) },
+        send: async (message) => { sent.push(message); return { id: String(900 + sent.length) }; },
+      };
+      return { sent, client: { channels: { fetch: async () => channel } } };
+    }
+
+    async function seedCouncil(event) {
+      const { game, layer } = await seedPopulatedGame({
+        CURR_CC_EVENT: event, chaosCouncilBool: true, deadChatChannelId: '77', currentChaosPollMsgId: '800',
+      });
+      const voter = await seedPlayer(game.Game_ID, { discordId: '555', x: 1, y: 1, layerId: layer.Layer_ID });
+      await utils.clearPlayerFromBoard(voter.Player_ID, voter.Tile_ID, 'Tile_ID');
+      await models.Players.update({ Dead: true }, { where: { Player_ID: voter.Player_ID } });
+      return models.Games.findByPk(game.Game_ID);
+    }
+
+    it('offers the event that just won as the standing one in the next poll', async () => {
+      const game = await seedCouncil('Blockade');
+      const { sent, client } = councilClient({ 'previous event: Blockade': [], Leftovers: ['555'], 'Free Movement': [] });
+
+      await utils.distributeAP(game, 1, client);
+
+      expect((await models.Games.findByPk(game.Game_ID)).CURR_CC_EVENT).toBe('Leftovers');
+      expect(sent[0].poll.answers[0].text).toBe('previous event: Leftovers');
+    });
+
+    it('keeps the standing event under its own name when the council votes for it', async () => {
+      const game = await seedCouncil('Leftovers');
+      const { sent, client } = councilClient({ 'previous event: Leftovers': ['555'], Blockade: [], 'Free Movement': [] });
+
+      await utils.distributeAP(game, 1, client);
+
+      expect((await models.Games.findByPk(game.Game_ID)).CURR_CC_EVENT).toBe('Leftovers');
+      expect(sent[0].poll.answers[0].text).toBe('previous event: Leftovers');
+    });
+  });
+
   describe('heals everyone standing on a Heal tile', () => {
 
     const reload = (player) => models.Players.findByPk(player.Player_ID);

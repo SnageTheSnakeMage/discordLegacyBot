@@ -34,6 +34,7 @@ const path = require('path');
 const fs = require('fs');
 const { Sequelize } = require('sequelize');
 const initModels = require('../database/init-models.js');
+const { PREVIOUS_EVENT_PREFIX } = require('../enums.js');
 
 const SEED = path.join(__dirname, '..', 'database', 'seed', 'classes.csv');
 
@@ -199,6 +200,29 @@ async function addMissingGameColumns({ sequelize }) {
   return { added: missing };
 }
 
+/**
+ * Strips the poll label "previous event: " off any game's CURR_CC_EVENT, as
+ * many times as it is stacked. The label is for voters; an event stored with
+ * it matches no chaos event, so the game silently has none in play.
+ *
+ * Safe on every start: a bare event name is left alone, so a second pass
+ * finds nothing to change.
+ */
+async function stripChaosEventPrefixes({ sequelize }) {
+  const prefixed = 'substr(CURR_CC_EVENT, 1, :length) = :prefix';
+  const replacements = { prefix: PREVIOUS_EVENT_PREFIX, length: PREVIOUS_EVENT_PREFIX.length };
+  const [games] = await sequelize.query(
+    `SELECT Game_ID, CURR_CC_EVENT FROM Games WHERE ${prefixed}`, { replacements });
+  for (const game of games) {
+    let event = game.CURR_CC_EVENT;
+    while (event.startsWith(PREVIOUS_EVENT_PREFIX)) event = event.slice(PREVIOUS_EVENT_PREFIX.length);
+    await sequelize.query('UPDATE Games SET CURR_CC_EVENT = :event WHERE Game_ID = :id',
+      { replacements: { event, id: game.Game_ID } });
+    console.log(`[bootstrap] game ${game.Game_ID}: CURR_CC_EVENT ${JSON.stringify(game.CURR_CC_EVENT)} -> ${JSON.stringify(event)}`);
+  }
+  return { fixed: games.map((g) => g.Game_ID) };
+}
+
 async function bootstrap() {
   const storage = process.env.LEGACY_DB_STORAGE || './database/database.db';
   const sequelize = new Sequelize({
@@ -216,6 +240,7 @@ async function bootstrap() {
     // columns existed needs them added by hand
     await migrateGameFlags({ sequelize, models });
     await addMissingGameColumns({ sequelize });
+    await stripChaosEventPrefixes({ sequelize });
 
     const existing = await models.Classes.count();
     if (existing > 0) {
@@ -285,7 +310,7 @@ async function syncClasses({ dryRun = false, models: injected = null } = {}) {
   }
 }
 
-module.exports = { parseCsv, readSeed, syncClasses, migrateGameFlags, addMissingGameColumns };
+module.exports = { parseCsv, readSeed, syncClasses, migrateGameFlags, addMissingGameColumns, stripChaosEventPrefixes };
 
 if (require.main === module) {
   const argv = process.argv.slice(2);
